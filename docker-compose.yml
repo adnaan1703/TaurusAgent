@@ -7,7 +7,10 @@ services:
       TAURUS_MODE: paper
       LIVE_TRADING_ENABLED: "false"
       BROKER_PROVIDER: paper
+      DATABASE_URL: postgresql+psycopg://taurus:taurus@postgres:5432/taurus
       TAURUS_LLM_PROVIDER: mock
+      TAURUS_MOCK_SEED: "42"
+      TAURUS_MOCK_CANDLE_COUNT: "252"
       TAURUS_INITIAL_CAPITAL_INR: "1000000"
       TAURUS_MAX_POSITION_PCT: "5"
       TAURUS_MAX_OPEN_POSITIONS: "8"

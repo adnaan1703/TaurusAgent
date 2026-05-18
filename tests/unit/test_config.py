@@ -13,6 +13,9 @@ def test_default_settings_are_safe() -> None:
     assert settings.taurus_mode == "paper"
     assert settings.live_trading_enabled is False
     assert settings.broker_provider == "paper"
+    assert settings.database_url == "sqlite:///./taurus.db"
+    assert settings.taurus_mock_seed == 42
+    assert settings.taurus_mock_candle_count == 252
     assert settings.taurus_llm_provider == "mock"
     assert settings.taurus_initial_capital_inr == 1_000_000
     assert settings.taurus_max_position_pct == 5
@@ -37,3 +40,12 @@ def test_secret_values_are_redacted(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
 
     assert Settings().safe_dict()["openai_api_key"] == "***REDACTED***"
+
+
+def test_database_url_password_is_redacted() -> None:
+    settings = Settings(database_url="postgresql+psycopg://taurus:secret@localhost:5432/taurus")
+
+    assert (
+        settings.safe_dict()["database_url"]
+        == "postgresql+psycopg://taurus:***REDACTED***@localhost:5432/taurus"
+    )

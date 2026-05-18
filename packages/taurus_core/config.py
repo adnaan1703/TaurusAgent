@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 from typing import Any
+from urllib.parse import urlsplit, urlunsplit
 
 from pydantic import Field, ValidationError, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -15,6 +16,7 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
+        populate_by_name=True,
     )
 
     service_name: str = "taurus-api"
@@ -27,9 +29,19 @@ class Settings(BaseSettings):
         validation_alias="LIVE_TRADING_ENABLED",
     )
     broker_provider: str = Field(default="paper", validation_alias="BROKER_PROVIDER")
+    database_url: str = Field(
+        default="sqlite:///./taurus.db",
+        validation_alias="DATABASE_URL",
+    )
 
     taurus_universe: str = Field(default="NIFTY_100", validation_alias="TAURUS_UNIVERSE")
     taurus_timeframe: str = Field(default="1d", validation_alias="TAURUS_TIMEFRAME")
+    taurus_mock_seed: int = Field(default=42, validation_alias="TAURUS_MOCK_SEED")
+    taurus_mock_candle_count: int = Field(
+        default=252,
+        ge=252,
+        validation_alias="TAURUS_MOCK_CANDLE_COUNT",
+    )
     taurus_initial_capital_inr: int = Field(
         default=1_000_000,
         gt=0,
@@ -57,13 +69,13 @@ class Settings(BaseSettings):
     upstox_redirect_uri: str = Field(default="", validation_alias="UPSTOX_REDIRECT_URI")
 
     @model_validator(mode="after")
-    def enforce_m0_safety(self) -> Settings:
+    def enforce_trading_safety(self) -> Settings:
         if self.taurus_mode not in {"paper", "backtest"}:
-            raise ValueError("M0 supports only paper or backtest modes.")
+            raise ValueError("Taurus currently supports only paper or backtest modes.")
         if self.live_trading_enabled:
-            raise ValueError("Live trading is disabled in M0 and cannot be enabled.")
+            raise ValueError("Live trading is disabled and cannot be enabled.")
         if self.broker_provider != "paper":
-            raise ValueError("M0 supports only the paper broker provider.")
+            raise ValueError("Taurus currently supports only the paper broker provider.")
         if self.taurus_llm_provider not in {"mock", "lmstudio", "openai"}:
             raise ValueError("Unsupported Taurus LLM provider.")
         return self
@@ -80,7 +92,27 @@ class Settings(BaseSettings):
         ):
             if redacted.get(key):
                 redacted[key] = "***REDACTED***"
+        redacted["database_url"] = _redact_url_password(self.database_url)
         return redacted
+
+
+def _redact_url_password(value: str) -> str:
+    parsed = urlsplit(value)
+    if parsed.password is None:
+        return value
+    username = parsed.username or ""
+    hostname = parsed.hostname or ""
+    port = f":{parsed.port}" if parsed.port is not None else ""
+    userinfo = f"{username}:***REDACTED***@" if username else ""
+    return urlunsplit(
+        (
+            parsed.scheme,
+            f"{userinfo}{hostname}{port}",
+            parsed.path,
+            parsed.query,
+            parsed.fragment,
+        )
+    )
 
 
 @lru_cache(maxsize=1)

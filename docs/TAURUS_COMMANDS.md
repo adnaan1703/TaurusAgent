@@ -21,6 +21,20 @@ docker compose logs --no-color api
 open -a Docker
 ```
 
+## M1 Commands Used
+
+```bash
+make setup
+make dev-up
+make migrate
+make seed-mock
+make lint
+make test
+curl http://localhost:8000/ready
+curl http://localhost:8000/data/instruments
+curl "http://localhost:8000/data/candles?symbol=INFY&timeframe=1d"
+```
+
 ## Current Make Targets
 
 ```bash
@@ -28,6 +42,8 @@ make setup
 make dev-up
 make dev-down
 make api
+make migrate
+make seed-mock
 make test
 make lint
 ```
@@ -113,6 +129,7 @@ prefix_rule(pattern=["make", "lint"], decision="allow")
 prefix_rule(pattern=["make", "dev-up"], decision="allow")
 prefix_rule(pattern=["make", "dev-down"], decision="allow")
 prefix_rule(pattern=["make", "api"], decision="allow")
+prefix_rule(pattern=["uv", "run"], decision="allow")
 prefix_rule(pattern=["make", "migrate"], decision="allow")
 prefix_rule(pattern=["make", "seed-mock"], decision="allow")
 prefix_rule(pattern=["make", "backtest-mock"], decision="allow")
@@ -143,6 +160,20 @@ prefix_rule(pattern=["pkill", "-f", "uvicorn apps.api.main:app"], decision="allo
 prefix_rule(pattern=["curl", "http://localhost:8000/health"], decision="allow")
 prefix_rule(pattern=["curl", "http://localhost:8000/ready"], decision="allow")
 prefix_rule(pattern=["curl", "http://localhost:8000/metrics"], decision="allow")
+prefix_rule(pattern=["curl", "http://localhost:8000/data/instruments"], decision="allow")
+prefix_rule(pattern=["curl", "http://localhost:8000/data/candles?symbol=INFY&timeframe=1d"], decision="allow")
 ```
 
-Do not broadly allow `python`, `python3`, `uv`, `rm`, or unconstrained shell commands. Keep destructive commands manually approved.
+Do not broadly allow `python`, `python3`, `uv`, `rm`, unconstrained shell commands, or bare `curl`. Keep destructive commands manually approved.
+
+Codex prefix rules match argv tokens, not URL substrings. A rule such as `prefix_rule(pattern=["curl", "http://localhost:8000"], decision="allow")` does not cover `curl http://localhost:8000/health`, because the URL with its path is a different argv token. To avoid approving every endpoint one by one, prefer adding a project `make` smoke target for grouped API checks and allow that target. Use explicit `curl` rules only for stable one-off endpoints.
+
+## Milestone Cleanup Rule
+
+At the end of every milestone, inspect the global Codex rules file:
+
+```text
+/Users/adnaan/.codex/rules/default.rules
+```
+
+Only entries after the user's `# END MY CUSTOM ADDITION` marker should be treated as accidental approvals from Taurus work. Move any Taurus-specific allow prefixes from that section into `.codex/rules/default.rules` if they are missing, document them in this file, and remove them from the global rules file. Do not move unrelated global approvals into this project.

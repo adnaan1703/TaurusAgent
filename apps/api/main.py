@@ -4,8 +4,10 @@ import time
 
 from fastapi import FastAPI, Request
 
+from apps.api.routes_data import router as data_router
 from apps.api.routes_health import router as health_router
 from taurus_core.config import Settings, get_settings
+from taurus_core.db.session import build_session_factory
 from taurus_core.logging import configure_logging, get_logger
 from taurus_core.observability.metrics import configure_runtime_metrics, record_request
 
@@ -18,10 +20,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(
         title="Taurus API",
         version=settings.service_version,
-        description="M0 foundation API for Project Taurus.",
+        description="Taurus paper-trading-first API.",
     )
     app.state.settings = settings
+    app.state.session_factory = build_session_factory(settings)
     app.include_router(health_router)
+    app.include_router(data_router)
 
     logger = get_logger(__name__)
     logger.info(

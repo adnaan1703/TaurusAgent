@@ -19,7 +19,7 @@ Status legend:
 | Milestone | Status | Title | User input | External keys |
 |---|---|---|---|---|
 | M0 | Done | Project foundation | No | No |
-| M1 | Not started | Mock data and database foundation | No | No |
+| M1 | Done | Mock data and database foundation | No | No |
 | M2 | Not started | Backtesting skeleton | No | No |
 | M3 | Not started | Strategy engine and technical indicators | No | No |
 | M4 | Not started | Intelligence foundation and analyst reports | Optional | Optional |
@@ -81,32 +81,32 @@ Notes:
 
 ## M1 - Mock Data And Database Foundation
 
-Status: Not started
+Status: Done
 
 Objective: Database schema, domain models, deterministic mock instruments and candles.
 
 Tasks:
 
-- [ ] Add database models and repositories.
-- [ ] Add migrations.
-- [ ] Add deterministic mock market data provider.
-- [ ] Add `seed_mock_data` script.
-- [ ] Add data API endpoints.
+- [x] Add database models and repositories.
+- [x] Add migrations.
+- [x] Add deterministic mock market data provider.
+- [x] Add `seed_mock_data` script.
+- [x] Add data API endpoints.
 
 Verification:
 
-- [ ] `make dev-up`
-- [ ] `make migrate`
-- [ ] `make seed-mock`
-- [ ] `make test`
-- [ ] `curl http://localhost:8000/data/instruments`
+- [x] `make dev-up`
+- [x] `make migrate`
+- [x] `make seed-mock`
+- [x] `make test`
+- [x] `curl http://localhost:8000/data/instruments`
 
 Acceptance:
 
-- [ ] At least 10 mock instruments exist.
-- [ ] At least 252 daily candles per instrument exist.
-- [ ] Mock data seeding is deterministic.
-- [ ] API returns instruments and candles.
+- [x] At least 10 mock instruments exist.
+- [x] At least 252 daily candles per instrument exist.
+- [x] Mock data seeding is deterministic.
+- [x] API returns instruments and candles.
 
 ## M2 - Backtesting Skeleton
 

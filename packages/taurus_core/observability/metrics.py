@@ -12,7 +12,7 @@ APP_INFO = Gauge(
 
 LIVE_TRADING_ENABLED = Gauge(
     "taurus_live_trading_enabled",
-    "Whether live trading is enabled. M0 must always report 0.",
+    "Whether live trading is enabled. This must report 0 until live trading is explicitly approved.",
 )
 
 HTTP_REQUESTS = Counter(
