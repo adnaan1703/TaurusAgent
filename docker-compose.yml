@@ -1,0 +1,62 @@
+services:
+  api:
+    build:
+      context: .
+    environment:
+      TAURUS_ENV: local
+      TAURUS_MODE: paper
+      LIVE_TRADING_ENABLED: "false"
+      BROKER_PROVIDER: paper
+      TAURUS_LLM_PROVIDER: mock
+      TAURUS_INITIAL_CAPITAL_INR: "1000000"
+      TAURUS_MAX_POSITION_PCT: "5"
+      TAURUS_MAX_OPEN_POSITIONS: "8"
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+      - redis
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: taurus
+      POSTGRES_USER: taurus
+      POSTGRES_PASSWORD: taurus
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  prometheus:
+    image: prom/prometheus:latest
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    depends_on:
+      - api
+
+  grafana:
+    image: grafana/grafana-oss:latest
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+
+volumes:
+  postgres_data:
+  grafana_data:

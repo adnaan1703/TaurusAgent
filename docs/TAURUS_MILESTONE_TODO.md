@@ -1,0 +1,581 @@
+# Taurus Milestone TODO
+
+Source of truth:
+
+- `docs/TAURUS_MVP_SPEC_v0_3.md`
+- `docs/TAURUS_CODEX_TASKS_v0_3.yaml`
+
+Last updated: 2026-05-18 20:55 IST
+
+Status legend:
+
+- `[x]` Done and verified
+- `[ ]` Not started
+- `[~]` In progress or partial
+- `[!]` Blocked or needs user input
+
+## Summary
+
+| Milestone | Status | Title | User input | External keys |
+|---|---|---|---|---|
+| M0 | Done | Project foundation | No | No |
+| M1 | Not started | Mock data and database foundation | No | No |
+| M2 | Not started | Backtesting skeleton | No | No |
+| M3 | Not started | Strategy engine and technical indicators | No | No |
+| M4 | Not started | Intelligence foundation and analyst reports | Optional | Optional |
+| M5 | Not started | Bull/Bear debate and trader proposal | No | Optional |
+| M6 | Not started | Risk committee and fund manager approval | No | No |
+| M7 | Not started | PaperBroker execution simulator | No | No |
+| M8 | Not started | Dashboard and observability v1 | No | No |
+| M9 | Not started | Screener fundamentals import | Screener CSV required | No |
+| M10 | Not started | Real market data provider | CSV/provider decision required | Maybe |
+| M11 | Not started | Continuous paper trading | Schedule assumptions required | Maybe |
+| M12 | Not started | Telegram alerts, replay, backup, hardening | Telegram details optional | Optional |
+| M13 | Not started | Broker sandbox adapter | Sandbox details required | Yes |
+| M14 | Not started | Live-readiness gate | Broker/compliance approval required | Yes |
+| M15 | Not started | Taurus MVP release | Depends | Depends |
+
+## M0 - Project Foundation
+
+Status: Done
+
+Objective: Repo scaffold, config, FastAPI health endpoints, Docker Compose, tests, and metrics endpoint.
+
+Tasks:
+
+- [x] Create repository structure from v0.3 spec.
+- [x] Add `pyproject.toml`, `Makefile`, `.env.example`, `README.md`.
+- [x] Add FastAPI app with `/health`, `/ready`, `/metrics`.
+- [x] Add Docker Compose for Postgres, Redis, Prometheus, Grafana.
+- [x] Add JSON logging and config loader.
+- [x] Add pytest setup and health tests.
+- [x] Ensure `LIVE_TRADING_ENABLED` defaults to false.
+- [x] Add project-local Codex command approvals in `.codex/rules/default.rules`.
+- [x] Add command reference in `docs/TAURUS_COMMANDS.md`.
+
+Verification:
+
+- [x] `make setup`
+- [x] `make dev-up`
+- [x] `make test`
+- [x] `make lint`
+- [x] `make api`
+- [x] `curl http://localhost:8000/health`
+- [x] `curl http://localhost:8000/ready`
+- [x] `curl http://localhost:8000/metrics`
+- [x] `make dev-down`
+
+Acceptance:
+
+- [x] Tests pass.
+- [x] Health endpoints respond.
+- [x] Metrics endpoint exists.
+- [x] No API keys required.
+- [x] No live trading code path enabled.
+
+Notes:
+
+- Verified `7 passed`.
+- `/metrics` includes `taurus_live_trading_enabled 0.0`.
+- Config rejects `LIVE_TRADING_ENABLED=true` and non-paper broker providers in M0.
+
+## M1 - Mock Data And Database Foundation
+
+Status: Not started
+
+Objective: Database schema, domain models, deterministic mock instruments and candles.
+
+Tasks:
+
+- [ ] Add database models and repositories.
+- [ ] Add migrations.
+- [ ] Add deterministic mock market data provider.
+- [ ] Add `seed_mock_data` script.
+- [ ] Add data API endpoints.
+
+Verification:
+
+- [ ] `make dev-up`
+- [ ] `make migrate`
+- [ ] `make seed-mock`
+- [ ] `make test`
+- [ ] `curl http://localhost:8000/data/instruments`
+
+Acceptance:
+
+- [ ] At least 10 mock instruments exist.
+- [ ] At least 252 daily candles per instrument exist.
+- [ ] Mock data seeding is deterministic.
+- [ ] API returns instruments and candles.
+
+## M2 - Backtesting Skeleton
+
+Status: Not started
+
+Objective: First full mock backtest with metrics, orders, fills, positions, and reports.
+
+Tasks:
+
+- [ ] Build event-driven backtest loop.
+- [ ] Implement mock momentum strategy.
+- [ ] Add cost and slippage model.
+- [ ] Store backtest run objects.
+- [ ] Compute total return, CAGR, Sharpe, Sortino, max drawdown, win rate, profit factor.
+- [ ] Add `run_backtest` script.
+
+Verification:
+
+- [ ] `make backtest-mock`
+- [ ] `make test`
+
+Acceptance:
+
+- [ ] Backtest prints a `run_id`.
+- [ ] Metrics JSON is generated.
+- [ ] Equity curve is stored.
+- [ ] Signals, orders, fills, positions, and audit rows exist.
+- [ ] Re-running with the same seed gives the same output.
+
+## M3 - Strategy Engine And Technical Indicators
+
+Status: Not started
+
+Objective: Configurable technical strategies and feature store.
+
+Tasks:
+
+- [ ] Implement SMA, EMA, RSI, ATR, returns, volatility, volume z-score.
+- [ ] Add moving average crossover strategy.
+- [ ] Add blended score strategy.
+- [ ] Add YAML strategy configs.
+- [ ] Store feature values with data availability timestamps.
+- [ ] Add signal explanations.
+
+Verification:
+
+- [ ] `make test`
+- [ ] `make backtest-mock STRATEGY=configs/strategies/moving_average_crossover_v1.yaml`
+- [ ] `make backtest-mock STRATEGY=configs/strategies/blended_score_v1.yaml`
+
+Acceptance:
+
+- [ ] Indicator tests pass on fixed data.
+- [ ] Strategies produce explained signals.
+- [ ] Feature store rows include `data_available_time`.
+- [ ] No look-ahead data is used.
+
+## M4 - Intelligence Foundation And Analyst Reports
+
+Status: Not started
+
+Objective: Add news/sentiment/LLM foundation plus TradingAgents-style analyst agents.
+
+User inputs:
+
+- Optional sample news/events CSV or JSON.
+- Optional LM Studio model name if testing local LLM.
+- Optional OpenAI API key if testing OpenAI provider.
+- Optional allowed source list for real news later.
+
+Tasks:
+
+- [ ] Build `DocumentProvider` and `NewsProvider` interfaces.
+- [ ] Add `MockNewsProvider`.
+- [ ] Add `raw_documents`, `company_events`, `sentiment_scores`, `analyst_reports` tables.
+- [ ] Add ticker/entity resolver.
+- [ ] Add deterministic rule-based fallback sentiment scoring.
+- [ ] Add `LLMProvider` interface with mock, LM Studio, and OpenAI providers.
+- [ ] Add Pydantic schemas for LLM output.
+- [ ] Implement `TechnicalAnalystAgent`.
+- [ ] Implement `NewsAnalystAgent`.
+- [ ] Implement `SentimentAnalystAgent`.
+- [ ] Implement `FundamentalsAnalystAgent` with mock fundamentals initially.
+- [ ] Add time-decayed event features.
+- [ ] Add event and agent-report API endpoints.
+
+Verification:
+
+- [ ] `make import-mock-news`
+- [ ] `make run-analysts-mock SYMBOL=INFY`
+- [ ] `make test`
+- [ ] `curl http://localhost:8000/events`
+- [ ] `curl http://localhost:8000/agent-reports`
+- [ ] Optional: `TAURUS_LLM_PROVIDER=lmstudio TAURUS_LLM_BASE_URL=http://localhost:1234/v1 make llm-smoke`
+
+Acceptance:
+
+- [ ] Mock news imports successfully.
+- [ ] Events map to symbols.
+- [ ] Sentiment/event scores are stored.
+- [ ] Analyst reports are stored for at least one symbol.
+- [ ] LLM output is schema-validated.
+- [ ] LLM failures do not crash the pipeline.
+- [ ] Analyst agents cannot create or approve orders.
+
+## M5 - Bull/Bear Debate And Trader Proposal
+
+Status: Not started
+
+Objective: Implement bull/bear researcher debate, research manager summary, and structured trader proposal.
+
+Tasks:
+
+- [ ] Implement `BullResearcherAgent`.
+- [ ] Implement `BearResearcherAgent`.
+- [ ] Implement `ResearchManagerAgent`.
+- [ ] Implement `ResearchDebateService` with configurable debate rounds.
+- [ ] Implement `TraderAgent`.
+- [ ] Add `debate_reports` and `trader_proposals` tables.
+- [ ] Ensure trader proposal is not an order.
+- [ ] Add API endpoints for debates and proposals.
+- [ ] Add deterministic mock-mode tests.
+
+Verification:
+
+- [ ] `make run-analysts-mock SYMBOL=INFY`
+- [ ] `make debate-mock SYMBOL=INFY`
+- [ ] `make trader-proposal-mock SYMBOL=INFY`
+- [ ] `make test`
+- [ ] `curl http://localhost:8000/debates`
+- [ ] `curl http://localhost:8000/trader-proposals`
+
+Acceptance:
+
+- [ ] Bull thesis and bear thesis are produced.
+- [ ] Research manager summary is produced.
+- [ ] Trader proposal contains action, confidence, horizon, requested position, stop-loss, take-profit, invalidation rules.
+- [ ] Proposal references analyst report IDs and debate ID.
+- [ ] No broker order is created.
+- [ ] Mock mode is deterministic.
+
+## M6 - Risk Committee And Fund Manager Approval
+
+Status: Not started
+
+Objective: Add risk personas, deterministic hard risk checks, audit trail, and final approval gate.
+
+Tasks:
+
+- [ ] Implement `RiskyRiskAgent`.
+- [ ] Implement `NeutralRiskAgent`.
+- [ ] Implement `SafeRiskAgent`.
+- [ ] Implement deterministic `RiskEngine` with hard rules.
+- [ ] Add event-risk block for severe negative events.
+- [ ] Implement `PortfolioManagerAgent`.
+- [ ] Add `risk_reviews` and `final_decisions` tables.
+- [ ] Ensure no order can bypass final approval.
+
+Verification:
+
+- [ ] `make risk-review-mock SYMBOL=INFY`
+- [ ] `make final-approval-mock SYMBOL=INFY`
+- [ ] `make test`
+
+Acceptance:
+
+- [ ] Risk committee review exists.
+- [ ] Hard risk rule results are stored.
+- [ ] Oversized positions are reduced or rejected.
+- [ ] Kill switch blocks orders.
+- [ ] Severe negative event can block a long entry.
+- [ ] Final paper decision is stored.
+- [ ] No order can bypass final approval.
+
+## M7 - PaperBroker Execution Simulator
+
+Status: Not started
+
+Objective: Simulated orders, fills, positions, cash, slippage, and costs.
+
+Tasks:
+
+- [ ] Define `BrokerAdapter` interface.
+- [ ] Implement `PaperBroker`.
+- [ ] Add order lifecycle states.
+- [ ] Add partial fills, slippage, costs.
+- [ ] Add paper-once and paper-loop scripts.
+- [ ] Accept only final approved decisions.
+
+Verification:
+
+- [ ] `make paper-once-mock SYMBOL=INFY`
+- [ ] `make test`
+
+Acceptance:
+
+- [ ] PaperBroker receives only final approved paper decisions.
+- [ ] Cash and positions update correctly.
+- [ ] Costs and slippage are stored.
+- [ ] Paper run is deterministic from same seed.
+- [ ] Event-risk blocks apply in paper mode.
+
+## M8 - Dashboard And Observability V1
+
+Status: Not started
+
+Objective: Streamlit trading dashboard, agent workflow dashboard, news/events dashboard, and Grafana system metrics.
+
+Tasks:
+
+- [ ] Build Streamlit dashboard pages.
+- [ ] Add Prometheus metrics.
+- [ ] Add Grafana dashboards.
+- [ ] Add JSON logs with `run_id`, `decision_id`, `order_id`, `document_id`, `debate_id`.
+- [ ] Add data freshness metrics.
+- [ ] Add LLM/news ingestion metrics.
+- [ ] Add analyst report, bull/bear debate, trader proposal, risk review, and final decision panels.
+
+Verification:
+
+- [ ] `make dev-up`
+- [ ] `make dashboard`
+- [ ] `make backtest-mock`
+- [ ] `make paper-once-mock SYMBOL=INFY`
+
+Acceptance:
+
+- [ ] Dashboard shows portfolio and equity curve.
+- [ ] Dashboard shows analyst reports.
+- [ ] Dashboard shows bull vs bear debate.
+- [ ] Dashboard shows trader proposal.
+- [ ] Dashboard shows risk review and hard rule results.
+- [ ] Dashboard shows orders and fills.
+- [ ] Grafana shows service health metrics.
+
+## M9 - Screener Fundamentals Import
+
+Status: Not started
+
+Objective: Import user-provided Screener CSV and upgrade fundamentals analyst.
+
+User input required:
+
+- [!] Screener CSV export must be explicitly requested from user at start of this milestone.
+
+Tasks:
+
+- [ ] Add CSV import command.
+- [ ] Validate required/optional columns.
+- [ ] Map symbols/company names to instruments.
+- [ ] Store fundamental snapshots with `data_available_time`.
+- [ ] Add quality/valuation score.
+- [ ] Upgrade `FundamentalsAnalystAgent` to read imported data.
+
+Verification:
+
+- [ ] `make import-screener CSV=/path/to/screener.csv`
+- [ ] `make run-analysts-mock SYMBOL=INFY`
+- [ ] `make test`
+
+Acceptance:
+
+- [ ] Screener CSV imports without committing file.
+- [ ] Missing columns are reported clearly.
+- [ ] Fundamentals map to instruments.
+- [ ] Fundamental score is stored.
+- [ ] Fundamentals analyst uses imported data.
+
+## M10 - Real Market Data Provider
+
+Status: Not started
+
+Objective: Add CSV/vendor/broker market data provider interface.
+
+User input required:
+
+- [!] CSV historical prices or selected data provider details.
+
+Tasks:
+
+- [ ] Add `MarketDataProvider` interface.
+- [ ] Add `CSVMarketDataProvider`.
+- [ ] Add optional real provider stub.
+- [ ] Record source and `data_available_time`.
+
+Verification:
+
+- [ ] `make import-prices CSV=/path/to/prices.csv`
+- [ ] `make backtest-real-data`
+- [ ] `make test`
+
+Acceptance:
+
+- [ ] Mock provider still works.
+- [ ] CSV provider works.
+- [ ] Real provider disabled without credentials.
+- [ ] Data source and availability timestamps are stored.
+
+## M11 - Continuous Paper Trading
+
+Status: Not started
+
+Objective: Scheduled paper loop using latest available data.
+
+User input required:
+
+- [!] Paper trading schedule.
+- [!] Market hours assumptions.
+- [!] Confirmation to run after market close initially.
+
+Tasks:
+
+- [ ] Add scheduler.
+- [ ] Add end-of-day paper run pipeline.
+- [ ] Add run status tracking.
+- [ ] Add failure recovery.
+
+Verification:
+
+- [ ] `make paper-loop-mock`
+- [ ] `make test`
+
+Acceptance:
+
+- [ ] Scheduled loop executes data update, features, analysts, debate, trader, risk, final approval, PaperBroker.
+- [ ] Each run has `run_id`.
+- [ ] Dashboard updates.
+- [ ] Failures are logged.
+
+## M12 - Telegram Alerts, Replay, Backup, Hardening
+
+Status: Not started
+
+Objective: Alerts, replay, backups, and runbook.
+
+User input optional:
+
+- [ ] `TELEGRAM_BOT_TOKEN`
+- [ ] `TELEGRAM_CHAT_ID`
+
+Tasks:
+
+- [ ] Add Telegram alert adapter.
+- [ ] Add alert smoke command.
+- [ ] Add decision replay by `decision_id`.
+- [ ] Add backup and restore scripts.
+- [ ] Add operations runbook.
+
+Verification:
+
+- [ ] `make alert-smoke`
+- [ ] `make replay-decision DECISION_ID=sample`
+- [ ] `make backup-db`
+- [ ] `make test`
+
+Acceptance:
+
+- [ ] Telegram smoke test works when credentials are provided.
+- [ ] Alerts fire for fills, kill switch, severe events, stale data, job failures.
+- [ ] Decision replay works.
+- [ ] Backup and restore commands exist.
+
+## M13 - Broker Sandbox Adapter
+
+Status: Not started
+
+Objective: Upstox Sandbox/OpenAlgo smoke test without live trading.
+
+User input required:
+
+- [!] `UPSTOX_CLIENT_ID`
+- [!] `UPSTOX_CLIENT_SECRET`
+- [!] `UPSTOX_REDIRECT_URI`
+- [!] Sandbox account setup details.
+
+Tasks:
+
+- [ ] Add sandbox broker adapter.
+- [ ] Add credentials loading from env only.
+- [ ] Add sandbox smoke test.
+- [ ] Keep PaperBroker default.
+
+Verification:
+
+- [ ] `make broker-sandbox-smoke`
+- [ ] `make test`
+
+Acceptance:
+
+- [ ] Sandbox adapter conforms to `BrokerAdapter`.
+- [ ] Credentials are not committed.
+- [ ] Sandbox smoke test passes where supported.
+- [ ] Live trading remains disabled.
+
+## M14 - Live-Readiness Gate
+
+Status: Not started
+
+Objective: Safety and compliance gate only; no live orders.
+
+User input required:
+
+- [!] Broker/compliance details.
+- [!] Manual release approval.
+
+Tasks:
+
+- [ ] Add live preflight check.
+- [ ] Add explicit manual sign-off requirement.
+- [ ] Add order tagging placeholders.
+- [ ] Add compliance checklist.
+
+Verification:
+
+- [ ] `make live-preflight-check`
+- [ ] `make test`
+
+Acceptance:
+
+- [ ] `LIVE_TRADING_ENABLED=false` remains default.
+- [ ] Live mode requires explicit config and preflight pass.
+- [ ] Manual sign-off is required.
+- [ ] No live orders are placed.
+
+## M15 - Taurus MVP Release
+
+Status: Not started
+
+Objective: End-to-end observable paper-trading MVP.
+
+Verification:
+
+- [ ] `make setup`
+- [ ] `make dev-up`
+- [ ] `make migrate`
+- [ ] `make seed-mock`
+- [ ] `make import-mock-news`
+- [ ] `make backtest-mock`
+- [ ] `make run-analysts-mock SYMBOL=INFY`
+- [ ] `make debate-mock SYMBOL=INFY`
+- [ ] `make trader-proposal-mock SYMBOL=INFY`
+- [ ] `make risk-review-mock SYMBOL=INFY`
+- [ ] `make final-approval-mock SYMBOL=INFY`
+- [ ] `make paper-once-mock SYMBOL=INFY`
+- [ ] `make dashboard`
+- [ ] `make test`
+
+Acceptance:
+
+- [ ] Taurus runs end-to-end with mock data.
+- [ ] Taurus can backtest.
+- [ ] Taurus generates analyst reports.
+- [ ] Taurus runs bull/bear debate.
+- [ ] Taurus generates trader proposal.
+- [ ] Taurus runs risk review and final approval.
+- [ ] Taurus paper trades only.
+- [ ] Dashboard shows performance, decisions, debate, risk, orders, events, and health.
+- [ ] Live trading is disabled.
+
+## Maintenance Rules
+
+Update this file whenever a milestone task starts, completes, or is intentionally deferred.
+
+For each completed milestone, record:
+
+- status changes
+- verification commands run
+- test results
+- user inputs provided or skipped
+- safety notes, especially live-trading guardrails
+
+Do not mark a milestone complete unless its acceptance criteria pass.
