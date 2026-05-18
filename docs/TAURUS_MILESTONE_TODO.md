@@ -5,7 +5,7 @@ Source of truth:
 - `docs/TAURUS_MVP_SPEC_v0_3.md`
 - `docs/TAURUS_CODEX_TASKS_v0_3.yaml`
 
-Last updated: 2026-05-18 20:55 IST
+Last updated: 2026-05-18 22:07 IST
 
 Status legend:
 
@@ -20,7 +20,7 @@ Status legend:
 |---|---|---|---|---|
 | M0 | Done | Project foundation | No | No |
 | M1 | Done | Mock data and database foundation | No | No |
-| M2 | Not started | Backtesting skeleton | No | No |
+| M2 | Done | Backtesting skeleton | No | No |
 | M3 | Not started | Strategy engine and technical indicators | No | No |
 | M4 | Not started | Intelligence foundation and analyst reports | Optional | Optional |
 | M5 | Not started | Bull/Bear debate and trader proposal | No | Optional |
@@ -110,31 +110,37 @@ Acceptance:
 
 ## M2 - Backtesting Skeleton
 
-Status: Not started
+Status: Done
 
 Objective: First full mock backtest with metrics, orders, fills, positions, and reports.
 
 Tasks:
 
-- [ ] Build event-driven backtest loop.
-- [ ] Implement mock momentum strategy.
-- [ ] Add cost and slippage model.
-- [ ] Store backtest run objects.
-- [ ] Compute total return, CAGR, Sharpe, Sortino, max drawdown, win rate, profit factor.
-- [ ] Add `run_backtest` script.
+- [x] Build event-driven backtest loop.
+- [x] Implement mock momentum strategy.
+- [x] Add cost and slippage model.
+- [x] Store backtest run objects.
+- [x] Compute total return, CAGR, Sharpe, Sortino, max drawdown, win rate, profit factor.
+- [x] Add `run_backtest` script.
 
 Verification:
 
-- [ ] `make backtest-mock`
-- [ ] `make test`
+- [x] `make backtest-mock`
+- [x] `make test`
 
 Acceptance:
 
-- [ ] Backtest prints a `run_id`.
-- [ ] Metrics JSON is generated.
-- [ ] Equity curve is stored.
-- [ ] Signals, orders, fills, positions, and audit rows exist.
-- [ ] Re-running with the same seed gives the same output.
+- [x] Backtest prints a `run_id`.
+- [x] Metrics JSON is generated.
+- [x] Equity curve is stored.
+- [x] Signals, orders, fills, positions, and audit rows exist.
+- [x] Re-running with the same seed gives the same output.
+
+Notes:
+
+- Verified `13 passed`.
+- `make backtest-mock` prints `run_id=bt-819f036d1b8b16fe` and deterministic metrics JSON on repeat runs.
+- M2 stores run-scoped signals, orders, fills, final positions, equity curve points, and two audit rows per run.
 
 ## M3 - Strategy Engine And Technical Indicators
 

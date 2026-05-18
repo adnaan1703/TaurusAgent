@@ -2,10 +2,20 @@ from __future__ import annotations
 
 from datetime import date
 
-from sqlalchemy import Select, func, select
+from sqlalchemy import Select, delete, func, select
 from sqlalchemy.orm import Session
 
-from taurus_core.db.models import DailyCandleModel, InstrumentModel
+from taurus_core.db.models import (
+    AuditLogModel,
+    BacktestEquityPointModel,
+    BacktestFillModel,
+    BacktestOrderModel,
+    BacktestPositionModel,
+    BacktestRunModel,
+    BacktestSignalModel,
+    DailyCandleModel,
+    InstrumentModel,
+)
 from taurus_core.domain.instruments import Instrument
 from taurus_core.domain.market_data import DailyCandle
 
@@ -133,6 +143,91 @@ class CandleRepository:
         if symbol is not None:
             statement = statement.where(DailyCandleModel.symbol == symbol.upper())
         return statement.order_by(DailyCandleModel.symbol, DailyCandleModel.trade_date)
+
+
+class BacktestRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def replace_run(
+        self,
+        *,
+        run: BacktestRunModel,
+        signals: list[BacktestSignalModel],
+        orders: list[BacktestOrderModel],
+        fills_by_order_index: list[BacktestFillModel],
+        positions: list[BacktestPositionModel],
+        equity_points: list[BacktestEquityPointModel],
+        audit_rows: list[AuditLogModel],
+    ) -> BacktestRunModel:
+        if len(orders) != len(fills_by_order_index):
+            raise ValueError("Backtest orders and fills must have the same length.")
+
+        self.delete_run(run.run_id)
+        self.session.add(run)
+        self.session.flush()
+        self.session.add_all(signals)
+        self.session.add_all(orders)
+        self.session.flush()
+
+        for order, fill in zip(orders, fills_by_order_index, strict=True):
+            fill.order_id = order.id
+        self.session.add_all(fills_by_order_index)
+        self.session.add_all(positions)
+        self.session.add_all(equity_points)
+        self.session.add_all(audit_rows)
+        self.session.flush()
+        return run
+
+    def delete_run(self, run_id: str) -> None:
+        for model in (
+            BacktestFillModel,
+            BacktestOrderModel,
+            BacktestSignalModel,
+            BacktestPositionModel,
+            BacktestEquityPointModel,
+        ):
+            self.session.execute(delete(model).where(model.run_id == run_id))
+        self.session.execute(
+            delete(AuditLogModel).where(
+                AuditLogModel.event_type.like("backtest.%"),
+                AuditLogModel.payload["run_id"].as_string() == run_id,
+            )
+        )
+        self.session.execute(delete(BacktestRunModel).where(BacktestRunModel.run_id == run_id))
+
+    def get_run(self, run_id: str) -> BacktestRunModel | None:
+        return self.session.get(BacktestRunModel, run_id)
+
+    def count_artifacts(self, run_id: str) -> dict[str, int]:
+        models = {
+            "signals": BacktestSignalModel,
+            "orders": BacktestOrderModel,
+            "fills": BacktestFillModel,
+            "positions": BacktestPositionModel,
+            "equity_points": BacktestEquityPointModel,
+        }
+        return {
+            name: int(
+                self.session.scalar(
+                    select(func.count()).select_from(model).where(model.run_id == run_id)
+                )
+                or 0
+            )
+            for name, model in models.items()
+        } | {
+            "audit_rows": int(
+                self.session.scalar(
+                    select(func.count())
+                    .select_from(AuditLogModel)
+                    .where(
+                        AuditLogModel.event_type.like("backtest.%"),
+                        AuditLogModel.payload["run_id"].as_string() == run_id,
+                    )
+                )
+                or 0
+            )
+        }
 
 
 def _instrument_to_model(instrument: Instrument) -> InstrumentModel:

@@ -1,0 +1,493 @@
+from __future__ import annotations
+
+import hashlib
+import json
+from dataclasses import dataclass
+from datetime import date
+from decimal import Decimal, ROUND_DOWN
+
+from sqlalchemy.orm import Session
+
+from taurus_core.backtesting.context import BacktestConfig, BacktestResult
+from taurus_core.backtesting.metrics import calculate_backtest_metrics
+from taurus_core.db.models import (
+    AuditLogModel,
+    BacktestEquityPointModel,
+    BacktestFillModel,
+    BacktestOrderModel,
+    BacktestPositionModel,
+    BacktestRunModel,
+    BacktestSignalModel,
+)
+from taurus_core.db.repositories import BacktestRepository, CandleRepository, InstrumentRepository
+from taurus_core.domain.market_data import DailyCandle
+from taurus_core.strategies.mock_momentum import MockMomentumStrategy, MomentumSignal
+
+MONEY = Decimal("0.0001")
+RATE_DENOMINATOR = Decimal("10000")
+
+
+@dataclass(slots=True)
+class PositionState:
+    symbol: str
+    quantity: int = 0
+    average_cost_inr: Decimal = Decimal("0")
+    realized_pnl_inr: Decimal = Decimal("0")
+
+
+@dataclass(frozen=True, slots=True)
+class TradePnl:
+    symbol: str
+    pnl_inr: Decimal
+
+
+class BacktestEngine:
+    def __init__(self, session: Session, config: BacktestConfig) -> None:
+        self.session = session
+        self.config = config
+
+    def run(self) -> BacktestResult:
+        candles_by_symbol = self._load_candles()
+        if not candles_by_symbol:
+            raise ValueError("No daily candles are available. Run make seed-mock first.")
+
+        symbols = sorted(candles_by_symbol)
+        candles_by_date = {
+            symbol: {candle.trade_date: candle for candle in candles}
+            for symbol, candles in candles_by_symbol.items()
+        }
+        common_dates = sorted(
+            set.intersection(
+                *[set(candles_by_date[symbol]) for symbol in symbols]
+            )
+        )
+        if len(common_dates) <= self.config.lookback_days + 1:
+            raise ValueError("Not enough candle history for the configured backtest lookback.")
+
+        start_date = common_dates[self.config.lookback_days + 1]
+        end_date = common_dates[-1]
+        run_id = self._stable_run_id(
+            symbols=symbols,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+        strategy = MockMomentumStrategy(
+            lookback_days=self.config.lookback_days,
+            target_positions=min(self.config.target_positions, self.config.max_open_positions),
+        )
+        cash = self.config.initial_capital_inr
+        positions: dict[str, PositionState] = {}
+        closed_pnl: list[TradePnl] = []
+        equity_values: list[Decimal] = [self.config.initial_capital_inr]
+        signals: list[BacktestSignalModel] = []
+        orders: list[BacktestOrderModel] = []
+        fills: list[BacktestFillModel] = []
+        equity_points: list[BacktestEquityPointModel] = []
+
+        for date_index, trade_date in enumerate(common_dates):
+            if trade_date < start_date:
+                continue
+
+            candles_today = {
+                symbol: candles_by_date[symbol][trade_date]
+                for symbol in symbols
+            }
+
+            if self._is_rebalance_day(date_index):
+                history_dates = common_dates[:date_index]
+                history_by_symbol = {
+                    symbol: [candles_by_date[symbol][history_date] for history_date in history_dates]
+                    for symbol in symbols
+                }
+                current_symbols = {
+                    symbol for symbol, position in positions.items() if position.quantity > 0
+                }
+                targets, generated_signals = strategy.select_targets(
+                    trade_date=trade_date,
+                    history_by_symbol=history_by_symbol,
+                    current_positions=current_symbols,
+                )
+                signals.extend(_signal_model(run_id, signal) for signal in generated_signals)
+                cash, new_orders, new_fills, new_closed_pnl = self._rebalance(
+                    run_id=run_id,
+                    trade_date=trade_date,
+                    targets=targets,
+                    candles_today=candles_today,
+                    cash=cash,
+                    positions=positions,
+                    equity_before_trades=self._mark_to_market(cash, positions, candles_today),
+                )
+                orders.extend(new_orders)
+                fills.extend(new_fills)
+                closed_pnl.extend(new_closed_pnl)
+
+            holdings_value = sum(
+                _money(position.quantity * candles_today[symbol].close)
+                for symbol, position in positions.items()
+                if position.quantity > 0
+            )
+            total_equity = _money(cash + holdings_value)
+            equity_values.append(total_equity)
+            peak = max(equity_values)
+            drawdown = (total_equity / peak) - Decimal("1") if peak > 0 else Decimal("0")
+            equity_points.append(
+                BacktestEquityPointModel(
+                    run_id=run_id,
+                    trade_date=trade_date,
+                    cash_inr=_money(cash),
+                    holdings_value_inr=holdings_value,
+                    total_equity_inr=total_equity,
+                    drawdown_pct=drawdown.quantize(Decimal("0.00000001")),
+                )
+            )
+
+        winning_pnl = [trade.pnl_inr for trade in closed_pnl if trade.pnl_inr > 0]
+        losing_pnl = [trade.pnl_inr for trade in closed_pnl if trade.pnl_inr < 0]
+        metrics = calculate_backtest_metrics(
+            equity_values,
+            winning_pnl=winning_pnl,
+            losing_pnl=losing_pnl,
+        )
+        final_equity = equity_points[-1].total_equity_inr
+        final_candles = {
+            symbol: candles_by_date[symbol][end_date]
+            for symbol in symbols
+        }
+        position_models = self._position_models(run_id, positions, final_candles)
+        run = BacktestRunModel(
+            run_id=run_id,
+            strategy_name=self.config.strategy_name,
+            seed=self.config.seed,
+            start_date=start_date,
+            end_date=end_date,
+            initial_capital_inr=self.config.initial_capital_inr,
+            final_equity_inr=final_equity,
+            metrics=metrics,
+            parameters=self._parameters(),
+        )
+        audit_rows = [
+            AuditLogModel(
+                event_type="backtest.run_started",
+                actor="backtest_engine",
+                payload={"run_id": run_id, "strategy": self.config.strategy_name},
+                note="Backtest run started.",
+            ),
+            AuditLogModel(
+                event_type="backtest.run_completed",
+                actor="backtest_engine",
+                payload={
+                    "run_id": run_id,
+                    "signals": len(signals),
+                    "orders": len(orders),
+                    "fills": len(fills),
+                    "positions": len(position_models),
+                    "equity_points": len(equity_points),
+                },
+                note="Backtest run completed.",
+            ),
+        ]
+
+        BacktestRepository(self.session).replace_run(
+            run=run,
+            signals=signals,
+            orders=orders,
+            fills_by_order_index=fills,
+            positions=position_models,
+            equity_points=equity_points,
+            audit_rows=audit_rows,
+        )
+        self.session.commit()
+
+        return BacktestResult(
+            run_id=run_id,
+            start_date=start_date,
+            end_date=end_date,
+            metrics=metrics,
+            signal_count=len(signals),
+            order_count=len(orders),
+            fill_count=len(fills),
+            position_count=len(position_models),
+            equity_point_count=len(equity_points),
+            audit_row_count=len(audit_rows),
+        )
+
+    def _load_candles(self) -> dict[str, list[DailyCandle]]:
+        instruments = InstrumentRepository(self.session).list(active_only=True)
+        candle_repo = CandleRepository(self.session)
+        candles_by_symbol: dict[str, list[DailyCandle]] = {}
+        for instrument in instruments:
+            candle_models = candle_repo.get_by_symbol_and_date_range(
+                symbol=instrument.symbol,
+                timeframe=self.config.timeframe,
+            )
+            if candle_models:
+                candles_by_symbol[instrument.symbol] = [
+                    DailyCandle(
+                        symbol=candle.symbol,
+                        trade_date=candle.trade_date,
+                        open=candle.open,
+                        high=candle.high,
+                        low=candle.low,
+                        close=candle.close,
+                        volume=candle.volume,
+                        timeframe=candle.timeframe,
+                    )
+                    for candle in candle_models
+                ]
+        return candles_by_symbol
+
+    def _rebalance(
+        self,
+        *,
+        run_id: str,
+        trade_date: date,
+        targets: set[str],
+        candles_today: dict[str, DailyCandle],
+        cash: Decimal,
+        positions: dict[str, PositionState],
+        equity_before_trades: Decimal,
+    ) -> tuple[Decimal, list[BacktestOrderModel], list[BacktestFillModel], list[TradePnl]]:
+        orders: list[BacktestOrderModel] = []
+        fills: list[BacktestFillModel] = []
+        closed_pnl: list[TradePnl] = []
+
+        for symbol in sorted(list(positions)):
+            position = positions[symbol]
+            if position.quantity <= 0 or symbol in targets:
+                continue
+            cash, order, fill, trade_pnl = self._sell(
+                run_id=run_id,
+                trade_date=trade_date,
+                candle=candles_today[symbol],
+                quantity=position.quantity,
+                cash=cash,
+                position=position,
+            )
+            orders.append(order)
+            fills.append(fill)
+            closed_pnl.append(trade_pnl)
+
+        held_symbols = {
+            symbol for symbol, position in positions.items() if position.quantity > 0
+        }
+        missing_targets = sorted(targets - held_symbols)
+        if not missing_targets:
+            return cash, orders, fills, closed_pnl
+
+        allocation = equity_before_trades / Decimal(max(len(targets), 1))
+        for symbol in missing_targets:
+            if len({s for s, p in positions.items() if p.quantity > 0}) >= self.config.max_open_positions:
+                break
+            cash, order, fill = self._buy(
+                run_id=run_id,
+                trade_date=trade_date,
+                candle=candles_today[symbol],
+                allocation=allocation,
+                cash=cash,
+                positions=positions,
+            )
+            if order is not None and fill is not None:
+                orders.append(order)
+                fills.append(fill)
+
+        return cash, orders, fills, closed_pnl
+
+    def _buy(
+        self,
+        *,
+        run_id: str,
+        trade_date: date,
+        candle: DailyCandle,
+        allocation: Decimal,
+        cash: Decimal,
+        positions: dict[str, PositionState],
+    ) -> tuple[Decimal, BacktestOrderModel | None, BacktestFillModel | None]:
+        fill_price = _money(candle.open * (Decimal("1") + self.config.slippage_bps / RATE_DENOMINATOR))
+        quantity = int((min(allocation, cash) / fill_price).to_integral_value(rounding=ROUND_DOWN))
+        while quantity > 0:
+            gross_value = _money(fill_price * quantity)
+            cost = _money(gross_value * self.config.cost_bps / RATE_DENOMINATOR)
+            if gross_value + cost <= cash:
+                break
+            quantity -= 1
+        if quantity <= 0:
+            return cash, None, None
+
+        gross_value = _money(fill_price * quantity)
+        cost = _money(gross_value * self.config.cost_bps / RATE_DENOMINATOR)
+        cash = _money(cash - gross_value - cost)
+        position = positions.setdefault(candle.symbol, PositionState(symbol=candle.symbol))
+        total_cost = _money((position.average_cost_inr * position.quantity) + gross_value + cost)
+        position.quantity += quantity
+        position.average_cost_inr = _money(total_cost / Decimal(position.quantity))
+        return cash, _order_model(run_id, trade_date, candle.symbol, "BUY", quantity), _fill_model(
+            run_id,
+            trade_date,
+            candle.symbol,
+            "BUY",
+            quantity,
+            fill_price,
+            gross_value,
+            cost,
+            self.config.slippage_bps,
+        )
+
+    def _sell(
+        self,
+        *,
+        run_id: str,
+        trade_date: date,
+        candle: DailyCandle,
+        quantity: int,
+        cash: Decimal,
+        position: PositionState,
+    ) -> tuple[Decimal, BacktestOrderModel, BacktestFillModel, TradePnl]:
+        fill_price = _money(candle.open * (Decimal("1") - self.config.slippage_bps / RATE_DENOMINATOR))
+        gross_value = _money(fill_price * quantity)
+        cost = _money(gross_value * self.config.cost_bps / RATE_DENOMINATOR)
+        cash = _money(cash + gross_value - cost)
+        pnl = _money(gross_value - cost - (position.average_cost_inr * quantity))
+        position.quantity = 0
+        position.realized_pnl_inr = _money(position.realized_pnl_inr + pnl)
+        return cash, _order_model(run_id, trade_date, candle.symbol, "SELL", quantity), _fill_model(
+            run_id,
+            trade_date,
+            candle.symbol,
+            "SELL",
+            quantity,
+            fill_price,
+            gross_value,
+            cost,
+            self.config.slippage_bps,
+        ), TradePnl(symbol=candle.symbol, pnl_inr=pnl)
+
+    def _mark_to_market(
+        self,
+        cash: Decimal,
+        positions: dict[str, PositionState],
+        candles_today: dict[str, DailyCandle],
+    ) -> Decimal:
+        return _money(
+            cash
+            + sum(
+                position.quantity * candles_today[symbol].close
+                for symbol, position in positions.items()
+                if position.quantity > 0
+            )
+        )
+
+    def _position_models(
+        self,
+        run_id: str,
+        positions: dict[str, PositionState],
+        final_candles: dict[str, DailyCandle],
+    ) -> list[BacktestPositionModel]:
+        models: list[BacktestPositionModel] = []
+        for symbol in sorted(positions):
+            position = positions[symbol]
+            last_close = final_candles[symbol].close
+            market_value = _money(position.quantity * last_close)
+            unrealized = _money(market_value - (position.average_cost_inr * position.quantity))
+            models.append(
+                BacktestPositionModel(
+                    run_id=run_id,
+                    symbol=symbol,
+                    quantity=position.quantity,
+                    average_cost_inr=position.average_cost_inr,
+                    market_value_inr=market_value,
+                    realized_pnl_inr=position.realized_pnl_inr,
+                    unrealized_pnl_inr=unrealized,
+                )
+            )
+        return models
+
+    def _is_rebalance_day(self, date_index: int) -> bool:
+        first_trade_index = self.config.lookback_days + 1
+        return (date_index - first_trade_index) % self.config.rebalance_every_days == 0
+
+    def _stable_run_id(
+        self,
+        *,
+        symbols: list[str],
+        start_date: date,
+        end_date: date,
+    ) -> str:
+        payload = {
+            "strategy_name": self.config.strategy_name,
+            "seed": self.config.seed,
+            "symbols": symbols,
+            "start_date": start_date.isoformat(),
+            "end_date": end_date.isoformat(),
+            "parameters": self._parameters(),
+        }
+        digest = hashlib.sha256(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()
+        return f"bt-{digest[:16]}"
+
+    def _parameters(self) -> dict[str, object]:
+        return {
+            "initial_capital_inr": str(self.config.initial_capital_inr),
+            "max_open_positions": self.config.max_open_positions,
+            "target_positions": self.config.target_positions,
+            "lookback_days": self.config.lookback_days,
+            "rebalance_every_days": self.config.rebalance_every_days,
+            "cost_bps": str(self.config.cost_bps),
+            "slippage_bps": str(self.config.slippage_bps),
+            "timeframe": self.config.timeframe,
+        }
+
+
+def _signal_model(run_id: str, signal: MomentumSignal) -> BacktestSignalModel:
+    return BacktestSignalModel(
+        run_id=run_id,
+        trade_date=signal.trade_date,
+        symbol=signal.symbol,
+        action=signal.action,
+        score=signal.score.quantize(Decimal("0.00000001")),
+        reason=signal.reason,
+    )
+
+
+def _order_model(
+    run_id: str,
+    trade_date: date,
+    symbol: str,
+    side: str,
+    quantity: int,
+) -> BacktestOrderModel:
+    return BacktestOrderModel(
+        run_id=run_id,
+        trade_date=trade_date,
+        symbol=symbol,
+        side=side,
+        quantity=quantity,
+    )
+
+
+def _fill_model(
+    run_id: str,
+    trade_date: date,
+    symbol: str,
+    side: str,
+    quantity: int,
+    fill_price: Decimal,
+    gross_value: Decimal,
+    cost: Decimal,
+    slippage_bps: Decimal,
+) -> BacktestFillModel:
+    return BacktestFillModel(
+        order_id=0,
+        run_id=run_id,
+        trade_date=trade_date,
+        symbol=symbol,
+        side=side,
+        quantity=quantity,
+        fill_price_inr=fill_price,
+        gross_value_inr=gross_value,
+        cost_inr=cost,
+        slippage_bps=slippage_bps,
+    )
+
+
+def _money(value: Decimal | int) -> Decimal:
+    return Decimal(value).quantize(MONEY)

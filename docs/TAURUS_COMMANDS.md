@@ -35,6 +35,15 @@ curl http://localhost:8000/data/instruments
 curl "http://localhost:8000/data/candles?symbol=INFY&timeframe=1d"
 ```
 
+## M2 Commands Used
+
+```bash
+make dev-up
+make backtest-mock
+make lint
+make test
+```
+
 ## Current Make Targets
 
 ```bash
@@ -44,6 +53,7 @@ make dev-down
 make api
 make migrate
 make seed-mock
+make backtest-mock
 make test
 make lint
 ```

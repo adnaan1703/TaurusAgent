@@ -1,4 +1,4 @@
-.PHONY: setup dev-up dev-down api migrate seed-mock test lint
+.PHONY: setup dev-up dev-down api migrate seed-mock backtest-mock test lint
 
 UV ?= uv
 COMPOSE ?= docker compose
@@ -21,6 +21,9 @@ migrate:
 
 seed-mock:
 	DATABASE_URL="$(DATABASE_URL)" PYTHONPATH=packages:. $(UV) run python scripts/seed_mock_data.py
+
+backtest-mock:
+	DATABASE_URL="$(DATABASE_URL)" PYTHONPATH=packages:. $(UV) run python scripts/run_backtest.py
 
 test:
 	$(UV) run pytest
