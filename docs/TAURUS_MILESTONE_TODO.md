@@ -5,7 +5,7 @@ Source of truth:
 - `docs/TAURUS_MVP_SPEC_v0_3.md`
 - `docs/TAURUS_CODEX_TASKS_v0_3.yaml`
 
-Last updated: 2026-05-19 12:17 IST
+Last updated: 2026-05-19 13:50 IST
 
 Status legend:
 
@@ -29,7 +29,7 @@ Milestone completion reporting:
 | M3 | Done | Strategy engine and technical indicators | No | No |
 | M4 | Done | Intelligence foundation and analyst reports | Optional | Optional |
 | M5 | Done | Bull/Bear debate and trader proposal | No | Optional |
-| M6 | Not started | Risk committee and fund manager approval | No | No |
+| M6 | Done | Risk committee and fund manager approval | No | No |
 | M7 | Not started | PaperBroker execution simulator | No | No |
 | M8 | Not started | Dashboard and observability v1 | No | No |
 | M9 | Not started | Screener fundamentals import | Screener CSV required | No |
@@ -278,36 +278,49 @@ Notes:
 
 ## M6 - Risk Committee And Fund Manager Approval
 
-Status: Not started
+Status: Done
 
 Objective: Add risk personas, deterministic hard risk checks, audit trail, and final approval gate.
 
 Tasks:
 
-- [ ] Implement `RiskyRiskAgent`.
-- [ ] Implement `NeutralRiskAgent`.
-- [ ] Implement `SafeRiskAgent`.
-- [ ] Implement deterministic `RiskEngine` with hard rules.
-- [ ] Add event-risk block for severe negative events.
-- [ ] Implement `PortfolioManagerAgent`.
-- [ ] Add `risk_reviews` and `final_decisions` tables.
-- [ ] Ensure no order can bypass final approval.
+- [x] Implement `RiskyRiskAgent`.
+- [x] Implement `NeutralRiskAgent`.
+- [x] Implement `SafeRiskAgent`.
+- [x] Implement deterministic `RiskEngine` with hard rules.
+- [x] Add event-risk block for severe negative events.
+- [x] Implement `PortfolioManagerAgent`.
+- [x] Add `risk_reviews` and `final_decisions` tables.
+- [x] Ensure no order can bypass final approval.
 
 Verification:
 
-- [ ] `make risk-review-mock SYMBOL=INFY`
-- [ ] `make final-approval-mock SYMBOL=INFY`
-- [ ] `make test`
+- [x] `make risk-review-mock SYMBOL=INFY`
+- [x] `make final-approval-mock SYMBOL=INFY`
+- [x] `make test`
 
 Acceptance:
 
-- [ ] Risk committee review exists.
-- [ ] Hard risk rule results are stored.
-- [ ] Oversized positions are reduced or rejected.
-- [ ] Kill switch blocks orders.
-- [ ] Severe negative event can block a long entry.
-- [ ] Final paper decision is stored.
-- [ ] No order can bypass final approval.
+- [x] Risk committee review exists.
+- [x] Hard risk rule results are stored.
+- [x] Oversized positions are reduced or rejected.
+- [x] Kill switch blocks orders.
+- [x] Severe negative event can block a long entry.
+- [x] Final paper decision is stored.
+- [x] No order can bypass final approval.
+
+Notes:
+
+- Verified `34 passed`.
+- `make lint` compile-checks pass.
+- `DATABASE_URL=sqlite:////private/tmp/taurus-m6.db make risk-review-mock SYMBOL=INFY` produced `risk_check_id=risk-f9403029962b48e1`, `status=APPROVED`, hard-rule results for live-trading guard, kill switch, supported instrument, trace IDs, position cap, open-position cap, daily loss, stale data, severe event block, and long-entry action.
+- `DATABASE_URL=sqlite:////private/tmp/taurus-m6.db make final-approval-mock SYMBOL=INFY` produced `final_decision_id=fd-fa072518d2f6941a`, `status=APPROVED_FOR_PAPER`, `final_action=BUY`, `approved_quantity=85`, and `is_order=false`.
+
+Completion summary:
+
+- Assumptions made: `run_id` remains the existing workflow trace ID; M6 adds a derived `decision_id` to risk/final artifacts without changing the M5 trader proposal table. Mock-mode freshness allows deterministic historical fixtures inside a bounded freshness window.
+- Mocks created: Unit-test severe negative regulatory event fixture for validating long-entry event blocking.
+- Mocks used: Deterministic mock market data, mock news, mock LLM analyst outputs, mock debate/trader proposal pipeline, and SQLite verification database at `/private/tmp/taurus-m6.db`.
 
 ## M7 - PaperBroker Execution Simulator
 

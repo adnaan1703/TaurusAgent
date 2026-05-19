@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from decimal import Decimal
 from functools import lru_cache
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
@@ -57,6 +58,16 @@ class Settings(BaseSettings):
         default=8,
         gt=0,
         validation_alias="TAURUS_MAX_OPEN_POSITIONS",
+    )
+    taurus_kill_switch_enabled: bool = Field(
+        default=False,
+        validation_alias="TAURUS_KILL_SWITCH_ENABLED",
+    )
+    taurus_max_daily_loss_pct: Decimal = Field(
+        default=Decimal("3.0"),
+        ge=Decimal("0"),
+        le=Decimal("100"),
+        validation_alias="TAURUS_MAX_DAILY_LOSS_PCT",
     )
 
     taurus_llm_provider: str = Field(default="mock", validation_alias="TAURUS_LLM_PROVIDER")

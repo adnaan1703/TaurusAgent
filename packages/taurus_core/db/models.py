@@ -450,3 +450,77 @@ class TraderProposalModel(Base):
     model_version: Mapped[str] = mapped_column(String(128), nullable=False)
     payload: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+class RiskReviewModel(Base):
+    __tablename__ = "risk_reviews"
+    __table_args__ = (
+        UniqueConstraint("run_id", "symbol", name="uq_risk_reviews_run_symbol"),
+        Index("ix_risk_reviews_symbol_as_of", "symbol", "as_of"),
+    )
+
+    risk_check_id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    decision_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    run_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    symbol: Mapped[str] = mapped_column(
+        String(32),
+        ForeignKey("instruments.symbol", ondelete="CASCADE"),
+        nullable=False,
+    )
+    proposal_id: Mapped[str] = mapped_column(
+        String(128),
+        ForeignKey("trader_proposals.proposal_id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    debate_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    as_of: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    requested_position_pct_nav: Mapped[Decimal] = mapped_column(Numeric(8, 4), nullable=False)
+    approved_position_pct_nav: Mapped[Decimal] = mapped_column(Numeric(8, 4), nullable=False)
+    hard_rule_results: Mapped[list[dict[str, object]]] = mapped_column(JSON, nullable=False, default=list)
+    persona_reviews: Mapped[list[dict[str, object]]] = mapped_column(JSON, nullable=False, default=list)
+    risk_committee_summary: Mapped[str] = mapped_column(Text, nullable=False)
+    source_report_ids: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    is_order: Mapped[bool] = mapped_column(nullable=False, default=False)
+    can_send_to_broker: Mapped[bool] = mapped_column(nullable=False, default=False)
+    model_version: Mapped[str] = mapped_column(String(128), nullable=False)
+    payload: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+class FinalDecisionModel(Base):
+    __tablename__ = "final_decisions"
+    __table_args__ = (
+        UniqueConstraint("run_id", "symbol", name="uq_final_decisions_run_symbol"),
+        Index("ix_final_decisions_symbol_as_of", "symbol", "as_of"),
+    )
+
+    final_decision_id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    decision_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    run_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    symbol: Mapped[str] = mapped_column(
+        String(32),
+        ForeignKey("instruments.symbol", ondelete="CASCADE"),
+        nullable=False,
+    )
+    proposal_id: Mapped[str] = mapped_column(
+        String(128),
+        ForeignKey("trader_proposals.proposal_id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    risk_check_id: Mapped[str] = mapped_column(
+        String(128),
+        ForeignKey("risk_reviews.risk_check_id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    as_of: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    final_action: Mapped[str] = mapped_column(String(16), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    approved_quantity: Mapped[int] = mapped_column(nullable=False, default=0)
+    approved_position_pct_nav: Mapped[Decimal] = mapped_column(Numeric(8, 4), nullable=False)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    is_order: Mapped[bool] = mapped_column(nullable=False, default=False)
+    can_send_to_broker: Mapped[bool] = mapped_column(nullable=False, default=False)
+    model_version: Mapped[str] = mapped_column(String(128), nullable=False)
+    payload: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)

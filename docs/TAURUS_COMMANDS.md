@@ -67,6 +67,15 @@ curl http://localhost:8000/events
 curl "http://localhost:8000/agent-reports?symbol=INFY"
 ```
 
+## M6 Commands Used
+
+```bash
+make test
+make lint
+DATABASE_URL=sqlite:////private/tmp/taurus-m6.db make risk-review-mock SYMBOL=INFY
+DATABASE_URL=sqlite:////private/tmp/taurus-m6.db make final-approval-mock SYMBOL=INFY
+```
+
 ## Current Make Targets
 
 ```bash
@@ -81,6 +90,8 @@ make import-mock-news
 make run-analysts-mock SYMBOL=INFY
 make debate-mock SYMBOL=INFY
 make trader-proposal-mock SYMBOL=INFY
+make risk-review-mock SYMBOL=INFY
+make final-approval-mock SYMBOL=INFY
 make llm-smoke
 make test
 make lint

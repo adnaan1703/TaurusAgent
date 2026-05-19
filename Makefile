@@ -1,4 +1,4 @@
-.PHONY: setup dev-up dev-down api migrate seed-mock backtest-mock import-mock-news run-analysts-mock debate-mock trader-proposal-mock llm-smoke test lint
+.PHONY: setup dev-up dev-down api migrate seed-mock backtest-mock import-mock-news run-analysts-mock debate-mock trader-proposal-mock risk-review-mock final-approval-mock llm-smoke test lint
 
 UV ?= uv
 COMPOSE ?= docker compose
@@ -38,6 +38,12 @@ debate-mock:
 
 trader-proposal-mock:
 	DATABASE_URL="$(DATABASE_URL)" TAURUS_LLM_PROVIDER=mock SYMBOL="$(SYMBOL)" ROUNDS="$(ROUNDS)" PYTHONPATH=packages:. $(UV) run python scripts/run_trader_proposal.py
+
+risk-review-mock:
+	DATABASE_URL="$(DATABASE_URL)" TAURUS_LLM_PROVIDER=mock SYMBOL="$(SYMBOL)" PYTHONPATH=packages:. $(UV) run python scripts/run_risk_review.py
+
+final-approval-mock:
+	DATABASE_URL="$(DATABASE_URL)" TAURUS_LLM_PROVIDER=mock SYMBOL="$(SYMBOL)" PYTHONPATH=packages:. $(UV) run python scripts/run_final_approval.py
 
 llm-smoke:
 	DATABASE_URL="$(DATABASE_URL)" PYTHONPATH=packages:. $(UV) run python scripts/llm_smoke.py

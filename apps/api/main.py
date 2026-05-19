@@ -8,6 +8,7 @@ from apps.api.routes_data import router as data_router
 from apps.api.routes_health import router as health_router
 from apps.api.routes_intelligence import router as intelligence_router
 from apps.api.routes_research import router as research_router
+from apps.api.routes_risk import router as risk_router
 from taurus_core.config import Settings, get_settings
 from taurus_core.db.session import build_session_factory
 from taurus_core.logging import configure_logging, get_logger
@@ -30,6 +31,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(data_router)
     app.include_router(intelligence_router)
     app.include_router(research_router)
+    app.include_router(risk_router)
 
     logger = get_logger(__name__)
     logger.info(

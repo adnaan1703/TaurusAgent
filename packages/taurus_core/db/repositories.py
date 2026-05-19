@@ -18,8 +18,10 @@ from taurus_core.db.models import (
     DailyCandleModel,
     DebateReportModel,
     FeatureValueModel,
+    FinalDecisionModel,
     InstrumentModel,
     RawDocumentModel,
+    RiskReviewModel,
     SentimentScoreModel,
     TraderProposalModel,
 )
@@ -28,6 +30,7 @@ from taurus_core.domain.market_data import DailyCandle
 from taurus_core.intelligence.documents import NewsEvent, RawDocument, SentimentScore
 from taurus_core.agents.schemas import AnalystReport
 from taurus_core.research.schemas import DebateReport, TraderProposal
+from taurus_core.risk.schemas import FinalDecision, RiskReview
 
 
 class InstrumentRepository:
@@ -427,6 +430,18 @@ class ResearchRepository:
 
     def replace_debate_for_run_symbol(self, debate: DebateReport) -> DebateReportModel:
         self.session.execute(
+            delete(FinalDecisionModel).where(
+                FinalDecisionModel.run_id == debate.run_id,
+                FinalDecisionModel.symbol == debate.symbol.upper(),
+            )
+        )
+        self.session.execute(
+            delete(RiskReviewModel).where(
+                RiskReviewModel.run_id == debate.run_id,
+                RiskReviewModel.symbol == debate.symbol.upper(),
+            )
+        )
+        self.session.execute(
             delete(TraderProposalModel).where(
                 TraderProposalModel.run_id == debate.run_id,
                 TraderProposalModel.symbol == debate.symbol.upper(),
@@ -447,6 +462,18 @@ class ResearchRepository:
         self,
         proposal: TraderProposal,
     ) -> TraderProposalModel:
+        self.session.execute(
+            delete(FinalDecisionModel).where(
+                FinalDecisionModel.run_id == proposal.run_id,
+                FinalDecisionModel.symbol == proposal.symbol.upper(),
+            )
+        )
+        self.session.execute(
+            delete(RiskReviewModel).where(
+                RiskReviewModel.run_id == proposal.run_id,
+                RiskReviewModel.symbol == proposal.symbol.upper(),
+            )
+        )
         self.session.execute(
             delete(TraderProposalModel).where(
                 TraderProposalModel.run_id == proposal.run_id,
@@ -506,6 +533,113 @@ class ResearchRepository:
         )
         if symbol is not None:
             statement = statement.where(TraderProposalModel.symbol == symbol.upper())
+        if limit is not None:
+            statement = statement.limit(limit)
+        return list(self.session.scalars(statement))
+
+
+class RiskRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def replace_risk_review_for_run_symbol(self, review: RiskReview) -> RiskReviewModel:
+        self.session.execute(
+            delete(FinalDecisionModel).where(
+                FinalDecisionModel.run_id == review.run_id,
+                FinalDecisionModel.symbol == review.symbol.upper(),
+            )
+        )
+        self.session.execute(
+            delete(RiskReviewModel).where(
+                RiskReviewModel.run_id == review.run_id,
+                RiskReviewModel.symbol == review.symbol.upper(),
+            )
+        )
+        model = _risk_review_to_model(review)
+        self.session.add(model)
+        self.session.flush()
+        return model
+
+    def replace_final_decision_for_run_symbol(self, decision: FinalDecision) -> FinalDecisionModel:
+        self.session.execute(
+            delete(FinalDecisionModel).where(
+                FinalDecisionModel.run_id == decision.run_id,
+                FinalDecisionModel.symbol == decision.symbol.upper(),
+            )
+        )
+        model = _final_decision_to_model(decision)
+        self.session.add(model)
+        self.session.flush()
+        return model
+
+    def get_risk_review(self, risk_check_id: str) -> RiskReviewModel | None:
+        return self.session.get(RiskReviewModel, risk_check_id)
+
+    def get_final_decision(self, final_decision_id: str) -> FinalDecisionModel | None:
+        return self.session.get(FinalDecisionModel, final_decision_id)
+
+    def latest_risk_review(
+        self,
+        *,
+        run_id: str,
+        symbol: str,
+    ) -> RiskReviewModel | None:
+        statement = (
+            select(RiskReviewModel)
+            .where(
+                RiskReviewModel.run_id == run_id,
+                RiskReviewModel.symbol == symbol.upper(),
+            )
+            .order_by(RiskReviewModel.as_of.desc(), RiskReviewModel.created_at.desc())
+            .limit(1)
+        )
+        return self.session.scalar(statement)
+
+    def latest_final_decision(
+        self,
+        *,
+        run_id: str,
+        symbol: str,
+    ) -> FinalDecisionModel | None:
+        statement = (
+            select(FinalDecisionModel)
+            .where(
+                FinalDecisionModel.run_id == run_id,
+                FinalDecisionModel.symbol == symbol.upper(),
+            )
+            .order_by(FinalDecisionModel.as_of.desc(), FinalDecisionModel.created_at.desc())
+            .limit(1)
+        )
+        return self.session.scalar(statement)
+
+    def list_risk_reviews(
+        self,
+        *,
+        symbol: str | None = None,
+        limit: int | None = 100,
+    ) -> list[RiskReviewModel]:
+        statement = select(RiskReviewModel).order_by(
+            RiskReviewModel.as_of.desc(),
+            RiskReviewModel.risk_check_id,
+        )
+        if symbol is not None:
+            statement = statement.where(RiskReviewModel.symbol == symbol.upper())
+        if limit is not None:
+            statement = statement.limit(limit)
+        return list(self.session.scalars(statement))
+
+    def list_final_decisions(
+        self,
+        *,
+        symbol: str | None = None,
+        limit: int | None = 100,
+    ) -> list[FinalDecisionModel]:
+        statement = select(FinalDecisionModel).order_by(
+            FinalDecisionModel.as_of.desc(),
+            FinalDecisionModel.final_decision_id,
+        )
+        if symbol is not None:
+            statement = statement.where(FinalDecisionModel.symbol == symbol.upper())
         if limit is not None:
             statement = statement.limit(limit)
         return list(self.session.scalars(statement))
@@ -647,4 +781,48 @@ def _trader_proposal_to_model(proposal: TraderProposal) -> TraderProposalModel:
         requires_risk_approval=proposal.requires_risk_approval,
         model_version=proposal.model_version,
         payload=proposal.model_dump(mode="json"),
+    )
+
+
+def _risk_review_to_model(review: RiskReview) -> RiskReviewModel:
+    return RiskReviewModel(
+        risk_check_id=review.risk_check_id,
+        decision_id=review.decision_id,
+        run_id=review.run_id,
+        symbol=review.symbol.upper(),
+        proposal_id=review.proposal_id,
+        debate_id=review.debate_id,
+        as_of=review.as_of,
+        status=review.status,
+        requested_position_pct_nav=review.requested_position_pct_nav,
+        approved_position_pct_nav=review.approved_position_pct_nav,
+        hard_rule_results=[result.model_dump(mode="json") for result in review.hard_rule_results],
+        persona_reviews=[persona.model_dump(mode="json") for persona in review.persona_reviews],
+        risk_committee_summary=review.risk_committee_summary,
+        source_report_ids=list(review.source_report_ids),
+        is_order=review.is_order,
+        can_send_to_broker=review.can_send_to_broker,
+        model_version=review.model_version,
+        payload=review.model_dump(mode="json"),
+    )
+
+
+def _final_decision_to_model(decision: FinalDecision) -> FinalDecisionModel:
+    return FinalDecisionModel(
+        final_decision_id=decision.final_decision_id,
+        decision_id=decision.decision_id,
+        run_id=decision.run_id,
+        symbol=decision.symbol.upper(),
+        proposal_id=decision.proposal_id,
+        risk_check_id=decision.risk_check_id,
+        as_of=decision.as_of,
+        final_action=decision.final_action,
+        status=decision.status,
+        approved_quantity=decision.approved_quantity,
+        approved_position_pct_nav=decision.approved_position_pct_nav,
+        reason=decision.reason,
+        is_order=decision.is_order,
+        can_send_to_broker=decision.can_send_to_broker,
+        model_version=decision.model_version,
+        payload=decision.model_dump(mode="json"),
     )
