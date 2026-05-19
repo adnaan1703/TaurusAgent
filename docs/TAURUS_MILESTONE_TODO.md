@@ -5,7 +5,7 @@ Source of truth:
 - `docs/TAURUS_MVP_SPEC_v0_3.md`
 - `docs/TAURUS_CODEX_TASKS_v0_3.yaml`
 
-Last updated: 2026-05-19 22:11 IST
+Last updated: 2026-05-19 22:38 IST
 
 Status legend:
 
@@ -33,7 +33,7 @@ Milestone completion reporting:
 | M7 | Done | PaperBroker execution simulator | No | No |
 | M8 | Done | Dashboard and observability v1 | No | No |
 | M9 | Done | Screener fundamentals import | Screener CSV requested; fixture used | No |
-| M10 | Not started | Real market data provider | CSV/provider decision required | Maybe |
+| M10 | Done | Real market data provider | Synthetic CSV fixture approved | No |
 | M11 | Not started | Continuous paper trading | Schedule assumptions required | Maybe |
 | M12 | Not started | Telegram alerts, replay, backup, hardening | Telegram details optional | Optional |
 | M13 | Not started | Broker sandbox adapter | Sandbox details required | Yes |
@@ -471,33 +471,56 @@ Completion summary:
 
 ## M10 - Real Market Data Provider
 
-Status: Not started
+Status: Done
 
 Objective: Add CSV/vendor/broker market data provider interface.
 
 User input required:
 
-- [!] CSV historical prices or selected data provider details.
+- [x] Synthetic historical price CSV approved for implementation and automated verification.
 
 Tasks:
 
-- [ ] Add `MarketDataProvider` interface.
-- [ ] Add `CSVMarketDataProvider`.
-- [ ] Add optional real provider stub.
-- [ ] Record source and `data_available_time`.
+- [x] Add `MarketDataProvider` interface.
+- [x] Add `CSVMarketDataProvider`.
+- [x] Add optional real provider stub.
+- [x] Record source and `data_available_time`.
 
 Verification:
 
-- [ ] `make import-prices CSV=/path/to/prices.csv`
-- [ ] `make backtest-real-data`
-- [ ] `make test`
+- [x] `make import-price-csv CSV=/path/to/prices.csv`
+- [x] `make backtest-real-data`
+- [x] `make test`
+- [x] `make lint`
+- [x] `make backtest-mock`
+- [x] `curl "http://localhost:8000/data/candles?symbol=INFY&timeframe=1d"`
 
 Acceptance:
 
-- [ ] Mock provider still works.
-- [ ] CSV provider works.
-- [ ] Real provider disabled without credentials.
-- [ ] Data source and availability timestamps are stored.
+- [x] Mock provider still works.
+- [x] CSV provider works.
+- [x] Real provider disabled without credentials.
+- [x] Data source and availability timestamps are stored.
+
+Notes:
+
+- Added synthetic OHLCV fixture at `mock/market_data/prices_sample.csv` with INFY, RELIANCE, and TCS daily candles.
+- Added `CSVMarketDataProvider`, provider metadata, `get_historical_candles`, `get_latest_candle`, and disabled external provider stub.
+- Added `make import-price-csv` and `make backtest-real-data`, with CSV smoke strategy `configs/strategies/csv_market_data_smoke_v1.yaml`.
+- `DATABASE_URL=sqlite:////private/tmp/taurus-m10-verify-20260519.db make import-price-csv` imported `36` candles for `3` instruments, dates `2024-01-01..2024-01-16`.
+- `DATABASE_URL=sqlite:////private/tmp/taurus-m10-verify-20260519.db make backtest-real-data` produced `run_id=bt-2b3c3ce4675784dc`.
+- `DATABASE_URL=sqlite:////private/tmp/taurus-m10-mock-verify-20260519.db make backtest-mock` produced `run_id=bt-f1cb6aed6c20e80d`.
+- `/data/candles?symbol=INFY&timeframe=1d` returns candle `source` as `csv_market_data:prices_sample.csv` and `data_available_time` values.
+- Verified `49 passed`.
+- `make lint` compile-checks pass.
+- No external market data provider was previously selected in the committed docs. M10 keeps external provider integration disabled without credentials; broker/data-provider sandbox credentials remain later milestone scope.
+- Global Codex approvals added during verification were copied into `.codex/rules/default.rules`, documented in `docs/TAURUS_COMMANDS.md`, and removed from `/Users/adnaan/.codex/rules/default.rules` after the user's marker.
+
+Completion summary:
+
+- Assumptions made: The synthetic CSV is acceptable for M10 implementation and automated verification. CSV candle provenance should record provider plus file name instead of full local user paths. External market data remains a disabled stub until a provider is selected and credentials are explicitly provided.
+- Mocks created: Synthetic OHLCV price CSV at `mock/market_data/prices_sample.csv` and CSV smoke strategy at `configs/strategies/csv_market_data_smoke_v1.yaml`.
+- Mocks used: Synthetic OHLCV price CSV, deterministic mock market data for regression, and SQLite verification databases at `/private/tmp/taurus-m10-verify-20260519.db` and `/private/tmp/taurus-m10-mock-verify-20260519.db`.
 
 ## M11 - Continuous Paper Trading
 
@@ -669,6 +692,8 @@ These tasks are intentionally deferred until all milestones are achieved.
 - [ ] Confirm imported rows map to Taurus instruments and document any unmapped symbols/company names.
 - [ ] Confirm `FundamentalsAnalystAgent`, `/fundamentals`, and the dashboard use the real imported data correctly.
 - [ ] Decide whether extra column aliases, normalization, or scoring adjustments are needed for the real Screener export format.
+- [ ] Select the external historical market data provider after MVP completion, then provide provider name, sandbox/API documentation, required env var names, and credentials through local `.env` only.
+- [ ] Validate the external market data provider adapter in sandbox/paper mode without committing credentials or enabling live trading.
 
 ## Maintenance Rules
 

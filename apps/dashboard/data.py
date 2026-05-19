@@ -107,21 +107,22 @@ def data_freshness(session: Session, *, symbol: str | None = None) -> list[dict[
         select(
             DailyCandleModel.symbol,
             DailyCandleModel.timeframe,
-            func.max(DailyCandleModel.trade_date),
+            DailyCandleModel.source,
+            func.max(DailyCandleModel.data_available_time),
             func.count(),
         )
-        .group_by(DailyCandleModel.symbol, DailyCandleModel.timeframe)
-        .order_by(DailyCandleModel.symbol, DailyCandleModel.timeframe)
+        .group_by(DailyCandleModel.symbol, DailyCandleModel.timeframe, DailyCandleModel.source)
+        .order_by(DailyCandleModel.symbol, DailyCandleModel.timeframe, DailyCandleModel.source)
     )
     if symbol is not None:
         candle_statement = candle_statement.where(DailyCandleModel.symbol == symbol.upper())
 
     rows: list[dict[str, Any]] = []
-    for row_symbol, timeframe, latest_date, count in session.execute(candle_statement):
-        latest_at = _as_utc_datetime(latest_date)
+    for row_symbol, timeframe, source, latest_available_at, count in session.execute(candle_statement):
+        latest_at = _as_utc_datetime(latest_available_at)
         rows.append(
             {
-                "source": "daily_candles",
+                "source": source,
                 "symbol": row_symbol,
                 "timeframe": timeframe,
                 "latest_at": _display_time(latest_at),

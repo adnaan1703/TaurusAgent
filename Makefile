@@ -1,4 +1,4 @@
-.PHONY: setup dev-up dev-down api dashboard migrate seed-mock backtest-mock import-mock-news import-screener run-analysts-mock debate-mock trader-proposal-mock risk-review-mock final-approval-mock paper-once-mock paper-loop-once paper-loop-start llm-smoke test lint
+.PHONY: setup dev-up dev-down api dashboard migrate seed-mock backtest-mock backtest-real-data import-mock-news import-screener import-price-csv run-analysts-mock debate-mock trader-proposal-mock risk-review-mock final-approval-mock paper-once-mock paper-loop-once paper-loop-start llm-smoke test lint
 
 UV ?= uv
 COMPOSE ?= docker compose
@@ -7,6 +7,8 @@ SYMBOL ?= INFY
 ROUNDS ?= 2
 PAPER_LOOP_ITERATIONS ?= 1
 PAPER_LOOP_INTERVAL_SECONDS ?= 60
+PRICE_CSV ?= mock/market_data/prices_sample.csv
+REAL_DATA_STRATEGY ?= configs/strategies/csv_market_data_smoke_v1.yaml
 
 setup:
 	$(UV) sync --dev
@@ -32,11 +34,17 @@ seed-mock:
 backtest-mock:
 	DATABASE_URL="$(DATABASE_URL)" STRATEGY="$(STRATEGY)" PYTHONPATH=packages:. $(UV) run python scripts/run_backtest.py
 
+backtest-real-data:
+	DATABASE_URL="$(DATABASE_URL)" TAURUS_MARKET_DATA_PROVIDER=csv CSV="$(if $(CSV),$(CSV),$(PRICE_CSV))" STRATEGY="$(REAL_DATA_STRATEGY)" PYTHONPATH=packages:. $(UV) run python scripts/run_backtest.py
+
 import-mock-news:
 	DATABASE_URL="$(DATABASE_URL)" PYTHONPATH=packages:. $(UV) run python scripts/import_mock_news.py
 
 import-screener:
 	DATABASE_URL="$(DATABASE_URL)" CSV="$(CSV)" PYTHONPATH=packages:. $(UV) run python scripts/import_screener.py
+
+import-price-csv:
+	DATABASE_URL="$(DATABASE_URL)" CSV="$(if $(CSV),$(CSV),$(PRICE_CSV))" DIR="$(DIR)" PYTHONPATH=packages:. $(UV) run python scripts/import_price_csv.py
 
 run-analysts-mock:
 	DATABASE_URL="$(DATABASE_URL)" TAURUS_LLM_PROVIDER=mock SYMBOL="$(SYMBOL)" PYTHONPATH=packages:. $(UV) run python scripts/run_analysts.py

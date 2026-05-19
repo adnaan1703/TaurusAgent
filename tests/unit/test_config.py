@@ -16,6 +16,7 @@ def test_default_settings_are_safe() -> None:
     assert settings.database_url == "sqlite:///./taurus.db"
     assert settings.taurus_mock_seed == 42
     assert settings.taurus_mock_candle_count == 252
+    assert settings.taurus_market_data_provider == "mock"
     assert settings.taurus_llm_provider == "mock"
     assert settings.taurus_initial_capital_inr == 1_000_000
     assert settings.taurus_max_position_pct == 5
@@ -33,6 +34,13 @@ def test_non_paper_broker_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("BROKER_PROVIDER", "upstox")
 
     with pytest.raises(ValidationError, match="paper broker provider"):
+        Settings()
+
+
+def test_unknown_market_data_provider_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("TAURUS_MARKET_DATA_PROVIDER", "scraper")
+
+    with pytest.raises(ValidationError, match="market data provider"):
         Settings()
 
 

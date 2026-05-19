@@ -15,12 +15,12 @@
     "semantic_hash": ""
   },
   "/Users/adnaan/Workbench/TaurusAgent/.opencode/opencode.json": {
-    "mtime": 1779205854.0514822,
+    "mtime": 1779210686.4025838,
     "ast_hash": "e5f74d14a81702b55bdf53b33ec991d7",
     "semantic_hash": ""
   },
   "/Users/adnaan/Workbench/TaurusAgent/.opencode/plugins/graphify.js": {
-    "mtime": 1779205854.0518012,
+    "mtime": 1779210686.4027796,
     "ast_hash": "64ccd3c03dbfe0980b6095766f5c4e52",
     "semantic_hash": ""
   },
@@ -35,7 +35,7 @@
     "semantic_hash": ""
   },
   "/Users/adnaan/Workbench/TaurusAgent/tests/unit/test_fundamentals_import.py": {
-    "mtime": 1779206846.453091,
+    "mtime": 1779210686.444459,
     "ast_hash": "60cad79330b3d6ad59f870c51ba33463",
     "semantic_hash": ""
   },
@@ -55,8 +55,8 @@
     "semantic_hash": ""
   },
   "/Users/adnaan/Workbench/TaurusAgent/tests/unit/test_config.py": {
-    "mtime": 1779120334.605897,
-    "ast_hash": "5c4d9ac3e964a03fd1c87d3be3444ab6",
+    "mtime": 1779210686.4441686,
+    "ast_hash": "09037bf44cd80f1c87999f2f0058ec67",
     "semantic_hash": ""
   },
   "/Users/adnaan/Workbench/TaurusAgent/tests/unit/test_intelligence.py": {
@@ -130,7 +130,7 @@
     "semantic_hash": ""
   },
   "/Users/adnaan/Workbench/TaurusAgent/scripts/import_screener.py": {
-    "mtime": 1779206667.641932,
+    "mtime": 1779210686.4435918,
     "ast_hash": "473f37592efcab966395c3baf45fe62b",
     "semantic_hash": ""
   },
@@ -150,13 +150,13 @@
     "semantic_hash": ""
   },
   "/Users/adnaan/Workbench/TaurusAgent/scripts/migrate.py": {
-    "mtime": 1779169079.1169736,
-    "ast_hash": "bb70e6de2f1b196cf8399a5f6274f2f5",
+    "mtime": 1779210686.4437478,
+    "ast_hash": "be57b663892be413d909e9c9b48b4427",
     "semantic_hash": ""
   },
   "/Users/adnaan/Workbench/TaurusAgent/scripts/run_backtest.py": {
-    "mtime": 1779188927.2085655,
-    "ast_hash": "5d126898df5148dbe294946ff2464769",
+    "mtime": 1779210686.4439023,
+    "ast_hash": "ecaabd190712546ece03bd964f3e77e7",
     "semantic_hash": ""
   },
   "/Users/adnaan/Workbench/TaurusAgent/scripts/llm_smoke.py": {
@@ -170,8 +170,8 @@
     "semantic_hash": ""
   },
   "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/config.py": {
-    "mtime": 1779186972.128873,
-    "ast_hash": "1254ef8e1d6cbc6836d86a0462b7b308",
+    "mtime": 1779210686.440861,
+    "ast_hash": "edc2d9825abdeeedd489b0cf16225008",
     "semantic_hash": ""
   },
   "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/__init__.py": {
@@ -195,17 +195,17 @@
     "semantic_hash": ""
   },
   "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/fundamentals/scoring.py": {
-    "mtime": 1779206574.3559897,
+    "mtime": 1779210686.4429584,
     "ast_hash": "99007c904240cc3dcc018a4e400afc65",
     "semantic_hash": ""
   },
   "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/fundamentals/screener.py": {
-    "mtime": 1779206653.1111174,
+    "mtime": 1779210686.443089,
     "ast_hash": "e9c3622979c144a752d07becf3755c14",
     "semantic_hash": ""
   },
   "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/fundamentals/__init__.py": {
-    "mtime": 1779206551.0358846,
+    "mtime": 1779210686.4428015,
     "ast_hash": "b78da49932a846fcd70646e9b5655e2c",
     "semantic_hash": ""
   },
@@ -260,8 +260,8 @@
     "semantic_hash": ""
   },
   "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/backtesting/engine.py": {
-    "mtime": 1779168882.9787993,
-    "ast_hash": "6467c200cb03ee78af265e79554b415d",
+    "mtime": 1779210686.4406183,
+    "ast_hash": "ccbf3018fb73fc8525c9a5e1bfbb3403",
     "semantic_hash": ""
   },
   "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/backtesting/context.py": {
@@ -415,7 +415,7 @@
     "semantic_hash": ""
   },
   "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/agents/fundamentals_analyst.py": {
-    "mtime": 1779206748.0000992,
+    "mtime": 1779210686.4403737,
     "ast_hash": "7d268be68b0911c39e8418496190f142",
     "semantic_hash": ""
   },
@@ -430,7 +430,7 @@
     "semantic_hash": ""
   },
   "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/observability/metrics.py": {
-    "mtime": 1779206796.887894,
+    "mtime": 1779210686.443249,
     "ast_hash": "e77f53cf3cbd03a4f87be77b1f6c396e",
     "semantic_hash": ""
   },
@@ -470,8 +470,8 @@
     "semantic_hash": ""
   },
   "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/db/models.py": {
-    "mtime": 1779206525.5083787,
-    "ast_hash": "4b6ca16653f2fea723ab50f514705cae",
+    "mtime": 1779210686.4420888,
+    "ast_hash": "338bb26889c353049e5eb700dc5d43f9",
     "semantic_hash": ""
   },
   "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/db/session.py": {
@@ -485,28 +485,28 @@
     "semantic_hash": ""
   },
   "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/db/repositories.py": {
-    "mtime": 1779206542.716454,
-    "ast_hash": "e1f5923c57a32fd4b484e955b96d21e6",
+    "mtime": 1779210686.4423068,
+    "ast_hash": "9212d17e8ea3fcfc7c4adaf3b22f14e0",
     "semantic_hash": ""
   },
   "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/data/__init__.py": {
-    "mtime": 1779119367.5020685,
-    "ast_hash": "3f663a153d0bf24241b293183373d345",
+    "mtime": 1779210686.4410467,
+    "ast_hash": "92b470e5cc582dc0bc2e7f6f5cd4315b",
     "semantic_hash": ""
   },
   "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/data/providers/__init__.py": {
-    "mtime": 1779119374.0034995,
-    "ast_hash": "3f663a153d0bf24241b293183373d345",
+    "mtime": 1779210686.4413192,
+    "ast_hash": "501d59f8f9d6875b2f743bd47f8b8996",
     "semantic_hash": ""
   },
   "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/data/providers/mock_market_data.py": {
-    "mtime": 1779119392.8626368,
-    "ast_hash": "dad6bee19b43085a580579f7769c74f9",
+    "mtime": 1779210686.441866,
+    "ast_hash": "a838c85f629c4c7005f9ea8b44982785",
     "semantic_hash": ""
   },
   "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/domain/__init__.py": {
-    "mtime": 1779119263.8450272,
-    "ast_hash": "fec42f0441e35673c13be359669398e0",
+    "mtime": 1779210686.4424677,
+    "ast_hash": "c56820df3a8d593fa77fc1eb2b216bb3",
     "semantic_hash": ""
   },
   "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/domain/instruments.py": {
@@ -515,8 +515,8 @@
     "semantic_hash": ""
   },
   "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/domain/market_data.py": {
-    "mtime": 1779119274.3764231,
-    "ast_hash": "a275e8942eed54f6ec417676e3ac5637",
+    "mtime": 1779210686.4426632,
+    "ast_hash": "8b2c9aad54dd14df62484d0d5142c2e0",
     "semantic_hash": ""
   },
   "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/risk/review_service.py": {
@@ -555,13 +555,13 @@
     "semantic_hash": ""
   },
   "/Users/adnaan/Workbench/TaurusAgent/apps/dashboard/main.py": {
-    "mtime": 1779206780.2978737,
+    "mtime": 1779210686.4042263,
     "ast_hash": "60a9662131aabb42367189554fbd2c03",
     "semantic_hash": ""
   },
   "/Users/adnaan/Workbench/TaurusAgent/apps/dashboard/data.py": {
-    "mtime": 1779206769.245995,
-    "ast_hash": "b4c68ec825142871934b228e710ef36e",
+    "mtime": 1779210686.403993,
+    "ast_hash": "b0cd4f7c8efa69177d3f324e91756518",
     "semantic_hash": ""
   },
   "/Users/adnaan/Workbench/TaurusAgent/apps/dashboard/pages/paper_trading.py": {
@@ -585,7 +585,7 @@
     "semantic_hash": ""
   },
   "/Users/adnaan/Workbench/TaurusAgent/apps/dashboard/pages/agent_workflow.py": {
-    "mtime": 1779206789.1113558,
+    "mtime": 1779210686.404461,
     "ast_hash": "f146b3a7b36f63ba4f27a5e796330a28",
     "semantic_hash": ""
   },
@@ -600,7 +600,7 @@
     "semantic_hash": ""
   },
   "/Users/adnaan/Workbench/TaurusAgent/apps/api/routes_fundamentals.py": {
-    "mtime": 1779206690.89012,
+    "mtime": 1779210686.4037533,
     "ast_hash": "a0ce8ec69fd73c27f55e139dbac7a464",
     "semantic_hash": ""
   },
@@ -630,12 +630,12 @@
     "semantic_hash": ""
   },
   "/Users/adnaan/Workbench/TaurusAgent/apps/api/routes_data.py": {
-    "mtime": 1779119439.828802,
-    "ast_hash": "07a23fce9782137554045f4578f2d967",
+    "mtime": 1779210686.403596,
+    "ast_hash": "8b3a3e3149e74c7551785d51357f6f5e",
     "semantic_hash": ""
   },
   "/Users/adnaan/Workbench/TaurusAgent/apps/api/main.py": {
-    "mtime": 1779206694.373003,
+    "mtime": 1779210686.403424,
     "ast_hash": "781296fcce3e75aba0258562cd215cd2",
     "semantic_hash": ""
   },
@@ -655,7 +655,7 @@
     "semantic_hash": ""
   },
   "/Users/adnaan/Workbench/TaurusAgent/AGENTS.md": {
-    "mtime": 1779205883.7411864,
+    "mtime": 1779210686.4030287,
     "ast_hash": "59b4c07a011280b4984ad29267ccb245",
     "semantic_hash": ""
   },
@@ -685,8 +685,8 @@
     "semantic_hash": ""
   },
   "/Users/adnaan/Workbench/TaurusAgent/docs/TAURUS_MILESTONE_TODO.md": {
-    "mtime": 1779208907.6490839,
-    "ast_hash": "36cb917942658ac436731dc83b1cd2a2",
+    "mtime": 1779210686.4052417,
+    "ast_hash": "b02171ed28ece7a05e3971ff3a5955c6",
     "semantic_hash": ""
   },
   "/Users/adnaan/Workbench/TaurusAgent/docs/TAURUS_CODEX_PROMPTS_v0_3.md": {
@@ -695,8 +695,8 @@
     "semantic_hash": ""
   },
   "/Users/adnaan/Workbench/TaurusAgent/docs/TAURUS_COMMANDS.md": {
-    "mtime": 1779207229.7220578,
-    "ast_hash": "d679ea054a490e8998b84f061faf5d75",
+    "mtime": 1779210686.4049718,
+    "ast_hash": "c784bf67b2b7d9c8046e891e35b35e93",
     "semantic_hash": ""
   },
   "/Users/adnaan/Workbench/TaurusAgent/docs/TAURUS_CODEX_TASKS_v0_3.yaml": {
@@ -715,13 +715,43 @@
     "semantic_hash": ""
   },
   "/Users/adnaan/Workbench/TaurusAgent/scripts/README.md": {
-    "mtime": 1779187608.0319736,
-    "ast_hash": "483a2f634eeaa09e2954dacb5b7197b9",
+    "mtime": 1779210686.443368,
+    "ast_hash": "5d24d7665ebebc3bb2f0e2d2b2f2130e",
     "semantic_hash": ""
   },
   "/Users/adnaan/Workbench/TaurusAgent/apps/dashboard/README.md": {
     "mtime": 1779189138.9728904,
     "ast_hash": "794351e07674b31bf08333830c9701b8",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/tests/unit/test_csv_market_data.py": {
+    "mtime": 1779210686.444299,
+    "ast_hash": "6ad8688e57c7e4d39e36a09ce42fcf25",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/scripts/import_price_csv.py": {
+    "mtime": 1779210686.4434729,
+    "ast_hash": "88fd93404d6441001ca854702f508833",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/data/importers.py": {
+    "mtime": 1779210686.4411669,
+    "ast_hash": "f27f3b54ed2fe91ed4eb0dc295d189ca",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/data/providers/csv_market_data.py": {
+    "mtime": 1779210686.4414864,
+    "ast_hash": "fcf5f9b0c9838c9c36cccd505b76ede0",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/data/providers/factory.py": {
+    "mtime": 1779210686.4416327,
+    "ast_hash": "54cd1728454af5d6f3f34ff7f8e49d8b",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/configs/strategies/csv_market_data_smoke_v1.yaml": {
+    "mtime": 1779210686.4046688,
+    "ast_hash": "a52b3b9ccb46cc20edd49d6951218f06",
     "semantic_hash": ""
   }
 }

@@ -37,6 +37,12 @@ class Settings(BaseSettings):
 
     taurus_universe: str = Field(default="NIFTY_100", validation_alias="TAURUS_UNIVERSE")
     taurus_timeframe: str = Field(default="1d", validation_alias="TAURUS_TIMEFRAME")
+    taurus_market_data_provider: str = Field(
+        default="mock",
+        validation_alias="TAURUS_MARKET_DATA_PROVIDER",
+    )
+    taurus_price_csv_path: str = Field(default="", validation_alias="TAURUS_PRICE_CSV_PATH")
+    taurus_price_csv_dir: str = Field(default="", validation_alias="TAURUS_PRICE_CSV_DIR")
     taurus_mock_seed: int = Field(default=42, validation_alias="TAURUS_MOCK_SEED")
     taurus_mock_candle_count: int = Field(
         default=252,
@@ -118,6 +124,8 @@ class Settings(BaseSettings):
             raise ValueError("Live trading is disabled and cannot be enabled.")
         if self.broker_provider != "paper":
             raise ValueError("Taurus currently supports only the paper broker provider.")
+        if self.taurus_market_data_provider not in {"mock", "csv", "external"}:
+            raise ValueError("Unsupported Taurus market data provider.")
         if self.taurus_llm_provider not in {"mock", "lmstudio", "openai"}:
             raise ValueError("Unsupported Taurus LLM provider.")
         return self

@@ -75,6 +75,12 @@ class DailyCandleModel(Base):
     low: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
     close: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
     volume: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    source: Mapped[str] = mapped_column(String(128), nullable=False, default="mock_market_data")
+    data_available_time: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc_now,
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

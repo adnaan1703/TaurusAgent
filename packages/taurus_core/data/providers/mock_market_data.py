@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import random
-from datetime import date, timedelta
+from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal
 
 from taurus_core.domain.instruments import Instrument
@@ -37,6 +37,14 @@ class MockMarketDataProvider:
         self.start_date = start_date
         self._instruments = {instrument.symbol: instrument for instrument in MOCK_INSTRUMENTS}
 
+    @property
+    def provider_name(self) -> str:
+        return "mock"
+
+    @property
+    def source(self) -> str:
+        return "mock_market_data"
+
     def list_instruments(self) -> list[Instrument]:
         return list(self._instruments.values())
 
@@ -68,11 +76,35 @@ class MockMarketDataProvider:
                     low=_money(low_price),
                     close=_money(close_price),
                     volume=volume,
+                    source=self.source,
+                    data_available_time=datetime.combine(
+                        trade_date,
+                        time(18, 0),
+                        tzinfo=timezone.utc,
+                    ),
                 )
             )
             previous_close = close_price
 
         return candles
+
+    def get_historical_candles(
+        self,
+        symbol: str,
+        *,
+        start_date: date | None = None,
+        end_date: date | None = None,
+    ) -> list[DailyCandle]:
+        candles = self.get_daily_candles(symbol)
+        if start_date is not None:
+            candles = [candle for candle in candles if candle.trade_date >= start_date]
+        if end_date is not None:
+            candles = [candle for candle in candles if candle.trade_date <= end_date]
+        return candles
+
+    def get_latest_candle(self, symbol: str) -> DailyCandle | None:
+        candles = self.get_daily_candles(symbol)
+        return candles[-1] if candles else None
 
 
 def _stable_seed(seed: int, symbol: str) -> int:

@@ -5,10 +5,14 @@ import os
 from decimal import Decimal
 
 from scripts.migrate import run_migrations
-from scripts.seed_mock_data import seed_mock_data
 from taurus_core.backtesting import BacktestConfig, BacktestEngine, BacktestResult
 from taurus_core.config import Settings, get_settings
-from taurus_core.data.providers.mock_market_data import MockMarketDataProvider
+from taurus_core.data.importers import import_market_data
+from taurus_core.data.providers import (
+    CSVMarketDataProvider,
+    DisabledExternalMarketDataProvider,
+    MockMarketDataProvider,
+)
 from taurus_core.db.session import build_session_factory
 from taurus_core.logging import configure_logging
 from taurus_core.strategies import DEFAULT_STRATEGY_CONFIG_PATH, load_strategy_config
@@ -20,12 +24,8 @@ def run_mock_backtest(settings: Settings | None = None) -> BacktestResult:
     strategy_config = load_strategy_config(strategy_path)
     run_migrations(settings)
     session_factory = build_session_factory(settings)
-    provider = MockMarketDataProvider(
-        seed=settings.taurus_mock_seed,
-        candle_count=settings.taurus_mock_candle_count,
-    )
     with session_factory() as session:
-        seed_mock_data(session, provider)
+        _prepare_market_data(session, settings)
 
     config = BacktestConfig(
         strategy_name=strategy_config.strategy_name,
@@ -42,6 +42,38 @@ def run_mock_backtest(settings: Settings | None = None) -> BacktestResult:
     )
     with session_factory() as session:
         return BacktestEngine(session, config).run()
+
+
+def _prepare_market_data(session, settings: Settings) -> None:
+    provider_name = settings.taurus_market_data_provider.lower()
+    if provider_name == "mock":
+        import_market_data(
+            session,
+            MockMarketDataProvider(
+                seed=settings.taurus_mock_seed,
+                candle_count=settings.taurus_mock_candle_count,
+            ),
+        )
+        return
+
+    if provider_name == "csv":
+        csv_path = os.environ.get("CSV") or settings.taurus_price_csv_path
+        directory = os.environ.get("DIR") or settings.taurus_price_csv_dir
+        if csv_path or directory:
+            import_market_data(
+                session,
+                CSVMarketDataProvider(
+                    csv_path=csv_path or None,
+                    directory=directory or None,
+                ),
+            )
+        return
+
+    if provider_name == "external":
+        DisabledExternalMarketDataProvider().list_instruments()
+        return
+
+    raise ValueError(f"Unsupported Taurus market data provider: {provider_name}")
 
 
 if __name__ == "__main__":

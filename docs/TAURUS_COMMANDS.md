@@ -108,6 +108,19 @@ uv run python -m json.tool infra/grafana/dashboards/taurus-trading.json
 pkill -f "streamlit run apps/dashboard/main.py"
 ```
 
+## M10 Commands Used
+
+```bash
+make test
+make lint
+DATABASE_URL=sqlite:////private/tmp/taurus-m10-verify-20260519.db make import-price-csv
+DATABASE_URL=sqlite:////private/tmp/taurus-m10-verify-20260519.db make backtest-real-data
+DATABASE_URL=sqlite:////private/tmp/taurus-m10-mock-verify-20260519.db make backtest-mock
+DATABASE_URL=sqlite:////private/tmp/taurus-m10-verify-20260519.db make api
+curl "http://localhost:8000/data/candles?symbol=INFY&timeframe=1d"
+pkill -f "uvicorn apps.api.main:app"
+```
+
 ## Current Make Targets
 
 ```bash
@@ -118,7 +131,10 @@ make api
 make migrate
 make seed-mock
 make backtest-mock
+make backtest-real-data
 make import-mock-news
+make import-screener CSV=/path/to/screener.csv
+make import-price-csv CSV=mock/market_data/prices_sample.csv
 make run-analysts-mock SYMBOL=INFY
 make debate-mock SYMBOL=INFY
 make trader-proposal-mock SYMBOL=INFY
@@ -150,6 +166,7 @@ make dashboard
 make import-screener CSV=/path/to/screener.csv
 make import-price-csv CSV=/path/to/prices.csv
 make import-price-csv DIR=/path/to/price_csvs
+make backtest-real-data
 make paper-loop-start
 make paper-loop-once
 make replay-decision DECISION_ID=sample
@@ -217,6 +234,7 @@ prefix_rule(pattern=["make", "dev-up"], decision="allow")
 prefix_rule(pattern=["make", "dev-down"], decision="allow")
 prefix_rule(pattern=["make", "api"], decision="allow")
 prefix_rule(pattern=["uv", "run"], decision="allow")
+prefix_rule(pattern=["graphify", "update", "."], decision="allow")
 prefix_rule(pattern=["make", "migrate"], decision="allow")
 prefix_rule(pattern=["make", "seed-mock"], decision="allow")
 prefix_rule(pattern=["make", "backtest-mock"], decision="allow")
@@ -235,6 +253,10 @@ prefix_rule(pattern=["/bin/zsh", "-lc", "DATABASE_URL=sqlite:////private/tmp/tau
 prefix_rule(pattern=["/bin/zsh", "-lc", "DATABASE_URL=sqlite:////private/tmp/taurus-m9-verify-20260519.db make import-screener CSV=tests/fixtures/screener_sample.csv"], decision="allow")
 prefix_rule(pattern=["/bin/zsh", "-lc", "DATABASE_URL=sqlite:////private/tmp/taurus-m9-verify-20260519.db make run-analysts-mock SYMBOL=INFY"], decision="allow")
 prefix_rule(pattern=["/bin/zsh", "-lc", "DATABASE_URL=sqlite:////private/tmp/taurus-m9-verify-20260519.db make api"], decision="allow")
+prefix_rule(pattern=["/bin/zsh", "-lc", "DATABASE_URL=sqlite:////private/tmp/taurus-m10-verify-20260519.db make import-price-csv"], decision="allow")
+prefix_rule(pattern=["/bin/zsh", "-lc", "DATABASE_URL=sqlite:////private/tmp/taurus-m10-verify-20260519.db make backtest-real-data"], decision="allow")
+prefix_rule(pattern=["/bin/zsh", "-lc", "DATABASE_URL=sqlite:////private/tmp/taurus-m10-mock-verify-20260519.db make backtest-mock"], decision="allow")
+prefix_rule(pattern=["/bin/zsh", "-lc", "DATABASE_URL=sqlite:////private/tmp/taurus-m10-verify-20260519.db make api"], decision="allow")
 prefix_rule(pattern=["make", "dashboard"], decision="allow")
 prefix_rule(pattern=["make", "import-screener"], decision="allow")
 prefix_rule(pattern=["make", "import-price-csv"], decision="allow")

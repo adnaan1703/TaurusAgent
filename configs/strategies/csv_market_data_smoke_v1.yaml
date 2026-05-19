@@ -1,0 +1,10 @@
+strategy_name: csv_market_data_smoke_v1
+strategy_type: moving_average_crossover
+target_positions: 2
+lookback_days: 5
+rebalance_every_days: 2
+parameters:
+  fast_window: 2
+  slow_window: 4
+  min_spread: 0
+  min_return_20d: -1

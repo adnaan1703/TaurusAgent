@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime, time, timezone
 
 from sqlalchemy import Select, delete, func, select
 from sqlalchemy.orm import Session
@@ -103,6 +103,8 @@ class CandleRepository:
                 model.low = candle.low
                 model.close = candle.close
                 model.volume = candle.volume
+                model.source = candle.source
+                model.data_available_time = _candle_available_time(candle)
             models.append(model)
         self.session.flush()
         return models
@@ -1086,7 +1088,17 @@ def _candle_to_model(candle: DailyCandle) -> DailyCandleModel:
         low=candle.low,
         close=candle.close,
         volume=candle.volume,
+        source=candle.source,
+        data_available_time=_candle_available_time(candle),
     )
+
+
+def _candle_available_time(candle: DailyCandle) -> datetime:
+    if candle.data_available_time is not None:
+        if candle.data_available_time.tzinfo is None:
+            return candle.data_available_time.replace(tzinfo=timezone.utc)
+        return candle.data_available_time
+    return datetime.combine(candle.trade_date, time(18, 0), tzinfo=timezone.utc)
 
 
 def _raw_document_to_model(document: RawDocument) -> RawDocumentModel:

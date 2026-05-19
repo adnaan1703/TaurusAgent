@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Literal
 
@@ -38,6 +38,8 @@ class CandleResponse(BaseModel):
     low: Decimal
     close: Decimal
     volume: int
+    source: str
+    data_available_time: datetime
 
 
 def get_db_session(request: Request) -> Iterator[Session]:

@@ -52,7 +52,9 @@ class BacktestEngine:
     def run(self) -> BacktestResult:
         candles_by_symbol = self._load_candles()
         if not candles_by_symbol:
-            raise ValueError("No daily candles are available. Run make seed-mock first.")
+            raise ValueError(
+                "No daily candles are available. Run make seed-mock or make import-price-csv first."
+            )
 
         symbols = sorted(candles_by_symbol)
         candles_by_date = {
@@ -263,6 +265,8 @@ class BacktestEngine:
                         close=candle.close,
                         volume=candle.volume,
                         timeframe=candle.timeframe,
+                        source=candle.source,
+                        data_available_time=candle.data_available_time,
                     )
                     for candle in candle_models
                 ]
