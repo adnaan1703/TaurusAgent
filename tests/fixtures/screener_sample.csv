@@ -1,0 +1,5 @@
+Symbol,Company Name,Market Cap,Current Price,Stock P/E,Book Value,Dividend Yield,ROCE,ROE,Debt to Equity,EPS,Sales growth,Profit growth,Promoter holding,FII holding,DII holding,Pledged percentage
+INFY,Infosys Ltd,650000,1490,24.5,220,2.2,32,29,0.1,62,12,10,14.7,33,18,0
+TCS,Tata Consultancy Services Ltd,1350000,3900,29.1,310,1.4,48,41,0.0,132,10,9,72.3,13,7,0
+HDFCBANK,HDFC Bank Ltd,1120000,1580,18.7,620,1.1,8,16,0.0,84,15,18,0,48,21,0
+NOPE,Unmapped Example Ltd,1000,100,10,50,0,5,4,3,2,-8,-10,20,0,0,25

@@ -172,6 +172,8 @@ curl "http://localhost:8000/data/candles?symbol=INFY&timeframe=1d"
 curl http://localhost:8000/backtests
 curl http://localhost:8000/events
 curl "http://localhost:8000/agent-reports?symbol=INFY"
+curl "http://localhost:8000/fundamentals?symbol=INFY"
+curl http://localhost:8000/fundamentals/imports
 curl http://localhost:8000/debates
 curl http://localhost:8000/trader-proposals
 curl http://localhost:8000/risk-checks
@@ -230,6 +232,9 @@ prefix_rule(pattern=["/bin/zsh", "-lc", "DATABASE_URL=sqlite:////private/tmp/tau
 prefix_rule(pattern=["/bin/zsh", "-lc", "DATABASE_URL=sqlite:////private/tmp/taurus-m7-verify-20260519.db make api"], decision="allow")
 prefix_rule(pattern=["/bin/zsh", "-lc", "DATABASE_URL=sqlite:////private/tmp/taurus-m7-deterministic-20260519.db TAURUS_LLM_PROVIDER=mock SYMBOL=INFY PYTHONPATH=packages:. uv run python scripts/run_paper_once.py"], decision="allow")
 prefix_rule(pattern=["/bin/zsh", "-lc", "DATABASE_URL=sqlite:////private/tmp/taurus-m7-deterministic-20260519.db make paper-once-mock SYMBOL=INFY"], decision="allow")
+prefix_rule(pattern=["/bin/zsh", "-lc", "DATABASE_URL=sqlite:////private/tmp/taurus-m9-verify-20260519.db make import-screener CSV=tests/fixtures/screener_sample.csv"], decision="allow")
+prefix_rule(pattern=["/bin/zsh", "-lc", "DATABASE_URL=sqlite:////private/tmp/taurus-m9-verify-20260519.db make run-analysts-mock SYMBOL=INFY"], decision="allow")
+prefix_rule(pattern=["/bin/zsh", "-lc", "DATABASE_URL=sqlite:////private/tmp/taurus-m9-verify-20260519.db make api"], decision="allow")
 prefix_rule(pattern=["make", "dashboard"], decision="allow")
 prefix_rule(pattern=["make", "import-screener"], decision="allow")
 prefix_rule(pattern=["make", "import-price-csv"], decision="allow")
@@ -257,6 +262,8 @@ prefix_rule(pattern=["curl", "http://localhost:8000/data/instruments"], decision
 prefix_rule(pattern=["curl", "http://localhost:8000/data/candles?symbol=INFY&timeframe=1d"], decision="allow")
 prefix_rule(pattern=["curl", "http://localhost:8000/events"], decision="allow")
 prefix_rule(pattern=["curl", "http://localhost:8000/agent-reports?symbol=INFY"], decision="allow")
+prefix_rule(pattern=["curl", "http://localhost:8000/fundamentals?symbol=INFY"], decision="allow")
+prefix_rule(pattern=["curl", "http://localhost:8000/fundamentals/imports"], decision="allow")
 prefix_rule(pattern=["curl", "http://localhost:8000/debates"], decision="allow")
 prefix_rule(pattern=["curl", "http://localhost:8000/trader-proposals"], decision="allow")
 prefix_rule(pattern=["curl", "http://localhost:8000/paper/orders"], decision="allow")

@@ -8,6 +8,8 @@ from apps.dashboard.data import (
     list_debates,
     list_events,
     list_final_decisions,
+    list_fundamental_scores,
+    list_fundamental_snapshots,
     list_paper_fills,
     list_paper_orders,
     list_paper_positions,
@@ -69,22 +71,28 @@ def main() -> None:
     render_equity_curve(equity)
 
     st.subheader("Agent Workflow")
-    reports, debates, proposals = load_data(
+    reports, debates, proposals, fundamental_scores, fundamental_metrics = load_data(
         settings,
         lambda session: (
             list_analyst_reports(session, symbol=symbol, limit=limit),
             list_debates(session, symbol=symbol, limit=limit),
             list_trader_proposals(session, symbol=symbol, limit=limit),
+            list_fundamental_scores(session, symbol=symbol, limit=limit),
+            list_fundamental_snapshots(session, symbol=symbol, limit=limit),
         ),
-        ([], [], []),
+        ([], [], [], [], []),
     )
-    tabs = st.tabs(["Analysts", "Debate", "Proposal"])
+    tabs = st.tabs(["Analysts", "Debate", "Proposal", "Fundamental Scores", "Fundamental Metrics"])
     with tabs[0]:
         render_table(reports)
     with tabs[1]:
         render_table(debates)
     with tabs[2]:
         render_table(proposals)
+    with tabs[3]:
+        render_table(fundamental_scores)
+    with tabs[4]:
+        render_table(fundamental_metrics)
 
     st.subheader("Risk And Execution")
     risk_reviews, final_decisions, orders, fills = load_data(

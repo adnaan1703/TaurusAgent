@@ -19,6 +19,9 @@ from taurus_core.db.models import (
     DebateReportModel,
     FeatureValueModel,
     FinalDecisionModel,
+    FundamentalImportModel,
+    FundamentalScoreModel,
+    FundamentalSnapshotModel,
     InstrumentModel,
     PaperAccountModel,
     PaperFillModel,
@@ -426,6 +429,98 @@ class AnalystReportRepository:
             )
             .order_by(AnalystReportModel.agent_name)
         )
+        return list(self.session.scalars(statement))
+
+
+class FundamentalsRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def replace_import(
+        self,
+        *,
+        import_row: FundamentalImportModel,
+        snapshots: list[FundamentalSnapshotModel],
+        scores: list[FundamentalScoreModel],
+    ) -> FundamentalImportModel:
+        self.session.execute(
+            delete(FundamentalScoreModel).where(
+                FundamentalScoreModel.import_id == import_row.import_id
+            )
+        )
+        self.session.execute(
+            delete(FundamentalSnapshotModel).where(
+                FundamentalSnapshotModel.import_id == import_row.import_id
+            )
+        )
+        self.session.execute(
+            delete(FundamentalImportModel).where(
+                FundamentalImportModel.import_id == import_row.import_id
+            )
+        )
+        self.session.add(import_row)
+        self.session.flush()
+        self.session.add_all(snapshots)
+        self.session.add_all(scores)
+        self.session.flush()
+        return import_row
+
+    def latest_score(self, *, symbol: str) -> FundamentalScoreModel | None:
+        statement = (
+            select(FundamentalScoreModel)
+            .where(FundamentalScoreModel.symbol == symbol.upper())
+            .order_by(
+                FundamentalScoreModel.data_available_time.desc(),
+                FundamentalScoreModel.created_at.desc(),
+                FundamentalScoreModel.score_id,
+            )
+            .limit(1)
+        )
+        return self.session.scalar(statement)
+
+    def list_scores(
+        self,
+        *,
+        symbol: str | None = None,
+        limit: int | None = 100,
+    ) -> list[FundamentalScoreModel]:
+        statement = select(FundamentalScoreModel).order_by(
+            FundamentalScoreModel.data_available_time.desc(),
+            FundamentalScoreModel.symbol,
+        )
+        if symbol is not None:
+            statement = statement.where(FundamentalScoreModel.symbol == symbol.upper())
+        if limit is not None:
+            statement = statement.limit(limit)
+        return list(self.session.scalars(statement))
+
+    def list_snapshots(
+        self,
+        *,
+        symbol: str | None = None,
+        import_id: str | None = None,
+        limit: int | None = 500,
+    ) -> list[FundamentalSnapshotModel]:
+        statement = select(FundamentalSnapshotModel).order_by(
+            FundamentalSnapshotModel.data_available_time.desc(),
+            FundamentalSnapshotModel.symbol,
+            FundamentalSnapshotModel.metric_name,
+        )
+        if symbol is not None:
+            statement = statement.where(FundamentalSnapshotModel.symbol == symbol.upper())
+        if import_id is not None:
+            statement = statement.where(FundamentalSnapshotModel.import_id == import_id)
+        if limit is not None:
+            statement = statement.limit(limit)
+        return list(self.session.scalars(statement))
+
+    def list_imports(self, *, limit: int | None = 50) -> list[FundamentalImportModel]:
+        statement = select(FundamentalImportModel).order_by(
+            FundamentalImportModel.imported_at.desc(),
+            FundamentalImportModel.import_id,
+        )
+        if limit is not None:
+            statement = statement.limit(limit)
         return list(self.session.scalars(statement))
 
 

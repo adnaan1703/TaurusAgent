@@ -5,6 +5,7 @@ import time
 from fastapi import FastAPI, Request
 
 from apps.api.routes_data import router as data_router
+from apps.api.routes_fundamentals import router as fundamentals_router
 from apps.api.routes_health import router as health_router
 from apps.api.routes_intelligence import router as intelligence_router
 from apps.api.routes_paper import router as paper_router
@@ -30,6 +31,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.session_factory = build_session_factory(settings)
     app.include_router(health_router)
     app.include_router(data_router)
+    app.include_router(fundamentals_router)
     app.include_router(intelligence_router)
     app.include_router(research_router)
     app.include_router(risk_router)

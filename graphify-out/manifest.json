@@ -1,0 +1,727 @@
+{
+  "/Users/adnaan/Workbench/TaurusAgent/infra/grafana/dashboards/taurus-system.json": {
+    "mtime": 1779189052.7563276,
+    "ast_hash": "01c97a78edfb2cb0c8d00256818d1c96",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/infra/grafana/dashboards/taurus-trading.json": {
+    "mtime": 1779189052.756497,
+    "ast_hash": "3612b5183f7cd5c32d9bc3946148ad92",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/.opencode/package.json": {
+    "mtime": 1779197902.8274484,
+    "ast_hash": "a6474ff34c01d9a987e9a71f5ee9e01e",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/.opencode/opencode.json": {
+    "mtime": 1779205854.0514822,
+    "ast_hash": "e5f74d14a81702b55bdf53b33ec991d7",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/.opencode/plugins/graphify.js": {
+    "mtime": 1779205854.0518012,
+    "ast_hash": "64ccd3c03dbfe0980b6095766f5c4e52",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/tests/unit/test_llm_provider.py": {
+    "mtime": 1779170584.9544694,
+    "ast_hash": "43838618de4d4ed164827c00b1c61e06",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/tests/unit/test_risk_approval.py": {
+    "mtime": 1779179022.8682601,
+    "ast_hash": "ae5a0fda64e2863a109a2e7220d86902",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/tests/unit/test_fundamentals_import.py": {
+    "mtime": 1779206846.453091,
+    "ast_hash": "60cad79330b3d6ad59f870c51ba33463",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/tests/unit/test_analyst_agents.py": {
+    "mtime": 1779170611.028912,
+    "ast_hash": "f07b64378f0ed78495c1798d5f5c3f87",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/tests/unit/test_trader_agent.py": {
+    "mtime": 1779172686.6172278,
+    "ast_hash": "82c37e198d139906e260f66a807cf73d",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/tests/unit/test_mock_market_data.py": {
+    "mtime": 1779120379.0527556,
+    "ast_hash": "7db020b96bdce300cc752c532624a16d",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/tests/unit/test_config.py": {
+    "mtime": 1779120334.605897,
+    "ast_hash": "5c4d9ac3e964a03fd1c87d3be3444ab6",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/tests/unit/test_intelligence.py": {
+    "mtime": 1779170575.43754,
+    "ast_hash": "4a9ee79247b5b95348a904ff41dae93c",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/tests/unit/test_health.py": {
+    "mtime": 1779111364.606784,
+    "ast_hash": "27ea820c04d61833ec581bd3dd2df351",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/tests/unit/test_backtest_engine.py": {
+    "mtime": 1779168998.6642184,
+    "ast_hash": "6015c972a906cf97d10121f74573ae56",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/tests/unit/test_research_debate.py": {
+    "mtime": 1779172686.5738065,
+    "ast_hash": "7f49f58ec71bc90ffe7999c3ebd98a0b",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/tests/unit/test_paper_broker.py": {
+    "mtime": 1779187342.5963893,
+    "ast_hash": "30e16daf5eb6ee900b4309269c075b1b",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/tests/unit/test_technical_indicators.py": {
+    "mtime": 1779168944.7884252,
+    "ast_hash": "415560a5677c0dc1aa40ea19b6e5207b",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/tests/unit/test_dashboard_observability.py": {
+    "mtime": 1779189103.2350898,
+    "ast_hash": "7d1616ac1cd0e5868d32afc9ddff2476",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/.codex/hooks.json": {
+    "mtime": 1779205883.7417305,
+    "ast_hash": "5bab21da34f7cde2f17a74874871d51a",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/scripts/seed_mock_data.py": {
+    "mtime": 1779119421.0813234,
+    "ast_hash": "60df2c4f36dff5044551277498d86139",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/scripts/run_paper_loop.py": {
+    "mtime": 1779188927.2100425,
+    "ast_hash": "7692186cfa05315b2cbaad31cd969dfd",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/scripts/run_trader_proposal.py": {
+    "mtime": 1779188927.2091424,
+    "ast_hash": "e1983965f81f62c94828e65b94afff29",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/scripts/run_research_debate.py": {
+    "mtime": 1779188927.2088594,
+    "ast_hash": "47562efeca5fb16072f58467faa41ad4",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/scripts/run_paper_once.py": {
+    "mtime": 1779188927.2098157,
+    "ast_hash": "48b40898713b960b3716fd0abd47a1c9",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/scripts/import_mock_news.py": {
+    "mtime": 1779188927.208013,
+    "ast_hash": "995a87c0efe6f3aa717f6b4627b287fe",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/scripts/import_screener.py": {
+    "mtime": 1779206667.641932,
+    "ast_hash": "473f37592efcab966395c3baf45fe62b",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/scripts/run_risk_review.py": {
+    "mtime": 1779188927.209371,
+    "ast_hash": "10621ed5601d266e9e17e7dd510bca7f",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/scripts/run_analysts.py": {
+    "mtime": 1779188927.2083256,
+    "ast_hash": "64aecf860558fd5bbbda7d17135fee01",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/scripts/run_final_approval.py": {
+    "mtime": 1779188927.2095819,
+    "ast_hash": "3e3b6f573d12de681dd44fdb5d441099",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/scripts/migrate.py": {
+    "mtime": 1779169079.1169736,
+    "ast_hash": "bb70e6de2f1b196cf8399a5f6274f2f5",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/scripts/run_backtest.py": {
+    "mtime": 1779188927.2085655,
+    "ast_hash": "5d126898df5148dbe294946ff2464769",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/scripts/llm_smoke.py": {
+    "mtime": 1779170511.1324694,
+    "ast_hash": "9994fc70215559a63ca4fea7d4963f15",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/logging.py": {
+    "mtime": 1779111364.4139848,
+    "ast_hash": "c664f2ad962578567f678c5c3ca2243a",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/config.py": {
+    "mtime": 1779186972.128873,
+    "ast_hash": "1254ef8e1d6cbc6836d86a0462b7b308",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/__init__.py": {
+    "mtime": 1779111364.3386962,
+    "ast_hash": "aa4993321d6c3163da60eaf26ce6e8a1",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/research/__init__.py": {
+    "mtime": 1779172359.8315337,
+    "ast_hash": "dddb267f58bc69eb972552a0d0d79b38",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/research/schemas.py": {
+    "mtime": 1779172359.7886105,
+    "ast_hash": "2bea099ebae7f452621e6aec39748201",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/research/debate_service.py": {
+    "mtime": 1779188886.8630493,
+    "ast_hash": "dfb8aaea83945c156867bdbbcf3c2212",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/fundamentals/scoring.py": {
+    "mtime": 1779206574.3559897,
+    "ast_hash": "99007c904240cc3dcc018a4e400afc65",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/fundamentals/screener.py": {
+    "mtime": 1779206653.1111174,
+    "ast_hash": "e9c3622979c144a752d07becf3755c14",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/fundamentals/__init__.py": {
+    "mtime": 1779206551.0358846,
+    "ast_hash": "b78da49932a846fcd70646e9b5655e2c",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/brokers/paper_broker.py": {
+    "mtime": 1779188886.86443,
+    "ast_hash": "fdb3a84bc35db63989608c859ef2c540",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/brokers/__init__.py": {
+    "mtime": 1779186958.546509,
+    "ast_hash": "36bfbc49dd2128562d17881874f924bd",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/brokers/base.py": {
+    "mtime": 1779186958.508853,
+    "ast_hash": "1d65cb089207cdd1bee6bf4c7fb31d60",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/llm/mock_provider.py": {
+    "mtime": 1779170281.1772711,
+    "ast_hash": "96fa1fc6e2f41c42b2157e13d3797fec",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/llm/__init__.py": {
+    "mtime": 1779170261.7814138,
+    "ast_hash": "33e918560e19a3dd0e117ead9dfa3feb",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/llm/openai_provider.py": {
+    "mtime": 1779170310.3289444,
+    "ast_hash": "5c7031a92a1c86d7c554bdf701f36fa7",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/llm/lmstudio_provider.py": {
+    "mtime": 1779170301.1039467,
+    "ast_hash": "f38071111da80618fb15f64a88ce4f00",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/llm/base.py": {
+    "mtime": 1779170269.1852155,
+    "ast_hash": "79a8e03f8d01e0aacf041a943363fdec",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/backtesting/metrics.py": {
+    "mtime": 1779122172.192185,
+    "ast_hash": "4b62c54b914d3141aaf1c9689871390c",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/backtesting/__init__.py": {
+    "mtime": 1779121492.2566464,
+    "ast_hash": "560ac7c06d3a7f571e5996d13c46a41b",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/backtesting/engine.py": {
+    "mtime": 1779168882.9787993,
+    "ast_hash": "6467c200cb03ee78af265e79554b415d",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/backtesting/context.py": {
+    "mtime": 1779168856.11864,
+    "ast_hash": "07251c36df0644512c287c6d868308c8",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/intelligence/documents.py": {
+    "mtime": 1779170093.5247757,
+    "ast_hash": "d5b0738fda2640c61ef9cd41d3be67a9",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/intelligence/entity_resolver.py": {
+    "mtime": 1779170171.9664087,
+    "ast_hash": "3f5c1e4199bf28272e27b61ec0e0297b",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/intelligence/event_scoring.py": {
+    "mtime": 1779170212.7249956,
+    "ast_hash": "1eadec6f2e9465b4e2d7c76f252c2d4d",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/intelligence/__init__.py": {
+    "mtime": 1779170077.6572783,
+    "ast_hash": "cadd8751fb5e5509465c6351308bea6f",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/intelligence/news_provider.py": {
+    "mtime": 1779170099.0759416,
+    "ast_hash": "82523076fdce957c768aa72ff17189ac",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/intelligence/mock_news_provider.py": {
+    "mtime": 1779170147.2876537,
+    "ast_hash": "57af83717aa53740895ffaf1cc211410",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/strategies/config.py": {
+    "mtime": 1779168830.5586894,
+    "ast_hash": "0bb348fe465f8e3853f23f82ced34fb5",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/strategies/__init__.py": {
+    "mtime": 1779168837.6752083,
+    "ast_hash": "0d7da08a53efda62a3fc3b6dfb234d31",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/strategies/factory.py": {
+    "mtime": 1779168830.6723983,
+    "ast_hash": "896cb04399c76fce3414f0b6e97018a6",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/strategies/moving_average_crossover.py": {
+    "mtime": 1779168830.597495,
+    "ast_hash": "e2fe6170bd56f0684bbaaf5faf720b1e",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/strategies/mock_momentum.py": {
+    "mtime": 1779121492.4408908,
+    "ast_hash": "2c32f694610587149e3a6143aa6964c3",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/strategies/blended_score.py": {
+    "mtime": 1779168830.6353855,
+    "ast_hash": "c30d6fe156ca53f8461a5a1737c44a82",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/strategies/base.py": {
+    "mtime": 1779168830.5185359,
+    "ast_hash": "5969ee54d59a7c083884b53f9038014e",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/features/store.py": {
+    "mtime": 1779168755.2390342,
+    "ast_hash": "9c7b267e1a41a8386b84e73bf578b0fb",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/features/technical.py": {
+    "mtime": 1779168755.199809,
+    "ast_hash": "8bbeba2ed006c69b34206b52192fe9b7",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/features/__init__.py": {
+    "mtime": 1779168755.1568344,
+    "ast_hash": "54021f926f9b0ca292ab08b6cbfc8aa7",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/agents/technical_analyst.py": {
+    "mtime": 1779170376.0621378,
+    "ast_hash": "7e7e1224609e6d8700c73ce9f0ca94ca",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/agents/runner.py": {
+    "mtime": 1779188857.1958354,
+    "ast_hash": "eed9613edbbf2bc41f3a3f580b9673dc",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/agents/risky_risk.py": {
+    "mtime": 1779176194.0103886,
+    "ast_hash": "5706361fa8570d755c41ec59cc05233d",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/agents/__init__.py": {
+    "mtime": 1779172699.6545227,
+    "ast_hash": "6f06c03facd9af2a8b88f45f0d577073",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/agents/portfolio_manager.py": {
+    "mtime": 1779188886.8640606,
+    "ast_hash": "8fc9fd6c95f0e13f48b53a6f0101d753",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/agents/trader_agent.py": {
+    "mtime": 1779188886.8634744,
+    "ast_hash": "b69cdf074d5d0e9f5a840d16e78f6fab",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/agents/bull_researcher.py": {
+    "mtime": 1779172500.4474537,
+    "ast_hash": "78cf161ae48b8c0e9035caf19b079fe1",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/agents/bear_researcher.py": {
+    "mtime": 1779172790.909294,
+    "ast_hash": "3ccd8b91ff448be94380415e4ab1861c",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/agents/schemas.py": {
+    "mtime": 1779170235.7663295,
+    "ast_hash": "d78cdd97cc2cf8d8ea566ba9a4841207",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/agents/safe_risk.py": {
+    "mtime": 1779176194.0923533,
+    "ast_hash": "7c5e06e0bc195a0b75333819cbd77d69",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/agents/neutral_risk.py": {
+    "mtime": 1779176194.0527246,
+    "ast_hash": "68d131dab9692de5a7ec653aeed566f2",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/agents/news_analyst.py": {
+    "mtime": 1779170421.1875527,
+    "ast_hash": "1cce1221b84345d28be7ee027d080b74",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/agents/sentiment_analyst.py": {
+    "mtime": 1779170438.4520116,
+    "ast_hash": "80a82a137136dea9468c002ef1579cd8",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/agents/fundamentals_analyst.py": {
+    "mtime": 1779206748.0000992,
+    "ast_hash": "7d268be68b0911c39e8418496190f142",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/agents/base.py": {
+    "mtime": 1779188857.195523,
+    "ast_hash": "7c50f8ffed42de11718ff725431bc7bc",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/agents/research_manager.py": {
+    "mtime": 1779172500.5307884,
+    "ast_hash": "4615c3bf3e9f7b081272fcac3bdb8c1c",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/observability/metrics.py": {
+    "mtime": 1779206796.887894,
+    "ast_hash": "e77f53cf3cbd03a4f87be77b1f6c396e",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/observability/tracing.py": {
+    "mtime": 1779188857.1951756,
+    "ast_hash": "c94a29e75d5e8b57513a773e32f22151",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/observability/__init__.py": {
+    "mtime": 1779111364.4526389,
+    "ast_hash": "9fa2dcf0106575fe6472a7937cf18eb0",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/execution/__init__.py": {
+    "mtime": 1779186958.4478123,
+    "ast_hash": "15de77c4592c0b3693a803b98116255a",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/execution/schemas.py": {
+    "mtime": 1779186958.3352895,
+    "ast_hash": "82d5417567744142886b80c4bd9c40f7",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/execution/costs.py": {
+    "mtime": 1779186958.3727863,
+    "ast_hash": "48d67088da12ee68acbaea50df5a51fb",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/execution/order_router.py": {
+    "mtime": 1779187222.994302,
+    "ast_hash": "40c5ed0383855a4a5229f134fc2c1095",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/execution/slippage.py": {
+    "mtime": 1779186958.4101968,
+    "ast_hash": "3769784946ed16ba1e651c4b5736a3dd",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/db/models.py": {
+    "mtime": 1779206525.5083787,
+    "ast_hash": "4b6ca16653f2fea723ab50f514705cae",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/db/session.py": {
+    "mtime": 1779120352.9411294,
+    "ast_hash": "12c3a21cc8369ad94e854de17c2303cd",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/db/__init__.py": {
+    "mtime": 1779119286.1530623,
+    "ast_hash": "21d8d72fbd126068cddc4e188764329f",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/db/repositories.py": {
+    "mtime": 1779206542.716454,
+    "ast_hash": "e1f5923c57a32fd4b484e955b96d21e6",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/data/__init__.py": {
+    "mtime": 1779119367.5020685,
+    "ast_hash": "3f663a153d0bf24241b293183373d345",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/data/providers/__init__.py": {
+    "mtime": 1779119374.0034995,
+    "ast_hash": "3f663a153d0bf24241b293183373d345",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/data/providers/mock_market_data.py": {
+    "mtime": 1779119392.8626368,
+    "ast_hash": "dad6bee19b43085a580579f7769c74f9",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/domain/__init__.py": {
+    "mtime": 1779119263.8450272,
+    "ast_hash": "fec42f0441e35673c13be359669398e0",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/domain/instruments.py": {
+    "mtime": 1779119268.6216755,
+    "ast_hash": "7ccb28f1512a3aa8fa469e457f7b1d15",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/domain/market_data.py": {
+    "mtime": 1779119274.3764231,
+    "ast_hash": "a275e8942eed54f6ec417676e3ac5637",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/risk/review_service.py": {
+    "mtime": 1779188886.8637717,
+    "ast_hash": "e54c237ec406d8ead3c4b49691be28f5",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/risk/__init__.py": {
+    "mtime": 1779176403.3592625,
+    "ast_hash": "1a0b645bc568421e4c030b09995f26d9",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/risk/engine.py": {
+    "mtime": 1779179022.786682,
+    "ast_hash": "e79461db3d80018aa698991403e3bb6f",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/packages/taurus_core/risk/schemas.py": {
+    "mtime": 1779176143.4582992,
+    "ast_hash": "17a872f618bfb84615b6fc48da0816c6",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/apps/__init__.py": {
+    "mtime": 1779111364.1840825,
+    "ast_hash": "8a90fabd2279214bec018e396ef4a331",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/apps/dashboard/ui.py": {
+    "mtime": 1779188722.3020442,
+    "ast_hash": "ac989c731afcdc8aa75949df15229811",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/apps/dashboard/__init__.py": {
+    "mtime": 1779188651.2359807,
+    "ast_hash": "29c860ccfea850d51e42f2c37775c7ab",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/apps/dashboard/main.py": {
+    "mtime": 1779206780.2978737,
+    "ast_hash": "60a9662131aabb42367189554fbd2c03",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/apps/dashboard/data.py": {
+    "mtime": 1779206769.245995,
+    "ast_hash": "b4c68ec825142871934b228e710ef36e",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/apps/dashboard/pages/paper_trading.py": {
+    "mtime": 1779188722.303018,
+    "ast_hash": "89397b882748fc057ada47f721f86afe",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/apps/dashboard/pages/backtests.py": {
+    "mtime": 1779188722.3028193,
+    "ast_hash": "765022fcfa7c7282f9609c031b7ae452",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/apps/dashboard/pages/events.py": {
+    "mtime": 1779188722.3033984,
+    "ast_hash": "dadbcf42e1d4028c111cc415c79fe936",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/apps/dashboard/pages/orders.py": {
+    "mtime": 1779188722.303192,
+    "ast_hash": "36742da6946c50241c8929c69e26927e",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/apps/dashboard/pages/agent_workflow.py": {
+    "mtime": 1779206789.1113558,
+    "ast_hash": "f146b3a7b36f63ba4f27a5e796330a28",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/apps/dashboard/pages/risk.py": {
+    "mtime": 1779188722.3037753,
+    "ast_hash": "5df0f7ec2764c8bd15d235e8f62afa47",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/apps/dashboard/pages/portfolio.py": {
+    "mtime": 1779188722.302629,
+    "ast_hash": "66e02aa0d3feeab9f1af68485073d124",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/apps/api/routes_fundamentals.py": {
+    "mtime": 1779206690.89012,
+    "ast_hash": "a0ce8ec69fd73c27f55e139dbac7a464",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/apps/api/routes_research.py": {
+    "mtime": 1779172632.5447047,
+    "ast_hash": "05952b4b7bdc127bf0ea0a8c8cf5c7e1",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/apps/api/routes_paper.py": {
+    "mtime": 1779187243.0676956,
+    "ast_hash": "9b01c7eca5580e86531b4561905d7648",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/apps/api/routes_intelligence.py": {
+    "mtime": 1779170542.2561677,
+    "ast_hash": "8cc3b5c11bafefe9f4a847456773ee2d",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/apps/api/__init__.py": {
+    "mtime": 1779111364.2235072,
+    "ast_hash": "a8be6e459b3ce5c0975d6565e7d5eb73",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/apps/api/routes_risk.py": {
+    "mtime": 1779176301.3144536,
+    "ast_hash": "3b28d0f466dbbfcae1084a76de444355",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/apps/api/routes_data.py": {
+    "mtime": 1779119439.828802,
+    "ast_hash": "07a23fce9782137554045f4578f2d967",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/apps/api/main.py": {
+    "mtime": 1779206694.373003,
+    "ast_hash": "781296fcce3e75aba0258562cd215cd2",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/apps/api/routes_health.py": {
+    "mtime": 1779188824.9144533,
+    "ast_hash": "572e6b5228e3a98dec7d9c909b8c9ea9",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/README.md": {
+    "mtime": 1779120464.4667077,
+    "ast_hash": "cb4a90d1b49a71f1c1855c1eb927d51b",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/docker-compose.yml": {
+    "mtime": 1779189052.755558,
+    "ast_hash": "f4f074beefe913af9a8ce537d912498a",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/AGENTS.md": {
+    "mtime": 1779205883.7411864,
+    "ast_hash": "59b4c07a011280b4984ad29267ccb245",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/infra/grafana/README.md": {
+    "mtime": 1779189052.7567773,
+    "ast_hash": "d5f7f58e3745fc05094566e41cca61dc",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/infra/grafana/provisioning/datasources/prometheus.yml": {
+    "mtime": 1779189052.7559066,
+    "ast_hash": "d070fabe86a318807af3a3c307f5b9c0",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/infra/grafana/provisioning/dashboards/taurus.yml": {
+    "mtime": 1779189052.7561111,
+    "ast_hash": "b33031e53809adafc73fac93f080f909",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/infra/prometheus/prometheus.yml": {
+    "mtime": 1779111364.5302005,
+    "ast_hash": "1c6e5c1dd68f22517389535a8ba6c784",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/docs/TAURUS_MVP_SPEC_v0_3.md": {
+    "mtime": 1779056728.0,
+    "ast_hash": "ec8870e93832cd0d16da34390f8facea",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/docs/TAURUS_MILESTONE_TODO.md": {
+    "mtime": 1779208907.6490839,
+    "ast_hash": "36cb917942658ac436731dc83b1cd2a2",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/docs/TAURUS_CODEX_PROMPTS_v0_3.md": {
+    "mtime": 1779056654.0,
+    "ast_hash": "0469fd43e84de88aaf47ad19c707d298",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/docs/TAURUS_COMMANDS.md": {
+    "mtime": 1779207229.7220578,
+    "ast_hash": "d679ea054a490e8998b84f061faf5d75",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/docs/TAURUS_CODEX_TASKS_v0_3.yaml": {
+    "mtime": 1779056706.0,
+    "ast_hash": "bd2e4239992240736167e085176038f0",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/configs/strategies/blended_score_v1.yaml": {
+    "mtime": 1779168844.463921,
+    "ast_hash": "3c80bffc56894ad299ba86d1cd45c11f",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/configs/strategies/moving_average_crossover_v1.yaml": {
+    "mtime": 1779168844.421385,
+    "ast_hash": "5eaaa5c2b296c84df644a54a402c219e",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/scripts/README.md": {
+    "mtime": 1779187608.0319736,
+    "ast_hash": "483a2f634eeaa09e2954dacb5b7197b9",
+    "semantic_hash": ""
+  },
+  "/Users/adnaan/Workbench/TaurusAgent/apps/dashboard/README.md": {
+    "mtime": 1779189138.9728904,
+    "ast_hash": "794351e07674b31bf08333830c9701b8",
+    "semantic_hash": ""
+  }
+}

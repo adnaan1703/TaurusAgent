@@ -385,6 +385,97 @@ class AnalystReportModel(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
 
 
+class FundamentalImportModel(Base):
+    __tablename__ = "fundamental_imports"
+    __table_args__ = (
+        UniqueConstraint("source_file_hash", name="uq_fundamental_imports_source_file_hash"),
+        Index("ix_fundamental_imports_imported_at", "imported_at"),
+    )
+
+    import_id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    source: Mapped[str] = mapped_column(String(64), nullable=False, default="screener_csv")
+    source_filename: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    source_file_hash: Mapped[str] = mapped_column(String(128), nullable=False)
+    rows_seen: Mapped[int] = mapped_column(nullable=False, default=0)
+    rows_imported: Mapped[int] = mapped_column(nullable=False, default=0)
+    rows_unmapped: Mapped[int] = mapped_column(nullable=False, default=0)
+    metrics_imported: Mapped[int] = mapped_column(nullable=False, default=0)
+    scores_imported: Mapped[int] = mapped_column(nullable=False, default=0)
+    missing_required_columns: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    missing_optional_columns: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    imported_symbols: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="IMPORTED")
+    data_available_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    imported_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+class FundamentalSnapshotModel(Base):
+    __tablename__ = "fundamental_snapshots"
+    __table_args__ = (
+        UniqueConstraint(
+            "import_id",
+            "symbol",
+            "metric_name",
+            name="uq_fundamental_snapshots_import_symbol_metric",
+        ),
+        Index("ix_fundamental_snapshots_symbol_time", "symbol", "data_available_time"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    import_id: Mapped[str] = mapped_column(
+        String(128),
+        ForeignKey("fundamental_imports.import_id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    symbol: Mapped[str] = mapped_column(
+        String(32),
+        ForeignKey("instruments.symbol", ondelete="CASCADE"),
+        nullable=False,
+    )
+    company_name: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    metric_name: Mapped[str] = mapped_column(String(64), nullable=False)
+    metric_value: Mapped[Decimal] = mapped_column(Numeric(20, 6), nullable=False)
+    source_column: Mapped[str] = mapped_column(String(128), nullable=False)
+    raw_value: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    reporting_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    import_date: Mapped[date] = mapped_column(Date, nullable=False)
+    data_available_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    source_file_hash: Mapped[str] = mapped_column(String(128), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+class FundamentalScoreModel(Base):
+    __tablename__ = "fundamental_scores"
+    __table_args__ = (
+        UniqueConstraint("import_id", "symbol", name="uq_fundamental_scores_import_symbol"),
+        Index("ix_fundamental_scores_symbol_as_of", "symbol", "as_of"),
+    )
+
+    score_id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    import_id: Mapped[str] = mapped_column(
+        String(128),
+        ForeignKey("fundamental_imports.import_id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    symbol: Mapped[str] = mapped_column(
+        String(32),
+        ForeignKey("instruments.symbol", ondelete="CASCADE"),
+        nullable=False,
+    )
+    company_name: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    as_of: Mapped[date] = mapped_column(Date, nullable=False)
+    data_available_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    quality_score: Mapped[Decimal | None] = mapped_column(Numeric(8, 4), nullable=True)
+    valuation_score: Mapped[Decimal | None] = mapped_column(Numeric(8, 4), nullable=True)
+    leverage_risk_score: Mapped[Decimal | None] = mapped_column(Numeric(8, 4), nullable=True)
+    ownership_score: Mapped[Decimal | None] = mapped_column(Numeric(8, 4), nullable=True)
+    composite_score: Mapped[Decimal] = mapped_column(Numeric(8, 4), nullable=False)
+    metrics: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
+    source_file_hash: Mapped[str] = mapped_column(String(128), nullable=False)
+    model_version: Mapped[str] = mapped_column(String(128), nullable=False, default="fundamental_score_v1")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
 class DebateReportModel(Base):
     __tablename__ = "debate_reports"
     __table_args__ = (

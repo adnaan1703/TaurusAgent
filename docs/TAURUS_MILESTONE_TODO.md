@@ -5,7 +5,7 @@ Source of truth:
 - `docs/TAURUS_MVP_SPEC_v0_3.md`
 - `docs/TAURUS_CODEX_TASKS_v0_3.yaml`
 
-Last updated: 2026-05-19 16:46 IST
+Last updated: 2026-05-19 22:11 IST
 
 Status legend:
 
@@ -32,7 +32,7 @@ Milestone completion reporting:
 | M6 | Done | Risk committee and fund manager approval | No | No |
 | M7 | Done | PaperBroker execution simulator | No | No |
 | M8 | Done | Dashboard and observability v1 | No | No |
-| M9 | Not started | Screener fundamentals import | Screener CSV required | No |
+| M9 | Done | Screener fundamentals import | Screener CSV requested; fixture used | No |
 | M10 | Not started | Real market data provider | CSV/provider decision required | Maybe |
 | M11 | Not started | Continuous paper trading | Schedule assumptions required | Maybe |
 | M12 | Not started | Telegram alerts, replay, backup, hardening | Telegram details optional | Optional |
@@ -420,36 +420,54 @@ Completion summary:
 
 ## M9 - Screener Fundamentals Import
 
-Status: Not started
+Status: Done
 
 Objective: Import user-provided Screener CSV and upgrade fundamentals analyst.
 
 User input required:
 
-- [!] Screener CSV export must be explicitly requested from user at start of this milestone.
+- [x] Screener CSV export must be explicitly requested from user at start of this milestone.
 
 Tasks:
 
-- [ ] Add CSV import command.
-- [ ] Validate required/optional columns.
-- [ ] Map symbols/company names to instruments.
-- [ ] Store fundamental snapshots with `data_available_time`.
-- [ ] Add quality/valuation score.
-- [ ] Upgrade `FundamentalsAnalystAgent` to read imported data.
+- [x] Add CSV import command.
+- [x] Validate required/optional columns.
+- [x] Map symbols/company names to instruments.
+- [x] Store fundamental snapshots with `data_available_time`.
+- [x] Add quality/valuation score.
+- [x] Upgrade `FundamentalsAnalystAgent` to read imported data.
 
 Verification:
 
-- [ ] `make import-screener CSV=/path/to/screener.csv`
-- [ ] `make run-analysts-mock SYMBOL=INFY`
-- [ ] `make test`
+- [x] `make import-screener CSV=/path/to/screener.csv`
+- [x] `make run-analysts-mock SYMBOL=INFY`
+- [x] `make test`
 
 Acceptance:
 
-- [ ] Screener CSV imports without committing file.
-- [ ] Missing columns are reported clearly.
-- [ ] Fundamentals map to instruments.
-- [ ] Fundamental score is stored.
-- [ ] Fundamentals analyst uses imported data.
+- [x] Screener CSV imports without committing file.
+- [x] Missing columns are reported clearly.
+- [x] Fundamentals map to instruments.
+- [x] Fundamental score is stored.
+- [x] Fundamentals analyst uses imported data.
+
+Notes:
+
+- Explicitly requested a real Screener CSV export at M9 start; no real CSV path was provided during this pass, so verification used `tests/fixtures/screener_sample.csv`.
+- Added `make import-screener CSV=...`, `GET /fundamentals?symbol=INFY`, and `GET /fundamentals/imports`.
+- `DATABASE_URL=sqlite:////private/tmp/taurus-m9-verify-20260519.db make import-screener CSV=tests/fixtures/screener_sample.csv` produced `import_id=fi-7b0fbaead039b3df`, `rows_seen=4`, `rows_imported=3`, `rows_unmapped=1`, `metrics_imported=45`, and `scores_imported=3`.
+- `DATABASE_URL=sqlite:////private/tmp/taurus-m9-verify-20260519.db make run-analysts-mock SYMBOL=INFY` produced a `FundamentalsAnalystAgent` report using `fundamental_score:fs-1ce392dffce9d25c` with `score=0.3667`.
+- `curl "http://localhost:8000/fundamentals?symbol=INFY"` returned the imported INFY metrics and composite score.
+- `curl http://localhost:8000/fundamentals/imports` returned the import summary.
+- Verified `44 passed`.
+- `make lint` compile-checks pass.
+- Global Codex approvals added during verification were copied into `.codex/rules/default.rules`, documented in `docs/TAURUS_COMMANDS.md`, and removed from `/Users/adnaan/.codex/rules/default.rules` after the user's marker.
+
+Completion summary:
+
+- Assumptions made: Screener CSV imports map only to existing active Taurus instruments; unmatched CSV rows are reported as unmapped rather than creating instruments. Scoring is deterministic and uses partial data when available. No real user Screener CSV path was provided, so real-data verification remains pending.
+- Mocks created: Synthetic Screener fixture at `tests/fixtures/screener_sample.csv` and unit-test bad CSV inputs for validation errors.
+- Mocks used: Synthetic Screener fixture, deterministic mock market data, mock LLM analyst provider, mock news pipeline during analyst verification, and SQLite verification database at `/private/tmp/taurus-m9-verify-20260519.db`.
 
 ## M10 - Real Market Data Provider
 
@@ -641,6 +659,16 @@ Acceptance:
 - [ ] Taurus paper trades only.
 - [ ] Dashboard shows performance, decisions, debate, risk, orders, events, and health.
 - [ ] Live trading is disabled.
+
+## Post-MVP Follow-Ups
+
+These tasks are intentionally deferred until all milestones are achieved.
+
+- [ ] Validate a real Screener CSV export after the user creates a Screener account/subscription and provides a local CSV path.
+- [ ] Run `make import-screener CSV=/path/to/user_screener_export.csv` against the real file without committing the CSV.
+- [ ] Confirm imported rows map to Taurus instruments and document any unmapped symbols/company names.
+- [ ] Confirm `FundamentalsAnalystAgent`, `/fundamentals`, and the dashboard use the real imported data correctly.
+- [ ] Decide whether extra column aliases, normalization, or scoring adjustments are needed for the real Screener export format.
 
 ## Maintenance Rules
 

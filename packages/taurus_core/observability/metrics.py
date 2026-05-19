@@ -17,6 +17,8 @@ from taurus_core.db.models import (
     DebateReportModel,
     FeatureValueModel,
     FinalDecisionModel,
+    FundamentalImportModel,
+    FundamentalScoreModel,
     InstrumentModel,
     PaperAccountModel,
     PaperFillModel,
@@ -226,6 +228,8 @@ def _refresh_table_counts(session: Session) -> None:
         "raw_documents": RawDocumentModel,
         "company_events": CompanyEventModel,
         "sentiment_scores": SentimentScoreModel,
+        "fundamental_imports": FundamentalImportModel,
+        "fundamental_scores": FundamentalScoreModel,
         "analyst_reports": AnalystReportModel,
         "debate_reports": DebateReportModel,
         "trader_proposals": TraderProposalModel,
@@ -276,6 +280,23 @@ def _refresh_data_freshness(session: Session, *, now: datetime) -> None:
             source=source,
             symbol=symbol,
             timeframe="feature",
+            latest_at=_as_utc_datetime(latest_at),
+            now=now,
+        )
+
+    fundamental_statement = (
+        select(
+            FundamentalScoreModel.symbol,
+            func.max(FundamentalScoreModel.data_available_time),
+        )
+        .group_by(FundamentalScoreModel.symbol)
+        .order_by(FundamentalScoreModel.symbol)
+    )
+    for symbol, latest_at in session.execute(fundamental_statement):
+        _set_freshness(
+            source="screener_fundamentals",
+            symbol=symbol,
+            timeframe="fundamental",
             latest_at=_as_utc_datetime(latest_at),
             now=now,
         )

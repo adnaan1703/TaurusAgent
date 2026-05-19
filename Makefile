@@ -1,4 +1,4 @@
-.PHONY: setup dev-up dev-down api dashboard migrate seed-mock backtest-mock import-mock-news run-analysts-mock debate-mock trader-proposal-mock risk-review-mock final-approval-mock paper-once-mock paper-loop-once paper-loop-start llm-smoke test lint
+.PHONY: setup dev-up dev-down api dashboard migrate seed-mock backtest-mock import-mock-news import-screener run-analysts-mock debate-mock trader-proposal-mock risk-review-mock final-approval-mock paper-once-mock paper-loop-once paper-loop-start llm-smoke test lint
 
 UV ?= uv
 COMPOSE ?= docker compose
@@ -34,6 +34,9 @@ backtest-mock:
 
 import-mock-news:
 	DATABASE_URL="$(DATABASE_URL)" PYTHONPATH=packages:. $(UV) run python scripts/import_mock_news.py
+
+import-screener:
+	DATABASE_URL="$(DATABASE_URL)" CSV="$(CSV)" PYTHONPATH=packages:. $(UV) run python scripts/import_screener.py
 
 run-analysts-mock:
 	DATABASE_URL="$(DATABASE_URL)" TAURUS_LLM_PROVIDER=mock SYMBOL="$(SYMBOL)" PYTHONPATH=packages:. $(UV) run python scripts/run_analysts.py

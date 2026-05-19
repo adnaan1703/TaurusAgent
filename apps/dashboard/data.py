@@ -20,6 +20,9 @@ from taurus_core.db.models import (
     DebateReportModel,
     FeatureValueModel,
     FinalDecisionModel,
+    FundamentalImportModel,
+    FundamentalScoreModel,
+    FundamentalSnapshotModel,
     InstrumentModel,
     PaperAccountModel,
     PaperFillModel,
@@ -80,6 +83,8 @@ def table_counts(session: Session) -> dict[str, int]:
         "raw_documents": RawDocumentModel,
         "company_events": CompanyEventModel,
         "sentiment_scores": SentimentScoreModel,
+        "fundamental_imports": FundamentalImportModel,
+        "fundamental_scores": FundamentalScoreModel,
         "analyst_reports": AnalystReportModel,
         "debates": DebateReportModel,
         "trader_proposals": TraderProposalModel,
@@ -145,6 +150,33 @@ def data_freshness(session: Session, *, symbol: str | None = None) -> list[dict[
                 "source": source,
                 "symbol": row_symbol,
                 "timeframe": "feature",
+                "latest_at": _display_time(latest_utc),
+                "age_hours": round((now - latest_utc).total_seconds() / 3600, 2),
+                "rows": int(count),
+            }
+        )
+
+    fundamental_statement = (
+        select(
+            FundamentalScoreModel.symbol,
+            func.max(FundamentalScoreModel.data_available_time),
+            func.count(),
+        )
+        .group_by(FundamentalScoreModel.symbol)
+        .order_by(FundamentalScoreModel.symbol)
+    )
+    if symbol is not None:
+        fundamental_statement = fundamental_statement.where(
+            FundamentalScoreModel.symbol == symbol.upper()
+        )
+
+    for row_symbol, latest_at, count in session.execute(fundamental_statement):
+        latest_utc = _as_utc_datetime(latest_at)
+        rows.append(
+            {
+                "source": "screener_fundamentals",
+                "symbol": row_symbol,
+                "timeframe": "fundamental",
                 "latest_at": _display_time(latest_utc),
                 "age_hours": round((now - latest_utc).total_seconds() / 3600, 2),
                 "rows": int(count),
@@ -371,6 +403,69 @@ def news_ingestion_summary(session: Session) -> list[dict[str, Any]]:
     ]
 
 
+def list_fundamental_scores(
+    session: Session,
+    *,
+    symbol: str | None = None,
+    limit: int = 100,
+) -> list[dict[str, Any]]:
+    statement = (
+        select(FundamentalScoreModel)
+        .order_by(FundamentalScoreModel.data_available_time.desc(), FundamentalScoreModel.symbol)
+        .limit(limit)
+    )
+    if symbol is not None:
+        statement = statement.where(FundamentalScoreModel.symbol == symbol.upper())
+    return [
+        {
+            "score_id": score.score_id,
+            "import_id": score.import_id,
+            "symbol": score.symbol,
+            "company": score.company_name,
+            "quality": _number_or_none(score.quality_score),
+            "valuation": _number_or_none(score.valuation_score),
+            "leverage_risk": _number_or_none(score.leverage_risk_score),
+            "ownership": _number_or_none(score.ownership_score),
+            "composite": _number(score.composite_score),
+            "metrics": len(score.metrics or {}),
+            "as_of": _display_time(score.as_of),
+            "available_at": _display_time(score.data_available_time),
+        }
+        for score in session.scalars(statement)
+    ]
+
+
+def list_fundamental_snapshots(
+    session: Session,
+    *,
+    symbol: str | None = None,
+    limit: int = 250,
+) -> list[dict[str, Any]]:
+    statement = (
+        select(FundamentalSnapshotModel)
+        .order_by(
+            FundamentalSnapshotModel.data_available_time.desc(),
+            FundamentalSnapshotModel.symbol,
+            FundamentalSnapshotModel.metric_name,
+        )
+        .limit(limit)
+    )
+    if symbol is not None:
+        statement = statement.where(FundamentalSnapshotModel.symbol == symbol.upper())
+    return [
+        {
+            "symbol": snapshot.symbol,
+            "company": snapshot.company_name,
+            "metric": snapshot.metric_name,
+            "value": _number(snapshot.metric_value),
+            "source_column": snapshot.source_column,
+            "reporting_date": _display_time(snapshot.reporting_date),
+            "available_at": _display_time(snapshot.data_available_time),
+        }
+        for snapshot in session.scalars(statement)
+    ]
+
+
 def list_analyst_reports(
     session: Session,
     *,
@@ -582,6 +677,12 @@ def _number(value: Any) -> float:
     if isinstance(value, Decimal):
         return float(value)
     return float(value)
+
+
+def _number_or_none(value: Any) -> float | None:
+    if value is None:
+        return None
+    return _number(value)
 
 
 def _display_time(value: date | datetime | None) -> str:
