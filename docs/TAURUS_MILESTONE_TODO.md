@@ -5,7 +5,7 @@ Source of truth:
 - `docs/TAURUS_MVP_SPEC_v0_3.md`
 - `docs/TAURUS_CODEX_TASKS_v0_3.yaml`
 
-Last updated: 2026-05-18 22:07 IST
+Last updated: 2026-05-19 11:07 IST
 
 Status legend:
 
@@ -21,7 +21,7 @@ Status legend:
 | M0 | Done | Project foundation | No | No |
 | M1 | Done | Mock data and database foundation | No | No |
 | M2 | Done | Backtesting skeleton | No | No |
-| M3 | Not started | Strategy engine and technical indicators | No | No |
+| M3 | Done | Strategy engine and technical indicators | No | No |
 | M4 | Not started | Intelligence foundation and analyst reports | Optional | Optional |
 | M5 | Not started | Bull/Bear debate and trader proposal | No | Optional |
 | M6 | Not started | Risk committee and fund manager approval | No | No |
@@ -144,31 +144,39 @@ Notes:
 
 ## M3 - Strategy Engine And Technical Indicators
 
-Status: Not started
+Status: Done
 
 Objective: Configurable technical strategies and feature store.
 
 Tasks:
 
-- [ ] Implement SMA, EMA, RSI, ATR, returns, volatility, volume z-score.
-- [ ] Add moving average crossover strategy.
-- [ ] Add blended score strategy.
-- [ ] Add YAML strategy configs.
-- [ ] Store feature values with data availability timestamps.
-- [ ] Add signal explanations.
+- [x] Implement SMA, EMA, RSI, ATR, returns, volatility, volume z-score.
+- [x] Add moving average crossover strategy.
+- [x] Add blended score strategy.
+- [x] Add YAML strategy configs.
+- [x] Store feature values with data availability timestamps.
+- [x] Add signal explanations.
 
 Verification:
 
-- [ ] `make test`
-- [ ] `make backtest-mock STRATEGY=configs/strategies/moving_average_crossover_v1.yaml`
-- [ ] `make backtest-mock STRATEGY=configs/strategies/blended_score_v1.yaml`
+- [x] `make test`
+- [x] `make backtest-mock STRATEGY=configs/strategies/moving_average_crossover_v1.yaml`
+- [x] `make backtest-mock STRATEGY=configs/strategies/blended_score_v1.yaml`
 
 Acceptance:
 
-- [ ] Indicator tests pass on fixed data.
-- [ ] Strategies produce explained signals.
-- [ ] Feature store rows include `data_available_time`.
-- [ ] No look-ahead data is used.
+- [x] Indicator tests pass on fixed data.
+- [x] Strategies produce explained signals.
+- [x] Feature store rows include `data_available_time`.
+- [x] No look-ahead data is used.
+
+Notes:
+
+- Verified `17 passed`.
+- `make lint` compile-checks pass.
+- Moving-average config prints `run_id=bt-f1cb6aed6c20e80d`.
+- Blended-score config prints `run_id=bt-68193c3c171f2206`.
+- Feature snapshots are persisted in `feature_values`; signal rows include `feature_snapshot_id` and JSON explanations.
 
 ## M4 - Intelligence Foundation And Analyst Reports
 

@@ -14,6 +14,7 @@ from taurus_core.db.models import (
     BacktestRunModel,
     BacktestSignalModel,
     DailyCandleModel,
+    FeatureValueModel,
     InstrumentModel,
 )
 from taurus_core.domain.instruments import Instrument
@@ -153,6 +154,7 @@ class BacktestRepository:
         self,
         *,
         run: BacktestRunModel,
+        feature_values: list[FeatureValueModel],
         signals: list[BacktestSignalModel],
         orders: list[BacktestOrderModel],
         fills_by_order_index: list[BacktestFillModel],
@@ -166,6 +168,7 @@ class BacktestRepository:
         self.delete_run(run.run_id)
         self.session.add(run)
         self.session.flush()
+        self.session.add_all(feature_values)
         self.session.add_all(signals)
         self.session.add_all(orders)
         self.session.flush()
@@ -184,6 +187,7 @@ class BacktestRepository:
             BacktestFillModel,
             BacktestOrderModel,
             BacktestSignalModel,
+            FeatureValueModel,
             BacktestPositionModel,
             BacktestEquityPointModel,
         ):
@@ -201,6 +205,7 @@ class BacktestRepository:
 
     def count_artifacts(self, run_id: str) -> dict[str, int]:
         models = {
+            "feature_values": FeatureValueModel,
             "signals": BacktestSignalModel,
             "orders": BacktestOrderModel,
             "fills": BacktestFillModel,

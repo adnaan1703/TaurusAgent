@@ -1,18 +1,22 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from collections.abc import Mapping
+from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
 
 
 @dataclass(frozen=True, slots=True)
 class BacktestConfig:
-    strategy_name: str = "mock_momentum_v1"
+    strategy_name: str = "moving_average_crossover_v1"
+    strategy_type: str = "moving_average_crossover"
+    strategy_config_path: str | None = None
+    strategy_parameters: Mapping[str, object] = field(default_factory=dict)
     seed: int = 42
     initial_capital_inr: Decimal = Decimal("1000000")
     max_open_positions: int = 8
     target_positions: int = 3
-    lookback_days: int = 20
+    lookback_days: int = 60
     rebalance_every_days: int = 21
     cost_bps: Decimal = Decimal("10")
     slippage_bps: Decimal = Decimal("5")
@@ -41,6 +45,7 @@ class BacktestResult:
     start_date: date
     end_date: date
     metrics: dict[str, float]
+    feature_value_count: int
     signal_count: int
     order_count: int
     fill_count: int

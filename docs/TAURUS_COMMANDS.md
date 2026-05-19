@@ -44,6 +44,17 @@ make lint
 make test
 ```
 
+## M3 Commands Used
+
+```bash
+make test
+make lint
+make dev-up
+make backtest-mock STRATEGY=configs/strategies/moving_average_crossover_v1.yaml
+make backtest-mock STRATEGY=configs/strategies/blended_score_v1.yaml
+make dev-down
+```
+
 ## Current Make Targets
 
 ```bash

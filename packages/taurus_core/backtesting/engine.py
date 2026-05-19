@@ -5,6 +5,7 @@ import json
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal, ROUND_DOWN
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -18,10 +19,12 @@ from taurus_core.db.models import (
     BacktestPositionModel,
     BacktestRunModel,
     BacktestSignalModel,
+    FeatureValueModel,
 )
 from taurus_core.db.repositories import BacktestRepository, CandleRepository, InstrumentRepository
 from taurus_core.domain.market_data import DailyCandle
-from taurus_core.strategies.mock_momentum import MockMomentumStrategy, MomentumSignal
+from taurus_core.features.store import FeatureValue, TechnicalFeatureService
+from taurus_core.strategies import StrategyConfig, StrategySignal, build_strategy
 
 MONEY = Decimal("0.0001")
 RATE_DENOMINATOR = Decimal("10000")
@@ -72,14 +75,25 @@ class BacktestEngine:
             end_date=end_date,
         )
 
-        strategy = MockMomentumStrategy(
-            lookback_days=self.config.lookback_days,
-            target_positions=min(self.config.target_positions, self.config.max_open_positions),
+        strategy = build_strategy(
+            StrategyConfig(
+                strategy_name=self.config.strategy_name,
+                strategy_type=self.config.strategy_type,
+                target_positions=min(self.config.target_positions, self.config.max_open_positions),
+                lookback_days=self.config.lookback_days,
+                rebalance_every_days=self.config.rebalance_every_days,
+                parameters=dict(self.config.strategy_parameters),
+                source_path=self.config.strategy_config_path,
+            )
+        )
+        feature_service = TechnicalFeatureService.from_strategy_parameters(
+            dict(self.config.strategy_parameters)
         )
         cash = self.config.initial_capital_inr
         positions: dict[str, PositionState] = {}
         closed_pnl: list[TradePnl] = []
         equity_values: list[Decimal] = [self.config.initial_capital_inr]
+        feature_values: list[FeatureValueModel] = []
         signals: list[BacktestSignalModel] = []
         orders: list[BacktestOrderModel] = []
         fills: list[BacktestFillModel] = []
@@ -100,12 +114,26 @@ class BacktestEngine:
                     symbol: [candles_by_date[symbol][history_date] for history_date in history_dates]
                     for symbol in symbols
                 }
+                features_by_symbol = {}
+                for symbol, history in history_by_symbol.items():
+                    snapshot = feature_service.build_snapshot(
+                        symbol=symbol,
+                        as_of_date=trade_date,
+                        history=history,
+                    )
+                    if snapshot is None:
+                        continue
+                    features_by_symbol[symbol] = snapshot
+                    feature_values.extend(
+                        _feature_model(run_id, feature_value)
+                        for feature_value in snapshot.rows
+                    )
                 current_symbols = {
                     symbol for symbol, position in positions.items() if position.quantity > 0
                 }
                 targets, generated_signals = strategy.select_targets(
                     trade_date=trade_date,
-                    history_by_symbol=history_by_symbol,
+                    features_by_symbol=features_by_symbol,
                     current_positions=current_symbols,
                 )
                 signals.extend(_signal_model(run_id, signal) for signal in generated_signals)
@@ -178,6 +206,7 @@ class BacktestEngine:
                 actor="backtest_engine",
                 payload={
                     "run_id": run_id,
+                    "feature_values": len(feature_values),
                     "signals": len(signals),
                     "orders": len(orders),
                     "fills": len(fills),
@@ -190,6 +219,7 @@ class BacktestEngine:
 
         BacktestRepository(self.session).replace_run(
             run=run,
+            feature_values=feature_values,
             signals=signals,
             orders=orders,
             fills_by_order_index=fills,
@@ -204,6 +234,7 @@ class BacktestEngine:
             start_date=start_date,
             end_date=end_date,
             metrics=metrics,
+            feature_value_count=len(feature_values),
             signal_count=len(signals),
             order_count=len(orders),
             fill_count=len(fills),
@@ -434,10 +465,13 @@ class BacktestEngine:
             "cost_bps": str(self.config.cost_bps),
             "slippage_bps": str(self.config.slippage_bps),
             "timeframe": self.config.timeframe,
+            "strategy_type": self.config.strategy_type,
+            "strategy_config_path": self.config.strategy_config_path,
+            "strategy_parameters": _json_safe(dict(self.config.strategy_parameters)),
         }
 
 
-def _signal_model(run_id: str, signal: MomentumSignal) -> BacktestSignalModel:
+def _signal_model(run_id: str, signal: StrategySignal) -> BacktestSignalModel:
     return BacktestSignalModel(
         run_id=run_id,
         trade_date=signal.trade_date,
@@ -445,6 +479,22 @@ def _signal_model(run_id: str, signal: MomentumSignal) -> BacktestSignalModel:
         action=signal.action,
         score=signal.score.quantize(Decimal("0.00000001")),
         reason=signal.reason,
+        feature_snapshot_id=signal.explanation.feature_snapshot_id,
+        explanation=signal.explanation.to_dict(),
+    )
+
+
+def _feature_model(run_id: str, feature: FeatureValue) -> FeatureValueModel:
+    return FeatureValueModel(
+        run_id=run_id,
+        snapshot_id=feature.snapshot_id,
+        symbol=feature.symbol,
+        feature_name=feature.feature_name,
+        feature_value=feature.feature_value.quantize(Decimal("0.00000001")),
+        feature_time=feature.feature_time,
+        data_available_time=feature.data_available_time,
+        source=feature.source,
+        feature_version=feature.feature_version,
     )
 
 
@@ -491,3 +541,15 @@ def _fill_model(
 
 def _money(value: Decimal | int) -> Decimal:
     return Decimal(value).quantize(MONEY)
+
+
+def _json_safe(value: Any) -> Any:
+    if isinstance(value, Decimal):
+        return str(value)
+    if isinstance(value, dict):
+        return {str(key): _json_safe(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_json_safe(item) for item in value]
+    if isinstance(value, tuple):
+        return [_json_safe(item) for item in value]
+    return value

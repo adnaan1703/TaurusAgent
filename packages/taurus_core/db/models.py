@@ -99,6 +99,36 @@ class PortfolioSnapshotModel(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
 
 
+class FeatureValueModel(Base):
+    __tablename__ = "feature_values"
+    __table_args__ = (
+        UniqueConstraint(
+            "run_id",
+            "snapshot_id",
+            "feature_name",
+            name="uq_feature_values_run_snapshot_feature",
+        ),
+        Index("ix_feature_values_run_symbol_time", "run_id", "symbol", "feature_time"),
+        Index("ix_feature_values_snapshot", "snapshot_id"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    run_id: Mapped[str] = mapped_column(
+        String(128),
+        ForeignKey("backtest_runs.run_id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    snapshot_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    symbol: Mapped[str] = mapped_column(String(32), nullable=False)
+    feature_name: Mapped[str] = mapped_column(String(128), nullable=False)
+    feature_value: Mapped[Decimal] = mapped_column(Numeric(18, 8), nullable=False)
+    feature_time: Mapped[date] = mapped_column(Date, nullable=False)
+    data_available_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    source: Mapped[str] = mapped_column(String(128), nullable=False, default="daily_candles")
+    feature_version: Mapped[str] = mapped_column(String(128), nullable=False, default="technical_v1")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
 class BacktestRunModel(Base):
     __tablename__ = "backtest_runs"
 
@@ -131,6 +161,8 @@ class BacktestSignalModel(Base):
     action: Mapped[str] = mapped_column(String(16), nullable=False)
     score: Mapped[Decimal] = mapped_column(Numeric(18, 8), nullable=False)
     reason: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    feature_snapshot_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    explanation: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
 
 
