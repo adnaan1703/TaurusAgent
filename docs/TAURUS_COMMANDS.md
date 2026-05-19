@@ -76,6 +76,20 @@ DATABASE_URL=sqlite:////private/tmp/taurus-m6.db make risk-review-mock SYMBOL=IN
 DATABASE_URL=sqlite:////private/tmp/taurus-m6.db make final-approval-mock SYMBOL=INFY
 ```
 
+## M7 Commands Used
+
+```bash
+make test
+make lint
+DATABASE_URL=sqlite:////private/tmp/taurus-m7-deterministic-20260519.db make paper-once-mock SYMBOL=INFY
+DATABASE_URL=sqlite:////private/tmp/taurus-m7-verify-20260519.db make api
+curl http://127.0.0.1:8000/paper/orders
+curl http://127.0.0.1:8000/paper/fills
+curl http://127.0.0.1:8000/paper/positions
+curl http://127.0.0.1:8000/paper/account
+pkill -f "uvicorn apps.api.main:app"
+```
+
 ## Current Make Targets
 
 ```bash
@@ -92,6 +106,9 @@ make debate-mock SYMBOL=INFY
 make trader-proposal-mock SYMBOL=INFY
 make risk-review-mock SYMBOL=INFY
 make final-approval-mock SYMBOL=INFY
+make paper-once-mock SYMBOL=INFY
+make paper-loop-once
+make paper-loop-start
 make llm-smoke
 make test
 make lint
@@ -144,6 +161,7 @@ curl http://localhost:8000/final-decisions
 curl http://localhost:8000/paper/orders
 curl http://localhost:8000/paper/fills
 curl http://localhost:8000/paper/positions
+curl http://localhost:8000/paper/account
 curl http://localhost:8000/runs
 curl http://localhost:8000/live-readiness
 ```
@@ -190,6 +208,10 @@ prefix_rule(pattern=["make", "trader-proposal-mock"], decision="allow")
 prefix_rule(pattern=["make", "risk-review-mock"], decision="allow")
 prefix_rule(pattern=["make", "final-approval-mock"], decision="allow")
 prefix_rule(pattern=["make", "paper-once-mock"], decision="allow")
+prefix_rule(pattern=["/bin/zsh", "-lc", "DATABASE_URL=sqlite:////private/tmp/taurus-m7-verify-20260519.db make paper-once-mock SYMBOL=INFY"], decision="allow")
+prefix_rule(pattern=["/bin/zsh", "-lc", "DATABASE_URL=sqlite:////private/tmp/taurus-m7-verify-20260519.db make api"], decision="allow")
+prefix_rule(pattern=["/bin/zsh", "-lc", "DATABASE_URL=sqlite:////private/tmp/taurus-m7-deterministic-20260519.db TAURUS_LLM_PROVIDER=mock SYMBOL=INFY PYTHONPATH=packages:. uv run python scripts/run_paper_once.py"], decision="allow")
+prefix_rule(pattern=["/bin/zsh", "-lc", "DATABASE_URL=sqlite:////private/tmp/taurus-m7-deterministic-20260519.db make paper-once-mock SYMBOL=INFY"], decision="allow")
 prefix_rule(pattern=["make", "dashboard"], decision="allow")
 prefix_rule(pattern=["make", "import-screener"], decision="allow")
 prefix_rule(pattern=["make", "import-price-csv"], decision="allow")
@@ -215,6 +237,14 @@ prefix_rule(pattern=["curl", "http://localhost:8000/events"], decision="allow")
 prefix_rule(pattern=["curl", "http://localhost:8000/agent-reports?symbol=INFY"], decision="allow")
 prefix_rule(pattern=["curl", "http://localhost:8000/debates"], decision="allow")
 prefix_rule(pattern=["curl", "http://localhost:8000/trader-proposals"], decision="allow")
+prefix_rule(pattern=["curl", "http://localhost:8000/paper/orders"], decision="allow")
+prefix_rule(pattern=["curl", "http://localhost:8000/paper/fills"], decision="allow")
+prefix_rule(pattern=["curl", "http://localhost:8000/paper/positions"], decision="allow")
+prefix_rule(pattern=["curl", "http://localhost:8000/paper/account"], decision="allow")
+prefix_rule(pattern=["curl", "http://127.0.0.1:8000/paper/orders"], decision="allow")
+prefix_rule(pattern=["curl", "http://127.0.0.1:8000/paper/fills"], decision="allow")
+prefix_rule(pattern=["curl", "http://127.0.0.1:8000/paper/positions"], decision="allow")
+prefix_rule(pattern=["curl", "http://127.0.0.1:8000/paper/account"], decision="allow")
 ```
 
 Do not broadly allow `python`, `python3`, `uv`, `rm`, unconstrained shell commands, or bare `curl`. Keep destructive commands manually approved.

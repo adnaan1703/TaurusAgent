@@ -20,6 +20,10 @@ from taurus_core.db.models import (
     FeatureValueModel,
     FinalDecisionModel,
     InstrumentModel,
+    PaperAccountModel,
+    PaperFillModel,
+    PaperOrderModel,
+    PaperPositionModel,
     RawDocumentModel,
     RiskReviewModel,
     SentimentScoreModel,
@@ -31,6 +35,7 @@ from taurus_core.intelligence.documents import NewsEvent, RawDocument, Sentiment
 from taurus_core.agents.schemas import AnalystReport
 from taurus_core.research.schemas import DebateReport, TraderProposal
 from taurus_core.risk.schemas import FinalDecision, RiskReview
+from taurus_core.execution.schemas import PaperAccount, PaperFill, PaperOrder, PaperPosition
 
 
 class InstrumentRepository:
@@ -429,6 +434,11 @@ class ResearchRepository:
         self.session = session
 
     def replace_debate_for_run_symbol(self, debate: DebateReport) -> DebateReportModel:
+        _delete_paper_artifacts_for_run_symbol(
+            self.session,
+            run_id=debate.run_id,
+            symbol=debate.symbol,
+        )
         self.session.execute(
             delete(FinalDecisionModel).where(
                 FinalDecisionModel.run_id == debate.run_id,
@@ -462,6 +472,11 @@ class ResearchRepository:
         self,
         proposal: TraderProposal,
     ) -> TraderProposalModel:
+        _delete_paper_artifacts_for_run_symbol(
+            self.session,
+            run_id=proposal.run_id,
+            symbol=proposal.symbol,
+        )
         self.session.execute(
             delete(FinalDecisionModel).where(
                 FinalDecisionModel.run_id == proposal.run_id,
@@ -543,6 +558,11 @@ class RiskRepository:
         self.session = session
 
     def replace_risk_review_for_run_symbol(self, review: RiskReview) -> RiskReviewModel:
+        _delete_paper_artifacts_for_run_symbol(
+            self.session,
+            run_id=review.run_id,
+            symbol=review.symbol,
+        )
         self.session.execute(
             delete(FinalDecisionModel).where(
                 FinalDecisionModel.run_id == review.run_id,
@@ -561,6 +581,11 @@ class RiskRepository:
         return model
 
     def replace_final_decision_for_run_symbol(self, decision: FinalDecision) -> FinalDecisionModel:
+        _delete_paper_artifacts_for_run_symbol(
+            self.session,
+            run_id=decision.run_id,
+            symbol=decision.symbol,
+        )
         self.session.execute(
             delete(FinalDecisionModel).where(
                 FinalDecisionModel.run_id == decision.run_id,
@@ -643,6 +668,304 @@ class RiskRepository:
         if limit is not None:
             statement = statement.limit(limit)
         return list(self.session.scalars(statement))
+
+
+class ExecutionRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def replace_order_execution(
+        self,
+        *,
+        order: PaperOrder,
+        fills: list[PaperFill],
+        account: PaperAccount,
+        positions: list[PaperPosition],
+    ) -> PaperOrderModel:
+        self.delete_execution_for_final_decision(order.final_decision_id)
+        order_model = _paper_order_to_model(order)
+        self.session.add(order_model)
+        self.session.flush()
+        self.session.add_all([_paper_fill_to_model(fill) for fill in fills])
+        self.replace_account_state(
+            run_id=order.run_id,
+            account=account,
+            positions=positions,
+        )
+        self.session.add(
+            AuditLogModel(
+                event_type="paper.order_executed",
+                actor="PaperBroker",
+                payload={
+                    "order_id": order.order_id,
+                    "final_decision_id": order.final_decision_id,
+                    "decision_id": order.decision_id,
+                    "run_id": order.run_id,
+                    "symbol": order.symbol,
+                    "status": order.status,
+                    "filled_quantity": order.filled_quantity,
+                },
+                note="PaperBroker simulated execution stored.",
+            )
+        )
+        self.session.flush()
+        return order_model
+
+    def store_rejected_order(
+        self,
+        *,
+        order: PaperOrder,
+        account: PaperAccount,
+        positions: list[PaperPosition],
+    ) -> PaperOrderModel:
+        self.delete_execution_for_final_decision(order.final_decision_id)
+        order_model = _paper_order_to_model(order)
+        self.session.add(order_model)
+        self.replace_account_state(
+            run_id=order.run_id,
+            account=account,
+            positions=positions,
+        )
+        self.session.add(
+            AuditLogModel(
+                event_type="paper.order_rejected",
+                actor="PaperBroker",
+                payload={
+                    "order_id": order.order_id,
+                    "final_decision_id": order.final_decision_id,
+                    "decision_id": order.decision_id,
+                    "run_id": order.run_id,
+                    "symbol": order.symbol,
+                    "reason": order.rejection_reason,
+                },
+                note="PaperBroker rejected an approved paper decision.",
+            )
+        )
+        self.session.flush()
+        return order_model
+
+    def delete_execution_for_final_decision(self, final_decision_id: str) -> None:
+        self.session.execute(
+            delete(PaperFillModel).where(
+                PaperFillModel.final_decision_id == final_decision_id,
+            )
+        )
+        self.session.execute(
+            delete(PaperOrderModel).where(
+                PaperOrderModel.final_decision_id == final_decision_id,
+            )
+        )
+        self.session.execute(
+            delete(AuditLogModel).where(
+                AuditLogModel.event_type.like("paper.%"),
+                AuditLogModel.payload["final_decision_id"].as_string() == final_decision_id,
+            )
+        )
+
+    def replace_account_state(
+        self,
+        *,
+        run_id: str,
+        account: PaperAccount,
+        positions: list[PaperPosition],
+    ) -> None:
+        self.session.execute(delete(PaperPositionModel).where(PaperPositionModel.run_id == run_id))
+        self.session.add_all([_paper_position_to_model(position) for position in positions])
+
+        model = self.session.get(PaperAccountModel, account.account_id)
+        if model is None:
+            self.session.add(_paper_account_to_model(account))
+        else:
+            model.run_id = account.run_id
+            model.starting_cash_inr = account.starting_cash_inr
+            model.available_cash_inr = account.available_cash_inr
+            model.reserved_cash_inr = account.reserved_cash_inr
+            model.realized_pnl_inr = account.realized_pnl_inr
+            model.unrealized_pnl_inr = account.unrealized_pnl_inr
+            model.gross_exposure_inr = account.gross_exposure_inr
+            model.equity_inr = account.equity_inr
+            model.currency = account.currency
+            model.updated_at = account.updated_at
+            model.payload = account.model_dump(mode="json")
+        self.session.flush()
+
+    def get_order(self, order_id: str) -> PaperOrderModel | None:
+        return self.session.get(PaperOrderModel, order_id)
+
+    def list_orders(
+        self,
+        *,
+        symbol: str | None = None,
+        limit: int | None = 100,
+    ) -> list[PaperOrderModel]:
+        statement = select(PaperOrderModel).order_by(
+            PaperOrderModel.submitted_at.desc(),
+            PaperOrderModel.order_id,
+        )
+        if symbol is not None:
+            statement = statement.where(PaperOrderModel.symbol == symbol.upper())
+        if limit is not None:
+            statement = statement.limit(limit)
+        return list(self.session.scalars(statement))
+
+    def list_fills(
+        self,
+        *,
+        symbol: str | None = None,
+        limit: int | None = 100,
+    ) -> list[PaperFillModel]:
+        statement = select(PaperFillModel).order_by(
+            PaperFillModel.filled_at.desc(),
+            PaperFillModel.fill_sequence,
+        )
+        if symbol is not None:
+            statement = statement.where(PaperFillModel.symbol == symbol.upper())
+        if limit is not None:
+            statement = statement.limit(limit)
+        return list(self.session.scalars(statement))
+
+    def list_positions(
+        self,
+        *,
+        symbol: str | None = None,
+    ) -> list[PaperPositionModel]:
+        statement = select(PaperPositionModel).order_by(PaperPositionModel.symbol)
+        if symbol is not None:
+            statement = statement.where(PaperPositionModel.symbol == symbol.upper())
+        return list(self.session.scalars(statement))
+
+    def latest_account(self, *, run_id: str | None = None) -> PaperAccountModel | None:
+        statement = select(PaperAccountModel).order_by(
+            PaperAccountModel.updated_at.desc(),
+            PaperAccountModel.account_id,
+        )
+        if run_id is not None:
+            statement = statement.where(PaperAccountModel.run_id == run_id)
+        return self.session.scalar(statement.limit(1))
+
+
+def _delete_paper_artifacts_for_run_symbol(
+    session: Session,
+    *,
+    run_id: str,
+    symbol: str,
+) -> None:
+    normalized_symbol = symbol.upper()
+    session.execute(
+        delete(PaperFillModel).where(
+            PaperFillModel.run_id == run_id,
+            PaperFillModel.symbol == normalized_symbol,
+        )
+    )
+    session.execute(
+        delete(PaperOrderModel).where(
+            PaperOrderModel.run_id == run_id,
+            PaperOrderModel.symbol == normalized_symbol,
+        )
+    )
+    session.execute(
+        delete(PaperPositionModel).where(
+            PaperPositionModel.run_id == run_id,
+            PaperPositionModel.symbol == normalized_symbol,
+        )
+    )
+    session.execute(
+        delete(AuditLogModel).where(
+            AuditLogModel.event_type.like("paper.%"),
+            AuditLogModel.payload["run_id"].as_string() == run_id,
+            AuditLogModel.payload["symbol"].as_string() == normalized_symbol,
+        )
+    )
+    remaining_fills = int(
+        session.scalar(
+            select(func.count()).select_from(PaperFillModel).where(PaperFillModel.run_id == run_id)
+        )
+        or 0
+    )
+    if remaining_fills == 0:
+        session.execute(delete(PaperAccountModel).where(PaperAccountModel.run_id == run_id))
+
+
+def _paper_order_to_model(order: PaperOrder) -> PaperOrderModel:
+    return PaperOrderModel(
+        order_id=order.order_id,
+        final_decision_id=order.final_decision_id,
+        decision_id=order.decision_id,
+        run_id=order.run_id,
+        symbol=order.symbol.upper(),
+        side=order.side,
+        quantity=order.quantity,
+        order_type=order.order_type,
+        status=order.status,
+        filled_quantity=order.filled_quantity,
+        remaining_quantity=order.remaining_quantity,
+        average_fill_price_inr=order.average_fill_price_inr,
+        gross_value_inr=order.gross_value_inr,
+        total_cost_inr=order.total_cost_inr,
+        total_slippage_inr=order.total_slippage_inr,
+        slippage_bps=order.slippage_bps,
+        rejection_reason=order.rejection_reason,
+        submitted_at=order.submitted_at,
+        updated_at=order.updated_at,
+        payload=order.model_dump(mode="json"),
+    )
+
+
+def _paper_fill_to_model(fill: PaperFill) -> PaperFillModel:
+    return PaperFillModel(
+        fill_id=fill.fill_id,
+        order_id=fill.order_id,
+        final_decision_id=fill.final_decision_id,
+        run_id=fill.run_id,
+        symbol=fill.symbol.upper(),
+        trade_date=fill.trade_date,
+        side=fill.side,
+        quantity=fill.quantity,
+        reference_price_inr=fill.reference_price_inr,
+        fill_price_inr=fill.fill_price_inr,
+        gross_value_inr=fill.gross_value_inr,
+        brokerage_inr=fill.brokerage_inr,
+        exchange_txn_charge_inr=fill.exchange_txn_charge_inr,
+        tax_levy_inr=fill.tax_levy_inr,
+        cost_inr=fill.cost_inr,
+        slippage_bps=fill.slippage_bps,
+        slippage_inr=fill.slippage_inr,
+        fill_sequence=fill.fill_sequence,
+        filled_at=fill.filled_at,
+        payload=fill.model_dump(mode="json"),
+    )
+
+
+def _paper_position_to_model(position: PaperPosition) -> PaperPositionModel:
+    return PaperPositionModel(
+        run_id=position.run_id,
+        symbol=position.symbol.upper(),
+        quantity=position.quantity,
+        average_cost_inr=position.average_cost_inr,
+        last_price_inr=position.last_price_inr,
+        market_value_inr=position.market_value_inr,
+        realized_pnl_inr=position.realized_pnl_inr,
+        unrealized_pnl_inr=position.unrealized_pnl_inr,
+        updated_at=position.updated_at,
+        payload=position.model_dump(mode="json"),
+    )
+
+
+def _paper_account_to_model(account: PaperAccount) -> PaperAccountModel:
+    return PaperAccountModel(
+        account_id=account.account_id,
+        run_id=account.run_id,
+        starting_cash_inr=account.starting_cash_inr,
+        available_cash_inr=account.available_cash_inr,
+        reserved_cash_inr=account.reserved_cash_inr,
+        realized_pnl_inr=account.realized_pnl_inr,
+        unrealized_pnl_inr=account.unrealized_pnl_inr,
+        gross_exposure_inr=account.gross_exposure_inr,
+        equity_inr=account.equity_inr,
+        currency=account.currency,
+        updated_at=account.updated_at,
+        payload=account.model_dump(mode="json"),
+    )
 
 
 def _instrument_to_model(instrument: Instrument) -> InstrumentModel:

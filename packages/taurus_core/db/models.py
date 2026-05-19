@@ -524,3 +524,138 @@ class FinalDecisionModel(Base):
     model_version: Mapped[str] = mapped_column(String(128), nullable=False)
     payload: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+class PaperOrderModel(Base):
+    __tablename__ = "paper_orders"
+    __table_args__ = (
+        UniqueConstraint("final_decision_id", name="uq_paper_orders_final_decision"),
+        Index("ix_paper_orders_run_symbol_time", "run_id", "symbol", "submitted_at"),
+    )
+
+    order_id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    final_decision_id: Mapped[str] = mapped_column(
+        String(128),
+        ForeignKey("final_decisions.final_decision_id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    decision_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    run_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    symbol: Mapped[str] = mapped_column(
+        String(32),
+        ForeignKey("instruments.symbol", ondelete="CASCADE"),
+        nullable=False,
+    )
+    side: Mapped[str] = mapped_column(String(8), nullable=False)
+    quantity: Mapped[int] = mapped_column(nullable=False)
+    order_type: Mapped[str] = mapped_column(String(32), nullable=False, default="MARKET")
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="CREATED")
+    filled_quantity: Mapped[int] = mapped_column(nullable=False, default=0)
+    remaining_quantity: Mapped[int] = mapped_column(nullable=False, default=0)
+    average_fill_price_inr: Mapped[Decimal] = mapped_column(
+        Numeric(18, 4),
+        nullable=False,
+        default=Decimal("0"),
+    )
+    gross_value_inr: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False, default=Decimal("0"))
+    total_cost_inr: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False, default=Decimal("0"))
+    total_slippage_inr: Mapped[Decimal] = mapped_column(
+        Numeric(18, 4),
+        nullable=False,
+        default=Decimal("0"),
+    )
+    slippage_bps: Mapped[Decimal] = mapped_column(Numeric(10, 4), nullable=False, default=Decimal("0"))
+    rejection_reason: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    submitted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    payload: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+class PaperFillModel(Base):
+    __tablename__ = "paper_fills"
+    __table_args__ = (
+        UniqueConstraint("order_id", "fill_sequence", name="uq_paper_fills_order_sequence"),
+        Index("ix_paper_fills_run_symbol_time", "run_id", "symbol", "filled_at"),
+    )
+
+    fill_id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    order_id: Mapped[str] = mapped_column(
+        String(128),
+        ForeignKey("paper_orders.order_id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    final_decision_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    run_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    symbol: Mapped[str] = mapped_column(
+        String(32),
+        ForeignKey("instruments.symbol", ondelete="CASCADE"),
+        nullable=False,
+    )
+    trade_date: Mapped[date] = mapped_column(Date, nullable=False)
+    side: Mapped[str] = mapped_column(String(8), nullable=False)
+    quantity: Mapped[int] = mapped_column(nullable=False)
+    reference_price_inr: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
+    fill_price_inr: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
+    gross_value_inr: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
+    brokerage_inr: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
+    exchange_txn_charge_inr: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
+    tax_levy_inr: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
+    cost_inr: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
+    slippage_bps: Mapped[Decimal] = mapped_column(Numeric(10, 4), nullable=False)
+    slippage_inr: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
+    fill_sequence: Mapped[int] = mapped_column(nullable=False)
+    filled_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    payload: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+class PaperPositionModel(Base):
+    __tablename__ = "paper_positions"
+    __table_args__ = (
+        UniqueConstraint("run_id", "symbol", name="uq_paper_positions_run_symbol"),
+        Index("ix_paper_positions_run_symbol", "run_id", "symbol"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    run_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    symbol: Mapped[str] = mapped_column(
+        String(32),
+        ForeignKey("instruments.symbol", ondelete="CASCADE"),
+        nullable=False,
+    )
+    quantity: Mapped[int] = mapped_column(nullable=False, default=0)
+    average_cost_inr: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False, default=Decimal("0"))
+    last_price_inr: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False, default=Decimal("0"))
+    market_value_inr: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False, default=Decimal("0"))
+    realized_pnl_inr: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False, default=Decimal("0"))
+    unrealized_pnl_inr: Mapped[Decimal] = mapped_column(
+        Numeric(18, 4),
+        nullable=False,
+        default=Decimal("0"),
+    )
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    payload: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+class PaperAccountModel(Base):
+    __tablename__ = "paper_accounts"
+    __table_args__ = (
+        UniqueConstraint("run_id", name="uq_paper_accounts_run_id"),
+        Index("ix_paper_accounts_updated_at", "updated_at"),
+    )
+
+    account_id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    run_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    starting_cash_inr: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
+    available_cash_inr: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
+    reserved_cash_inr: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False, default=Decimal("0"))
+    realized_pnl_inr: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False, default=Decimal("0"))
+    unrealized_pnl_inr: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False, default=Decimal("0"))
+    gross_exposure_inr: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False, default=Decimal("0"))
+    equity_inr: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
+    currency: Mapped[str] = mapped_column(String(8), nullable=False, default="INR")
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    payload: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)

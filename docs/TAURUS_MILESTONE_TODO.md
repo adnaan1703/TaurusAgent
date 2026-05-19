@@ -5,7 +5,7 @@ Source of truth:
 - `docs/TAURUS_MVP_SPEC_v0_3.md`
 - `docs/TAURUS_CODEX_TASKS_v0_3.yaml`
 
-Last updated: 2026-05-19 13:50 IST
+Last updated: 2026-05-19 16:22 IST
 
 Status legend:
 
@@ -30,7 +30,7 @@ Milestone completion reporting:
 | M4 | Done | Intelligence foundation and analyst reports | Optional | Optional |
 | M5 | Done | Bull/Bear debate and trader proposal | No | Optional |
 | M6 | Done | Risk committee and fund manager approval | No | No |
-| M7 | Not started | PaperBroker execution simulator | No | No |
+| M7 | Done | PaperBroker execution simulator | No | No |
 | M8 | Not started | Dashboard and observability v1 | No | No |
 | M9 | Not started | Screener fundamentals import | Screener CSV required | No |
 | M10 | Not started | Real market data provider | CSV/provider decision required | Maybe |
@@ -324,31 +324,49 @@ Completion summary:
 
 ## M7 - PaperBroker Execution Simulator
 
-Status: Not started
+Status: Done
 
 Objective: Simulated orders, fills, positions, cash, slippage, and costs.
 
 Tasks:
 
-- [ ] Define `BrokerAdapter` interface.
-- [ ] Implement `PaperBroker`.
-- [ ] Add order lifecycle states.
-- [ ] Add partial fills, slippage, costs.
-- [ ] Add paper-once and paper-loop scripts.
-- [ ] Accept only final approved decisions.
+- [x] Define `BrokerAdapter` interface.
+- [x] Implement `PaperBroker`.
+- [x] Add order lifecycle states.
+- [x] Add partial fills, slippage, costs.
+- [x] Add paper-once and paper-loop scripts.
+- [x] Accept only final approved decisions.
 
 Verification:
 
-- [ ] `make paper-once-mock SYMBOL=INFY`
-- [ ] `make test`
+- [x] `make paper-once-mock SYMBOL=INFY`
+- [x] `make test`
+- [x] `make lint`
+- [x] `curl http://127.0.0.1:8000/paper/orders`
+- [x] `curl http://127.0.0.1:8000/paper/fills`
+- [x] `curl http://127.0.0.1:8000/paper/positions`
+- [x] `curl http://127.0.0.1:8000/paper/account`
 
 Acceptance:
 
-- [ ] PaperBroker receives only final approved paper decisions.
-- [ ] Cash and positions update correctly.
-- [ ] Costs and slippage are stored.
-- [ ] Paper run is deterministic from same seed.
-- [ ] Event-risk blocks apply in paper mode.
+- [x] PaperBroker receives only final approved paper decisions.
+- [x] Cash and positions update correctly.
+- [x] Costs and slippage are stored.
+- [x] Paper run is deterministic from same seed.
+- [x] Event-risk blocks apply in paper mode.
+
+Notes:
+
+- Verified `38 passed`.
+- `make lint` compile-checks pass.
+- `DATABASE_URL=sqlite:////private/tmp/taurus-m7-deterministic-20260519.db make paper-once-mock SYMBOL=INFY` produced `order_id=po-98310d7a4a1e6985`, `status=FILLED`, `filled_quantity=85`, two partial fills, `total_cost_inr=11.8703`, `total_slippage_inr=13.6357`, deterministic `as_of=2024-12-18T00:00:00Z`, and a paper account with `available_cash_inr=972700.3740`.
+- `/paper/orders`, `/paper/fills`, `/paper/positions`, and `/paper/account` returned persisted paper execution state from the M7 verification database.
+
+Completion summary:
+
+- Assumptions made: PaperBroker fills approved paper decisions from the latest available daily candle, using the candle open for the first fill and close for the second partial fill. India cash-equity costs are simulation placeholders configurable with `TAURUS_PAPER_*` settings. The M7 paper loop is a finite mock loop; continuous scheduling remains M11 scope.
+- Mocks created: Unit-test severe negative regulatory event fixture for validating paper-route blocking; forced low partial-fill threshold in M7 tests to exercise partial fills deterministically.
+- Mocks used: Deterministic mock market data, mock news, mock LLM analyst outputs, mock debate/trader/risk/final-approval pipeline, and SQLite verification databases at `/private/tmp/taurus-m7-deterministic-20260519.db` and `/private/tmp/taurus-m7-verify-20260519.db`.
 
 ## M8 - Dashboard And Observability V1
 

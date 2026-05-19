@@ -69,6 +69,37 @@ class Settings(BaseSettings):
         le=Decimal("100"),
         validation_alias="TAURUS_MAX_DAILY_LOSS_PCT",
     )
+    taurus_paper_slippage_bps: Decimal = Field(
+        default=Decimal("5.0"),
+        ge=Decimal("0"),
+        validation_alias="TAURUS_PAPER_SLIPPAGE_BPS",
+    )
+    taurus_paper_brokerage_bps: Decimal = Field(
+        default=Decimal("3.0"),
+        ge=Decimal("0"),
+        validation_alias="TAURUS_PAPER_BROKERAGE_BPS",
+    )
+    taurus_paper_exchange_txn_charge_bps: Decimal = Field(
+        default=Decimal("0.35"),
+        ge=Decimal("0"),
+        validation_alias="TAURUS_PAPER_EXCHANGE_TXN_CHARGE_BPS",
+    )
+    taurus_paper_tax_levy_bps: Decimal = Field(
+        default=Decimal("1.0"),
+        ge=Decimal("0"),
+        validation_alias="TAURUS_PAPER_TAX_LEVY_BPS",
+    )
+    taurus_paper_partial_fill_threshold: int = Field(
+        default=50,
+        ge=1,
+        validation_alias="TAURUS_PAPER_PARTIAL_FILL_THRESHOLD",
+    )
+    taurus_paper_first_fill_pct: Decimal = Field(
+        default=Decimal("0.60"),
+        gt=Decimal("0"),
+        lt=Decimal("1"),
+        validation_alias="TAURUS_PAPER_FIRST_FILL_PCT",
+    )
 
     taurus_llm_provider: str = Field(default="mock", validation_alias="TAURUS_LLM_PROVIDER")
     taurus_llm_base_url: str = Field(default="", validation_alias="TAURUS_LLM_BASE_URL")

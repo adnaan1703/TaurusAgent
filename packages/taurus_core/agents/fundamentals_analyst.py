@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+from datetime import datetime, time, timedelta, timezone
 from decimal import Decimal
 
 from taurus_core.agents.base import BaseAnalystAgent, fallback_output, utc_now
 from taurus_core.agents.schemas import AnalystReport
-from taurus_core.db.repositories import InstrumentRepository
+from taurus_core.db.repositories import CandleRepository, InstrumentRepository
 
 
 class FundamentalsAnalystAgent(BaseAnalystAgent):
@@ -41,8 +42,15 @@ class FundamentalsAnalystAgent(BaseAnalystAgent):
         return self._build_report(
             symbol=symbol,
             run_id=run_id,
-            as_of=utc_now(),
+            as_of=self._as_of(symbol),
             fallback=fallback,
             context=context,
             source_ids=["fundamentals:mock"],
         )
+
+    def _as_of(self, symbol: str) -> datetime:
+        candles = CandleRepository(self.session).get_by_symbol_and_date_range(symbol=symbol)
+        if not candles:
+            return utc_now()
+        as_of_date = candles[-1].trade_date + timedelta(days=1)
+        return datetime.combine(as_of_date, time.min, tzinfo=timezone.utc)
