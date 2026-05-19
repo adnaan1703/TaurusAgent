@@ -14,6 +14,11 @@ Status legend:
 - `[~]` In progress or partial
 - `[!]` Blocked or needs user input
 
+Milestone completion reporting:
+
+- Every completed milestone task summary must explicitly list assumptions made, mocks created, and mocks used.
+- If any category is empty, write `None` so omissions are visible.
+
 ## Summary
 
 | Milestone | Status | Title | User input | External keys |
