@@ -236,6 +236,7 @@ web_modules/
 .env.*
 !.env.example
 .codex/
+.opencode/
 
 # parcel-bundler cache (https://parceljs.org/)
 .cache
