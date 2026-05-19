@@ -5,7 +5,7 @@ Source of truth:
 - `docs/TAURUS_MVP_SPEC_v0_3.md`
 - `docs/TAURUS_CODEX_TASKS_v0_3.yaml`
 
-Last updated: 2026-05-19 11:07 IST
+Last updated: 2026-05-19 11:36 IST
 
 Status legend:
 
@@ -22,7 +22,7 @@ Status legend:
 | M1 | Done | Mock data and database foundation | No | No |
 | M2 | Done | Backtesting skeleton | No | No |
 | M3 | Done | Strategy engine and technical indicators | No | No |
-| M4 | Not started | Intelligence foundation and analyst reports | Optional | Optional |
+| M4 | Done | Intelligence foundation and analyst reports | Optional | Optional |
 | M5 | Not started | Bull/Bear debate and trader proposal | No | Optional |
 | M6 | Not started | Risk committee and fund manager approval | No | No |
 | M7 | Not started | PaperBroker execution simulator | No | No |
@@ -180,7 +180,7 @@ Notes:
 
 ## M4 - Intelligence Foundation And Analyst Reports
 
-Status: Not started
+Status: Done
 
 Objective: Add news/sentiment/LLM foundation plus TradingAgents-style analyst agents.
 
@@ -193,38 +193,38 @@ User inputs:
 
 Tasks:
 
-- [ ] Build `DocumentProvider` and `NewsProvider` interfaces.
-- [ ] Add `MockNewsProvider`.
-- [ ] Add `raw_documents`, `company_events`, `sentiment_scores`, `analyst_reports` tables.
-- [ ] Add ticker/entity resolver.
-- [ ] Add deterministic rule-based fallback sentiment scoring.
-- [ ] Add `LLMProvider` interface with mock, LM Studio, and OpenAI providers.
-- [ ] Add Pydantic schemas for LLM output.
-- [ ] Implement `TechnicalAnalystAgent`.
-- [ ] Implement `NewsAnalystAgent`.
-- [ ] Implement `SentimentAnalystAgent`.
-- [ ] Implement `FundamentalsAnalystAgent` with mock fundamentals initially.
-- [ ] Add time-decayed event features.
-- [ ] Add event and agent-report API endpoints.
+- [x] Build `DocumentProvider` and `NewsProvider` interfaces.
+- [x] Add `MockNewsProvider`.
+- [x] Add `raw_documents`, `company_events`, `sentiment_scores`, `analyst_reports` tables.
+- [x] Add ticker/entity resolver.
+- [x] Add deterministic rule-based fallback sentiment scoring.
+- [x] Add `LLMProvider` interface with mock, LM Studio, and OpenAI providers.
+- [x] Add Pydantic schemas for LLM output.
+- [x] Implement `TechnicalAnalystAgent`.
+- [x] Implement `NewsAnalystAgent`.
+- [x] Implement `SentimentAnalystAgent`.
+- [x] Implement `FundamentalsAnalystAgent` with mock fundamentals initially.
+- [x] Add time-decayed event features.
+- [x] Add event and agent-report API endpoints.
 
 Verification:
 
-- [ ] `make import-mock-news`
-- [ ] `make run-analysts-mock SYMBOL=INFY`
-- [ ] `make test`
-- [ ] `curl http://localhost:8000/events`
-- [ ] `curl http://localhost:8000/agent-reports`
+- [x] `make import-mock-news`
+- [x] `make run-analysts-mock SYMBOL=INFY`
+- [x] `make test`
+- [x] `curl http://localhost:8000/events`
+- [x] `curl http://localhost:8000/agent-reports?symbol=INFY`
 - [ ] Optional: `TAURUS_LLM_PROVIDER=lmstudio TAURUS_LLM_BASE_URL=http://localhost:1234/v1 make llm-smoke`
 
 Acceptance:
 
-- [ ] Mock news imports successfully.
-- [ ] Events map to symbols.
-- [ ] Sentiment/event scores are stored.
-- [ ] Analyst reports are stored for at least one symbol.
-- [ ] LLM output is schema-validated.
-- [ ] LLM failures do not crash the pipeline.
-- [ ] Analyst agents cannot create or approve orders.
+- [x] Mock news imports successfully.
+- [x] Events map to symbols.
+- [x] Sentiment/event scores are stored.
+- [x] Analyst reports are stored for at least one symbol.
+- [x] LLM output is schema-validated.
+- [x] LLM failures do not crash the pipeline.
+- [x] Analyst agents cannot create or approve orders.
 
 ## M5 - Bull/Bear Debate And Trader Proposal
 

@@ -1,0 +1,17 @@
+strategy_name: blended_score_v1
+strategy_type: blended_score
+target_positions: 3
+lookback_days: 60
+rebalance_every_days: 21
+parameters:
+  min_score: -0.10
+  min_return_20d: -1
+  min_rsi: 35
+  max_rsi: 75
+  weights:
+    return_20d: 2.0
+    return_5d: 1.0
+    ema_trend: 1.5
+    rsi: 0.5
+    volatility_penalty: 1.0
+    volume_confirmation: 0.1

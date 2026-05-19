@@ -265,3 +265,121 @@ class AuditLogModel(Base):
     payload: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
     note: Mapped[str] = mapped_column(Text, nullable=False, default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+class RawDocumentModel(Base):
+    __tablename__ = "raw_documents"
+    __table_args__ = (
+        UniqueConstraint("checksum", name="uq_raw_documents_checksum"),
+        Index("ix_raw_documents_published_at", "published_at"),
+    )
+
+    document_id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    source: Mapped[str] = mapped_column(String(128), nullable=False)
+    source_url: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    published_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    symbols: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    entities: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    checksum: Mapped[str] = mapped_column(String(128), nullable=False)
+    document_metadata: Mapped[dict[str, object]] = mapped_column(
+        "metadata",
+        JSON,
+        nullable=False,
+        default=dict,
+    )
+    ingested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+class CompanyEventModel(Base):
+    __tablename__ = "company_events"
+    __table_args__ = (
+        UniqueConstraint("document_id", "symbol", "event_type", name="uq_company_events_doc_symbol_type"),
+        Index("ix_company_events_symbol_time", "symbol", "event_time"),
+    )
+
+    event_id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    document_id: Mapped[str] = mapped_column(
+        String(128),
+        ForeignKey("raw_documents.document_id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    symbol: Mapped[str] = mapped_column(
+        String(32),
+        ForeignKey("instruments.symbol", ondelete="CASCADE"),
+        nullable=False,
+    )
+    event_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    event_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    headline: Mapped[str] = mapped_column(Text, nullable=False)
+    summary: Mapped[str] = mapped_column(Text, nullable=False)
+    severity: Mapped[Decimal] = mapped_column(Numeric(8, 4), nullable=False)
+    horizon: Mapped[str] = mapped_column(String(32), nullable=False)
+    source_confidence: Mapped[Decimal] = mapped_column(Numeric(8, 4), nullable=False)
+    event_metadata: Mapped[dict[str, object]] = mapped_column(
+        "metadata",
+        JSON,
+        nullable=False,
+        default=dict,
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+class SentimentScoreModel(Base):
+    __tablename__ = "sentiment_scores"
+    __table_args__ = (
+        UniqueConstraint("event_id", "model_version", name="uq_sentiment_scores_event_model"),
+        Index("ix_sentiment_scores_symbol_as_of", "symbol", "as_of"),
+    )
+
+    score_id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    event_id: Mapped[str] = mapped_column(
+        String(128),
+        ForeignKey("company_events.event_id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    symbol: Mapped[str] = mapped_column(
+        String(32),
+        ForeignKey("instruments.symbol", ondelete="CASCADE"),
+        nullable=False,
+    )
+    as_of: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    sentiment_score: Mapped[Decimal] = mapped_column(Numeric(8, 4), nullable=False)
+    event_score: Mapped[Decimal] = mapped_column(Numeric(8, 4), nullable=False)
+    decayed_score: Mapped[Decimal] = mapped_column(Numeric(8, 4), nullable=False)
+    confidence: Mapped[Decimal] = mapped_column(Numeric(8, 4), nullable=False)
+    severity: Mapped[Decimal] = mapped_column(Numeric(8, 4), nullable=False)
+    horizon: Mapped[str] = mapped_column(String(32), nullable=False)
+    rationale: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    model_version: Mapped[str] = mapped_column(String(128), nullable=False, default="event_scoring_v1")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+class AnalystReportModel(Base):
+    __tablename__ = "analyst_reports"
+    __table_args__ = (
+        UniqueConstraint("run_id", "symbol", "agent_name", name="uq_analyst_reports_run_symbol_agent"),
+        Index("ix_analyst_reports_symbol_as_of", "symbol", "as_of"),
+    )
+
+    report_id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    run_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    decision_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    symbol: Mapped[str] = mapped_column(
+        String(32),
+        ForeignKey("instruments.symbol", ondelete="CASCADE"),
+        nullable=False,
+    )
+    agent_name: Mapped[str] = mapped_column(String(128), nullable=False)
+    as_of: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    score: Mapped[Decimal] = mapped_column(Numeric(8, 4), nullable=False)
+    confidence: Mapped[Decimal] = mapped_column(Numeric(8, 4), nullable=False)
+    stance: Mapped[str] = mapped_column(String(32), nullable=False)
+    horizon: Mapped[str] = mapped_column(String(32), nullable=False)
+    key_points: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    risks: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    source_ids: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    model_version: Mapped[str] = mapped_column(String(128), nullable=False)
+    payload: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
