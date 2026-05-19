@@ -5,7 +5,7 @@ Source of truth:
 - `docs/TAURUS_MVP_SPEC_v0_3.md`
 - `docs/TAURUS_CODEX_TASKS_v0_3.yaml`
 
-Last updated: 2026-05-19 11:36 IST
+Last updated: 2026-05-19 12:17 IST
 
 Status legend:
 
@@ -23,7 +23,7 @@ Status legend:
 | M2 | Done | Backtesting skeleton | No | No |
 | M3 | Done | Strategy engine and technical indicators | No | No |
 | M4 | Done | Intelligence foundation and analyst reports | Optional | Optional |
-| M5 | Not started | Bull/Bear debate and trader proposal | No | Optional |
+| M5 | Done | Bull/Bear debate and trader proposal | No | Optional |
 | M6 | Not started | Risk committee and fund manager approval | No | No |
 | M7 | Not started | PaperBroker execution simulator | No | No |
 | M8 | Not started | Dashboard and observability v1 | No | No |
@@ -228,39 +228,48 @@ Acceptance:
 
 ## M5 - Bull/Bear Debate And Trader Proposal
 
-Status: Not started
+Status: Done
 
 Objective: Implement bull/bear researcher debate, research manager summary, and structured trader proposal.
 
 Tasks:
 
-- [ ] Implement `BullResearcherAgent`.
-- [ ] Implement `BearResearcherAgent`.
-- [ ] Implement `ResearchManagerAgent`.
-- [ ] Implement `ResearchDebateService` with configurable debate rounds.
-- [ ] Implement `TraderAgent`.
-- [ ] Add `debate_reports` and `trader_proposals` tables.
-- [ ] Ensure trader proposal is not an order.
-- [ ] Add API endpoints for debates and proposals.
-- [ ] Add deterministic mock-mode tests.
+- [x] Implement `BullResearcherAgent`.
+- [x] Implement `BearResearcherAgent`.
+- [x] Implement `ResearchManagerAgent`.
+- [x] Implement `ResearchDebateService` with configurable debate rounds.
+- [x] Implement `TraderAgent`.
+- [x] Add `debate_reports` and `trader_proposals` tables.
+- [x] Ensure trader proposal is not an order.
+- [x] Add API endpoints for debates and proposals.
+- [x] Add deterministic mock-mode tests.
 
 Verification:
 
-- [ ] `make run-analysts-mock SYMBOL=INFY`
-- [ ] `make debate-mock SYMBOL=INFY`
-- [ ] `make trader-proposal-mock SYMBOL=INFY`
-- [ ] `make test`
-- [ ] `curl http://localhost:8000/debates`
-- [ ] `curl http://localhost:8000/trader-proposals`
+- [x] `make run-analysts-mock SYMBOL=INFY`
+- [x] `make debate-mock SYMBOL=INFY`
+- [x] `make trader-proposal-mock SYMBOL=INFY`
+- [x] `make test`
+- [x] `curl http://localhost:8000/debates`
+- [x] `curl http://localhost:8000/trader-proposals`
 
 Acceptance:
 
-- [ ] Bull thesis and bear thesis are produced.
-- [ ] Research manager summary is produced.
-- [ ] Trader proposal contains action, confidence, horizon, requested position, stop-loss, take-profit, invalidation rules.
-- [ ] Proposal references analyst report IDs and debate ID.
-- [ ] No broker order is created.
-- [ ] Mock mode is deterministic.
+- [x] Bull thesis and bear thesis are produced.
+- [x] Research manager summary is produced.
+- [x] Trader proposal contains action, confidence, horizon, requested position, stop-loss, take-profit, invalidation rules.
+- [x] Proposal references analyst report IDs and debate ID.
+- [x] No broker order is created.
+- [x] Mock mode is deterministic.
+
+Notes:
+
+- Verified `29 passed`.
+- `make lint` compile-checks pass.
+- `make debate-mock SYMBOL=INFY` produced `debate_id=deb-6bade5af5d85ba29` with a mild-bullish manager summary.
+- `make trader-proposal-mock SYMBOL=INFY` produced `proposal_id=tp-14db74d8e66bf4da`, `action=BUY`, `is_order=false`, and `requires_risk_approval=true`.
+- `/debates` and `/trader-proposals` returned the persisted M5 records.
+- Local Postgres was initially down; `make dev-up` was run before command verification.
 
 ## M6 - Risk Committee And Fund Manager Approval
 

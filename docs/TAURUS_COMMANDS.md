@@ -79,6 +79,8 @@ make seed-mock
 make backtest-mock
 make import-mock-news
 make run-analysts-mock SYMBOL=INFY
+make debate-mock SYMBOL=INFY
+make trader-proposal-mock SYMBOL=INFY
 make llm-smoke
 make test
 make lint
@@ -200,6 +202,8 @@ prefix_rule(pattern=["curl", "http://localhost:8000/data/instruments"], decision
 prefix_rule(pattern=["curl", "http://localhost:8000/data/candles?symbol=INFY&timeframe=1d"], decision="allow")
 prefix_rule(pattern=["curl", "http://localhost:8000/events"], decision="allow")
 prefix_rule(pattern=["curl", "http://localhost:8000/agent-reports?symbol=INFY"], decision="allow")
+prefix_rule(pattern=["curl", "http://localhost:8000/debates"], decision="allow")
+prefix_rule(pattern=["curl", "http://localhost:8000/trader-proposals"], decision="allow")
 ```
 
 Do not broadly allow `python`, `python3`, `uv`, `rm`, unconstrained shell commands, or bare `curl`. Keep destructive commands manually approved.

@@ -1,9 +1,10 @@
-.PHONY: setup dev-up dev-down api migrate seed-mock backtest-mock import-mock-news run-analysts-mock llm-smoke test lint
+.PHONY: setup dev-up dev-down api migrate seed-mock backtest-mock import-mock-news run-analysts-mock debate-mock trader-proposal-mock llm-smoke test lint
 
 UV ?= uv
 COMPOSE ?= docker compose
 DATABASE_URL ?= postgresql+psycopg://taurus:taurus@localhost:5432/taurus
 SYMBOL ?= INFY
+ROUNDS ?= 2
 
 setup:
 	$(UV) sync --dev
@@ -31,6 +32,12 @@ import-mock-news:
 
 run-analysts-mock:
 	DATABASE_URL="$(DATABASE_URL)" TAURUS_LLM_PROVIDER=mock SYMBOL="$(SYMBOL)" PYTHONPATH=packages:. $(UV) run python scripts/run_analysts.py
+
+debate-mock:
+	DATABASE_URL="$(DATABASE_URL)" TAURUS_LLM_PROVIDER=mock SYMBOL="$(SYMBOL)" ROUNDS="$(ROUNDS)" PYTHONPATH=packages:. $(UV) run python scripts/run_research_debate.py
+
+trader-proposal-mock:
+	DATABASE_URL="$(DATABASE_URL)" TAURUS_LLM_PROVIDER=mock SYMBOL="$(SYMBOL)" ROUNDS="$(ROUNDS)" PYTHONPATH=packages:. $(UV) run python scripts/run_trader_proposal.py
 
 llm-smoke:
 	DATABASE_URL="$(DATABASE_URL)" PYTHONPATH=packages:. $(UV) run python scripts/llm_smoke.py

@@ -16,15 +16,18 @@ from taurus_core.db.models import (
     BacktestSignalModel,
     CompanyEventModel,
     DailyCandleModel,
+    DebateReportModel,
     FeatureValueModel,
     InstrumentModel,
     RawDocumentModel,
     SentimentScoreModel,
+    TraderProposalModel,
 )
 from taurus_core.domain.instruments import Instrument
 from taurus_core.domain.market_data import DailyCandle
 from taurus_core.intelligence.documents import NewsEvent, RawDocument, SentimentScore
 from taurus_core.agents.schemas import AnalystReport
+from taurus_core.research.schemas import DebateReport, TraderProposal
 
 
 class InstrumentRepository:
@@ -401,6 +404,112 @@ class AnalystReportRepository:
             statement = statement.limit(limit)
         return list(self.session.scalars(statement))
 
+    def list_for_run_symbol(
+        self,
+        *,
+        run_id: str,
+        symbol: str,
+    ) -> list[AnalystReportModel]:
+        statement = (
+            select(AnalystReportModel)
+            .where(
+                AnalystReportModel.run_id == run_id,
+                AnalystReportModel.symbol == symbol.upper(),
+            )
+            .order_by(AnalystReportModel.agent_name)
+        )
+        return list(self.session.scalars(statement))
+
+
+class ResearchRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def replace_debate_for_run_symbol(self, debate: DebateReport) -> DebateReportModel:
+        self.session.execute(
+            delete(TraderProposalModel).where(
+                TraderProposalModel.run_id == debate.run_id,
+                TraderProposalModel.symbol == debate.symbol.upper(),
+            )
+        )
+        self.session.execute(
+            delete(DebateReportModel).where(
+                DebateReportModel.run_id == debate.run_id,
+                DebateReportModel.symbol == debate.symbol.upper(),
+            )
+        )
+        model = _debate_report_to_model(debate)
+        self.session.add(model)
+        self.session.flush()
+        return model
+
+    def replace_trader_proposal_for_run_symbol(
+        self,
+        proposal: TraderProposal,
+    ) -> TraderProposalModel:
+        self.session.execute(
+            delete(TraderProposalModel).where(
+                TraderProposalModel.run_id == proposal.run_id,
+                TraderProposalModel.symbol == proposal.symbol.upper(),
+            )
+        )
+        model = _trader_proposal_to_model(proposal)
+        self.session.add(model)
+        self.session.flush()
+        return model
+
+    def get_debate(self, debate_id: str) -> DebateReportModel | None:
+        return self.session.get(DebateReportModel, debate_id)
+
+    def latest_debate(
+        self,
+        *,
+        run_id: str,
+        symbol: str,
+    ) -> DebateReportModel | None:
+        statement = (
+            select(DebateReportModel)
+            .where(
+                DebateReportModel.run_id == run_id,
+                DebateReportModel.symbol == symbol.upper(),
+            )
+            .order_by(DebateReportModel.as_of.desc(), DebateReportModel.created_at.desc())
+            .limit(1)
+        )
+        return self.session.scalar(statement)
+
+    def list_debates(
+        self,
+        *,
+        symbol: str | None = None,
+        limit: int | None = 100,
+    ) -> list[DebateReportModel]:
+        statement = select(DebateReportModel).order_by(
+            DebateReportModel.as_of.desc(),
+            DebateReportModel.debate_id,
+        )
+        if symbol is not None:
+            statement = statement.where(DebateReportModel.symbol == symbol.upper())
+        if limit is not None:
+            statement = statement.limit(limit)
+        return list(self.session.scalars(statement))
+
+    def list_trader_proposals(
+        self,
+        *,
+        symbol: str | None = None,
+        limit: int | None = 100,
+    ) -> list[TraderProposalModel]:
+        statement = select(TraderProposalModel).order_by(
+            TraderProposalModel.as_of.desc(),
+            TraderProposalModel.proposal_id,
+        )
+        if symbol is not None:
+            statement = statement.where(TraderProposalModel.symbol == symbol.upper())
+        if limit is not None:
+            statement = statement.limit(limit)
+        return list(self.session.scalars(statement))
+
 
 def _instrument_to_model(instrument: Instrument) -> InstrumentModel:
     return InstrumentModel(
@@ -493,4 +602,49 @@ def _analyst_report_to_model(report: AnalystReport) -> AnalystReportModel:
         source_ids=list(report.source_ids),
         model_version=report.model_version,
         payload=report.model_dump(mode="json"),
+    )
+
+
+def _debate_report_to_model(debate: DebateReport) -> DebateReportModel:
+    return DebateReportModel(
+        debate_id=debate.debate_id,
+        run_id=debate.run_id,
+        symbol=debate.symbol.upper(),
+        as_of=debate.as_of,
+        rounds_requested=debate.rounds_requested,
+        consensus_label=debate.manager_summary.consensus_label,
+        consensus_score=debate.manager_summary.consensus_score,
+        confidence=debate.manager_summary.confidence,
+        bull_thesis=debate.bull_thesis.model_dump(mode="json"),
+        bear_thesis=debate.bear_thesis.model_dump(mode="json"),
+        rounds=[round_.model_dump(mode="json") for round_ in debate.rounds],
+        manager_summary=debate.manager_summary.model_dump(mode="json"),
+        source_report_ids=list(debate.source_report_ids),
+        model_version=debate.model_version,
+        payload=debate.model_dump(mode="json"),
+    )
+
+
+def _trader_proposal_to_model(proposal: TraderProposal) -> TraderProposalModel:
+    return TraderProposalModel(
+        proposal_id=proposal.proposal_id,
+        run_id=proposal.run_id,
+        symbol=proposal.symbol.upper(),
+        debate_id=proposal.debate_id,
+        as_of=proposal.as_of,
+        action=proposal.action,
+        confidence=proposal.confidence,
+        horizon=proposal.horizon,
+        requested_position_pct_nav=proposal.requested_position_pct_nav,
+        order_type=proposal.order_type,
+        entry_rule=proposal.entry_rule,
+        stop_loss_pct=proposal.stop_loss_pct,
+        take_profit_pct=proposal.take_profit_pct,
+        reason_summary=proposal.reason_summary,
+        invalid_if=list(proposal.invalid_if),
+        source_report_ids=list(proposal.source_report_ids),
+        is_order=proposal.is_order,
+        requires_risk_approval=proposal.requires_risk_approval,
+        model_version=proposal.model_version,
+        payload=proposal.model_dump(mode="json"),
     )

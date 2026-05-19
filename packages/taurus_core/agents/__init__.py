@@ -1,4 +1,4 @@
-"""Structured analyst agents for Taurus intelligence milestones."""
+"""Structured analyst, research, and trader agents for Taurus milestones."""
 
 from taurus_core.agents.schemas import AnalystReport, LLMAnalystOutput
 
