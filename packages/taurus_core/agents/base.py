@@ -12,6 +12,7 @@ from taurus_core.agents.schemas import (
     stance_from_score,
 )
 from taurus_core.llm.base import LLMProvider
+from taurus_core.observability.metrics import record_llm_failure
 
 REPORT_QUANT = Decimal("0.0001")
 
@@ -44,6 +45,12 @@ class BaseAnalystAgent:
                 context=context,
             )
         except Exception as exc:
+            record_llm_failure(
+                provider=_provider_label(self.llm_provider),
+                agent_name=self.agent_name,
+                symbol=symbol,
+                error_type=exc.__class__.__name__,
+            )
             draft = LLMAnalystOutput(
                 score=fallback.score,
                 confidence=fallback.confidence,
@@ -108,3 +115,8 @@ def utc_now() -> datetime:
 
 def _report_decimal(value: Decimal) -> Decimal:
     return max(Decimal("-1"), min(Decimal("1"), value)).quantize(REPORT_QUANT)
+
+
+def _provider_label(provider: LLMProvider) -> str:
+    model_version = getattr(provider, "model_version", provider.__class__.__name__)
+    return str(model_version).split(":", maxsplit=1)[0]

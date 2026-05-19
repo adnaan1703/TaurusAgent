@@ -15,6 +15,8 @@ from taurus_core.intelligence.entity_resolver import EntityResolver
 from taurus_core.intelligence.event_scoring import event_from_document, score_event
 from taurus_core.intelligence.mock_news_provider import MockNewsProvider
 from taurus_core.intelligence.news_provider import DocumentProvider
+from taurus_core.logging import configure_logging, get_logger
+from taurus_core.observability.tracing import bound_trace_context
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,8 +49,16 @@ def import_mock_news(
     event_count = 0
     sentiment_count = 0
     symbols: set[str] = set()
+    logger = get_logger(__name__)
     for document in documents:
         repo.upsert_raw_document(document)
+        with bound_trace_context(document_id=document.document_id):
+            logger.info(
+                "news.document.ingested",
+                source=document.source,
+                symbols=document.symbols,
+                published_at=document.published_at.isoformat(),
+            )
         resolved_entities = resolver.resolve_document(document)
         for entity in resolved_entities:
             event = event_from_document(document, entity.symbol)
@@ -82,5 +92,6 @@ def run_import(settings: Settings | None = None) -> MockNewsImportSummary:
 
 
 if __name__ == "__main__":
+    configure_logging()
     summary = run_import()
     print(json.dumps(summary.to_dict(), sort_keys=True))

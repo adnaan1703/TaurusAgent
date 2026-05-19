@@ -1,4 +1,4 @@
-.PHONY: setup dev-up dev-down api migrate seed-mock backtest-mock import-mock-news run-analysts-mock debate-mock trader-proposal-mock risk-review-mock final-approval-mock paper-once-mock paper-loop-once paper-loop-start llm-smoke test lint
+.PHONY: setup dev-up dev-down api dashboard migrate seed-mock backtest-mock import-mock-news run-analysts-mock debate-mock trader-proposal-mock risk-review-mock final-approval-mock paper-once-mock paper-loop-once paper-loop-start llm-smoke test lint
 
 UV ?= uv
 COMPOSE ?= docker compose
@@ -19,6 +19,9 @@ dev-down:
 
 api:
 	PYTHONPATH=packages:. $(UV) run uvicorn apps.api.main:app --host 0.0.0.0 --port 8000 --reload
+
+dashboard:
+	DATABASE_URL="$(DATABASE_URL)" STREAMLIT_BROWSER_GATHER_USAGE_STATS=false PYTHONPATH=packages:. $(UV) run streamlit run apps/dashboard/main.py --server.port 8501 --server.headless true --browser.gatherUsageStats false
 
 migrate:
 	DATABASE_URL="$(DATABASE_URL)" PYTHONPATH=packages:. $(UV) run python scripts/migrate.py

@@ -23,6 +23,8 @@ from taurus_core.execution.schemas import (
     paper_order_id,
 )
 from taurus_core.execution.slippage import FixedBpsSlippageModel
+from taurus_core.logging import get_logger
+from taurus_core.observability.tracing import bound_trace_context
 from taurus_core.risk.schemas import FinalDecision
 
 MONEY_QUANT = Decimal("0.0001")
@@ -87,6 +89,7 @@ class PaperBroker(BrokerAdapter):
             )
             repo.store_rejected_order(order=order, account=account, positions=position_models)
             self.session.commit()
+            self._log_order(order, fill_ids=[])
             return order
 
         fills = self._build_fills(
@@ -115,6 +118,7 @@ class PaperBroker(BrokerAdapter):
             )
             repo.store_rejected_order(order=order, account=account, positions=position_models)
             self.session.commit()
+            self._log_order(order, fill_ids=[])
             return order
 
         affordable_quantity = self._affordable_quantity(
@@ -137,6 +141,7 @@ class PaperBroker(BrokerAdapter):
             )
             repo.store_rejected_order(order=order, account=account, positions=position_models)
             self.session.commit()
+            self._log_order(order, fill_ids=[])
             return order
         if affordable_quantity != quantity:
             fills = self._build_fills(
@@ -176,6 +181,7 @@ class PaperBroker(BrokerAdapter):
             positions=position_models,
         )
         self.session.commit()
+        self._log_order(order, fill_ids=[fill.fill_id for fill in fills])
         return order
 
     def cancel_order(self, order_id: str) -> PaperOrder:
@@ -232,6 +238,23 @@ class PaperBroker(BrokerAdapter):
         if decision.approved_quantity <= 0:
             raise ValueError("Final decision approved quantity must be positive.")
         _side_for_action(decision.final_action)
+
+    def _log_order(self, order: PaperOrder, *, fill_ids: list[str]) -> None:
+        with bound_trace_context(
+            run_id=order.run_id,
+            decision_id=order.decision_id,
+            order_id=order.order_id,
+            final_decision_id=order.final_decision_id,
+        ):
+            get_logger(__name__).info(
+                "paper.order.routed",
+                symbol=order.symbol,
+                status=order.status,
+                side=order.side,
+                quantity=order.quantity,
+                filled_quantity=order.filled_quantity,
+                fill_ids=fill_ids,
+            )
 
     def _latest_candle(self, symbol: str):
         candles = CandleRepository(self.session).get_by_symbol_and_date_range(symbol=symbol)

@@ -5,6 +5,7 @@ import os
 import time
 
 from scripts.run_paper_once import run_mock_paper_once
+from taurus_core.logging import configure_logging
 
 
 def run_mock_paper_loop(
@@ -25,6 +26,7 @@ def run_mock_paper_loop(
 
 
 if __name__ == "__main__":
+    configure_logging()
     symbol = os.environ.get("SYMBOL", "INFY")
     iterations = int(os.environ.get("PAPER_LOOP_ITERATIONS", "1"))
     interval_seconds = float(os.environ.get("PAPER_LOOP_INTERVAL_SECONDS", "0"))

@@ -7,7 +7,11 @@ from fastapi.responses import Response
 from pydantic import BaseModel
 
 from taurus_core.config import Settings
-from taurus_core.observability.metrics import metrics_response_body, metrics_response_type
+from taurus_core.observability.metrics import (
+    metrics_response_body,
+    metrics_response_type,
+    refresh_database_metrics,
+)
 
 router = APIRouter(tags=["health"])
 
@@ -57,5 +61,8 @@ def ready(request: Request) -> ReadinessResponse:
 
 
 @router.get("/metrics")
-def metrics() -> Response:
+def metrics(request: Request) -> Response:
+    session_factory = request.app.state.session_factory
+    with session_factory() as session:
+        refresh_database_metrics(session)
     return Response(content=metrics_response_body(), media_type=metrics_response_type())

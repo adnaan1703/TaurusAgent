@@ -14,6 +14,8 @@ from taurus_core.db.repositories import (
     InstrumentRepository,
     ResearchRepository,
 )
+from taurus_core.logging import get_logger
+from taurus_core.observability.tracing import bound_trace_context
 from taurus_core.research.schemas import (
     DebateReport,
     DebateRound,
@@ -83,6 +85,14 @@ class ResearchDebateService:
         )
         ResearchRepository(self.session).replace_debate_for_run_symbol(debate)
         self.session.commit()
+        with bound_trace_context(run_id=run_id, debate_id=debate.debate_id):
+            get_logger(__name__).info(
+                "research.debate.created",
+                symbol=symbol,
+                rounds_requested=rounds_requested,
+                consensus_label=debate.manager_summary.consensus_label,
+                source_report_ids=source_report_ids,
+            )
         return debate
 
     def _load_reports(self, *, symbol: str, run_id: str) -> list[AnalystReport]:

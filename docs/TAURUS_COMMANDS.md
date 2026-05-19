@@ -90,6 +90,24 @@ curl http://127.0.0.1:8000/paper/account
 pkill -f "uvicorn apps.api.main:app"
 ```
 
+## M8 Commands Used
+
+```bash
+make test
+make lint
+make dev-up
+make backtest-mock
+make paper-once-mock SYMBOL=INFY
+make dashboard
+curl http://127.0.0.1:8000/metrics
+curl http://127.0.0.1:8501/_stcore/health
+curl http://127.0.0.1:3000/api/health
+docker compose ps
+uv run python -m json.tool infra/grafana/dashboards/taurus-system.json
+uv run python -m json.tool infra/grafana/dashboards/taurus-trading.json
+pkill -f "streamlit run apps/dashboard/main.py"
+```
+
 ## Current Make Targets
 
 ```bash
@@ -228,9 +246,13 @@ prefix_rule(pattern=["docker", "info"], decision="allow")
 prefix_rule(pattern=["docker", "compose"], decision="allow")
 prefix_rule(pattern=["open", "-a", "Docker"], decision="allow")
 prefix_rule(pattern=["pkill", "-f", "uvicorn apps.api.main:app"], decision="allow")
+prefix_rule(pattern=["pkill", "-f", "streamlit run apps/dashboard/main.py"], decision="allow")
 prefix_rule(pattern=["curl", "http://localhost:8000/health"], decision="allow")
 prefix_rule(pattern=["curl", "http://localhost:8000/ready"], decision="allow")
 prefix_rule(pattern=["curl", "http://localhost:8000/metrics"], decision="allow")
+prefix_rule(pattern=["curl", "http://127.0.0.1:8000/metrics"], decision="allow")
+prefix_rule(pattern=["curl", "http://127.0.0.1:8501/_stcore/health"], decision="allow")
+prefix_rule(pattern=["curl", "http://127.0.0.1:3000/api/health"], decision="allow")
 prefix_rule(pattern=["curl", "http://localhost:8000/data/instruments"], decision="allow")
 prefix_rule(pattern=["curl", "http://localhost:8000/data/candles?symbol=INFY&timeframe=1d"], decision="allow")
 prefix_rule(pattern=["curl", "http://localhost:8000/events"], decision="allow")

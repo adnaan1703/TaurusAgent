@@ -5,7 +5,7 @@ Source of truth:
 - `docs/TAURUS_MVP_SPEC_v0_3.md`
 - `docs/TAURUS_CODEX_TASKS_v0_3.yaml`
 
-Last updated: 2026-05-19 16:22 IST
+Last updated: 2026-05-19 16:46 IST
 
 Status legend:
 
@@ -31,7 +31,7 @@ Milestone completion reporting:
 | M5 | Done | Bull/Bear debate and trader proposal | No | Optional |
 | M6 | Done | Risk committee and fund manager approval | No | No |
 | M7 | Done | PaperBroker execution simulator | No | No |
-| M8 | Not started | Dashboard and observability v1 | No | No |
+| M8 | Done | Dashboard and observability v1 | No | No |
 | M9 | Not started | Screener fundamentals import | Screener CSV required | No |
 | M10 | Not started | Real market data provider | CSV/provider decision required | Maybe |
 | M11 | Not started | Continuous paper trading | Schedule assumptions required | Maybe |
@@ -370,36 +370,53 @@ Completion summary:
 
 ## M8 - Dashboard And Observability V1
 
-Status: Not started
+Status: Done
 
 Objective: Streamlit trading dashboard, agent workflow dashboard, news/events dashboard, and Grafana system metrics.
 
 Tasks:
 
-- [ ] Build Streamlit dashboard pages.
-- [ ] Add Prometheus metrics.
-- [ ] Add Grafana dashboards.
-- [ ] Add JSON logs with `run_id`, `decision_id`, `order_id`, `document_id`, `debate_id`.
-- [ ] Add data freshness metrics.
-- [ ] Add LLM/news ingestion metrics.
-- [ ] Add analyst report, bull/bear debate, trader proposal, risk review, and final decision panels.
+- [x] Build Streamlit dashboard pages.
+- [x] Add Prometheus metrics.
+- [x] Add Grafana dashboards.
+- [x] Add JSON logs with `run_id`, `decision_id`, `order_id`, `document_id`, `debate_id`.
+- [x] Add data freshness metrics.
+- [x] Add LLM/news ingestion metrics.
+- [x] Add analyst report, bull/bear debate, trader proposal, risk review, and final decision panels.
 
 Verification:
 
-- [ ] `make dev-up`
-- [ ] `make dashboard`
-- [ ] `make backtest-mock`
-- [ ] `make paper-once-mock SYMBOL=INFY`
+- [x] `make dev-up`
+- [x] `make dashboard`
+- [x] `make backtest-mock`
+- [x] `make paper-once-mock SYMBOL=INFY`
 
 Acceptance:
 
-- [ ] Dashboard shows portfolio and equity curve.
-- [ ] Dashboard shows analyst reports.
-- [ ] Dashboard shows bull vs bear debate.
-- [ ] Dashboard shows trader proposal.
-- [ ] Dashboard shows risk review and hard rule results.
-- [ ] Dashboard shows orders and fills.
-- [ ] Grafana shows service health metrics.
+- [x] Dashboard shows portfolio and equity curve.
+- [x] Dashboard shows analyst reports.
+- [x] Dashboard shows bull vs bear debate.
+- [x] Dashboard shows trader proposal.
+- [x] Dashboard shows risk review and hard rule results.
+- [x] Dashboard shows orders and fills.
+- [x] Grafana shows service health metrics.
+
+Notes:
+
+- Verified `40 passed`.
+- `make lint` compile-checks pass.
+- `make dev-up` starts API, Postgres, Redis, Prometheus, and Grafana with provisioned Prometheus datasource and Taurus system/trading dashboards.
+- `make backtest-mock` produced `run_id=bt-f1cb6aed6c20e80d`.
+- `make paper-once-mock SYMBOL=INFY` produced `order_id=po-60bb9f4e5644d8e2`, `status=FILLED`, two fills, and `final_decision_id=fd-ea9abfbddf6f35bd`.
+- `/metrics` includes `taurus_observability_db_available 1.0`, `taurus_data_freshness_seconds`, `taurus_news_documents_total`, `taurus_agent_reports_total`, `taurus_trading_artifacts_total`, and `taurus_paper_account_equity_inr`.
+- `make dashboard` starts non-interactively on `http://localhost:8501`; health endpoint returned `ok`.
+- Grafana health returned database `ok` on `http://localhost:3000/api/health`.
+
+Completion summary:
+
+- Assumptions made: Streamlit reads the local Taurus database directly through `DATABASE_URL` instead of proxying through the API. Grafana uses a provisioned Prometheus datasource with UID `prometheus`. Data freshness for mock daily candles is measured from fixture trade dates, so mock freshness can appear old by wall-clock time.
+- Mocks created: Temporary SQLite integration-test database for dashboard and observability assertions.
+- Mocks used: Deterministic mock market data, mock news provider, mock LLM analyst outputs, mock debate/trader/risk/final-approval pipeline, internal PaperBroker, and Docker Compose Postgres verification database.
 
 ## M9 - Screener Fundamentals Import
 

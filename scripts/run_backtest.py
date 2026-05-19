@@ -10,6 +10,7 @@ from taurus_core.backtesting import BacktestConfig, BacktestEngine, BacktestResu
 from taurus_core.config import Settings, get_settings
 from taurus_core.data.providers.mock_market_data import MockMarketDataProvider
 from taurus_core.db.session import build_session_factory
+from taurus_core.logging import configure_logging
 from taurus_core.strategies import DEFAULT_STRATEGY_CONFIG_PATH, load_strategy_config
 
 
@@ -44,6 +45,7 @@ def run_mock_backtest(settings: Settings | None = None) -> BacktestResult:
 
 
 if __name__ == "__main__":
+    configure_logging()
     result = run_mock_backtest()
     print(f"run_id={result.run_id}")
     print(json.dumps(result.metrics, sort_keys=True))

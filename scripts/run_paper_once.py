@@ -10,6 +10,7 @@ from taurus_core.db.repositories import ExecutionRepository
 from taurus_core.db.session import build_session_factory
 from taurus_core.execution.order_router import ExecutionRouter
 from taurus_core.execution.schemas import PaperAccount, PaperPosition
+from taurus_core.logging import configure_logging
 
 
 def run_mock_paper_once(
@@ -47,6 +48,7 @@ def run_mock_paper_once(
 
 
 if __name__ == "__main__":
+    configure_logging()
     symbol = os.environ.get("SYMBOL", "INFY")
     payload = run_mock_paper_once(symbol=symbol)
     print(json.dumps(payload, sort_keys=True))

@@ -10,6 +10,8 @@ from taurus_core.agents.runner import DEFAULT_ANALYST_RUN_ID
 from taurus_core.agents.safe_risk import SafeRiskAgent
 from taurus_core.config import Settings, get_settings
 from taurus_core.db.repositories import ResearchRepository, RiskRepository
+from taurus_core.logging import get_logger
+from taurus_core.observability.tracing import bound_trace_context
 from taurus_core.research.schemas import TraderProposal
 from taurus_core.risk.engine import RiskEngine
 from taurus_core.risk.schemas import (
@@ -100,6 +102,20 @@ class RiskReviewService:
         )
         RiskRepository(self.session).replace_risk_review_for_run_symbol(review)
         self.session.commit()
+        with bound_trace_context(
+            run_id=proposal.run_id,
+            decision_id=decision_id,
+            debate_id=proposal.debate_id,
+            proposal_id=proposal.proposal_id,
+            risk_check_id=risk_check_id,
+        ):
+            get_logger(__name__).info(
+                "risk.review.created",
+                symbol=symbol,
+                status=review.status,
+                approved_position_pct_nav=str(review.approved_position_pct_nav),
+                hard_rule_count=len(review.hard_rule_results),
+            )
         return review
 
     def _load_proposal(self, *, symbol: str, run_id: str) -> TraderProposal:

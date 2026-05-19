@@ -9,6 +9,7 @@ from taurus_core.agents.runner import DEFAULT_ANALYST_RUN_ID
 from taurus_core.config import Settings, get_settings
 from taurus_core.db.repositories import RiskRepository
 from taurus_core.db.session import build_session_factory
+from taurus_core.logging import configure_logging
 from taurus_core.risk.schemas import RiskReview
 
 
@@ -34,6 +35,7 @@ def run_mock_final_approval(
 
 
 if __name__ == "__main__":
+    configure_logging()
     symbol = os.environ.get("SYMBOL", "INFY")
     payload = run_mock_final_approval(symbol=symbol)
     print(json.dumps(payload, sort_keys=True))

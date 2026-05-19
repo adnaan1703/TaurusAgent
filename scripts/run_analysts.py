@@ -12,6 +12,7 @@ from taurus_core.data.providers.mock_market_data import MockMarketDataProvider
 from taurus_core.db.session import build_session_factory
 from taurus_core.llm import build_llm_provider
 from taurus_core.intelligence.mock_news_provider import MockNewsProvider
+from taurus_core.logging import configure_logging
 
 
 def run_mock_analysts(
@@ -42,6 +43,7 @@ def run_mock_analysts(
 
 
 if __name__ == "__main__":
+    configure_logging()
     symbol = os.environ.get("SYMBOL", "INFY")
     reports = run_mock_analysts(symbol=symbol)
     print(json.dumps({"symbol": symbol.upper(), "reports": reports}, sort_keys=True))

@@ -8,6 +8,8 @@ from sqlalchemy.orm import Session
 from taurus_core.agents.runner import DEFAULT_ANALYST_RUN_ID
 from taurus_core.agents.schemas import AnalystReport, ReportHorizon
 from taurus_core.db.repositories import AnalystReportRepository, ResearchRepository
+from taurus_core.logging import get_logger
+from taurus_core.observability.tracing import bound_trace_context
 from taurus_core.research.schemas import (
     DebateReport,
     TraderAction,
@@ -81,6 +83,18 @@ class TraderAgent:
         )
         ResearchRepository(self.session).replace_trader_proposal_for_run_symbol(proposal)
         self.session.commit()
+        with bound_trace_context(
+            run_id=run_id,
+            debate_id=debate.debate_id,
+            proposal_id=proposal.proposal_id,
+        ):
+            get_logger(__name__).info(
+                "trader.proposal.created",
+                symbol=symbol,
+                action=proposal.action,
+                requested_position_pct_nav=str(proposal.requested_position_pct_nav),
+                is_order=proposal.is_order,
+            )
         return proposal
 
     def _load_reports(self, *, symbol: str, run_id: str) -> list[AnalystReport]:

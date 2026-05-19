@@ -14,6 +14,7 @@ from taurus_core.db.repositories import AnalystReportRepository, ResearchReposit
 from taurus_core.db.session import build_session_factory
 from taurus_core.intelligence.mock_news_provider import MockNewsProvider
 from taurus_core.llm import build_llm_provider
+from taurus_core.logging import configure_logging
 from taurus_core.research.debate_service import DEFAULT_DEBATE_ROUNDS, ResearchDebateService
 from taurus_core.research.schemas import DebateReport
 
@@ -79,6 +80,7 @@ def _prepare_mock_inputs(session_factory, settings: Settings) -> None:
 
 
 if __name__ == "__main__":
+    configure_logging()
     symbol = os.environ.get("SYMBOL", "INFY")
     rounds = int(os.environ.get("ROUNDS", str(DEFAULT_DEBATE_ROUNDS)))
     payload = run_mock_trader_proposal(symbol=symbol, rounds_requested=rounds)

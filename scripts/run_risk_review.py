@@ -7,6 +7,7 @@ from scripts.run_trader_proposal import run_mock_trader_proposal
 from taurus_core.agents.runner import DEFAULT_ANALYST_RUN_ID
 from taurus_core.config import Settings, get_settings
 from taurus_core.db.session import build_session_factory
+from taurus_core.logging import configure_logging
 from taurus_core.risk.review_service import RiskReviewService
 
 
@@ -25,6 +26,7 @@ def run_mock_risk_review(
 
 
 if __name__ == "__main__":
+    configure_logging()
     symbol = os.environ.get("SYMBOL", "INFY")
     payload = run_mock_risk_review(symbol=symbol)
     print(json.dumps(payload, sort_keys=True))

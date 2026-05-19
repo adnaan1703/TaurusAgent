@@ -7,6 +7,8 @@ from sqlalchemy.orm import Session
 from taurus_core.agents.runner import DEFAULT_ANALYST_RUN_ID
 from taurus_core.config import Settings, get_settings
 from taurus_core.db.repositories import CandleRepository, RiskRepository
+from taurus_core.logging import get_logger
+from taurus_core.observability.tracing import bound_trace_context
 from taurus_core.risk.schemas import (
     FinalDecision,
     RiskReview,
@@ -87,6 +89,21 @@ class PortfolioManagerAgent:
         )
         RiskRepository(self.session).replace_final_decision_for_run_symbol(decision)
         self.session.commit()
+        with bound_trace_context(
+            run_id=risk_review.run_id,
+            decision_id=risk_review.decision_id,
+            proposal_id=risk_review.proposal_id,
+            risk_check_id=risk_review.risk_check_id,
+            final_decision_id=decision.final_decision_id,
+        ):
+            get_logger(__name__).info(
+                "portfolio.final_decision.created",
+                symbol=symbol,
+                status=decision.status,
+                final_action=decision.final_action,
+                approved_quantity=decision.approved_quantity,
+                can_send_to_broker=decision.can_send_to_broker,
+            )
         return decision
 
     def _load_risk_review(self, *, symbol: str, run_id: str) -> RiskReview:
