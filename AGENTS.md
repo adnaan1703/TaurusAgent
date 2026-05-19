@@ -52,16 +52,3 @@ Implement one milestone at a time. Update `docs/TAURUS_MILESTONE_TODO.md` whenev
 At the completion of every milestone task, include an explicit completion summary section that lists: assumptions made, mocks created, and mocks used. If any category is empty, state `None` rather than omitting it.
 
 At milestone completion and cleanup, inspect `/Users/adnaan/.codex/rules/default.rules`. Treat entries after the user's `# END MY CUSTOM ADDITION` marker as accidental global approvals. Any Taurus-specific approved prefixes found after that marker must be copied into `.codex/rules/default.rules` if missing, documented in `docs/TAURUS_COMMANDS.md`, and removed from the global rules file. Do not copy unrelated global approvals, such as `npx clasp`, into this project.
-
-## graphify
-
-This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
-
-When the user types `/graphify`, invoke the `skill` tool with `skill: "graphify"` before doing anything else.
-
-Rules:
-- For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
-- Dirty graphify-out/ files are expected after hooks or incremental updates; dirty graph files are not a reason to skip graphify. Only skip graphify if the task is about stale or incorrect graph output, or the user explicitly says not to use it.
-- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
-- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
-- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
