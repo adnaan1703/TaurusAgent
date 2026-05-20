@@ -41,7 +41,7 @@ Initial paper capital: INR 10,00,000
 Max position size: 5 percent of paper capital per stock
 Max open positions: 8
 Initial broker mode: Internal PaperBroker
-First broker sandbox target: Upstox Sandbox
+Broker integration: Deferred until after paper-trading MVP release
 Fundamentals source for MVP: Screener CSV export, explicitly requested from user in M9
 News/sentiment: Included in first MVP, not deferred
 TradingAgents-style debate: Explicitly included from M5 onward
@@ -87,7 +87,7 @@ Data -> Analyst reports -> Bull/Bear debate -> Trader proposal
      -> Portfolio manager approval -> PaperBroker order
 ```
 
-No milestone before M13 may contain a real-money order path.
+No active MVP milestone may contain a real-money order path.
 
 ---
 
@@ -382,7 +382,7 @@ Optional later:
 LM Studio
 OpenAI API key
 Telegram bot token/chat ID
-Upstox Sandbox credentials
+Upstox Sandbox credentials are optional post-MVP only
 Screener CSV export
 ```
 
@@ -407,9 +407,6 @@ OPENAI_API_KEY=
 TELEGRAM_BOT_TOKEN=
 TELEGRAM_CHAT_ID=
 BROKER_PROVIDER=paper
-UPSTOX_CLIENT_ID=
-UPSTOX_CLIENT_SECRET=
-UPSTOX_REDIRECT_URI=
 ```
 
 Secrets must never be committed.
@@ -433,9 +430,9 @@ Secrets must never be committed.
 | M10 | Real market data provider | Real/user-supplied OHLCV provider interface | Price source decision | Maybe |
 | M11 | Continuous paper trading | Scheduled paper loop using latest data | Risk/date settings | Maybe |
 | M12 | Telegram alerts and replay | Alerts, decision replay, backup, hardening | Telegram token/chat ID | Optional |
-| M13 | Broker sandbox adapter | Upstox Sandbox/OpenAlgo smoke tests | Broker sandbox details | Yes |
-| M14 | Live-readiness gate | Compliance checklist, live guard, preflight | Broker/compliance details | Yes, no live orders |
-| M15 | MVP release | Stable observable paper-trading MVP | Depends | Depends |
+| M13 | Paper-trading MVP release | Stable observable paper-trading MVP | Optional real CSV/data source | No |
+| M14 | Upstox sandbox adapter | Deferred post-MVP sandbox payload validation | Sandbox access token | Yes |
+| M15 | Upstox production readiness | Deferred production safety gate | Broker/compliance details | Yes, no live orders |
 
 ---
 
@@ -1099,63 +1096,19 @@ TELEGRAM_CHAT_ID
 
 ---
 
-# M13 - Broker sandbox adapter
+# M13 - Paper-trading MVP release
 
 ## Objective
 
-Add the first external broker sandbox adapter without enabling live trading.
-
-## Recommended first target
-
-Upstox Sandbox.
+Release the end-to-end observable paper-trading MVP. Broker sandbox and live broker work are deferred.
 
 ## Information required from user
 
 ```text
-UPSTOX_CLIENT_ID
-UPSTOX_CLIENT_SECRET
-UPSTOX_REDIRECT_URI
-Sandbox account setup details
+Optional real OHLCV CSV files or data-provider decision
+Optional real Screener CSV export
+Optional Telegram token/chat ID for real alert smoke testing
 ```
-
-Optional later:
-
-```text
-OpenAlgo endpoint
-Dhan/Zerodha/FYERS credentials
-```
-
-## Acceptance criteria
-
-1. Sandbox credentials are loaded only from local env.
-2. Sandbox smoke test can place/cancel simulated/test order where supported.
-3. Live trading remains disabled.
-4. Broker adapter conforms to `BrokerAdapter` interface.
-5. PaperBroker remains default.
-
----
-
-# M14 - Live-readiness gate
-
-## Objective
-
-Prepare safety, compliance, and operational gates for future live trading. This milestone still must not place live orders.
-
-## Acceptance criteria
-
-1. `LIVE_TRADING_ENABLED=false` remains default.
-2. Live mode requires explicit env flag and preflight pass.
-3. Preflight checks broker config, risk config, order tags, kill switch, audit, and reconciliation.
-4. A manual sign-off file/check is required before any future live code path can be used.
-5. No live orders are placed in this milestone.
-
----
-
-# M15 - Taurus MVP release
-
-## Objective
-
-Release the end-to-end observable paper-trading MVP.
 
 ## Final verification checklist
 
@@ -1172,6 +1125,10 @@ make trader-proposal-mock SYMBOL=INFY
 make risk-review-mock SYMBOL=INFY
 make final-approval-mock SYMBOL=INFY
 make paper-once-mock SYMBOL=INFY
+make paper-loop-mock
+make replay-decision DECISION_ID=sample
+make backup-local
+make taurus-smoke
 make dashboard
 make test
 ```
@@ -1186,8 +1143,42 @@ make test
 6. Taurus can run risk review and final approval.
 7. Taurus can paper trade.
 8. Taurus dashboard shows performance, decisions, debate, risk, orders, events, and health.
-9. Live trading is still disabled.
-10. The system is ready for real data integration and extended paper trading.
+9. Decision replay and backup work.
+10. Live trading is still disabled.
+11. Broker sandbox integration is not required for MVP completion.
+
+---
+
+# M14 - Upstox sandbox adapter
+
+## Objective
+
+Deferred post-MVP milestone to validate Taurus order-payload mapping against Upstox Sandbox without enabling live trading.
+
+## Acceptance criteria
+
+1. `UPSTOX_SANDBOX_ACCESS_TOKEN` is loaded only from local env.
+2. Mocked adapter tests pass without external credentials.
+3. Sandbox smoke can place/cancel a simulated/test order where supported.
+4. Live trading remains disabled.
+5. PaperBroker remains default.
+6. Details are tracked in `docs/UPSTOX_INTEGRATION_PLAN.md`.
+
+---
+
+# M15 - Upstox production readiness
+
+## Objective
+
+Deferred post-MVP milestone for production broker readiness. This milestone still must not place live orders.
+
+## Acceptance criteria
+
+1. `LIVE_TRADING_ENABLED=false` remains default.
+2. Production broker mode requires explicit env flag, preflight pass, and manual sign-off.
+3. Preflight checks broker config, risk config, order tags, kill switch, audit, reconciliation, dashboard health, and alerting.
+4. No production orders are placed.
+5. Details are tracked in `docs/UPSTOX_INTEGRATION_PLAN.md`.
 
 ---
 
@@ -1218,4 +1209,3 @@ You are implementing Project Taurus, an observable, paper-trading-first algo tra
 ## 12. Important implementation rule
 
 Do not ask Codex to build all milestones in one run. Implement and verify one milestone at a time.
-

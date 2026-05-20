@@ -9,7 +9,7 @@ owner_decisions:
   paper_capital_inr: 1000000
   max_position_pct: 5
   max_open_positions: 8
-  broker_sandbox_first: Upstox Sandbox
+  broker_integration: Deferred until after paper-trading MVP release
   fundamentals_source_mvp: Screener CSV, explicitly requested from user at M9
   news_sentiment_in_first_mvp: true
   tradingagents_style_debate: true
@@ -385,54 +385,19 @@ milestones:
       - Backup and restore commands exist.
 
   - id: M13
-    title: Broker sandbox adapter
-    objective: Upstox Sandbox/OpenAlgo smoke test without live trading.
-    external_keys_required: true
+    title: Paper-trading MVP release
+    objective: End-to-end observable paper-trading MVP with broker integration deferred.
+    external_keys_required: false
     user_inputs_required:
-      - UPSTOX_CLIENT_ID
-      - UPSTOX_CLIENT_SECRET
-      - UPSTOX_REDIRECT_URI
-      - Sandbox account setup details
+      - Optional real OHLCV CSV path or data-provider decision.
+      - Optional real Screener CSV path.
+      - Optional Telegram token/chat ID for real alert smoke testing.
     tasks:
-      - Add sandbox broker adapter.
-      - Add credentials loading from env only.
-      - Add sandbox smoke test.
-      - Keep PaperBroker default.
-    verification_commands:
-      - make broker-sandbox-smoke
-      - make test
-    acceptance_criteria:
-      - Sandbox adapter conforms to BrokerAdapter.
-      - Credentials are not committed.
-      - Sandbox smoke test passes where supported.
-      - Live trading remains disabled.
-
-  - id: M14
-    title: Live-readiness gate
-    objective: Safety and compliance gate only; no live orders.
-    external_keys_required: true
-    user_inputs_required:
-      - Broker/compliance details.
-      - Manual release approval.
-    tasks:
-      - Add live preflight check.
-      - Add explicit manual sign-off requirement.
-      - Add order tagging placeholders.
-      - Add compliance checklist.
-    verification_commands:
-      - make live-preflight-check
-      - make test
-    acceptance_criteria:
-      - LIVE_TRADING_ENABLED=false remains default.
-      - Live mode requires explicit config and preflight pass.
-      - Manual sign-off is required.
-      - No live orders are placed.
-
-  - id: M15
-    title: Taurus MVP release
-    objective: End-to-end observable paper-trading MVP.
-    external_keys_required: depends
-    user_inputs_required: []
+      - Add or verify an end-to-end Taurus paper-trading smoke command.
+      - Verify mock-data paper flow from setup through paper order.
+      - Verify replay, backup, alerts, dashboard health, and observability.
+      - Document current paper-trading assumptions and known limitations.
+      - Keep Upstox sandbox and production broker integration deferred.
     verification_commands:
       - make setup
       - make dev-up
@@ -446,15 +411,56 @@ milestones:
       - make risk-review-mock SYMBOL=INFY
       - make final-approval-mock SYMBOL=INFY
       - make paper-once-mock SYMBOL=INFY
+      - make paper-loop-mock
+      - make replay-decision DECISION_ID=sample
+      - make backup-local
+      - make taurus-smoke
       - make dashboard
       - make test
     acceptance_criteria:
       - Taurus runs end-to-end with mock data.
       - Taurus can backtest.
-      - Taurus generates analyst reports.
-      - Taurus runs bull/bear debate.
-      - Taurus generates trader proposal.
-      - Taurus runs risk review and final approval.
-      - Taurus paper trades only.
+      - Taurus generates analyst reports, debates, trader proposals, risk reviews, and final approvals.
+      - Taurus paper trades only through PaperBroker.
       - Dashboard shows performance, decisions, debate, risk, orders, events, and health.
-      - Live trading is disabled.
+      - Replay and backup work.
+      - Live trading remains disabled.
+      - Broker sandbox integration is not required for MVP completion.
+
+  - id: M14
+    title: Upstox sandbox adapter
+    objective: Deferred post-MVP Upstox Sandbox payload validation without live trading.
+    external_keys_required: true
+    user_inputs_required:
+      - UPSTOX_SANDBOX_ACCESS_TOKEN.
+      - Sandbox app/account setup details.
+    tasks:
+      - Add UpstoxSandboxBroker as a separate adapter.
+      - Load sandbox token from env only.
+      - Add sandbox smoke test with mocked unit tests.
+      - Keep PaperBroker default.
+    verification_commands:
+      - make broker-sandbox-smoke
+      - make test
+    acceptance_criteria:
+      - Sandbox token is not committed or logged.
+      - Mocked sandbox adapter tests pass without credentials.
+      - Sandbox smoke passes when a valid token is available.
+      - PaperBroker remains default.
+      - Live trading remains disabled.
+
+  - id: M15
+    title: Upstox production readiness
+    objective: Deferred production-readiness gate; no live orders.
+    external_keys_required: true
+    user_inputs_required:
+      - Broker/compliance details.
+      - Manual release approval.
+    verification_commands:
+      - make live-readiness-check
+      - make test
+    acceptance_criteria:
+      - LIVE_TRADING_ENABLED=false remains default.
+      - Production broker mode requires explicit config, preflight pass, and manual sign-off.
+      - Failed preflight blocks production broker routing.
+      - No production orders are placed.

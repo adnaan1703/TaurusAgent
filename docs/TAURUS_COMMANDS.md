@@ -208,9 +208,14 @@ make backup-db
 make restore-local BACKUP=/path/to/backup
 make alert-smoke
 make alert-test-telegram
+make taurus-smoke
+```
+
+Post-MVP Upstox commands are deferred and tracked in `docs/UPSTOX_INTEGRATION_PLAN.md`:
+
+```bash
 make broker-sandbox-smoke
 make live-readiness-check
-make taurus-smoke
 ```
 
 ## API Smoke Checks
@@ -238,6 +243,11 @@ curl http://localhost:8000/runs
 curl http://localhost:8000/runs/{run_id}
 curl -X POST http://localhost:8000/alerts/test
 curl http://localhost:8000/replay/{decision_id}
+```
+
+Post-MVP live-readiness API smoke check, if implemented later:
+
+```bash
 curl http://localhost:8000/live-readiness
 ```
 

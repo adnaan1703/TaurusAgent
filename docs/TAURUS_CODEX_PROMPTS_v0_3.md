@@ -1128,47 +1128,145 @@ Stop after M12 acceptance criteria pass and summarize files changed, commands ru
 
 ---
 
-# M13 Prompt - Broker sandbox adapter
+# M13 Prompt - Paper-trading MVP release
 
 ```text
-You are implementing Project Taurus. Start with Milestone M13 only: Broker sandbox adapter.
+You are implementing Project Taurus. Start with Milestone M13 only: Paper-trading MVP release.
 
 Prerequisite:
 M12 must already be complete. Taurus must be stable in paper mode with alerts and replay.
 
 Goal:
-Add the first external broker sandbox adapter without enabling live trading. Recommended first target is Upstox Sandbox. OpenAlgo may be supported later or as an optional adapter if the user chooses it.
+Finalize the observable paper-trading MVP. Broker sandbox and live broker integration are deferred to post-MVP work.
 
 User input required:
-Ask the user to provide sandbox credentials locally in `.env` or `.env.local`, never committed:
-- UPSTOX_CLIENT_ID
-- UPSTOX_CLIENT_SECRET
-- UPSTOX_REDIRECT_URI
-- any sandbox access token or OAuth setup details required by the current Upstox flow
+- Optional real OHLCV CSV path or data-provider decision for extended paper trading.
+- Optional real Screener CSV path.
+- Optional Telegram token/chat ID for real alert smoke testing.
 
 Important:
-1. PaperBroker remains the default.
+1. PaperBroker remains the only execution path.
 2. Live trading remains disabled.
-3. Sandbox adapter must be clearly separated from live broker adapter.
+3. Upstox sandbox and production broker work are not part of this milestone.
 4. No real-money orders.
-5. If sandbox credentials are missing, tests must still pass by using mocks.
+5. If optional external inputs are missing, verification must still pass with mocks/fixtures.
+
+Implement:
+1. End-to-end smoke command, for example:
+   - `make taurus-smoke`
+2. Final local runbook:
+   - setup
+   - start services
+   - migrate
+   - seed mock data
+   - import mock news
+   - run backtest
+   - run analyst workflow
+   - run debate
+   - run trader proposal
+   - run risk review
+   - run final approval
+   - run paper order
+   - run paper loop
+   - replay decision
+   - backup
+   - open dashboards
+3. Documentation of config and secrets.
+4. Documentation of known limitations.
+5. Documentation of current paper-trading assumptions:
+   - costs
+   - slippage
+   - fills
+   - timing
+   - data freshness
+6. Ensure all Makefile commands are consistent.
+7. Clean up dead code and TODOs where safe.
+8. Add final tests for the end-to-end paper flow if not already covered.
+9. Link `docs/UPSTOX_INTEGRATION_PLAN.md` as the post-MVP broker path.
+
+Non-goals:
+- No Upstox sandbox adapter.
+- No live broker adapter.
+- No real-money order placement.
+- No automatic switch away from PaperBroker.
+- No high-frequency trading.
+
+Verification commands to run:
+- `make setup`
+- `make dev-up`
+- `make migrate`
+- `make seed-mock`
+- `make import-mock-news`
+- `make backtest-mock`
+- `make run-analysts-mock SYMBOL=INFY`
+- `make debate-mock SYMBOL=INFY`
+- `make trader-proposal-mock SYMBOL=INFY`
+- `make risk-review-mock SYMBOL=INFY`
+- `make final-approval-mock SYMBOL=INFY`
+- `make paper-once-mock SYMBOL=INFY`
+- `make paper-loop-mock`
+- `make replay-decision DECISION_ID=sample`
+- `make backup-local`
+- `make taurus-smoke`
+- `make test`
+- `make dashboard`
+
+Acceptance criteria:
+1. Taurus can run end-to-end with mock data.
+2. Taurus can backtest.
+3. Taurus can generate analyst reports.
+4. Taurus can run bull/bear debate.
+5. Taurus can generate trader proposal.
+6. Taurus can run risk review and final approval.
+7. Taurus can paper trade.
+8. Dashboard shows performance, decisions, debate, risk, orders, events, and health.
+9. Decision replay works for at least one stored decision.
+10. Backup works.
+11. Live trading remains disabled.
+12. README, runbook, and milestone tracker are up to date.
+
+Stop after M13 acceptance criteria pass and provide a release summary:
+- final capabilities
+- how to run locally
+- what is still mock-only
+- what inputs are needed for extended paper trading
+- next recommended post-MVP milestones
+```
+
+---
+
+# M14 Prompt - Upstox sandbox adapter
+
+```text
+You are implementing Project Taurus. Start with deferred Milestone M14 only: Upstox sandbox adapter.
+
+Prerequisite:
+M13 paper-trading MVP release must already be complete. Paper mode must remain stable.
+
+Goal:
+Add an Upstox Sandbox adapter to validate order payloads without enabling live trading.
+
+User input required:
+Ask the user to provide the sandbox token locally in `.env` or shell environment, never committed:
+- UPSTOX_SANDBOX_ACCESS_TOKEN
+- sandbox app/account setup details
+
+Important:
+PaperBroker remains the default. The sandbox adapter must be clearly separated from any future production adapter.
 
 Implement:
 1. BrokerAdapter-compatible UpstoxSandboxBroker.
-2. Credential loading from environment only.
+2. Sandbox-token loading from environment only.
 3. Safe sandbox smoke test command:
    - `make broker-sandbox-smoke`
 4. Mapping from Taurus order schema to sandbox order payload.
-5. Sandbox-only order lifecycle handling where supported.
+5. Sandbox-only place/cancel lifecycle handling where supported.
 6. Error handling and structured logs for broker API responses.
 7. Tests using mocked HTTP responses.
-8. Documentation explaining:
-   - how to configure sandbox credentials
-   - how to run smoke test
-   - why live trading is still disabled
+8. Documentation linking back to `docs/UPSTOX_INTEGRATION_PLAN.md`.
 
 Non-goals:
-- No live broker adapter.
+- No production broker adapter.
 - No real-money order placement.
 - No automatic switch from paper to sandbox.
 - No high-frequency trading.
@@ -1179,31 +1277,31 @@ Verification commands to run:
 - Confirm `.env` is not committed.
 
 Acceptance criteria:
-1. Sandbox credentials are loaded only from local environment.
+1. Sandbox token is loaded only from local environment.
 2. Mocked sandbox adapter tests pass without credentials.
-3. Sandbox smoke test works when credentials are available and supported.
+3. Sandbox smoke test works when a valid token is available and supported.
 4. Broker adapter conforms to BrokerAdapter interface.
 5. PaperBroker remains default.
 6. Live trading remains disabled.
 
-Stop after M13 acceptance criteria pass and summarize files changed, commands run, test results, and any manual sandbox steps.
+Stop after M14 acceptance criteria pass and summarize files changed, commands run, test results, and manual sandbox steps.
 ```
 
 ---
 
-# M14 Prompt - Live-readiness gate
+# M15 Prompt - Upstox production readiness
 
 ```text
-You are implementing Project Taurus. Start with Milestone M14 only: Live-readiness gate.
+You are implementing Project Taurus. Start with deferred Milestone M15 only: Upstox production readiness.
 
 Prerequisite:
-M13 must already be complete if broker sandbox testing is desired. Paper mode must remain stable.
+M14 Upstox Sandbox adapter must be complete and stable. Paper mode must remain stable.
 
 Goal:
-Prepare safety, compliance, and operational gates for future live trading. This milestone still must not place live orders.
+Prepare safety, compliance, and operational gates for future production broker integration. This milestone still must not place live orders.
 
 Important:
-Do not enable live trading. Do not implement a live broker order path that can be accidentally used. The goal is readiness checks and guardrails only.
+Do not enable live trading. Do not implement a live order path that can be accidentally used. The goal is readiness checks and guardrails only.
 
 Implement:
 1. Live readiness checklist module.
@@ -1249,101 +1347,13 @@ Verification commands to run:
 
 Acceptance criteria:
 1. `LIVE_TRADING_ENABLED=false` remains default.
-2. Live mode requires explicit config and manual sign-off.
-3. Failed preflight blocks live path.
-4. Tests prove live trading cannot happen by default.
-5. No live orders are placed.
+2. Production broker mode requires explicit config and manual sign-off.
+3. Failed preflight blocks production broker routing.
+4. Tests prove production broker routing cannot happen by default.
+5. No production orders are placed.
 6. Paper trading remains unaffected.
 
-Stop after M14 acceptance criteria pass and summarize files changed, commands run, and test results.
-```
-
----
-
-# M15 Prompt - Taurus MVP release
-
-```text
-You are implementing Project Taurus. Start with Milestone M15 only: Taurus MVP release hardening and final verification.
-
-Prerequisite:
-M0 through M14 must be complete or explicitly marked not applicable. Taurus must run end-to-end in paper mode.
-
-Goal:
-Finalize the observable paper-trading MVP. This is not a new-feature milestone unless small fixes are needed. It is a release-hardening, verification, documentation, and cleanup milestone.
-
-Implement:
-1. End-to-end smoke command, for example:
-   - `make taurus-smoke`
-2. Final local runbook:
-   - setup
-   - start services
-   - seed mock data
-   - import mock news
-   - run backtest
-   - run analyst workflow
-   - run debate
-   - run trader proposal
-   - run risk review
-   - run final approval
-   - run paper order
-   - open dashboards
-   - backup
-   - replay decision
-3. Documentation of config and secrets.
-4. Documentation of known limitations.
-5. Documentation of current paper-trading assumptions:
-   - costs
-   - slippage
-   - fills
-   - timing
-   - data freshness
-6. Ensure all Makefile commands are consistent.
-7. Clean up dead code and TODOs where safe.
-8. Add final tests for the end-to-end paper flow if not already covered.
-9. Export a sample report or dashboard screenshot instructions, if practical.
-
-Non-goals:
-- No new broker live integration.
-- No real-money trading.
-- No large refactor that risks destabilizing the MVP unless required by failing tests.
-
-Final verification checklist to run:
-- `make setup`
-- `make dev-up`
-- `make migrate`
-- `make seed-mock`
-- `make import-mock-news`
-- `make backtest-mock`
-- `make run-analysts-mock SYMBOL=INFY`
-- `make debate-mock SYMBOL=INFY`
-- `make trader-proposal-mock SYMBOL=INFY`
-- `make risk-review-mock SYMBOL=INFY`
-- `make final-approval-mock SYMBOL=INFY`
-- `make paper-once-mock SYMBOL=INFY`
-- `make taurus-smoke`
-- `make test`
-- `make dashboard`
-
-Acceptance criteria:
-1. Taurus can run end-to-end with mock data.
-2. Taurus can backtest.
-3. Taurus can generate analyst reports.
-4. Taurus can run bull/bear debate.
-5. Taurus can generate trader proposal.
-6. Taurus can run risk review and final approval.
-7. Taurus can paper trade.
-8. Dashboard shows performance, decisions, debate, risk, orders, events, and health.
-9. Decision replay works for at least one stored decision.
-10. Backup works.
-11. Live trading remains disabled.
-12. README and runbook are up to date.
-
-Stop after M15 acceptance criteria pass and provide a release summary:
-- final capabilities
-- how to run locally
-- what is still mock-only
-- what inputs are needed for extended paper trading
-- next recommended milestones after MVP
+Stop after M15 acceptance criteria pass and summarize files changed, commands run, and test results.
 ```
 
 ---

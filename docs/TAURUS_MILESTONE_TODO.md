@@ -4,8 +4,9 @@ Source of truth:
 
 - `docs/TAURUS_MVP_SPEC_v0_3.md`
 - `docs/TAURUS_CODEX_TASKS_v0_3.yaml`
+- `docs/UPSTOX_INTEGRATION_PLAN.md` for deferred broker integration
 
-Last updated: 2026-05-20 17:13 IST
+Last updated: 2026-05-20 17:45 IST
 
 Status legend:
 
@@ -36,9 +37,9 @@ Milestone completion reporting:
 | M10 | Done | Real market data provider | Synthetic CSV fixture approved | No |
 | M11 | Done | Continuous paper trading | Default after-close schedule assumed | No |
 | M12 | Done | Telegram alerts, replay, backup, hardening | Telegram details optional; mock used | Optional |
-| M13 | Not started | Broker sandbox adapter | Sandbox details required | Yes |
-| M14 | Not started | Live-readiness gate | Broker/compliance approval required | Yes |
-| M15 | Not started | Taurus MVP release | Depends | Depends |
+| M13 | Not started | Paper-trading MVP release | Optional real CSV/data source | No |
+| M14 | Deferred | Upstox sandbox adapter | Sandbox token required | Yes |
+| M15 | Deferred | Upstox production readiness | Broker/compliance approval required | Yes |
 
 ## M0 - Project Foundation
 
@@ -636,73 +637,17 @@ Completion summary:
 - Mocks created: Mock alert adapter, API mock alert test endpoint, risk alert template fixture, scheduled job failure fixture, and SQLite backup/restore test database.
 - Mocks used: Mock alert adapter, deterministic mock market data, mock news provider, mock LLM analyst outputs, mock debate/trader/risk/final-approval pipeline, internal PaperBroker, and SQLite verification database at `/private/tmp/taurus-m12-verify-20260520.db`.
 
-## M13 - Broker Sandbox Adapter
+## M13 - Paper-Trading MVP Release
 
 Status: Not started
 
-Objective: Upstox Sandbox/OpenAlgo smoke test without live trading.
+Objective: End-to-end observable paper-trading MVP, with Upstox/broker integration deferred.
 
 User input required:
 
-- [!] `UPSTOX_CLIENT_ID`
-- [!] `UPSTOX_CLIENT_SECRET`
-- [!] `UPSTOX_REDIRECT_URI`
-- [!] Sandbox account setup details.
-
-Tasks:
-
-- [ ] Add sandbox broker adapter.
-- [ ] Add credentials loading from env only.
-- [ ] Add sandbox smoke test.
-- [ ] Keep PaperBroker default.
-
-Verification:
-
-- [ ] `make broker-sandbox-smoke`
-- [ ] `make test`
-
-Acceptance:
-
-- [ ] Sandbox adapter conforms to `BrokerAdapter`.
-- [ ] Credentials are not committed.
-- [ ] Sandbox smoke test passes where supported.
-- [ ] Live trading remains disabled.
-
-## M14 - Live-Readiness Gate
-
-Status: Not started
-
-Objective: Safety and compliance gate only; no live orders.
-
-User input required:
-
-- [!] Broker/compliance details.
-- [!] Manual release approval.
-
-Tasks:
-
-- [ ] Add live preflight check.
-- [ ] Add explicit manual sign-off requirement.
-- [ ] Add order tagging placeholders.
-- [ ] Add compliance checklist.
-
-Verification:
-
-- [ ] `make live-preflight-check`
-- [ ] `make test`
-
-Acceptance:
-
-- [ ] `LIVE_TRADING_ENABLED=false` remains default.
-- [ ] Live mode requires explicit config and preflight pass.
-- [ ] Manual sign-off is required.
-- [ ] No live orders are placed.
-
-## M15 - Taurus MVP Release
-
-Status: Not started
-
-Objective: End-to-end observable paper-trading MVP.
+- [ ] Optional real OHLCV CSV path or data-provider decision for extended paper trading.
+- [ ] Optional real Screener CSV path for fundamentals validation.
+- [ ] Optional Telegram credentials for real alert smoke testing.
 
 Verification:
 
@@ -718,6 +663,10 @@ Verification:
 - [ ] `make risk-review-mock SYMBOL=INFY`
 - [ ] `make final-approval-mock SYMBOL=INFY`
 - [ ] `make paper-once-mock SYMBOL=INFY`
+- [ ] `make paper-loop-mock`
+- [ ] `make replay-decision DECISION_ID=sample`
+- [ ] `make backup-local`
+- [ ] `make taurus-smoke`
 - [ ] `make dashboard`
 - [ ] `make test`
 
@@ -731,11 +680,37 @@ Acceptance:
 - [ ] Taurus runs risk review and final approval.
 - [ ] Taurus paper trades only.
 - [ ] Dashboard shows performance, decisions, debate, risk, orders, events, and health.
+- [ ] Decision replay and backup work.
 - [ ] Live trading is disabled.
+- [ ] Broker sandbox and live broker work are not required for MVP completion.
+
+## M14 - Upstox Sandbox Adapter
+
+Status: Deferred until after the paper-trading MVP release.
+
+Objective: Validate Taurus order-payload mapping against Upstox Sandbox without enabling live trading.
+
+Notes:
+
+- Tracked separately in `docs/UPSTOX_INTEGRATION_PLAN.md`.
+- Current Upstox sandbox runtime should use `UPSTOX_SANDBOX_ACCESS_TOKEN`; OAuth app fields are portal/setup concerns unless Upstox changes the flow.
+- PaperBroker remains the default even after this adapter exists.
+
+## M15 - Upstox Production Readiness
+
+Status: Deferred until after Upstox Sandbox validation and explicit manual approval.
+
+Objective: Production-readiness and compliance gate for future broker integration; no live orders during this milestone.
+
+Notes:
+
+- Tracked separately in `docs/UPSTOX_INTEGRATION_PLAN.md`.
+- Requires broker/compliance details, manual release approval, kill switch, reconciliation, audit, and observability checks.
+- `LIVE_TRADING_ENABLED=false` remains the default.
 
 ## Post-MVP Follow-Ups
 
-These tasks are intentionally deferred until all milestones are achieved.
+These tasks are intentionally deferred until after the M13 paper-trading MVP release.
 
 - [ ] Validate a real Screener CSV export after the user creates a Screener account/subscription and provides a local CSV path.
 - [ ] Run `make import-screener CSV=/path/to/user_screener_export.csv` against the real file without committing the CSV.
@@ -744,6 +719,8 @@ These tasks are intentionally deferred until all milestones are achieved.
 - [ ] Decide whether extra column aliases, normalization, or scoring adjustments are needed for the real Screener export format.
 - [ ] Select the external historical market data provider after MVP completion, then provide provider name, sandbox/API documentation, required env var names, and credentials through local `.env` only.
 - [ ] Validate the external market data provider adapter in sandbox/paper mode without committing credentials or enabling live trading.
+- [ ] Follow `docs/UPSTOX_INTEGRATION_PLAN.md` for deferred Upstox sandbox validation and later production-readiness planning.
+- [ ] Provide `UPSTOX_SANDBOX_ACCESS_TOKEN` locally only when the post-MVP sandbox milestone starts.
 - [ ] Verify real Telegram alert delivery after all milestones are complete by receiving `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` through local `.env` or shell environment only.
 - [ ] Run `make alert-test-telegram` and confirm the Taurus smoke alert is received in the configured Telegram chat.
 - [ ] Run `TAURUS_ALERT_PROVIDER=telegram make paper-once-mock SYMBOL=INFY` and confirm a paper-fill alert is received in Telegram.
