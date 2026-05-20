@@ -5,11 +5,13 @@ import time
 from fastapi import FastAPI, Request
 
 from apps.api.routes_data import router as data_router
+from apps.api.routes_alerts import router as alerts_router
 from apps.api.routes_fundamentals import router as fundamentals_router
 from apps.api.routes_health import router as health_router
 from apps.api.routes_intelligence import router as intelligence_router
 from apps.api.routes_paper import router as paper_router
 from apps.api.routes_research import router as research_router
+from apps.api.routes_replay import router as replay_router
 from apps.api.routes_risk import router as risk_router
 from apps.api.routes_runs import router as runs_router
 from taurus_core.config import Settings, get_settings
@@ -31,10 +33,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = settings
     app.state.session_factory = build_session_factory(settings)
     app.include_router(health_router)
+    app.include_router(alerts_router)
     app.include_router(data_router)
     app.include_router(fundamentals_router)
     app.include_router(intelligence_router)
     app.include_router(research_router)
+    app.include_router(replay_router)
     app.include_router(risk_router)
     app.include_router(paper_router)
     app.include_router(runs_router)

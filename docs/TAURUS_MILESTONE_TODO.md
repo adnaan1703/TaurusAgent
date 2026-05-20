@@ -5,7 +5,7 @@ Source of truth:
 - `docs/TAURUS_MVP_SPEC_v0_3.md`
 - `docs/TAURUS_CODEX_TASKS_v0_3.yaml`
 
-Last updated: 2026-05-20 16:04 IST
+Last updated: 2026-05-20 17:13 IST
 
 Status legend:
 
@@ -35,7 +35,7 @@ Milestone completion reporting:
 | M9 | Done | Screener fundamentals import | Screener CSV requested; fixture used | No |
 | M10 | Done | Real market data provider | Synthetic CSV fixture approved | No |
 | M11 | Done | Continuous paper trading | Default after-close schedule assumed | No |
-| M12 | Not started | Telegram alerts, replay, backup, hardening | Telegram details optional | Optional |
+| M12 | Done | Telegram alerts, replay, backup, hardening | Telegram details optional; mock used | Optional |
 | M13 | Not started | Broker sandbox adapter | Sandbox details required | Yes |
 | M14 | Not started | Live-readiness gate | Broker/compliance approval required | Yes |
 | M15 | Not started | Taurus MVP release | Depends | Depends |
@@ -579,7 +579,7 @@ Completion summary:
 
 ## M12 - Telegram Alerts, Replay, Backup, Hardening
 
-Status: Not started
+Status: Done
 
 Objective: Alerts, replay, backups, and runbook.
 
@@ -590,25 +590,51 @@ User input optional:
 
 Tasks:
 
-- [ ] Add Telegram alert adapter.
-- [ ] Add alert smoke command.
-- [ ] Add decision replay by `decision_id`.
-- [ ] Add backup and restore scripts.
-- [ ] Add operations runbook.
+- [x] Add Telegram alert adapter.
+- [x] Add alert smoke command.
+- [x] Add decision replay by `decision_id`.
+- [x] Add backup and restore scripts.
+- [x] Add operations runbook.
 
 Verification:
 
-- [ ] `make alert-smoke`
-- [ ] `make replay-decision DECISION_ID=sample`
-- [ ] `make backup-db`
-- [ ] `make test`
+- [x] `make alert-smoke`
+- [x] `make replay-decision DECISION_ID=sample`
+- [x] `make backup-db`
+- [x] `make test`
+- [x] `make lint`
+- [x] `make backup-local`
+- [x] `make restore-local BACKUP=...`
 
 Acceptance:
 
-- [ ] Telegram smoke test works when credentials are provided.
-- [ ] Alerts fire for fills, kill switch, severe events, stale data, job failures.
-- [ ] Decision replay works.
-- [ ] Backup and restore commands exist.
+- [x] Telegram adapter and mock smoke test work without credentials.
+- [x] Alerts fire for fills, kill switch, severe events, stale data, job failures.
+- [x] Decision replay works.
+- [x] Backup and restore commands exist.
+- [ ] Real Telegram end-to-end smoke test is deferred to Post-MVP Follow-Ups.
+
+Notes:
+
+- Added `AlertAdapter`, `TelegramAlertAdapter`, `MockAlertAdapter`, alert templates, and `AlertService`.
+- Default `TAURUS_ALERT_PROVIDER=mock` keeps local/test runs independent of Telegram credentials. Real Telegram smoke is available with `make alert-test-telegram` after setting `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` locally.
+- Alerts are emitted for paper fills, order rejections, kill-switch blocks, severe-event blocks, stale-data blocks, risk rejections/blocks, and scheduled paper-run failures.
+- Added safe mock API endpoint `POST /alerts/test` and replay endpoint `GET /replay/{decision_id}`.
+- Added `make replay-decision DECISION_ID=sample`; the `sample` smoke path replays the latest stored final decision or creates a deterministic mock paper decision when none exists.
+- Added SQLite/Postgres-aware `make backup-local`, `make backup-db`, and `make restore-local BACKUP=...`.
+- Added operations runbook at `docs/TAURUS_OPERATIONS_RUNBOOK.md`.
+- Verified `55 passed`.
+- `make lint` compile-checks pass.
+- `DATABASE_URL=sqlite:////private/tmp/taurus-m12-verify-20260520.db make alert-smoke` delivered a mock alert `alert-ebda1ad9cd8d0b6a`.
+- `DATABASE_URL=sqlite:////private/tmp/taurus-m12-verify-20260520.db make replay-decision DECISION_ID=sample` replayed `decision_id=dec-005a68246fd41a40` with analyst reports, company event, debate, trader proposal, risk review, final decision, paper order, two fills, and audit rows.
+- `DATABASE_URL=sqlite:////private/tmp/taurus-m12-verify-20260520.db BACKUP_DIR=/private/tmp/taurus-m12-backups make backup-db` created a SQLite backup under `/private/tmp/taurus-m12-backups`.
+- `DATABASE_URL=sqlite:////private/tmp/taurus-m12-verify-20260520.db BACKUP=/private/tmp/taurus-m12-backups/taurus-20260520T105647138364Z make restore-local` restored the SQLite database and created a pre-restore copy.
+
+Completion summary:
+
+- Assumptions made: Telegram credentials are optional for M12 implementation and were not provided during verification, so real Telegram delivery remains an environment-dependent smoke check. `DECISION_ID=sample` is treated as a smoke alias, not a real decision ID. Postgres backup/restore depends on local `pg_dump`/`pg_restore`; SQLite backup/restore is verified automatically.
+- Mocks created: Mock alert adapter, API mock alert test endpoint, risk alert template fixture, scheduled job failure fixture, and SQLite backup/restore test database.
+- Mocks used: Mock alert adapter, deterministic mock market data, mock news provider, mock LLM analyst outputs, mock debate/trader/risk/final-approval pipeline, internal PaperBroker, and SQLite verification database at `/private/tmp/taurus-m12-verify-20260520.db`.
 
 ## M13 - Broker Sandbox Adapter
 
@@ -718,6 +744,10 @@ These tasks are intentionally deferred until all milestones are achieved.
 - [ ] Decide whether extra column aliases, normalization, or scoring adjustments are needed for the real Screener export format.
 - [ ] Select the external historical market data provider after MVP completion, then provide provider name, sandbox/API documentation, required env var names, and credentials through local `.env` only.
 - [ ] Validate the external market data provider adapter in sandbox/paper mode without committing credentials or enabling live trading.
+- [ ] Verify real Telegram alert delivery after all milestones are complete by receiving `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` through local `.env` or shell environment only.
+- [ ] Run `make alert-test-telegram` and confirm the Taurus smoke alert is received in the configured Telegram chat.
+- [ ] Run `TAURUS_ALERT_PROVIDER=telegram make paper-once-mock SYMBOL=INFY` and confirm a paper-fill alert is received in Telegram.
+- [ ] Document the real Telegram smoke result without committing credentials or logging token/chat secrets.
 
 ## Maintenance Rules
 

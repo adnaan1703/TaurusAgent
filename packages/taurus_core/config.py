@@ -121,6 +121,7 @@ class Settings(BaseSettings):
 
     taurus_llm_provider: str = Field(default="mock", validation_alias="TAURUS_LLM_PROVIDER")
     taurus_llm_base_url: str = Field(default="", validation_alias="TAURUS_LLM_BASE_URL")
+    taurus_alert_provider: str = Field(default="mock", validation_alias="TAURUS_ALERT_PROVIDER")
     openai_api_key: str = Field(default="", validation_alias="OPENAI_API_KEY")
     telegram_bot_token: str = Field(default="", validation_alias="TELEGRAM_BOT_TOKEN")
     telegram_chat_id: str = Field(default="", validation_alias="TELEGRAM_CHAT_ID")
@@ -140,6 +141,8 @@ class Settings(BaseSettings):
             raise ValueError("Unsupported Taurus market data provider.")
         if self.taurus_llm_provider not in {"mock", "lmstudio", "openai"}:
             raise ValueError("Unsupported Taurus LLM provider.")
+        if self.taurus_alert_provider not in {"mock", "telegram", "disabled"}:
+            raise ValueError("Unsupported Taurus alert provider.")
         return self
 
     def safe_dict(self) -> dict[str, Any]:

@@ -8,6 +8,8 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+from taurus_core.alerts.service import AlertService
+from taurus_core.alerts.templates import scheduled_job_failure_event
 from scripts.import_mock_news import import_mock_news
 from scripts.migrate import run_migrations
 from taurus_core.agents.portfolio_manager import PortfolioManagerAgent
@@ -358,6 +360,18 @@ class PaperRunService:
                 )
             )
             session.commit()
+            try:
+                AlertService(session, self.settings).send(
+                    scheduled_job_failure_event(run_id=run_id, error=error)
+                )
+            except Exception as exc:
+                self.logger.warning(
+                    "alert.paper_run_failure.failed",
+                    run_id=run_id,
+                    symbol=error.symbol,
+                    stage=error.stage,
+                    error=str(exc),
+                )
         with bound_trace_context(run_id=run_id):
             self.logger.error(
                 "paper_run.failure",

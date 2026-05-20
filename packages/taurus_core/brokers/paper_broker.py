@@ -7,6 +7,8 @@ from decimal import Decimal, ROUND_DOWN, ROUND_HALF_UP
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from taurus_core.alerts.service import AlertService
+from taurus_core.alerts.templates import order_rejection_event, paper_fill_event
 from taurus_core.brokers.base import BrokerAdapter
 from taurus_core.config import Settings, get_settings
 from taurus_core.db.models import PaperFillModel
@@ -90,6 +92,7 @@ class PaperBroker(BrokerAdapter):
             repo.store_rejected_order(order=order, account=account, positions=position_models)
             self.session.commit()
             self._log_order(order, fill_ids=[])
+            self._send_order_alert(order, fill_ids=[])
             return order
 
         fills = self._build_fills(
@@ -119,6 +122,7 @@ class PaperBroker(BrokerAdapter):
             repo.store_rejected_order(order=order, account=account, positions=position_models)
             self.session.commit()
             self._log_order(order, fill_ids=[])
+            self._send_order_alert(order, fill_ids=[])
             return order
 
         affordable_quantity = self._affordable_quantity(
@@ -142,6 +146,7 @@ class PaperBroker(BrokerAdapter):
             repo.store_rejected_order(order=order, account=account, positions=position_models)
             self.session.commit()
             self._log_order(order, fill_ids=[])
+            self._send_order_alert(order, fill_ids=[])
             return order
         if affordable_quantity != quantity:
             fills = self._build_fills(
@@ -182,6 +187,7 @@ class PaperBroker(BrokerAdapter):
         )
         self.session.commit()
         self._log_order(order, fill_ids=[fill.fill_id for fill in fills])
+        self._send_order_alert(order, fill_ids=[fill.fill_id for fill in fills])
         return order
 
     def cancel_order(self, order_id: str) -> PaperOrder:
@@ -254,6 +260,23 @@ class PaperBroker(BrokerAdapter):
                 quantity=order.quantity,
                 filled_quantity=order.filled_quantity,
                 fill_ids=fill_ids,
+            )
+
+    def _send_order_alert(self, order: PaperOrder, *, fill_ids: list[str]) -> None:
+        try:
+            if order.status == "REJECTED":
+                event = order_rejection_event(order)
+            elif order.filled_quantity > 0:
+                event = paper_fill_event(order, fill_ids=fill_ids)
+            else:
+                return
+            AlertService(self.session, self.settings).send(event)
+        except Exception as exc:
+            get_logger(__name__).warning(
+                "alert.paper_order.failed",
+                order_id=order.order_id,
+                status=order.status,
+                error=str(exc),
             )
 
     def _latest_candle(self, symbol: str):

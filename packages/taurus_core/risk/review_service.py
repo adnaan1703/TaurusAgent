@@ -4,6 +4,8 @@ from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
+from taurus_core.alerts.service import AlertService
+from taurus_core.alerts.templates import risk_review_events
 from taurus_core.agents.neutral_risk import NeutralRiskAgent
 from taurus_core.agents.risky_risk import RiskyRiskAgent
 from taurus_core.agents.runner import DEFAULT_ANALYST_RUN_ID
@@ -102,6 +104,7 @@ class RiskReviewService:
         )
         RiskRepository(self.session).replace_risk_review_for_run_symbol(review)
         self.session.commit()
+        self._send_risk_alerts(review)
         with bound_trace_context(
             run_id=proposal.run_id,
             decision_id=decision_id,
@@ -117,6 +120,20 @@ class RiskReviewService:
                 hard_rule_count=len(review.hard_rule_results),
             )
         return review
+
+    def _send_risk_alerts(self, review: RiskReview) -> None:
+        events = risk_review_events(review)
+        if not events:
+            return
+        try:
+            AlertService(self.session, self.settings).send_many(events)
+        except Exception as exc:
+            get_logger(__name__).warning(
+                "alert.risk_review.failed",
+                risk_check_id=review.risk_check_id,
+                status=review.status,
+                error=str(exc),
+            )
 
     def _load_proposal(self, *, symbol: str, run_id: str) -> TraderProposal:
         proposals = ResearchRepository(self.session).list_trader_proposals(symbol=symbol, limit=100)

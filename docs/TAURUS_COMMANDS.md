@@ -134,6 +134,18 @@ DATABASE_URL=sqlite:////private/tmp/taurus-m11-verify-20260520.db make dashboard
 curl http://127.0.0.1:8501/_stcore/health
 ```
 
+## M12 Commands Used
+
+```bash
+make test
+make lint
+DATABASE_URL=sqlite:////private/tmp/taurus-m12-verify-20260520.db make alert-smoke
+DATABASE_URL=sqlite:////private/tmp/taurus-m12-verify-20260520.db make replay-decision DECISION_ID=sample
+DATABASE_URL=sqlite:////private/tmp/taurus-m12-verify-20260520.db BACKUP_DIR=/private/tmp/taurus-m12-backups make backup-local
+DATABASE_URL=sqlite:////private/tmp/taurus-m12-verify-20260520.db BACKUP_DIR=/private/tmp/taurus-m12-backups make backup-db
+DATABASE_URL=sqlite:////private/tmp/taurus-m12-verify-20260520.db BACKUP=/private/tmp/taurus-m12-backups/taurus-20260520T105647138364Z make restore-local
+```
+
 ## Current Make Targets
 
 ```bash
@@ -157,6 +169,12 @@ make paper-once-mock SYMBOL=INFY
 make paper-loop-mock
 make paper-loop-once
 make paper-loop-start
+make alert-smoke
+make alert-test-telegram
+make replay-decision DECISION_ID=sample
+make backup-local
+make backup-db
+make restore-local BACKUP=/path/to/backup
 make llm-smoke
 make test
 make lint
@@ -186,7 +204,9 @@ make paper-loop-start
 make paper-loop-once
 make replay-decision DECISION_ID=sample
 make backup-local
+make backup-db
 make restore-local BACKUP=/path/to/backup
+make alert-smoke
 make alert-test-telegram
 make broker-sandbox-smoke
 make live-readiness-check
@@ -216,6 +236,8 @@ curl http://localhost:8000/paper/positions
 curl http://localhost:8000/paper/account
 curl http://localhost:8000/runs
 curl http://localhost:8000/runs/{run_id}
+curl -X POST http://localhost:8000/alerts/test
+curl http://localhost:8000/replay/{decision_id}
 curl http://localhost:8000/live-readiness
 ```
 
@@ -282,8 +304,10 @@ prefix_rule(pattern=["make", "paper-loop-mock"], decision="allow")
 prefix_rule(pattern=["/bin/zsh", "-lc", "DATABASE_URL=sqlite:////private/tmp/taurus-m11-verify-20260520.db make paper-loop-mock"], decision="allow")
 prefix_rule(pattern=["/bin/zsh", "-lc", "DATABASE_URL=sqlite:////private/tmp/taurus-m11-verify-20260520.db make api"], decision="allow")
 prefix_rule(pattern=["/bin/zsh", "-lc", "DATABASE_URL=sqlite:////private/tmp/taurus-m11-verify-20260520.db make dashboard"], decision="allow")
+prefix_rule(pattern=["make", "alert-smoke"], decision="allow")
 prefix_rule(pattern=["make", "replay-decision"], decision="allow")
 prefix_rule(pattern=["make", "backup-local"], decision="allow")
+prefix_rule(pattern=["make", "backup-db"], decision="allow")
 prefix_rule(pattern=["make", "restore-local"], decision="allow")
 prefix_rule(pattern=["make", "alert-test-telegram"], decision="allow")
 prefix_rule(pattern=["make", "broker-sandbox-smoke"], decision="allow")

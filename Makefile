@@ -1,4 +1,4 @@
-.PHONY: setup dev-up dev-down api dashboard migrate seed-mock backtest-mock backtest-real-data import-mock-news import-screener import-price-csv run-analysts-mock debate-mock trader-proposal-mock risk-review-mock final-approval-mock paper-once-mock paper-loop-mock paper-loop-once paper-loop-start llm-smoke test lint
+.PHONY: setup dev-up dev-down api dashboard migrate seed-mock backtest-mock backtest-real-data import-mock-news import-screener import-price-csv run-analysts-mock debate-mock trader-proposal-mock risk-review-mock final-approval-mock paper-once-mock paper-loop-mock paper-loop-once paper-loop-start alert-smoke alert-test-telegram replay-decision backup-local backup-db restore-local llm-smoke test lint
 
 UV ?= uv
 COMPOSE ?= docker compose
@@ -10,6 +10,8 @@ PAPER_LOOP_ITERATIONS ?= 1
 PAPER_LOOP_INTERVAL_SECONDS ?= 60
 PRICE_CSV ?= mock/market_data/prices_sample.csv
 REAL_DATA_STRATEGY ?= configs/strategies/csv_market_data_smoke_v1.yaml
+DECISION_ID ?= sample
+BACKUP_DIR ?= backups
 
 setup:
 	$(UV) sync --dev
@@ -73,6 +75,23 @@ paper-loop-once:
 
 paper-loop-start:
 	DATABASE_URL="$(DATABASE_URL)" TAURUS_LLM_PROVIDER=mock SYMBOLS="$(SYMBOLS)" PAPER_LOOP_ITERATIONS="$(PAPER_LOOP_ITERATIONS)" PAPER_LOOP_INTERVAL_SECONDS="$(PAPER_LOOP_INTERVAL_SECONDS)" PYTHONPATH=packages:. $(UV) run python scripts/run_paper_loop.py
+
+alert-smoke:
+	DATABASE_URL="$(DATABASE_URL)" TAURUS_ALERT_PROVIDER=mock PYTHONPATH=packages:. $(UV) run python scripts/alert_smoke.py
+
+alert-test-telegram:
+	DATABASE_URL="$(DATABASE_URL)" TAURUS_ALERT_PROVIDER=telegram PYTHONPATH=packages:. $(UV) run python scripts/alert_smoke.py
+
+replay-decision:
+	DATABASE_URL="$(DATABASE_URL)" DECISION_ID="$(DECISION_ID)" SYMBOL="$(SYMBOL)" PYTHONPATH=packages:. $(UV) run python scripts/replay_decision.py
+
+backup-local:
+	DATABASE_URL="$(DATABASE_URL)" BACKUP_DIR="$(BACKUP_DIR)" PYTHONPATH=packages:. $(UV) run python scripts/backup_local.py
+
+backup-db: backup-local
+
+restore-local:
+	DATABASE_URL="$(DATABASE_URL)" BACKUP="$(BACKUP)" RESTORE_CONFIRM="$(RESTORE_CONFIRM)" PYTHONPATH=packages:. $(UV) run python scripts/restore_local.py
 
 llm-smoke:
 	DATABASE_URL="$(DATABASE_URL)" PYTHONPATH=packages:. $(UV) run python scripts/llm_smoke.py
