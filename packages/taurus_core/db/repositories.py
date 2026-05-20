@@ -23,6 +23,7 @@ from taurus_core.db.models import (
     FundamentalScoreModel,
     FundamentalSnapshotModel,
     InstrumentModel,
+    PaperRunModel,
     PaperAccountModel,
     PaperFillModel,
     PaperOrderModel,
@@ -39,6 +40,7 @@ from taurus_core.agents.schemas import AnalystReport
 from taurus_core.research.schemas import DebateReport, TraderProposal
 from taurus_core.risk.schemas import FinalDecision, RiskReview
 from taurus_core.execution.schemas import PaperAccount, PaperFill, PaperOrder, PaperPosition
+from taurus_core.paper_trading.schemas import PaperRun
 
 
 class InstrumentRepository:
@@ -767,6 +769,45 @@ class RiskRepository:
         return list(self.session.scalars(statement))
 
 
+class PaperRunRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def upsert(self, run: PaperRun) -> PaperRunModel:
+        model = self.session.get(PaperRunModel, run.run_id)
+        if model is None:
+            model = _paper_run_to_model(run)
+            self.session.add(model)
+        else:
+            model.schedule_name = run.schedule_name
+            model.status = run.status
+            model.started_at = run.started_at
+            model.completed_at = run.completed_at
+            model.symbols = list(run.symbols)
+            model.succeeded_symbols = list(run.succeeded_symbols)
+            model.failed_symbols = list(run.failed_symbols)
+            model.errors = [error.model_dump(mode="json") for error in run.errors]
+            model.market_data_summary = dict(run.market_data_summary)
+            model.artifacts = dict(run.artifacts)
+            model.timezone = run.timezone
+            model.run_after_market_close = run.run_after_market_close
+            model.payload = run.model_dump(mode="json")
+        self.session.flush()
+        return model
+
+    def get(self, run_id: str) -> PaperRunModel | None:
+        return self.session.get(PaperRunModel, run_id)
+
+    def list(self, *, limit: int | None = 100) -> list[PaperRunModel]:
+        statement = select(PaperRunModel).order_by(
+            PaperRunModel.started_at.desc(),
+            PaperRunModel.run_id,
+        )
+        if limit is not None:
+            statement = statement.limit(limit)
+        return list(self.session.scalars(statement))
+
+
 class ExecutionRepository:
     def __init__(self, session: Session) -> None:
         self.session = session
@@ -981,6 +1022,25 @@ def _delete_paper_artifacts_for_run_symbol(
     )
     if remaining_fills == 0:
         session.execute(delete(PaperAccountModel).where(PaperAccountModel.run_id == run_id))
+
+
+def _paper_run_to_model(run: PaperRun) -> PaperRunModel:
+    return PaperRunModel(
+        run_id=run.run_id,
+        schedule_name=run.schedule_name,
+        status=run.status,
+        started_at=run.started_at,
+        completed_at=run.completed_at,
+        symbols=list(run.symbols),
+        succeeded_symbols=list(run.succeeded_symbols),
+        failed_symbols=list(run.failed_symbols),
+        errors=[error.model_dump(mode="json") for error in run.errors],
+        market_data_summary=dict(run.market_data_summary),
+        artifacts=dict(run.artifacts),
+        timezone=run.timezone,
+        run_after_market_close=run.run_after_market_close,
+        payload=run.model_dump(mode="json"),
+    )
 
 
 def _paper_order_to_model(order: PaperOrder) -> PaperOrderModel:

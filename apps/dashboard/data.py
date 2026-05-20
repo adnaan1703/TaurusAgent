@@ -24,6 +24,7 @@ from taurus_core.db.models import (
     FundamentalScoreModel,
     FundamentalSnapshotModel,
     InstrumentModel,
+    PaperRunModel,
     PaperAccountModel,
     PaperFillModel,
     PaperOrderModel,
@@ -57,6 +58,7 @@ def overview_snapshot(session: Session, *, symbol: str | None = None) -> dict[st
     decision = list_final_decisions(session, symbol=symbol, limit=1)
     order = list_paper_orders(session, symbol=symbol, limit=1)
     backtest = list_backtest_runs(session, limit=1)
+    paper_run = list_paper_runs(session, limit=1)
     return {
         "counts": table_counts(session),
         "freshness": data_freshness(session, symbol=symbol),
@@ -64,6 +66,7 @@ def overview_snapshot(session: Session, *, symbol: str | None = None) -> dict[st
         "latest_final_decision": decision[0] if decision else None,
         "latest_order": order[0] if order else None,
         "latest_backtest": backtest[0] if backtest else None,
+        "latest_paper_run": paper_run[0] if paper_run else None,
     }
 
 
@@ -93,6 +96,7 @@ def table_counts(session: Session) -> dict[str, int]:
         "paper_orders": PaperOrderModel,
         "paper_fills": PaperFillModel,
         "paper_positions": PaperPositionModel,
+        "paper_runs": PaperRunModel,
         "backtests": BacktestRunModel,
     }
     return {
@@ -260,6 +264,30 @@ def latest_paper_account(session: Session) -> dict[str, Any] | None:
         "unrealized_pnl_inr": _number(account.unrealized_pnl_inr),
         "updated_at": _display_time(account.updated_at),
     }
+
+
+def list_paper_runs(session: Session, *, limit: int = 50) -> list[dict[str, Any]]:
+    statement = (
+        select(PaperRunModel)
+        .order_by(PaperRunModel.started_at.desc(), PaperRunModel.run_id)
+        .limit(limit)
+    )
+    return [
+        {
+            "run_id": run.run_id,
+            "status": run.status,
+            "schedule": run.schedule_name,
+            "symbols": _join_items(run.symbols or [], limit=8),
+            "succeeded": _join_items(run.succeeded_symbols or [], limit=8),
+            "failed": _join_items(run.failed_symbols or [], limit=8),
+            "error_count": len(run.errors or []),
+            "provider": (run.market_data_summary or {}).get("provider_name", ""),
+            "candles": (run.market_data_summary or {}).get("candle_count", 0),
+            "started_at": _display_time(run.started_at),
+            "completed_at": _display_time(run.completed_at),
+        }
+        for run in session.scalars(statement)
+    ]
 
 
 def list_paper_positions(

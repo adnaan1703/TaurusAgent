@@ -106,6 +106,18 @@ class Settings(BaseSettings):
         lt=Decimal("1"),
         validation_alias="TAURUS_PAPER_FIRST_FILL_PCT",
     )
+    taurus_paper_timezone: str = Field(
+        default="Asia/Kolkata",
+        validation_alias="TAURUS_PAPER_TIMEZONE",
+    )
+    taurus_paper_after_market_close: bool = Field(
+        default=True,
+        validation_alias="TAURUS_PAPER_AFTER_MARKET_CLOSE",
+    )
+    taurus_paper_schedule: str = Field(
+        default="daily_after_close",
+        validation_alias="TAURUS_PAPER_SCHEDULE",
+    )
 
     taurus_llm_provider: str = Field(default="mock", validation_alias="TAURUS_LLM_PROVIDER")
     taurus_llm_base_url: str = Field(default="", validation_alias="TAURUS_LLM_BASE_URL")

@@ -623,6 +623,36 @@ class FinalDecisionModel(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
 
 
+class PaperRunModel(Base):
+    __tablename__ = "paper_runs"
+    __table_args__ = (
+        Index("ix_paper_runs_started_at", "started_at"),
+        Index("ix_paper_runs_status", "status"),
+    )
+
+    run_id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    schedule_name: Mapped[str] = mapped_column(String(128), nullable=False, default="daily_after_close")
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="RUNNING")
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    symbols: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    succeeded_symbols: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    failed_symbols: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    errors: Mapped[list[dict[str, object]]] = mapped_column(JSON, nullable=False, default=list)
+    market_data_summary: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
+    artifacts: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
+    timezone: Mapped[str] = mapped_column(String(64), nullable=False, default="Asia/Kolkata")
+    run_after_market_close: Mapped[bool] = mapped_column(nullable=False, default=True)
+    payload: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc_now,
+        onupdate=utc_now,
+    )
+
+
 class PaperOrderModel(Base):
     __tablename__ = "paper_orders"
     __table_args__ = (

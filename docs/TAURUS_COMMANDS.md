@@ -121,6 +121,19 @@ curl "http://localhost:8000/data/candles?symbol=INFY&timeframe=1d"
 pkill -f "uvicorn apps.api.main:app"
 ```
 
+## M11 Commands Used
+
+```bash
+make test
+make lint
+DATABASE_URL=sqlite:////private/tmp/taurus-m11-verify-20260520.db make paper-loop-mock
+DATABASE_URL=sqlite:////private/tmp/taurus-m11-verify-20260520.db make api
+curl http://localhost:8000/runs
+curl http://localhost:8000/runs/pr-edecbedf6614c240
+DATABASE_URL=sqlite:////private/tmp/taurus-m11-verify-20260520.db make dashboard
+curl http://127.0.0.1:8501/_stcore/health
+```
+
 ## Current Make Targets
 
 ```bash
@@ -141,6 +154,7 @@ make trader-proposal-mock SYMBOL=INFY
 make risk-review-mock SYMBOL=INFY
 make final-approval-mock SYMBOL=INFY
 make paper-once-mock SYMBOL=INFY
+make paper-loop-mock
 make paper-loop-once
 make paper-loop-start
 make llm-smoke
@@ -167,6 +181,7 @@ make import-screener CSV=/path/to/screener.csv
 make import-price-csv CSV=/path/to/prices.csv
 make import-price-csv DIR=/path/to/price_csvs
 make backtest-real-data
+make paper-loop-mock
 make paper-loop-start
 make paper-loop-once
 make replay-decision DECISION_ID=sample
@@ -200,6 +215,7 @@ curl http://localhost:8000/paper/fills
 curl http://localhost:8000/paper/positions
 curl http://localhost:8000/paper/account
 curl http://localhost:8000/runs
+curl http://localhost:8000/runs/{run_id}
 curl http://localhost:8000/live-readiness
 ```
 
@@ -262,6 +278,10 @@ prefix_rule(pattern=["make", "import-screener"], decision="allow")
 prefix_rule(pattern=["make", "import-price-csv"], decision="allow")
 prefix_rule(pattern=["make", "paper-loop-start"], decision="allow")
 prefix_rule(pattern=["make", "paper-loop-once"], decision="allow")
+prefix_rule(pattern=["make", "paper-loop-mock"], decision="allow")
+prefix_rule(pattern=["/bin/zsh", "-lc", "DATABASE_URL=sqlite:////private/tmp/taurus-m11-verify-20260520.db make paper-loop-mock"], decision="allow")
+prefix_rule(pattern=["/bin/zsh", "-lc", "DATABASE_URL=sqlite:////private/tmp/taurus-m11-verify-20260520.db make api"], decision="allow")
+prefix_rule(pattern=["/bin/zsh", "-lc", "DATABASE_URL=sqlite:////private/tmp/taurus-m11-verify-20260520.db make dashboard"], decision="allow")
 prefix_rule(pattern=["make", "replay-decision"], decision="allow")
 prefix_rule(pattern=["make", "backup-local"], decision="allow")
 prefix_rule(pattern=["make", "restore-local"], decision="allow")
@@ -292,6 +312,8 @@ prefix_rule(pattern=["curl", "http://localhost:8000/paper/orders"], decision="al
 prefix_rule(pattern=["curl", "http://localhost:8000/paper/fills"], decision="allow")
 prefix_rule(pattern=["curl", "http://localhost:8000/paper/positions"], decision="allow")
 prefix_rule(pattern=["curl", "http://localhost:8000/paper/account"], decision="allow")
+prefix_rule(pattern=["curl", "http://localhost:8000/runs"], decision="allow")
+prefix_rule(pattern=["curl", "http://localhost:8000/runs/pr-edecbedf6614c240"], decision="allow")
 prefix_rule(pattern=["curl", "http://127.0.0.1:8000/paper/orders"], decision="allow")
 prefix_rule(pattern=["curl", "http://127.0.0.1:8000/paper/fills"], decision="allow")
 prefix_rule(pattern=["curl", "http://127.0.0.1:8000/paper/positions"], decision="allow")

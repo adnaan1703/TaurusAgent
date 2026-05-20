@@ -8,6 +8,7 @@ from apps.dashboard.data import (
     list_paper_fills,
     list_paper_orders,
     list_paper_positions,
+    list_paper_runs,
 )
 from apps.dashboard.ui import (
     configure_page,
@@ -21,16 +22,17 @@ from apps.dashboard.ui import (
 
 configure_page("Paper Trading")
 settings, symbol, limit = sidebar_filters()
-account, decisions, positions, orders, fills = load_data(
+account, runs, decisions, positions, orders, fills = load_data(
     settings,
     lambda session: (
         latest_paper_account(session),
+        list_paper_runs(session, limit=limit),
         list_final_decisions(session, symbol=symbol, limit=limit),
         list_paper_positions(session, symbol=symbol),
         list_paper_orders(session, symbol=symbol, limit=limit),
         list_paper_fills(session, symbol=symbol, limit=limit),
     ),
-    (None, [], [], [], []),
+    (None, [], [], [], [], []),
 )
 
 account = account or {}
@@ -43,12 +45,14 @@ metric_columns(
     ]
 )
 
-tabs = st.tabs(["Decisions", "Positions", "Orders", "Fills"])
+tabs = st.tabs(["Runs", "Decisions", "Positions", "Orders", "Fills"])
 with tabs[0]:
-    render_table(decisions)
+    render_table(runs)
 with tabs[1]:
-    render_table(positions)
+    render_table(decisions)
 with tabs[2]:
-    render_table(orders)
+    render_table(positions)
 with tabs[3]:
+    render_table(orders)
+with tabs[4]:
     render_table(fills)

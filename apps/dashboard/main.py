@@ -13,6 +13,7 @@ from apps.dashboard.data import (
     list_paper_fills,
     list_paper_orders,
     list_paper_positions,
+    list_paper_runs,
     list_risk_reviews,
     list_trader_proposals,
     overview_snapshot,
@@ -41,6 +42,7 @@ def main() -> None:
             "latest_final_decision": None,
             "latest_order": None,
             "latest_backtest": None,
+            "latest_paper_run": None,
         },
     )
 
@@ -48,15 +50,21 @@ def main() -> None:
     decision = snapshot["latest_final_decision"] or {}
     order = snapshot["latest_order"] or {}
     backtest = snapshot["latest_backtest"] or {}
+    paper_run = snapshot["latest_paper_run"] or {}
     metric_columns(
         [
             ("Paper Equity", format_inr(account.get("equity_inr"))),
             ("Paper Cash", format_inr(account.get("cash_inr"))),
+            ("Paper Run", str(paper_run.get("status", "-"))),
             ("Final Status", str(decision.get("status", "-"))),
             ("Latest Order", str(order.get("status", "-"))),
             ("Backtest Return", _return_label(backtest.get("total_return_pct"))),
         ]
     )
+
+    st.subheader("Scheduled Runs")
+    paper_runs = load_data(settings, lambda session: list_paper_runs(session, limit=limit), [])
+    render_table(paper_runs)
 
     st.subheader("Portfolio")
     positions = load_data(

@@ -24,6 +24,7 @@ from taurus_core.db.models import (
     PaperFillModel,
     PaperOrderModel,
     PaperPositionModel,
+    PaperRunModel,
     RawDocumentModel,
     RiskReviewModel,
     SentimentScoreModel,
@@ -239,6 +240,7 @@ def _refresh_table_counts(session: Session) -> None:
         "paper_fills": PaperFillModel,
         "paper_positions": PaperPositionModel,
         "paper_accounts": PaperAccountModel,
+        "paper_runs": PaperRunModel,
         "backtest_runs": BacktestRunModel,
     }
     for table, model in models.items():

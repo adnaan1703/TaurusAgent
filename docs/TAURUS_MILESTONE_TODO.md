@@ -5,7 +5,7 @@ Source of truth:
 - `docs/TAURUS_MVP_SPEC_v0_3.md`
 - `docs/TAURUS_CODEX_TASKS_v0_3.yaml`
 
-Last updated: 2026-05-19 22:38 IST
+Last updated: 2026-05-20 16:04 IST
 
 Status legend:
 
@@ -34,7 +34,7 @@ Milestone completion reporting:
 | M8 | Done | Dashboard and observability v1 | No | No |
 | M9 | Done | Screener fundamentals import | Screener CSV requested; fixture used | No |
 | M10 | Done | Real market data provider | Synthetic CSV fixture approved | No |
-| M11 | Not started | Continuous paper trading | Schedule assumptions required | Maybe |
+| M11 | Done | Continuous paper trading | Default after-close schedule assumed | No |
 | M12 | Not started | Telegram alerts, replay, backup, hardening | Telegram details optional | Optional |
 | M13 | Not started | Broker sandbox adapter | Sandbox details required | Yes |
 | M14 | Not started | Live-readiness gate | Broker/compliance approval required | Yes |
@@ -524,34 +524,58 @@ Completion summary:
 
 ## M11 - Continuous Paper Trading
 
-Status: Not started
+Status: Done
 
 Objective: Scheduled paper loop using latest available data.
 
 User input required:
 
-- [!] Paper trading schedule.
-- [!] Market hours assumptions.
-- [!] Confirmation to run after market close initially.
+- [x] Paper trading schedule. Defaulted to one daily after-close run.
+- [x] Market hours assumptions. Defaulted to Asia/Kolkata daily candles.
+- [x] Confirmation to run after market close initially. Defaulted to yes per v0.3 spec.
 
 Tasks:
 
-- [ ] Add scheduler.
-- [ ] Add end-of-day paper run pipeline.
-- [ ] Add run status tracking.
-- [ ] Add failure recovery.
+- [x] Add scheduler.
+- [x] Add end-of-day paper run pipeline.
+- [x] Add run status tracking.
+- [x] Add failure recovery.
 
 Verification:
 
-- [ ] `make paper-loop-mock`
-- [ ] `make test`
+- [x] `make paper-loop-mock`
+- [x] `make test`
+- [x] `make lint`
+- [x] `curl http://localhost:8000/runs`
+- [x] `curl http://localhost:8000/runs/{run_id}`
+- [x] Dashboard health check.
 
 Acceptance:
 
-- [ ] Scheduled loop executes data update, features, analysts, debate, trader, risk, final approval, PaperBroker.
-- [ ] Each run has `run_id`.
-- [ ] Dashboard updates.
-- [ ] Failures are logged.
+- [x] Scheduled loop executes data update, features, analysts, debate, trader, risk, final approval, PaperBroker.
+- [x] Each run has `run_id`.
+- [x] Dashboard updates.
+- [x] Failures are logged.
+
+Notes:
+
+- Added `PaperRunService` and `SimplePaperScheduler` for a documented local scheduler without adding a runtime dependency.
+- Added `paper_runs` status tracking with `run_id`, timestamps, status, symbols, errors, market-data summary, and artifact IDs.
+- Added `GET /runs` and `GET /runs/{run_id}`.
+- Added dashboard scheduled-runs tables on the main and paper trading pages.
+- Added `make paper-loop-mock`; `paper-loop-once` and `paper-loop-start` now use the M11 run service and accept `SYMBOLS`.
+- `DATABASE_URL=sqlite:////private/tmp/taurus-m11-verify-20260520.db make paper-loop-mock` produced `run_id=pr-edecbedf6614c240`, `status=COMPLETED`, `symbols=[INFY]`, `final_status=APPROVED_FOR_PAPER`, `order_status=FILLED`, and a strategy summary with `feature_snapshot_count=10`.
+- `/runs` and `/runs/pr-edecbedf6614c240` returned the persisted run record.
+- `curl http://127.0.0.1:8501/_stcore/health` returned `ok` with the dashboard pointed at the M11 verification database.
+- Verified `51 passed`.
+- `make lint` compile-checks pass.
+- Global Codex approvals added during verification were copied into `.codex/rules/default.rules`, documented in `docs/TAURUS_COMMANDS.md`, and removed from `/Users/adnaan/.codex/rules/default.rules` after the user's marker.
+
+Completion summary:
+
+- Assumptions made: M11 uses the v0.3 default schedule: daily candles, Asia/Kolkata timezone, and after-market-close operation. The scheduler is a simple local loop with configurable iterations and interval rather than APScheduler/Celery/Prefect, keeping the MVP dependency surface small. Real vendor data remains optional; mock market data is used when no CSV or external provider is configured.
+- Mocks created: Unit-test partial-failure scheduled run using symbols `INFY,MISSING` to verify one-symbol failure handling and audit logging.
+- Mocks used: Deterministic mock market data, mock news provider, mock LLM analyst outputs, mock debate/trader/risk/final-approval pipeline, internal PaperBroker, and SQLite verification database at `/private/tmp/taurus-m11-verify-20260520.db`.
 
 ## M12 - Telegram Alerts, Replay, Backup, Hardening
 
