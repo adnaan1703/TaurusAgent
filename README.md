@@ -2,7 +2,9 @@
 
 Taurus is an observable, paper-trading-first algo trading MVP for Indian cash equities.
 
-M1 provides the project foundation plus deterministic mock market data: local configuration, JSON logging, FastAPI health/data endpoints, Prometheus metrics, Docker Compose services, SQLAlchemy database tables, repositories, and seeded Indian equity-like instruments/candles. It does not include strategies, broker integrations, LLM integrations, real market data ingestion, paper orders, or live trading.
+M13 is the current paper-trading MVP release. It can run the local mock-data flow end to end: market data seeding, news/events, backtests, analyst reports, bull/bear debate, trader proposal, risk review, final approval, PaperBroker execution, scheduled paper loop, replay, backup, API, dashboard, Prometheus metrics, and Grafana dashboards.
+
+Broker sandbox and live broker integration are intentionally deferred. See `docs/UPSTOX_INTEGRATION_PLAN.md` for the post-MVP broker path.
 
 ## Safety Defaults
 
@@ -37,17 +39,39 @@ Run tests:
 make test
 ```
 
+Run the release smoke check:
+
+```bash
+make taurus-smoke
+```
+
 Start the local stack:
 
 ```bash
 make dev-up
 ```
 
-Create the M1 schema and seed deterministic mock data:
+Create the schema and seed deterministic mock data:
 
 ```bash
 make migrate
 make seed-mock
+make import-mock-news
+```
+
+Run the paper MVP workflow:
+
+```bash
+make backtest-mock
+make run-analysts-mock SYMBOL=INFY
+make debate-mock SYMBOL=INFY
+make trader-proposal-mock SYMBOL=INFY
+make risk-review-mock SYMBOL=INFY
+make final-approval-mock SYMBOL=INFY
+make paper-once-mock SYMBOL=INFY
+make paper-loop-mock
+make replay-decision DECISION_ID=sample
+make backup-local
 ```
 
 Verify the API:
@@ -71,6 +95,14 @@ Run the API directly without Docker:
 ```bash
 make api
 ```
+
+Run the dashboard:
+
+```bash
+make dashboard
+```
+
+Release assumptions and known limitations are documented in `docs/TAURUS_MVP_RELEASE.md`. Operational commands and recovery steps are documented in `docs/TAURUS_OPERATIONS_RUNBOOK.md`.
 
 ## Local Services
 

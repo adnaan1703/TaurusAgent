@@ -1,14 +1,48 @@
 # Taurus Operations Runbook
 
+## M13 Release Flow
+
+Run the complete paper MVP smoke check:
+
+```bash
+make taurus-smoke
+```
+
+Run the full local release sequence when validating a fresh environment:
+
+```bash
+make setup
+make dev-up
+make migrate
+make seed-mock
+make import-mock-news
+make backtest-mock
+make run-analysts-mock SYMBOL=INFY
+make debate-mock SYMBOL=INFY
+make trader-proposal-mock SYMBOL=INFY
+make risk-review-mock SYMBOL=INFY
+make final-approval-mock SYMBOL=INFY
+make paper-once-mock SYMBOL=INFY
+make paper-loop-mock
+make replay-decision DECISION_ID=sample
+make backup-local
+make dashboard
+make test
+```
+
+The M13 release assumptions, optional inputs, and known limitations are in `docs/TAURUS_MVP_RELEASE.md`.
+
 ## Safety Defaults
 
-Taurus remains paper-only in M12:
+Taurus remains paper-only in M13:
 
 - `LIVE_TRADING_ENABLED=false`
 - `BROKER_PROVIDER=paper`
 - `TAURUS_MODE=paper`
 
 Do not commit real API keys, broker credentials, Telegram tokens, or exported user data.
+
+Broker sandbox and production broker work are deferred to `docs/UPSTOX_INTEGRATION_PLAN.md`.
 
 ## Alerts
 
@@ -73,7 +107,7 @@ make backup-local
 
 For SQLite, the database file is copied into `backups/taurus-<timestamp>/taurus.sqlite3` with a `manifest.json`.
 
-For Postgres, the command uses `pg_dump --format=custom`. Ensure `pg_dump` is installed and the configured `DATABASE_URL` is reachable.
+For Postgres, the command uses local `pg_dump --format=custom` when available. If `pg_dump` is not installed, Taurus falls back to `docker compose exec -T postgres pg_dump` for the local Docker Compose stack. Ensure the configured `DATABASE_URL` is reachable.
 
 ## Restore
 
@@ -91,4 +125,4 @@ For Postgres, restore is destructive and requires explicit confirmation:
 RESTORE_CONFIRM=I_UNDERSTAND make restore-local BACKUP=backups/taurus-<timestamp>
 ```
 
-Postgres restore uses `pg_restore --clean --if-exists`. Confirm the target `DATABASE_URL` before running it.
+Postgres restore uses local `pg_restore --clean --if-exists` when available, or the local Docker Compose `postgres` service fallback. Confirm the target `DATABASE_URL` before running it.

@@ -359,6 +359,7 @@ db.sqlite3
 db.sqlite3-journal
 taurus.db
 taurus.db-*
+backups/
 
 # Flask stuff:
 instance/

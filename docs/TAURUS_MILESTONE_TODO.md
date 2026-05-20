@@ -6,7 +6,7 @@ Source of truth:
 - `docs/TAURUS_CODEX_TASKS_v0_3.yaml`
 - `docs/UPSTOX_INTEGRATION_PLAN.md` for deferred broker integration
 
-Last updated: 2026-05-20 17:45 IST
+Last updated: 2026-05-20 21:47 IST
 
 Status legend:
 
@@ -37,7 +37,7 @@ Milestone completion reporting:
 | M10 | Done | Real market data provider | Synthetic CSV fixture approved | No |
 | M11 | Done | Continuous paper trading | Default after-close schedule assumed | No |
 | M12 | Done | Telegram alerts, replay, backup, hardening | Telegram details optional; mock used | Optional |
-| M13 | Not started | Paper-trading MVP release | Optional real CSV/data source | No |
+| M13 | Done | Paper-trading MVP release | Optional real CSV/data source skipped; mock data used | No |
 | M14 | Deferred | Upstox sandbox adapter | Sandbox token required | Yes |
 | M15 | Deferred | Upstox production readiness | Broker/compliance approval required | Yes |
 
@@ -639,50 +639,86 @@ Completion summary:
 
 ## M13 - Paper-Trading MVP Release
 
-Status: Not started
+Status: Done
 
 Objective: End-to-end observable paper-trading MVP, with Upstox/broker integration deferred.
 
 User input required:
 
-- [ ] Optional real OHLCV CSV path or data-provider decision for extended paper trading.
-- [ ] Optional real Screener CSV path for fundamentals validation.
-- [ ] Optional Telegram credentials for real alert smoke testing.
+- [x] Optional real OHLCV CSV path or data-provider decision for extended paper trading. Not provided; deterministic mock market data used.
+- [x] Optional real Screener CSV path for fundamentals validation. Not provided; fundamentals remain mock/fixture-backed until post-MVP validation.
+- [x] Optional Telegram credentials for real alert smoke testing. Not provided; mock alert adapter used.
 
 Verification:
 
-- [ ] `make setup`
-- [ ] `make dev-up`
-- [ ] `make migrate`
-- [ ] `make seed-mock`
-- [ ] `make import-mock-news`
-- [ ] `make backtest-mock`
-- [ ] `make run-analysts-mock SYMBOL=INFY`
-- [ ] `make debate-mock SYMBOL=INFY`
-- [ ] `make trader-proposal-mock SYMBOL=INFY`
-- [ ] `make risk-review-mock SYMBOL=INFY`
-- [ ] `make final-approval-mock SYMBOL=INFY`
-- [ ] `make paper-once-mock SYMBOL=INFY`
-- [ ] `make paper-loop-mock`
-- [ ] `make replay-decision DECISION_ID=sample`
-- [ ] `make backup-local`
-- [ ] `make taurus-smoke`
-- [ ] `make dashboard`
-- [ ] `make test`
+- [x] `make setup`
+- [x] `make dev-up`
+- [x] `make migrate`
+- [x] `make seed-mock`
+- [x] `make import-mock-news`
+- [x] `make backtest-mock`
+- [x] `make run-analysts-mock SYMBOL=INFY`
+- [x] `make debate-mock SYMBOL=INFY`
+- [x] `make trader-proposal-mock SYMBOL=INFY`
+- [x] `make risk-review-mock SYMBOL=INFY`
+- [x] `make final-approval-mock SYMBOL=INFY`
+- [x] `make paper-once-mock SYMBOL=INFY`
+- [x] `make paper-loop-mock`
+- [x] `make replay-decision DECISION_ID=sample`
+- [x] `make backup-local`
+- [x] `make taurus-smoke`
+- [x] `make dashboard`
+- [x] `make test`
 
 Acceptance:
 
-- [ ] Taurus runs end-to-end with mock data.
-- [ ] Taurus can backtest.
-- [ ] Taurus generates analyst reports.
-- [ ] Taurus runs bull/bear debate.
-- [ ] Taurus generates trader proposal.
-- [ ] Taurus runs risk review and final approval.
-- [ ] Taurus paper trades only.
-- [ ] Dashboard shows performance, decisions, debate, risk, orders, events, and health.
-- [ ] Decision replay and backup work.
-- [ ] Live trading is disabled.
-- [ ] Broker sandbox and live broker work are not required for MVP completion.
+- [x] Taurus runs end-to-end with mock data.
+- [x] Taurus can backtest.
+- [x] Taurus generates analyst reports.
+- [x] Taurus runs bull/bear debate.
+- [x] Taurus generates trader proposal.
+- [x] Taurus runs risk review and final approval.
+- [x] Taurus paper trades only.
+- [x] Dashboard shows performance, decisions, debate, risk, orders, events, and health.
+- [x] Decision replay and backup work.
+- [x] Live trading is disabled.
+- [x] Broker sandbox and live broker work are not required for MVP completion.
+
+Notes:
+
+- Added `make taurus-smoke`, backed by `scripts/taurus_smoke.py`, to run the paper MVP chain and assert persisted artifacts, replay, backup, API endpoints, mock alerts, metrics, and paper-only safety settings.
+- Added M13 release docs at `docs/TAURUS_MVP_RELEASE.md` and refreshed README, operations runbook, command reference, and script reference.
+- Added a Docker Compose fallback for Postgres backups when local `pg_dump`/`pg_restore` are unavailable.
+- `make setup` completed with dependencies already synced.
+- Initial `make dev-up` failed because Docker Desktop was not running. Docker Desktop was started with `open -a Docker`; rerun `make dev-up` built the API image and started API, Postgres, Redis, Prometheus, and Grafana.
+- `make seed-mock` seeded `10` instruments and `2520` daily candles.
+- `make import-mock-news` imported `10` raw documents, `10` events, and `10` sentiment scores.
+- `make backtest-mock` produced `run_id=bt-f1cb6aed6c20e80d`.
+- `make run-analysts-mock SYMBOL=INFY` produced four analyst reports.
+- `make debate-mock SYMBOL=INFY` produced `debate_id=deb-ce27cc42ed3d7bbb` with mild-bullish consensus.
+- `make trader-proposal-mock SYMBOL=INFY` produced `proposal_id=tp-3e517c22c165b90e`, `action=BUY`, `is_order=false`, and `requires_risk_approval=true`.
+- `make risk-review-mock SYMBOL=INFY` produced `risk_check_id=risk-5878c1185be2244d`, `status=APPROVED`, and `10` hard-rule results.
+- `make final-approval-mock SYMBOL=INFY` produced `final_decision_id=fd-9c3160ad94937529`, `status=APPROVED_FOR_PAPER`, and `approved_quantity=89`.
+- `make paper-once-mock SYMBOL=INFY` produced `order_id=po-4b91cac3077afaf7`, `status=FILLED`, and two paper fills.
+- `make paper-loop-mock` produced `run_id=pr-921cf7c224f293c6`, `status=COMPLETED`, `final_status=APPROVED_FOR_PAPER`, and `order_status=FILLED`.
+- `make replay-decision DECISION_ID=sample` replayed latest stored decision `dec-5238aa1731c2a758`.
+- `make backup-local` produced Postgres backup `backups/taurus-20260520T161629865378Z`.
+- `make taurus-smoke` passed with `paper_loop_run_id=pr-156107aec03ad5cb`, `paper_order_id=po-4b91cac3077afaf7`, mock alert delivery, all API smoke statuses `200`, and backup `backups/taurus-20260520T161642229863Z`.
+- `make dashboard` started on `http://localhost:8501`; `curl http://127.0.0.1:8501/_stcore/health` returned `ok`; the dashboard process was stopped after verification.
+- `curl http://localhost:8000/health` returned paper mode with `live_trading_enabled=false`.
+- `curl http://localhost:8000/metrics` included `taurus_live_trading_enabled 0.0`, `taurus_observability_db_available 1.0`, row counts, workflow artifacts, and paper account metrics.
+- `curl http://127.0.0.1:3000/api/health` returned Grafana database `ok`.
+- `docker compose ps` showed API, Postgres, Redis, Prometheus, and Grafana running.
+- Verified `57 passed`.
+- `make lint` compile-checks pass.
+- Global Codex rules were inspected. There were no entries after `# END MY CUSTOM ADDITION`, so no Taurus-specific approvals needed to be moved.
+- Generated local backup artifacts are ignored through `.gitignore`.
+
+Completion summary:
+
+- Assumptions made: M13 release can complete without real OHLCV CSVs, a real Screener export, or Telegram credentials because those inputs are explicitly optional. The final MVP remains local-first, daily-candle based, and paper-only. Docker Compose Postgres is the supported local Postgres backup fallback when `pg_dump` is not installed on the host.
+- Mocks created: M13 end-to-end smoke test fixture using a temporary SQLite database; Docker Compose `pg_dump` fallback unit-test double.
+- Mocks used: Deterministic mock market data, mock news provider, mock LLM analyst outputs, mock alert adapter, mock/fixture-backed fundamentals path, internal PaperBroker, FastAPI TestClient API smoke, local Docker Compose Postgres verification database, and Postgres backups under `backups/taurus-20260520T161629865378Z` and `backups/taurus-20260520T161642229863Z`.
 
 ## M14 - Upstox Sandbox Adapter
 

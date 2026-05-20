@@ -127,26 +127,84 @@ def _backup_sqlite(database: str | None, backup_dir: Path) -> Path:
 
 def _backup_postgres(database_url: str, backup_dir: Path) -> Path:
     artifact_path = backup_dir / "taurus-postgres.dump"
-    url = _pg_cli_url(database_url)
-    subprocess.run(
-        ["pg_dump", "--format=custom", "--file", str(artifact_path), url],
-        check=True,
-    )
+    if shutil.which("pg_dump") is not None:
+        url = _pg_cli_url(database_url)
+        subprocess.run(
+            ["pg_dump", "--format=custom", "--file", str(artifact_path), url],
+            check=True,
+        )
+    else:
+        _backup_postgres_with_compose(database_url, artifact_path)
     return artifact_path
 
 
 def _restore_postgres(database_url: str, artifact_path: Path) -> None:
-    subprocess.run(
-        [
-            "pg_restore",
-            "--clean",
-            "--if-exists",
-            "--dbname",
-            _pg_cli_url(database_url),
-            str(artifact_path),
-        ],
-        check=True,
-    )
+    if shutil.which("pg_restore") is not None:
+        subprocess.run(
+            [
+                "pg_restore",
+                "--clean",
+                "--if-exists",
+                "--dbname",
+                _pg_cli_url(database_url),
+                str(artifact_path),
+            ],
+            check=True,
+        )
+    else:
+        _restore_postgres_with_compose(database_url, artifact_path)
+
+
+def _backup_postgres_with_compose(database_url: str, artifact_path: Path) -> None:
+    url = make_url(database_url)
+    if shutil.which("docker") is None:
+        raise FileNotFoundError("pg_dump is not installed and docker is unavailable.")
+    with artifact_path.open("wb") as output:
+        subprocess.run(
+            [
+                "docker",
+                "compose",
+                "exec",
+                "-T",
+                "-e",
+                f"PGPASSWORD={url.password or ''}",
+                "postgres",
+                "pg_dump",
+                "--format=custom",
+                "--username",
+                url.username or "postgres",
+                url.database or "postgres",
+            ],
+            stdout=output,
+            check=True,
+        )
+
+
+def _restore_postgres_with_compose(database_url: str, artifact_path: Path) -> None:
+    url = make_url(database_url)
+    if shutil.which("docker") is None:
+        raise FileNotFoundError("pg_restore is not installed and docker is unavailable.")
+    with artifact_path.open("rb") as input_file:
+        subprocess.run(
+            [
+                "docker",
+                "compose",
+                "exec",
+                "-T",
+                "-e",
+                f"PGPASSWORD={url.password or ''}",
+                "postgres",
+                "pg_restore",
+                "--clean",
+                "--if-exists",
+                "--username",
+                url.username or "postgres",
+                "--dbname",
+                url.database or "postgres",
+            ],
+            stdin=input_file,
+            check=True,
+        )
 
 
 def _load_manifest(backup: Path) -> dict[str, object]:

@@ -14,6 +14,7 @@ from taurus_core.alerts.templates import risk_review_events
 from taurus_core.config import Settings
 from taurus_core.db.models import AuditLogModel
 from taurus_core.db.session import build_session_factory
+from taurus_core.ops import backup as backup_module
 from taurus_core.ops.backup import create_backup, restore_backup
 from taurus_core.risk.schemas import HardRuleResult, RiskPersonaReview, RiskReview
 
@@ -123,6 +124,51 @@ def test_sqlite_backup_and_restore_round_trip(tmp_path: Path) -> None:
     assert db_path.exists()
     assert restored.database_kind == "sqlite"
     assert restored.pre_restore_backup is None
+
+
+def test_postgres_backup_uses_docker_compose_when_pg_dump_is_missing(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[list[str]] = []
+
+    def fake_which(name: str) -> str | None:
+        if name == "pg_dump":
+            return None
+        if name == "docker":
+            return "/usr/local/bin/docker"
+        return None
+
+    def fake_run(args, *, stdout, check: bool) -> None:
+        calls.append(list(args))
+        assert check is True
+        stdout.write(b"postgres dump")
+
+    monkeypatch.setattr(backup_module.shutil, "which", fake_which)
+    monkeypatch.setattr(backup_module.subprocess, "run", fake_run)
+
+    artifact = backup_module._backup_postgres(
+        "postgresql+psycopg://taurus:secret@localhost:5432/taurus",
+        tmp_path,
+    )
+
+    assert artifact.read_bytes() == b"postgres dump"
+    assert calls == [
+        [
+            "docker",
+            "compose",
+            "exec",
+            "-T",
+            "-e",
+            "PGPASSWORD=secret",
+            "postgres",
+            "pg_dump",
+            "--format=custom",
+            "--username",
+            "taurus",
+            "taurus",
+        ]
+    ]
 
 
 def _settings_for_temp_db(tmp_path: Path) -> Settings:

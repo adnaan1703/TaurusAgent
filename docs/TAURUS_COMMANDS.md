@@ -146,6 +146,30 @@ DATABASE_URL=sqlite:////private/tmp/taurus-m12-verify-20260520.db BACKUP_DIR=/pr
 DATABASE_URL=sqlite:////private/tmp/taurus-m12-verify-20260520.db BACKUP=/private/tmp/taurus-m12-backups/taurus-20260520T105647138364Z make restore-local
 ```
 
+## M13 Commands Used
+
+```bash
+make setup
+make dev-up
+make migrate
+make seed-mock
+make import-mock-news
+make backtest-mock
+make run-analysts-mock SYMBOL=INFY
+make debate-mock SYMBOL=INFY
+make trader-proposal-mock SYMBOL=INFY
+make risk-review-mock SYMBOL=INFY
+make final-approval-mock SYMBOL=INFY
+make paper-once-mock SYMBOL=INFY
+make paper-loop-mock
+make replay-decision DECISION_ID=sample
+make backup-local
+make taurus-smoke
+make dashboard
+make test
+make lint
+```
+
 ## Current Make Targets
 
 ```bash
@@ -175,6 +199,7 @@ make replay-decision DECISION_ID=sample
 make backup-local
 make backup-db
 make restore-local BACKUP=/path/to/backup
+make taurus-smoke
 make llm-smoke
 make test
 make lint

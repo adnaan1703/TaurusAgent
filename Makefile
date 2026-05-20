@@ -1,4 +1,4 @@
-.PHONY: setup dev-up dev-down api dashboard migrate seed-mock backtest-mock backtest-real-data import-mock-news import-screener import-price-csv run-analysts-mock debate-mock trader-proposal-mock risk-review-mock final-approval-mock paper-once-mock paper-loop-mock paper-loop-once paper-loop-start alert-smoke alert-test-telegram replay-decision backup-local backup-db restore-local llm-smoke test lint
+.PHONY: setup dev-up dev-down api dashboard migrate seed-mock backtest-mock backtest-real-data import-mock-news import-screener import-price-csv run-analysts-mock debate-mock trader-proposal-mock risk-review-mock final-approval-mock paper-once-mock paper-loop-mock paper-loop-once paper-loop-start alert-smoke alert-test-telegram replay-decision backup-local backup-db restore-local taurus-smoke llm-smoke test lint
 
 UV ?= uv
 COMPOSE ?= docker compose
@@ -92,6 +92,9 @@ backup-db: backup-local
 
 restore-local:
 	DATABASE_URL="$(DATABASE_URL)" BACKUP="$(BACKUP)" RESTORE_CONFIRM="$(RESTORE_CONFIRM)" PYTHONPATH=packages:. $(UV) run python scripts/restore_local.py
+
+taurus-smoke:
+	DATABASE_URL="$(DATABASE_URL)" TAURUS_LLM_PROVIDER=mock TAURUS_ALERT_PROVIDER=mock SYMBOL="$(SYMBOL)" BACKUP_DIR="$(BACKUP_DIR)" PYTHONPATH=packages:. $(UV) run python scripts/taurus_smoke.py
 
 llm-smoke:
 	DATABASE_URL="$(DATABASE_URL)" PYTHONPATH=packages:. $(UV) run python scripts/llm_smoke.py
