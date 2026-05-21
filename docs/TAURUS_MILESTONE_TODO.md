@@ -5,8 +5,9 @@ Source of truth:
 - `docs/TAURUS_MVP_SPEC_v0_3.md`
 - `docs/TAURUS_CODEX_TASKS_v0_3.yaml`
 - `docs/UPSTOX_INTEGRATION_PLAN.md` for deferred broker integration
+- `docs/TAURUS_REACT_DASHBOARD_PLAN.md` for M16 React dashboard work
 
-Last updated: 2026-05-20 21:47 IST
+Last updated: 2026-05-21 16:23 IST
 
 Status legend:
 
@@ -40,6 +41,7 @@ Milestone completion reporting:
 | M13 | Done | Paper-trading MVP release | Optional real CSV/data source skipped; mock data used | No |
 | M14 | Deferred | Upstox sandbox adapter | Sandbox token required | Yes |
 | M15 | Deferred | Upstox production readiness | Broker/compliance approval required | Yes |
+| M16 | Not started | React run-loop observability dashboard | No | No |
 
 ## M0 - Project Foundation
 
@@ -743,6 +745,33 @@ Notes:
 - Tracked separately in `docs/UPSTOX_INTEGRATION_PLAN.md`.
 - Requires broker/compliance details, manual release approval, kill switch, reconciliation, audit, and observability checks.
 - `LIVE_TRADING_ENABLED=false` remains the default.
+
+## M16 - React Run-Loop Observability Dashboard
+
+Status: Not started
+
+Objective: Build a read-only React web app that makes each Taurus paper run understandable as a stitched flow from run to symbol to decision trail to paper execution.
+
+Detailed plan:
+
+- `docs/TAURUS_REACT_DASHBOARD_PLAN.md`
+- Stitch metadata and download URLs: `docs/stitch/paper-trade-event-monitor/STITCH_MANIFEST.md`
+
+Submilestones:
+
+- [ ] M16.1 Reference and planning assets.
+- [ ] M16.2 Backend aggregate APIs.
+- [ ] M16.3 React app foundation.
+- [ ] M16.4 Core observability screens.
+- [ ] M16.5 Verification and polish.
+
+Acceptance:
+
+- [ ] React dashboard uses real FastAPI data and remains read-only.
+- [ ] User can navigate from run overview to run detail to symbol decision trail.
+- [ ] Risk gates, missing artifacts, final decisions, paper orders, and fills are visually connected.
+- [ ] Streamlit remains available as a fallback diagnostic dashboard.
+- [ ] No live-trading or broker-control capability is introduced.
 
 ## Post-MVP Follow-Ups
 

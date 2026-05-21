@@ -102,7 +102,7 @@ Run the dashboard:
 make dashboard
 ```
 
-Release assumptions and known limitations are documented in `docs/TAURUS_MVP_RELEASE.md`. Operational commands and recovery steps are documented in `docs/TAURUS_OPERATIONS_RUNBOOK.md`.
+Usage and one-loop observation guidance is documented in `docs/TAURUS_USAGE_GUIDE.md`. Release assumptions and known limitations are documented in `docs/TAURUS_MVP_RELEASE.md`. Operational commands and recovery steps are documented in `docs/TAURUS_OPERATIONS_RUNBOOK.md`.
 
 ## Local Services
 
