@@ -1,10 +1,10 @@
 # Taurus React Dashboard Plan
 
-Status: Planned
+Status: In progress
 
 Owner: Taurus local development workflow
 
-Last updated: 2026-05-21 16:48 IST
+Last updated: 2026-05-21 21:31 IST
 
 ## Purpose
 
@@ -849,28 +849,28 @@ Out of scope:
 
 Implementation instructions:
 
-- [ ] Create `apps/web`.
-- [ ] Add Vite React TypeScript config.
-- [ ] Add `pnpm-lock.yaml` and frontend package metadata.
-- [ ] Add Tailwind config using Taurus/Stitch dark design tokens.
-- [ ] Configure TypeScript strictness appropriate for the app. Avoid suppressing API type uncertainty with broad `any`.
-- [ ] Add a simple directory structure:
+- [x] Create `apps/web`.
+- [x] Add Vite React TypeScript config.
+- [x] Add `pnpm-lock.yaml` and frontend package metadata.
+- [x] Add Tailwind config using Taurus/Stitch dark design tokens.
+- [x] Configure TypeScript strictness appropriate for the app. Avoid suppressing API type uncertainty with broad `any`.
+- [x] Add a simple directory structure:
   - `src/app` for providers and router
   - `src/api` for API client and DTO types
   - `src/components` for shared UI primitives
   - `src/features` for route-level feature components
   - `src/styles` for global CSS and design tokens
   - `src/test` for test utilities
-- [ ] Add root-level Makefile targets for UI setup, dev, build, and tests.
-- [ ] Add API base URL config through `VITE_TAURUS_API_BASE_URL`, defaulting to `http://localhost:8000`.
-- [ ] Add React Router route skeletons.
-- [ ] Add TanStack Query provider and shared API client.
-- [ ] Add app shell with navigation and safety status area.
-- [ ] Add shared status badge, metric card, panel, table, JSON drawer, empty state, and loading/error components.
-- [ ] Add a route-level error boundary or equivalent error presentation.
-- [ ] Add a consistent empty-state component that can show Taurus commands.
-- [ ] Ensure the app shell works on desktop and mobile at a structural level.
-- [ ] Add initial frontend tests.
+- [x] Add root-level Makefile targets for UI setup, dev, build, and tests.
+- [x] Add API base URL config through `VITE_TAURUS_API_BASE_URL`, defaulting to `http://localhost:8000`.
+- [x] Add React Router route skeletons.
+- [x] Add TanStack Query provider and shared API client.
+- [x] Add app shell with navigation and safety status area.
+- [x] Add shared status badge, metric card, panel, table, JSON drawer, empty state, and loading/error components.
+- [x] Add a route-level error boundary or equivalent error presentation.
+- [x] Add a consistent empty-state component that can show Taurus commands.
+- [x] Ensure the app shell works on desktop and mobile at a structural level.
+- [x] Add initial frontend tests.
 
 Required shared components:
 
@@ -897,14 +897,14 @@ Deliverables:
 
 Acceptance:
 
-- [ ] `make setup-ui` installs dependencies.
-- [ ] `make ui` starts the Vite app on port `5173`.
-- [ ] The app shell renders with no backend data.
-- [ ] All v1 routes render placeholder content without crashing.
-- [ ] The API client reads `VITE_TAURUS_API_BASE_URL`.
-- [ ] API errors produce actionable empty/error states.
-- [ ] Shared components have basic tests.
-- [ ] `make build-ui` produces a production build.
+- [x] `make setup-ui` installs dependencies.
+- [x] `make ui` starts the Vite app on port `5173`.
+- [x] The app shell renders with no backend data.
+- [x] All v1 routes render placeholder content without crashing.
+- [x] The API client reads `VITE_TAURUS_API_BASE_URL`.
+- [x] API errors produce actionable empty/error states.
+- [x] Shared components have basic tests.
+- [x] `make build-ui` produces a production build.
 
 Verification:
 
@@ -915,11 +915,24 @@ make test-ui
 make build-ui
 ```
 
+Notes:
+
+- Added `apps/web` with Vite, React, TypeScript, Tailwind, TanStack Query, React Router, Recharts dependency, and Vitest/Testing Library.
+- Added a typed aggregate API client using `VITE_TAURUS_API_BASE_URL` with a default of `http://localhost:8000`.
+- Added route skeletons for `/`, `/runs/:runId`, `/runs/:runId/symbols/:symbol`, `/replay/:decisionId`, `/risk`, `/portfolio`, and `/history`.
+- Added a responsive app shell with desktop side navigation, mobile top navigation, manual safety refresh, and read-only safety status display.
+- Added shared primitives: `StatusBadge`, `MetricCard`, `DataPanel`, `DataTable`, `JsonDrawer`, `EmptyState`, `RefreshButton`, loading/error states, and route error presentation.
+- Added `make setup-ui`, `make ui`, `make build-ui`, and `make test-ui`.
+- Added `apps/web/pnpm-workspace.yaml` with `allowBuilds.esbuild=true` so pnpm 11 can run Vite's required local `esbuild` postinstall without changing global pnpm settings.
+- Adjusted `make lint` to compile-check Python-owned paths only, avoiding traversal of `apps/web/node_modules`.
+- Verification passed: `make setup-ui`, `make test-ui` (`11 passed`), `make build-ui`, `make ui` with `curl` returning `200`, `make test` (`62 passed`), and `make lint`.
+- Global Codex rules were inspected. There were no entries after `# END MY CUSTOM ADDITION`, so no Taurus-specific approvals needed to be moved.
+
 Completion summary:
 
-- Assumptions made: TBD
-- Mocks created: TBD
-- Mocks used: TBD
+- Assumptions made: M16.3 should use the documented defaults from this plan: Vite + React + TypeScript, `pnpm`, Tailwind, TanStack Query, Recharts, and read-only route shells only. `esbuild` is the only dependency build script allowed for the frontend install because Vite requires it locally.
+- Mocks created: Frontend test overview, run, decision-trail, replay, risk, portfolio, and history payloads for app-shell and route-skeleton rendering.
+- Mocks used: Mocked browser `fetch` response in Vitest for `/ui/overview`; no backend fixture data was used for M16.3 frontend verification.
 
 ## M16.4 - Core Observability Screens
 

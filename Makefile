@@ -1,6 +1,7 @@
-.PHONY: setup dev-up dev-down api dashboard migrate seed-mock backtest-mock backtest-real-data import-mock-news import-screener import-price-csv run-analysts-mock debate-mock trader-proposal-mock risk-review-mock final-approval-mock paper-once-mock paper-loop-mock paper-loop-once paper-loop-start alert-smoke alert-test-telegram replay-decision backup-local backup-db restore-local taurus-smoke llm-smoke test lint
+.PHONY: setup setup-ui dev-up dev-down api ui build-ui test-ui dashboard migrate seed-mock backtest-mock backtest-real-data import-mock-news import-screener import-price-csv run-analysts-mock debate-mock trader-proposal-mock risk-review-mock final-approval-mock paper-once-mock paper-loop-mock paper-loop-once paper-loop-start alert-smoke alert-test-telegram replay-decision backup-local backup-db restore-local taurus-smoke llm-smoke test lint
 
 UV ?= uv
+PNPM ?= pnpm
 COMPOSE ?= docker compose
 DATABASE_URL ?= postgresql+psycopg://taurus:taurus@localhost:5432/taurus
 SYMBOL ?= INFY
@@ -16,6 +17,9 @@ BACKUP_DIR ?= backups
 setup:
 	$(UV) sync --dev
 
+setup-ui:
+	cd apps/web && $(PNPM) install
+
 dev-up:
 	$(COMPOSE) up -d --build
 
@@ -24,6 +28,15 @@ dev-down:
 
 api:
 	PYTHONPATH=packages:. $(UV) run uvicorn apps.api.main:app --host 0.0.0.0 --port 8000 --reload
+
+ui:
+	cd apps/web && $(PNPM) dev
+
+build-ui:
+	cd apps/web && $(PNPM) build
+
+test-ui:
+	cd apps/web && $(PNPM) test
 
 dashboard:
 	DATABASE_URL="$(DATABASE_URL)" STREAMLIT_BROWSER_GATHER_USAGE_STATS=false PYTHONPATH=packages:. $(UV) run streamlit run apps/dashboard/main.py --server.port 8501 --server.headless true --browser.gatherUsageStats false
@@ -103,4 +116,4 @@ test:
 	$(UV) run pytest
 
 lint:
-	$(UV) run python -m compileall apps packages tests
+	$(UV) run python -m compileall apps/__init__.py apps/api apps/dashboard packages scripts tests

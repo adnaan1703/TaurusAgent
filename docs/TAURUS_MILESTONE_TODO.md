@@ -7,7 +7,7 @@ Source of truth:
 - `docs/UPSTOX_INTEGRATION_PLAN.md` for deferred broker integration
 - `docs/TAURUS_REACT_DASHBOARD_PLAN.md` for M16 React dashboard work
 
-Last updated: 2026-05-21 17:15 IST
+Last updated: 2026-05-21 21:31 IST
 
 Status legend:
 
@@ -765,7 +765,7 @@ Submilestones:
 
 - [x] M16.1 Reference and planning assets.
 - [x] M16.2 Backend aggregate APIs.
-- [ ] M16.3 React app foundation.
+- [x] M16.3 React app foundation.
 - [ ] M16.4 Core observability screens.
 - [ ] M16.5 Verification and polish.
 
@@ -805,6 +805,30 @@ M16.2 completion summary:
 - Assumptions made: UI aggregate APIs may return presentation-oriented payloads that wrap existing raw artifact payloads without changing the raw endpoints. Audit rows are run-scoped and symbol-filtered when the audit payload has symbol information; run-level audit rows are included for symbol trails. Empty database behavior assumes migrations have created the tables.
 - Mocks created: Unit-test temporary SQLite databases, including completed paper runs, partial-failure runs, repeated-symbol run-scope checks, and migrated empty database state.
 - Mocks used: Deterministic mock market data, mock news provider, mock LLM analyst outputs, mock alert provider, internal PaperBroker, and SQLite verification database at `/private/tmp/taurus-m16-api-20260521.db`.
+
+M16.3 notes:
+
+- Added `apps/web` as a Vite React TypeScript app using `pnpm`.
+- Added Tailwind with Taurus/Stitch dark observability tokens and a responsive read-only app shell.
+- Added typed aggregate API client, React Router route skeletons, TanStack Query provider, and `VITE_TAURUS_API_BASE_URL` defaulting to `http://localhost:8000`.
+- Added shared primitives for later screens: status badge, metric card, data panel, table, JSON drawer, empty state, refresh button, loading/error states, and route error presentation.
+- Added initial Vitest/Testing Library tests for app shell, status badges, and empty states.
+- Added `make setup-ui`, `make ui`, `make build-ui`, and `make test-ui`.
+- Added project-local pnpm `allowBuilds.esbuild=true` so `make setup-ui` succeeds with pnpm 11 without broadening global settings.
+- Adjusted `make lint` to compile-check Python-owned paths only and avoid traversing `apps/web/node_modules`.
+- `make setup-ui` completed successfully after adding the local esbuild build allowlist.
+- `make test-ui` verified `11 passed`.
+- `make build-ui` produced a production Vite build.
+- `make ui` started Vite on `http://localhost:5173/`; `curl -sS -o /private/tmp/taurus-m16-ui-vite.html -w '%{http_code}' http://127.0.0.1:5173/` returned `200`; the dev server was stopped after verification.
+- `make test` verified `62 passed`.
+- `make lint` compile-checks passed.
+- Global Codex rules were inspected. There were no entries after `# END MY CUSTOM ADDITION`, so no Taurus-specific approvals needed to be moved.
+
+M16.3 completion summary:
+
+- Assumptions made: M16.3 uses the already documented stack and scope defaults: Vite + React + TypeScript, `pnpm`, Tailwind, TanStack Query, Recharts dependency, and read-only route shells only. `esbuild` is the only frontend dependency build script allowed because Vite requires it locally.
+- Mocks created: Frontend test overview, run, decision-trail, replay, risk, portfolio, and history payloads for app-shell and route-skeleton rendering.
+- Mocks used: Mocked browser `fetch` response in Vitest for `/ui/overview`; no backend fixture data was used for M16.3 frontend verification.
 
 ## Post-MVP Follow-Ups
 

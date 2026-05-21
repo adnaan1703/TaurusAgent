@@ -197,13 +197,29 @@ curl -sS -o /private/tmp/taurus-m16-ui-portfolio.json -w '%{http_code}' http://1
 pkill -f "uvicorn apps.api.main:app"
 ```
 
+## M16.3 Commands Used
+
+```bash
+make setup-ui
+make test-ui
+make build-ui
+make ui
+curl -sS -o /private/tmp/taurus-m16-ui-vite.html -w '%{http_code}' http://127.0.0.1:5173/
+make test
+make lint
+```
+
 ## Current Make Targets
 
 ```bash
 make setup
+make setup-ui
 make dev-up
 make dev-down
 make api
+make ui
+make build-ui
+make test-ui
 make migrate
 make seed-mock
 make backtest-mock
@@ -236,6 +252,10 @@ make lint
 
 ```bash
 make migrate
+make setup-ui
+make ui
+make build-ui
+make test-ui
 make seed-mock
 make backtest-mock
 make import-mock-news
@@ -335,11 +355,15 @@ Current Taurus allowlist prefixes:
 
 ```text
 prefix_rule(pattern=["make", "setup"], decision="allow")
+prefix_rule(pattern=["make", "setup-ui"], decision="allow")
 prefix_rule(pattern=["make", "test"], decision="allow")
 prefix_rule(pattern=["make", "lint"], decision="allow")
 prefix_rule(pattern=["make", "dev-up"], decision="allow")
 prefix_rule(pattern=["make", "dev-down"], decision="allow")
 prefix_rule(pattern=["make", "api"], decision="allow")
+prefix_rule(pattern=["make", "ui"], decision="allow")
+prefix_rule(pattern=["make", "build-ui"], decision="allow")
+prefix_rule(pattern=["make", "test-ui"], decision="allow")
 prefix_rule(pattern=["uv", "run"], decision="allow")
 prefix_rule(pattern=["graphify", "update", "."], decision="allow")
 prefix_rule(pattern=["make", "migrate"], decision="allow")
@@ -416,6 +440,7 @@ prefix_rule(pattern=["curl", "-sS", "-o", "/private/tmp/taurus-m16-ui-trail.json
 prefix_rule(pattern=["curl", "-sS", "-o", "/private/tmp/taurus-m16-ui-replay.json", "-w", "%{http_code}", "http://127.0.0.1:8000/ui/replay/dec-1d59184394a64b42"], decision="allow")
 prefix_rule(pattern=["curl", "-sS", "-o", "/private/tmp/taurus-m16-ui-risk.json", "-w", "%{http_code}", "http://127.0.0.1:8000/ui/risk"], decision="allow")
 prefix_rule(pattern=["curl", "-sS", "-o", "/private/tmp/taurus-m16-ui-portfolio.json", "-w", "%{http_code}", "http://127.0.0.1:8000/ui/portfolio"], decision="allow")
+prefix_rule(pattern=["curl", "-sS", "-o", "/private/tmp/taurus-m16-ui-vite.html", "-w", "%{http_code}", "http://127.0.0.1:5173/"], decision="allow")
 prefix_rule(pattern=["curl", "http://127.0.0.1:8000/paper/orders"], decision="allow")
 prefix_rule(pattern=["curl", "http://127.0.0.1:8000/paper/fills"], decision="allow")
 prefix_rule(pattern=["curl", "http://127.0.0.1:8000/paper/positions"], decision="allow")
