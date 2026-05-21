@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Taurus AI - Stock Decision Trail</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        "colors": {
+                "on-primary-fixed-variant": "#004c69",
+                "on-primary": "#00354a",
+                "primary": "#8ed5ff",
+                "surface-container-lowest": "#060e20",
+                "on-tertiary-fixed": "#0d1c2d",
+                "surface": "#0b1326",
+                "inverse-surface": "#dae2fd",
+                "on-surface": "#dae2fd",
+                "on-error-container": "#ffdad6",
+                "primary-fixed-dim": "#7bd0ff",
+                "outline-variant": "#3e484f",
+                "on-secondary": "#1000a9",
+                "tertiary": "#becee4",
+                "surface-container-low": "#131b2e",
+                "surface-container-high": "#222a3d",
+                "tertiary-fixed": "#d4e4fa",
+                "inverse-on-surface": "#283044",
+                "surface-tint": "#7bd0ff",
+                "on-tertiary-fixed-variant": "#39485a",
+                "surface-container-highest": "#2d3449",
+                "on-background": "#dae2fd",
+                "surface-bright": "#31394d",
+                "inverse-primary": "#00668a",
+                "error": "#ffb4ab",
+                "surface-variant": "#2d3449",
+                "secondary": "#c0c1ff",
+                "primary-fixed": "#c4e7ff",
+                "on-error": "#690005",
+                "background": "#0b1326",
+                "tertiary-fixed-dim": "#b9c8de",
+                "surface-container": "#171f33",
+                "primary-container": "#38bdf8",
+                "on-tertiary": "#233143",
+                "outline": "#87929a",
+                "on-surface-variant": "#bdc8d1",
+                "on-primary-fixed": "#001e2c",
+                "secondary-container": "#3131c0",
+                "error-container": "#93000a",
+                "on-tertiary-container": "#364557",
+                "secondary-fixed": "#e1e0ff",
+                "tertiary-container": "#a3b2c7",
+                "on-secondary-fixed": "#07006c",
+                "on-primary-container": "#004965",
+                "surface-dim": "#0b1326",
+                "secondary-fixed-dim": "#c0c1ff",
+                "on-secondary-fixed-variant": "#2f2ebe",
+                "on-secondary-container": "#b0b2ff",
+                "success": "#4ade80",
+                "failure": "#f87171",
+                "caution": "#fbbf24",
+                "running": "#60a5fa"
+        },
+        "borderRadius": {
+                "DEFAULT": "0.125rem",
+                "lg": "0.25rem",
+                "xl": "0.5rem",
+                "full": "0.75rem"
+        },
+        "spacing": {
+                "xl": "2rem",
+                "xxs": "0.25rem",
+                "gutter": "1.5rem",
+                "margin": "2rem",
+                "sm": "0.75rem",
+                "md": "1rem",
+                "xs": "0.5rem",
+                "lg": "1.5rem",
+                "base": "4px",
+                "container-max-width": "1440px"
+        },
+        "fontFamily": {
+                "label-md": ["Inter"],
+                "headline-lg": ["Inter"],
+                "body-md": ["Inter"],
+                "label-sm": ["Inter"],
+                "mono-data": ["monospace"],
+                "headline-lg-mobile": ["Inter"],
+                "body-lg": ["Inter"],
+                "headline-md": ["Inter"],
+                "label-mono": ["JetBrains Mono", "monospace"],
+                "headline-sm": ["Inter", "sans-serif"],
+                "body-sm": ["Inter", "sans-serif"]
+        },
+        "fontSize": {
+                "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.01em", "fontWeight": "500"}],
+                "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                "label-sm": ["11px", {"lineHeight": "14px", "letterSpacing": "0.03em", "fontWeight": "600"}],
+                "mono-data": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                "headline-lg-mobile": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                "headline-md": ["20px", {"lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                "headline-sm": ["16px", {"lineHeight": "24px", "fontWeight": "600"}],
+                "body-sm": ["12px", {"lineHeight": "16px", "fontWeight": "400"}],
+                "label-mono": ["12px", {"lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "500"}]
+        }
+      }
+    }
+  }
+</script>
+<style>
+        body {
+            background-color: #0b1326;
+            color: #dae2fd;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined.filled {
+            font-variation-settings: 'FILL' 1;
+        }
+        .timeline-line {
+            width: 2px;
+            background-color: #3e484f; /* outline-variant */
+            position: absolute;
+            left: 23px; /* Center of the 48px icon box */
+            top: 48px;
+            bottom: -16px;
+            z-index: 0;
+        }
+        .timeline-item:last-child .timeline-line {
+            display: none;
+        }
+        .log-panel {
+            background-color: #060e20; /* surface-container-lowest */
+            color: #dae2fd;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md min-h-screen flex flex-col md:flex-row antialiased overflow-x-hidden">
+<!-- SideNavBar (Hidden on Mobile) -->
+<nav class="hidden md:flex bg-surface-container text-primary font-body-sm text-body-sm h-screen w-64 fixed left-0 top-0 border-r border-outline-variant flex-col pt-20 pb-4 px-4 z-40 transition-transform duration-150">
+<div class="mb-8 px-4">
+<h2 class="font-headline-sm text-headline-sm font-semibold text-on-surface">System Status</h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-1">Live: Simulation Mode</p>
+<button class="mt-4 w-full flex items-center justify-center gap-2 bg-surface-container-lowest border border-outline-variant text-caution py-2 rounded font-label-mono uppercase tracking-wider hover:bg-surface-container-high transition-colors">
+<span class="material-symbols-outlined text-[16px]">lock</span>
+                Safety Toggle
+            </button>
+</div>
+<div class="flex flex-col gap-1 flex-1">
+<a class="flex items-center gap-3 px-4 py-3 rounded text-on-surface-variant hover:bg-surface-container-highest transition-all" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span>Overview</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded bg-secondary-container text-on-secondary-container font-semibold transition-all" href="#">
+<span class="material-symbols-outlined filled">play_circle</span>
+<span>Active Runs</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded text-on-surface-variant hover:bg-surface-container-highest transition-all" href="#">
+<span class="material-symbols-outlined">history</span>
+<span>History</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded text-on-surface-variant hover:bg-surface-container-highest transition-all" href="#">
+<span class="material-symbols-outlined">shield</span>
+<span>Risk Engine</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded text-on-surface-variant hover:bg-surface-container-highest transition-all" href="#">
+<span class="material-symbols-outlined">account_balance</span>
+<span>Portfolio</span>
+</a>
+</div>
+<div class="flex flex-col gap-1 mt-auto pt-4 border-t border-outline-variant">
+<a class="flex items-center gap-3 px-4 py-2 rounded text-on-surface-variant hover:bg-surface-container-highest transition-all" href="#">
+<span class="material-symbols-outlined text-[18px]">help</span>
+<span>Support</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-2 rounded text-on-surface-variant hover:bg-surface-container-highest transition-all" href="#">
+<span class="material-symbols-outlined text-[18px]">code</span>
+<span>API Docs</span>
+</a>
+</div>
+</nav>
+<!-- Main Content Area -->
+<div class="flex-1 flex flex-col md:ml-64 min-w-0 transition-all duration-300">
+<!-- TopNavBar -->
+<header class="bg-surface text-primary font-body-md text-body-md flex justify-between items-center px-margin py-xs w-full sticky top-0 z-50 border-b border-outline-variant flat no shadows">
+<div class="flex items-center gap-6">
+<div class="md:hidden flex items-center">
+<button class="p-2 text-on-surface-variant"><span class="material-symbols-outlined">menu</span></button>
+</div>
+<div class="font-headline-md text-headline-md font-bold text-primary tracking-tight">
+                    Taurus AI
+                </div>
+</div>
+<div class="hidden md:flex items-center border border-outline-variant rounded bg-surface-container-lowest px-3 py-1 w-64">
+<span class="material-symbols-outlined text-outline-variant text-[18px] mr-2">search</span>
+<input class="bg-transparent border-none focus:ring-0 text-body-sm w-full p-0 text-on-surface" placeholder="Search logs, symbols..." type="text"/>
+</div>
+<div class="flex items-center gap-4">
+<button class="hidden md:flex items-center gap-2 bg-primary text-on-primary px-4 py-2 rounded font-label-mono uppercase hover:opacity-90 transition-opacity">
+<span class="material-symbols-outlined text-[16px]">play_arrow</span>
+                    Run Agent
+                </button>
+<div class="flex items-center gap-2 text-on-surface-variant">
+<button class="p-2 hover:text-primary transition-colors cursor-pointer active:opacity-80"><span class="material-symbols-outlined">notifications</span></button>
+<button class="p-2 hover:text-primary transition-colors cursor-pointer active:opacity-80"><span class="material-symbols-outlined">account_balance_wallet</span></button>
+<button class="p-2 hover:text-primary transition-colors cursor-pointer active:opacity-80"><span class="material-symbols-outlined">settings</span></button>
+</div>
+</div>
+</header>
+<!-- Page Header -->
+<div class="px-margin py-6 border-b border-outline-variant bg-surface-container-lowest">
+<div class="max-w-container-max-width mx-auto">
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+<div>
+<div class="flex items-center gap-3 mb-2">
+<span class="font-label-mono text-label-mono text-on-surface-variant uppercase bg-surface-container px-2 py-1 rounded">Run pr-20231027-01</span>
+<span class="font-headline-md text-headline-md text-primary font-bold">INFY</span>
+</div>
+<h1 class="font-headline-lg text-headline-lg text-on-surface font-semibold">Decision Trail</h1>
+</div>
+<div class="flex items-center gap-3">
+<div class="bg-surface-container border border-outline-variant rounded px-4 py-2 flex items-center gap-2">
+<span class="font-label-mono text-label-mono text-on-surface-variant uppercase">Final Decision:</span>
+<span class="font-label-mono text-label-mono text-success uppercase font-bold flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">check_circle</span>
+                                APPROVED_FOR_PAPER
+                            </span>
+</div>
+<button class="bg-surface text-on-surface border border-outline-variant px-3 py-2 rounded hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined">download</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Content Canvas -->
+<main class="flex-1 bg-background p-margin overflow-y-auto">
+<div class="max-w-container-max-width mx-auto">
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+<!-- Left Column: The Timeline (Stitched View) -->
+<div class="lg:col-span-5 xl:col-span-4 flex flex-col gap-0 relative">
+<!-- Timeline Item 1: Inputs -->
+<div class="timeline-item relative pl-16 py-4 cursor-pointer group" onclick="showDetail('inputs')">
+<div class="timeline-line"></div>
+<div class="absolute left-0 top-4 w-12 h-12 rounded bg-surface border border-outline-variant flex items-center justify-center z-10 group-hover:border-primary transition-colors shadow-sm">
+<span class="material-symbols-outlined text-outline">login</span>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant rounded p-4 group-hover:shadow-[0_4px_12px_rgba(0,0,0,0.5)] transition-all">
+<div class="flex justify-between items-start mb-2">
+<h3 class="font-headline-sm text-headline-sm text-on-surface font-semibold">Data Ingestion</h3>
+<span class="font-label-mono text-label-mono text-on-surface-variant">10:00:05</span>
+</div>
+<div class="flex flex-wrap gap-2 mt-2">
+<span class="bg-surface-container px-2 py-1 rounded font-label-mono text-label-mono text-on-surface">Price: ₹1,450.25</span>
+<span class="bg-surface-container px-2 py-1 rounded font-label-mono text-label-mono text-on-surface">2 News Events</span>
+</div>
+</div>
+</div>
+<!-- Timeline Item 2: Analyst Reports -->
+<div class="timeline-item relative pl-16 py-4 cursor-pointer group" onclick="showDetail('analysts')">
+<div class="timeline-line"></div>
+<div class="absolute left-0 top-4 w-12 h-12 rounded bg-surface border border-outline-variant flex items-center justify-center z-10 group-hover:border-primary transition-colors shadow-sm">
+<span class="material-symbols-outlined text-outline">analytics</span>
+</div>
+<div class="bg-surface border-2 border-primary rounded p-4 shadow-[0_4px_12px_rgba(0,0,0,0.5)] relative overflow-hidden">
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-primary"></div>
+<div class="flex justify-between items-start mb-2">
+<h3 class="font-headline-sm text-headline-sm text-on-surface font-semibold">Analyst Reports</h3>
+<span class="font-label-mono text-label-mono text-on-surface-variant">10:00:12</span>
+</div>
+<div class="flex flex-col gap-2 mt-2">
+<div class="flex justify-between items-center bg-surface-container-lowest border border-outline-variant rounded px-3 py-2">
+<span class="font-body-sm text-body-sm text-on-surface-variant">Tech Analyst</span>
+<span class="font-label-mono text-label-mono text-success uppercase">Bullish (0.8)</span>
+</div>
+<div class="flex justify-between items-center bg-surface-container-lowest border border-outline-variant rounded px-3 py-2">
+<span class="font-body-sm text-body-sm text-on-surface-variant">Sentiment Analyst</span>
+<span class="font-label-mono text-label-mono text-caution uppercase">Neutral (0.5)</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Timeline Item 3: Debate -->
+<div class="timeline-item relative pl-16 py-4 cursor-pointer group" onclick="showDetail('debate')">
+<div class="timeline-line"></div>
+<div class="absolute left-0 top-4 w-12 h-12 rounded bg-surface border border-outline-variant flex items-center justify-center z-10 group-hover:border-primary transition-colors shadow-sm">
+<span class="material-symbols-outlined text-outline">forum</span>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant rounded p-4 group-hover:shadow-[0_4px_12px_rgba(0,0,0,0.5)] transition-all">
+<div class="flex justify-between items-start mb-2">
+<h3 class="font-headline-sm text-headline-sm text-on-surface font-semibold">Manager Synthesis</h3>
+<span class="font-label-mono text-label-mono text-on-surface-variant">10:00:18</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant mb-2">Strong momentum vs sector headwinds</p>
+<div class="inline-block bg-surface-container px-2 py-1 rounded font-label-mono text-label-mono text-on-surface">Consensus: BULLISH</div>
+</div>
+</div>
+<!-- Timeline Item 4: Trader Proposal -->
+<div class="timeline-item relative pl-16 py-4 cursor-pointer group" onclick="showDetail('trader')">
+<div class="timeline-line"></div>
+<div class="absolute left-0 top-4 w-12 h-12 rounded bg-surface border border-outline-variant flex items-center justify-center z-10 group-hover:border-primary transition-colors shadow-sm">
+<span class="material-symbols-outlined text-outline">request_quote</span>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant rounded p-4 group-hover:shadow-[0_4px_12px_rgba(0,0,0,0.5)] transition-all">
+<div class="flex justify-between items-start mb-2">
+<h3 class="font-headline-sm text-headline-sm text-on-surface font-semibold">Trader Proposal</h3>
+<span class="font-label-mono text-label-mono text-on-surface-variant">10:00:22</span>
+</div>
+<div class="flex items-center gap-3">
+<span class="bg-running text-on-primary-fixed px-2 py-1 rounded font-label-mono text-label-mono uppercase font-bold">BUY</span>
+<span class="font-label-mono text-label-mono text-on-surface">5% NAV</span>
+<span class="font-label-mono text-label-mono text-failure border border-failure/30 px-1 rounded">SL: -2%</span>
+</div>
+</div>
+</div>
+<!-- Timeline Item 5: Risk Review -->
+<div class="timeline-item relative pl-16 py-4 cursor-pointer group" onclick="showDetail('risk')">
+<div class="timeline-line"></div>
+<div class="absolute left-0 top-4 w-12 h-12 rounded bg-surface border border-outline-variant flex items-center justify-center z-10 group-hover:border-primary transition-colors shadow-sm">
+<span class="material-symbols-outlined text-outline">policy</span>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant rounded p-4 group-hover:shadow-[0_4px_12px_rgba(0,0,0,0.5)] transition-all">
+<div class="flex justify-between items-start mb-2">
+<h3 class="font-headline-sm text-headline-sm text-on-surface font-semibold">Risk Review</h3>
+<span class="font-label-mono text-label-mono text-on-surface-variant">10:00:25</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-success text-[16px]">check</span>
+<span class="font-body-sm text-body-sm text-on-surface">Hard Rules: Passed</span>
+</div>
+</div>
+</div>
+<!-- Timeline Item 6: Final Decision -->
+<div class="timeline-item relative pl-16 py-4 cursor-pointer group" onclick="showDetail('decision')">
+<div class="timeline-line"></div>
+<div class="absolute left-0 top-4 w-12 h-12 rounded bg-surface border border-outline-variant flex items-center justify-center z-10 group-hover:border-primary transition-colors shadow-sm">
+<span class="material-symbols-outlined text-outline">gavel</span>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant rounded p-4 group-hover:shadow-[0_4px_12px_rgba(0,0,0,0.5)] transition-all">
+<div class="flex justify-between items-start mb-2">
+<h3 class="font-headline-sm text-headline-sm text-on-surface font-semibold">Final Decision</h3>
+<span class="font-label-mono text-label-mono text-on-surface-variant">10:00:26</span>
+</div>
+<div class="flex items-center gap-3">
+<span class="font-label-mono text-label-mono text-on-surface font-bold">Action: BUY</span>
+<span class="font-label-mono text-label-mono text-on-surface-variant">Qty: 34</span>
+</div>
+</div>
+</div>
+<!-- Timeline Item 7: Execution -->
+<div class="timeline-item relative pl-16 py-4 cursor-pointer group" onclick="showDetail('execution')">
+<div class="timeline-line"></div>
+<div class="absolute left-0 top-4 w-12 h-12 rounded bg-surface border border-outline-variant flex items-center justify-center z-10 group-hover:border-primary transition-colors shadow-sm">
+<span class="material-symbols-outlined text-outline">receipt_long</span>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant rounded p-4 group-hover:shadow-[0_4px_12px_rgba(0,0,0,0.5)] transition-all">
+<div class="flex justify-between items-start mb-2">
+<h3 class="font-headline-sm text-headline-sm text-on-surface font-semibold">Paper Execution</h3>
+<span class="font-label-mono text-label-mono text-on-surface-variant">10:00:28</span>
+</div>
+<div class="flex flex-col gap-1">
+<div class="flex items-center gap-2">
+<span class="bg-success text-on-primary-fixed px-2 py-0.5 rounded font-label-mono text-label-mono uppercase text-[10px] font-bold">FILLED</span>
+<span class="font-label-mono text-label-mono text-on-surface">@ ₹1,452.10</span>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Slippage: 2bps</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Right Column: Detail Panel (Active state corresponding to clicked item) -->
+<div class="lg:col-span-7 xl:col-span-8 sticky top-24 h-[calc(100vh-8rem)] flex flex-col gap-4">
+<!-- Detail Card for 'Analyst Reports' -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded shadow-sm flex flex-col h-full overflow-hidden">
+<!-- Header -->
+<div class="bg-surface-container px-6 py-4 border-b border-outline-variant flex justify-between items-center">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary">analytics</span>
+<h2 class="font-headline-md text-headline-md text-on-surface font-semibold">Analyst Reports Detail</h2>
+</div>
+<span class="font-label-mono text-label-mono text-on-surface-variant bg-surface px-2 py-1 rounded border border-outline-variant">Agent: Multi-Modal</span>
+</div>
+<!-- Scrollable Content -->
+<div class="p-6 flex-1 overflow-y-auto flex flex-col gap-6">
+<!-- Tech Analyst Block -->
+<div class="border border-outline-variant rounded bg-surface">
+<div class="px-4 py-3 bg-surface-container-low border-b border-outline-variant flex justify-between items-center">
+<h3 class="font-headline-sm text-headline-sm text-on-surface">Technical Analyst</h3>
+<div class="flex items-center gap-2">
+<span class="font-label-mono text-label-mono text-on-surface-variant">Score:</span>
+<div class="w-16 h-2 bg-surface-variant rounded-full overflow-hidden">
+<div class="h-full bg-success" style="width: 80%;"></div>
+</div>
+<span class="font-label-mono text-label-mono font-bold text-success">0.8</span>
+</div>
+</div>
+<div class="p-4 flex flex-col gap-4">
+<div>
+<h4 class="font-label-mono text-label-mono text-on-surface-variant uppercase mb-2">Key Points</h4>
+<ul class="list-disc list-inside font-body-sm text-body-sm text-on-surface space-y-1">
+<li>Price broke above 50-day SMA at ₹1445.</li>
+<li>MACD showing bullish crossover on daily chart.</li>
+<li>Volume preceding breakout was 1.5x average.</li>
+</ul>
+</div>
+<div>
+<h4 class="font-label-mono text-label-mono text-on-surface-variant uppercase mb-2">Risks</h4>
+<p class="font-body-sm text-body-sm text-on-surface">RSI approaching overbought territory (68).</p>
+</div>
+</div>
+</div>
+<!-- Sentiment Analyst Block -->
+<div class="border border-outline-variant rounded bg-surface">
+<div class="px-4 py-3 bg-surface-container-low border-b border-outline-variant flex justify-between items-center">
+<h3 class="font-headline-sm text-headline-sm text-on-surface">Sentiment Analyst</h3>
+<div class="flex items-center gap-2">
+<span class="font-label-mono text-label-mono text-on-surface-variant">Score:</span>
+<div class="w-16 h-2 bg-surface-variant rounded-full overflow-hidden">
+<div class="h-full bg-caution" style="width: 50%;"></div>
+</div>
+<span class="font-label-mono text-label-mono font-bold text-caution">0.5</span>
+</div>
+</div>
+<div class="p-4 flex flex-col gap-4">
+<div>
+<h4 class="font-label-mono text-label-mono text-on-surface-variant uppercase mb-2">Synthesis</h4>
+<p class="font-body-sm text-body-sm text-on-surface">News flow is mixed. Recent contract win offset by margin concerns highlighted in broker report. Social sentiment neutral.</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Raw Artifact Footer -->
+<div class="log-panel p-4 font-label-mono text-label-mono text-sm overflow-x-auto border-t border-outline-variant">
+<div class="flex justify-between items-center mb-2 text-on-surface-variant">
+<span>Raw JSON Artifact</span>
+<button class="hover:text-white"><span class="material-symbols-outlined text-[16px]">content_copy</span></button>
+</div>
+<pre class="text-primary">{
+  "stage": "analyst_evaluation",
+  "symbol": "INFY",
+  "timestamp": "2023-10-27T10:00:12Z",
+  "reports": [
+    { "type": "technical", "stance": "bullish", "score": 0.8 },
+    { "type": "sentiment", "stance": "neutral", "score": 0.5 }
+  ]
+}</pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+<script>
+        function showDetail(stage) {
+            // In a real app, this would update the right panel content based on the clicked stage.
+            // For this static demo, we visually highlight the clicked item.
+            console.log("Showing detail for:", stage);
+        }
+    </script>
+</body></html>

@@ -7,7 +7,7 @@ Source of truth:
 - `docs/UPSTOX_INTEGRATION_PLAN.md` for deferred broker integration
 - `docs/TAURUS_REACT_DASHBOARD_PLAN.md` for M16 React dashboard work
 
-Last updated: 2026-05-21 16:23 IST
+Last updated: 2026-05-21 17:15 IST
 
 Status legend:
 
@@ -41,7 +41,7 @@ Milestone completion reporting:
 | M13 | Done | Paper-trading MVP release | Optional real CSV/data source skipped; mock data used | No |
 | M14 | Deferred | Upstox sandbox adapter | Sandbox token required | Yes |
 | M15 | Deferred | Upstox production readiness | Broker/compliance approval required | Yes |
-| M16 | Not started | React run-loop observability dashboard | No | No |
+| M16 | In progress | React run-loop observability dashboard | No | No |
 
 ## M0 - Project Foundation
 
@@ -748,7 +748,7 @@ Notes:
 
 ## M16 - React Run-Loop Observability Dashboard
 
-Status: Not started
+Status: In progress
 
 Objective: Build a read-only React web app that makes each Taurus paper run understandable as a stitched flow from run to symbol to decision trail to paper execution.
 
@@ -757,10 +757,14 @@ Detailed plan:
 - `docs/TAURUS_REACT_DASHBOARD_PLAN.md`
 - Stitch metadata and download URLs: `docs/stitch/paper-trade-event-monitor/STITCH_MANIFEST.md`
 
+Operating rule:
+
+- Treat each M16 submilestone like a main milestone. Complete its checklist, acceptance criteria, verification, cleanup, command-approval hygiene, tracker updates, and completion summary; then stop and report the result to the user. Do not automatically start the next M16 submilestone unless the user explicitly asks to proceed.
+
 Submilestones:
 
-- [ ] M16.1 Reference and planning assets.
-- [ ] M16.2 Backend aggregate APIs.
+- [x] M16.1 Reference and planning assets.
+- [x] M16.2 Backend aggregate APIs.
 - [ ] M16.3 React app foundation.
 - [ ] M16.4 Core observability screens.
 - [ ] M16.5 Verification and polish.
@@ -772,6 +776,35 @@ Acceptance:
 - [ ] Risk gates, missing artifacts, final decisions, paper orders, and fills are visually connected.
 - [ ] Streamlit remains available as a fallback diagnostic dashboard.
 - [ ] No live-trading or broker-control capability is introduced.
+
+Notes:
+
+- M16.1 downloaded 7 Stitch reference screenshots and 7 generated HTML files under `docs/stitch/paper-trade-event-monitor/assets/`.
+- `docs/stitch/paper-trade-event-monitor/README.md` now documents the Stitch project ID, design-system asset ID, screen IDs, local filenames, visual tokens, Taurus route mapping, and read-only scope rule.
+- The generated Stitch HTML is documented as reference-only and must not be ported directly into React production components.
+
+M16.1 completion summary:
+
+- Assumptions made: The downloaded Stitch assets are reference material only; production React implementation will use clean components and real FastAPI aggregate data. V1 remains read-only even if visual references imply run-control actions.
+- Mocks created: None
+- Mocks used: None
+
+M16.2 notes:
+
+- Added read-only aggregate UI endpoints under `/ui`: overview, run detail, symbol decision trail, replay, risk, portfolio, and history.
+- Added local Vite CORS origins only: `http://localhost:5173` and `http://127.0.0.1:5173`.
+- Added run-scoped repository filters for UI joins and audit-row lookup without changing existing raw endpoints.
+- Added `tests/unit/test_ui_aggregate_api.py` for completed runs, partial failures, unknown IDs, run scoping, empty migrated database state, and CORS.
+- Verified `62 passed` and compile-check lint passed.
+- `DATABASE_URL=sqlite:////private/tmp/taurus-m16-api-20260521.db make paper-loop-mock` produced `run_id=pr-75fdbb0381152d57`, `decision_id=dec-1d59184394a64b42`, final status `APPROVED_FOR_PAPER`, and order status `FILLED`.
+- API smoke checks returned `200` for `/ui/overview`, `/ui/history`, `/ui/runs/pr-75fdbb0381152d57`, `/ui/runs/pr-75fdbb0381152d57/symbols/INFY/decision-trail`, `/ui/replay/dec-1d59184394a64b42`, `/ui/risk`, and `/ui/portfolio`.
+- Global Codex approvals added during verification were copied into `.codex/rules/default.rules`, documented in `docs/TAURUS_COMMANDS.md`, and removed from `/Users/adnaan/.codex/rules/default.rules` after the user's marker.
+
+M16.2 completion summary:
+
+- Assumptions made: UI aggregate APIs may return presentation-oriented payloads that wrap existing raw artifact payloads without changing the raw endpoints. Audit rows are run-scoped and symbol-filtered when the audit payload has symbol information; run-level audit rows are included for symbol trails. Empty database behavior assumes migrations have created the tables.
+- Mocks created: Unit-test temporary SQLite databases, including completed paper runs, partial-failure runs, repeated-symbol run-scope checks, and migrated empty database state.
+- Mocks used: Deterministic mock market data, mock news provider, mock LLM analyst outputs, mock alert provider, internal PaperBroker, and SQLite verification database at `/private/tmp/taurus-m16-api-20260521.db`.
 
 ## Post-MVP Follow-Ups
 

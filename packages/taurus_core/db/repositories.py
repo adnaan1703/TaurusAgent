@@ -638,6 +638,7 @@ class ResearchRepository:
     def list_trader_proposals(
         self,
         *,
+        run_id: str | None = None,
         symbol: str | None = None,
         limit: int | None = 100,
     ) -> list[TraderProposalModel]:
@@ -645,11 +646,30 @@ class ResearchRepository:
             TraderProposalModel.as_of.desc(),
             TraderProposalModel.proposal_id,
         )
+        if run_id is not None:
+            statement = statement.where(TraderProposalModel.run_id == run_id)
         if symbol is not None:
             statement = statement.where(TraderProposalModel.symbol == symbol.upper())
         if limit is not None:
             statement = statement.limit(limit)
         return list(self.session.scalars(statement))
+
+    def latest_trader_proposal(
+        self,
+        *,
+        run_id: str,
+        symbol: str,
+    ) -> TraderProposalModel | None:
+        statement = (
+            select(TraderProposalModel)
+            .where(
+                TraderProposalModel.run_id == run_id,
+                TraderProposalModel.symbol == symbol.upper(),
+            )
+            .order_by(TraderProposalModel.as_of.desc(), TraderProposalModel.created_at.desc())
+            .limit(1)
+        )
+        return self.session.scalar(statement)
 
 
 class RiskRepository:
@@ -739,6 +759,7 @@ class RiskRepository:
     def list_risk_reviews(
         self,
         *,
+        run_id: str | None = None,
         symbol: str | None = None,
         limit: int | None = 100,
     ) -> list[RiskReviewModel]:
@@ -746,6 +767,8 @@ class RiskRepository:
             RiskReviewModel.as_of.desc(),
             RiskReviewModel.risk_check_id,
         )
+        if run_id is not None:
+            statement = statement.where(RiskReviewModel.run_id == run_id)
         if symbol is not None:
             statement = statement.where(RiskReviewModel.symbol == symbol.upper())
         if limit is not None:
@@ -755,6 +778,7 @@ class RiskRepository:
     def list_final_decisions(
         self,
         *,
+        run_id: str | None = None,
         symbol: str | None = None,
         limit: int | None = 100,
     ) -> list[FinalDecisionModel]:
@@ -762,6 +786,8 @@ class RiskRepository:
             FinalDecisionModel.as_of.desc(),
             FinalDecisionModel.final_decision_id,
         )
+        if run_id is not None:
+            statement = statement.where(FinalDecisionModel.run_id == run_id)
         if symbol is not None:
             statement = statement.where(FinalDecisionModel.symbol == symbol.upper())
         if limit is not None:
@@ -933,15 +959,24 @@ class ExecutionRepository:
     def list_orders(
         self,
         *,
+        run_id: str | None = None,
         symbol: str | None = None,
+        decision_id: str | None = None,
+        final_decision_id: str | None = None,
         limit: int | None = 100,
     ) -> list[PaperOrderModel]:
         statement = select(PaperOrderModel).order_by(
             PaperOrderModel.submitted_at.desc(),
             PaperOrderModel.order_id,
         )
+        if run_id is not None:
+            statement = statement.where(PaperOrderModel.run_id == run_id)
         if symbol is not None:
             statement = statement.where(PaperOrderModel.symbol == symbol.upper())
+        if decision_id is not None:
+            statement = statement.where(PaperOrderModel.decision_id == decision_id)
+        if final_decision_id is not None:
+            statement = statement.where(PaperOrderModel.final_decision_id == final_decision_id)
         if limit is not None:
             statement = statement.limit(limit)
         return list(self.session.scalars(statement))
@@ -949,15 +984,24 @@ class ExecutionRepository:
     def list_fills(
         self,
         *,
+        run_id: str | None = None,
         symbol: str | None = None,
+        order_id: str | None = None,
+        final_decision_id: str | None = None,
         limit: int | None = 100,
     ) -> list[PaperFillModel]:
         statement = select(PaperFillModel).order_by(
             PaperFillModel.filled_at.desc(),
             PaperFillModel.fill_sequence,
         )
+        if run_id is not None:
+            statement = statement.where(PaperFillModel.run_id == run_id)
         if symbol is not None:
             statement = statement.where(PaperFillModel.symbol == symbol.upper())
+        if order_id is not None:
+            statement = statement.where(PaperFillModel.order_id == order_id)
+        if final_decision_id is not None:
+            statement = statement.where(PaperFillModel.final_decision_id == final_decision_id)
         if limit is not None:
             statement = statement.limit(limit)
         return list(self.session.scalars(statement))
@@ -965,9 +1009,12 @@ class ExecutionRepository:
     def list_positions(
         self,
         *,
+        run_id: str | None = None,
         symbol: str | None = None,
     ) -> list[PaperPositionModel]:
         statement = select(PaperPositionModel).order_by(PaperPositionModel.symbol)
+        if run_id is not None:
+            statement = statement.where(PaperPositionModel.run_id == run_id)
         if symbol is not None:
             statement = statement.where(PaperPositionModel.symbol == symbol.upper())
         return list(self.session.scalars(statement))
@@ -980,6 +1027,63 @@ class ExecutionRepository:
         if run_id is not None:
             statement = statement.where(PaperAccountModel.run_id == run_id)
         return self.session.scalar(statement.limit(1))
+
+
+class AuditLogRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def list_for_run_symbol(
+        self,
+        *,
+        run_id: str,
+        symbol: str,
+        limit: int | None = 100,
+    ) -> list[AuditLogModel]:
+        normalized_symbol = symbol.upper()
+        statement = (
+            select(AuditLogModel)
+            .where(AuditLogModel.payload["run_id"].as_string() == run_id)
+            .order_by(AuditLogModel.created_at, AuditLogModel.id)
+        )
+        rows = list(self.session.scalars(statement))
+        filtered = [
+            row
+            for row in rows
+            if _audit_payload_matches_symbol(row.payload, normalized_symbol)
+        ]
+        return filtered[:limit] if limit is not None else filtered
+
+    def list_for_decision(
+        self,
+        *,
+        decision_id: str,
+        run_id: str | None = None,
+        symbol: str | None = None,
+        limit: int | None = 100,
+    ) -> list[AuditLogModel]:
+        filters = [AuditLogModel.payload["decision_id"].as_string() == decision_id]
+        if run_id is not None:
+            filters.append(AuditLogModel.payload["run_id"].as_string() == run_id)
+        if symbol is not None:
+            filters.append(AuditLogModel.payload["symbol"].as_string() == symbol.upper())
+        statement = select(AuditLogModel).where(*filters).order_by(
+            AuditLogModel.created_at,
+            AuditLogModel.id,
+        )
+        if limit is not None:
+            statement = statement.limit(limit)
+        return list(self.session.scalars(statement))
+
+
+def _audit_payload_matches_symbol(payload: dict[str, object], symbol: str) -> bool:
+    payload_symbol = payload.get("symbol")
+    if payload_symbol is not None:
+        return str(payload_symbol).upper() == symbol
+    payload_symbols = payload.get("symbols")
+    if isinstance(payload_symbols, list):
+        return symbol in {str(item).upper() for item in payload_symbols}
+    return True
 
 
 def _delete_paper_artifacts_for_run_symbol(

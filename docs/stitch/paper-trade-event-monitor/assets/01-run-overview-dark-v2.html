@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Taurus AI - Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        "colors": {
+                "error-container": "#93000a",
+                "background": "#0b1326",
+                "inverse-on-surface": "#283044",
+                "surface-tint": "#7bd0ff",
+                "primary-fixed-dim": "#7bd0ff",
+                "on-tertiary-container": "#364557",
+                "on-secondary-fixed-variant": "#2f2ebe",
+                "surface-container-low": "#131b2e",
+                "primary-container": "#38bdf8",
+                "primary-fixed": "#c4e7ff",
+                "tertiary-fixed-dim": "#b9c8de",
+                "surface-container-highest": "#2d3449",
+                "on-primary": "#00354a",
+                "tertiary-container": "#a3b2c7",
+                "surface-container-lowest": "#060e20",
+                "on-surface": "#dae2fd",
+                "on-secondary": "#1000a9",
+                "surface": "#0b1326",
+                "outline": "#87929a",
+                "on-error-container": "#ffdad6",
+                "secondary-fixed-dim": "#c0c1ff",
+                "outline-variant": "#3e484f",
+                "tertiary": "#becee4",
+                "on-primary-fixed": "#001e2c",
+                "on-tertiary-fixed-variant": "#39485a",
+                "on-primary-container": "#004965",
+                "surface-dim": "#0b1326",
+                "surface-container": "#171f33",
+                "on-tertiary-fixed": "#0d1c2d",
+                "surface-variant": "#2d3449",
+                "surface-bright": "#31394d",
+                "secondary": "#c0c1ff",
+                "on-primary-fixed-variant": "#004c69",
+                "on-background": "#dae2fd",
+                "on-error": "#690005",
+                "error": "#ffb4ab",
+                "secondary-fixed": "#e1e0ff",
+                "inverse-primary": "#00668a",
+                "on-tertiary": "#233143",
+                "on-secondary-container": "#b0b2ff",
+                "on-surface-variant": "#bdc8d1",
+                "secondary-container": "#3131c0",
+                "inverse-surface": "#dae2fd",
+                "surface-container-high": "#222a3d",
+                "primary": "#8ed5ff",
+                "tertiary-fixed": "#d4e4fa",
+                "on-secondary-fixed": "#07006c",
+                "success": "#4ade80",
+                "failure": "#f87171",
+                "caution": "#fbbf24",
+                "running": "#60a5fa",
+                "equity-blue": "#94a3b8"
+        },
+        "borderRadius": {
+                "DEFAULT": "0.125rem",
+                "lg": "0.25rem",
+                "xl": "0.5rem",
+                "full": "0.75rem"
+        },
+        "spacing": {
+                "xxs": "0.25rem",
+                "margin": "2rem",
+                "md": "1rem",
+                "base": "4px",
+                "xs": "0.5rem",
+                "lg": "1.5rem",
+                "gutter": "1.5rem",
+                "xl": "2rem",
+                "sm": "0.75rem",
+                "container-max-width": "1440px"
+        },
+        "fontFamily": {
+                "label-sm": ["Inter"],
+                "headline-md": ["Inter"],
+                "body-lg": ["Inter"],
+                "mono-data": ["monospace"],
+                "headline-lg": ["Inter"],
+                "body-md": ["Inter"],
+                "label-md": ["Inter"],
+                "headline-lg-mobile": ["Inter"],
+                "metric-xl": ["Inter"],
+                "headline-sm": ["Inter"],
+                "body-sm": ["Inter"],
+                "label-mono": ["JetBrains Mono"]
+        },
+        "fontSize": {
+                "label-sm": ["11px", {"lineHeight": "14px", "letterSpacing": "0.03em", "fontWeight": "600"}],
+                "headline-md": ["20px", {"lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                "mono-data": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.01em", "fontWeight": "500"}],
+                "headline-lg-mobile": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                "metric-xl": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.04em", "fontWeight": "700"}],
+                "headline-sm": ["16px", {"lineHeight": "24px", "fontWeight": "600"}],
+                "body-sm": ["12px", {"lineHeight": "16px", "fontWeight": "400"}],
+                "label-mono": ["12px", {"lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "500"}]
+        }
+      }
+    }
+  }
+</script>
+<style>
+        body { background-color: #0b1326; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .card { background-color: #131b2e; border: 1px solid #3e484f; border-radius: 0.25rem; }
+        .card-header-bg { background-color: #171f33; }
+        .nav-active { background-color: #38bdf8; color: #00354a; border-radius: 0.5rem; font-weight: 600; }
+        .nav-inactive { color: #bdc8d1; }
+        .nav-inactive:hover { background-color: #2d3449; }
+        .sidebar-hover:hover { background-color: #2d3449; transition: all 150ms; }
+    </style>
+</head>
+<body class="font-body-md text-body-md text-on-surface flex flex-col md:flex-row h-screen overflow-hidden">
+<!-- TopNavBar (Web) -->
+<header class="md:hidden flex justify-between items-center px-margin py-base w-full sticky top-0 z-50 bg-surface border-b border-outline-variant">
+<div class="font-headline-md text-headline-md font-bold text-primary">Taurus AI</div>
+<div class="flex gap-4">
+<button class="text-on-surface-variant hover:text-primary transition-colors cursor-pointer active:opacity-80"><span class="material-symbols-outlined">notifications</span></button>
+<button class="text-on-surface-variant hover:text-primary transition-colors cursor-pointer active:opacity-80"><span class="material-symbols-outlined">account_balance_wallet</span></button>
+<button class="text-on-surface-variant hover:text-primary transition-colors cursor-pointer active:opacity-80"><span class="material-symbols-outlined">settings</span></button>
+</div>
+</header>
+<!-- SideNavBar (Desktop) -->
+<nav class="hidden md:flex flex-col h-screen w-64 fixed left-0 top-0 bg-surface-container-low border-r border-outline-variant pt-20 pb-4 px-4 z-40">
+<div class="mb-8 px-4">
+<h1 class="font-headline-md text-headline-md font-bold text-primary mb-2">Taurus AI</h1>
+<div class="font-headline-sm text-headline-sm font-semibold text-on-surface">System Status</div>
+<div class="font-body-sm text-body-sm text-on-surface-variant flex items-center gap-1 mt-1">
+<span class="w-2 h-2 rounded-full bg-running inline-block"></span> Live: Simulation Mode
+            </div>
+<button class="mt-4 w-full bg-primary text-on-primary font-body-sm text-body-sm py-2 rounded flex items-center justify-center gap-2 hover:opacity-90">
+<span class="material-symbols-outlined text-[16px]" style="font-variation-settings: 'FILL' 1;">lock</span> Safety Toggle
+            </button>
+</div>
+<div class="flex flex-col gap-2 flex-grow">
+<a class="nav-active flex items-center gap-3 px-4 py-3 sidebar-hover cursor-pointer active:opacity-80 scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-body-sm text-body-sm">Overview</span>
+</a>
+<a class="nav-inactive flex items-center gap-3 px-4 py-3 sidebar-hover cursor-pointer active:opacity-80 rounded-lg scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined">play_circle</span>
+<span class="font-body-sm text-body-sm">Active Runs</span>
+</a>
+<a class="nav-inactive flex items-center gap-3 px-4 py-3 sidebar-hover cursor-pointer active:opacity-80 rounded-lg scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined">history</span>
+<span class="font-body-sm text-body-sm">History</span>
+</a>
+<a class="nav-inactive flex items-center gap-3 px-4 py-3 sidebar-hover cursor-pointer active:opacity-80 rounded-lg scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined">shield</span>
+<span class="font-body-sm text-body-sm">Risk Engine</span>
+</a>
+<a class="nav-inactive flex items-center gap-3 px-4 py-3 sidebar-hover cursor-pointer active:opacity-80 rounded-lg scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined">account_balance</span>
+<span class="font-body-sm text-body-sm">Portfolio</span>
+</a>
+</div>
+<div class="flex flex-col gap-2 mt-auto pt-4 border-t border-outline-variant">
+<a class="nav-inactive flex items-center gap-3 px-4 py-2 sidebar-hover cursor-pointer active:opacity-80 rounded-lg scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined">help</span>
+<span class="font-body-sm text-body-sm">Support</span>
+</a>
+<a class="nav-inactive flex items-center gap-3 px-4 py-2 sidebar-hover cursor-pointer active:opacity-80 rounded-lg scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined">code</span>
+<span class="font-body-sm text-body-sm">API Docs</span>
+</a>
+</div>
+</nav>
+<!-- Main Content Area -->
+<main class="flex-1 md:ml-64 h-full overflow-y-auto bg-background p-margin">
+<!-- Top App Bar for Desktop Main Area -->
+<div class="hidden md:flex justify-between items-center w-full bg-surface mb-margin pb-4 border-b border-outline-variant sticky top-0 z-30 pt-4">
+<div class="flex items-center gap-6">
+<a class="text-primary border-b-2 border-primary font-bold pb-1 cursor-pointer" href="#">Dashboard</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors cursor-pointer" href="#">Analytics</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors cursor-pointer" href="#">Logs</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors cursor-pointer" href="#">Settings</a>
+</div>
+<div class="flex items-center gap-4">
+<button class="bg-primary text-on-primary px-4 py-2 rounded text-body-sm font-semibold hover:opacity-90">Run Agent</button>
+<button class="text-on-surface-variant hover:text-primary transition-colors cursor-pointer"><span class="material-symbols-outlined">notifications</span></button>
+<button class="text-on-surface-variant hover:text-primary transition-colors cursor-pointer"><span class="material-symbols-outlined">account_balance_wallet</span></button>
+<button class="text-on-surface-variant hover:text-primary transition-colors cursor-pointer"><span class="material-symbols-outlined">settings</span></button>
+</div>
+</div>
+<div class="max-w-[1440px] mx-auto space-y-gutter">
+<!-- Portfolio Stats Bento -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-gutter">
+<div class="card p-4 flex flex-col justify-between">
+<div class="text-body-sm text-on-surface-variant mb-2 uppercase tracking-wide">Total Equity</div>
+<div class="font-metric-xl text-metric-xl text-primary">₹10,50,000</div>
+</div>
+<div class="card p-4 flex flex-col justify-between">
+<div class="text-body-sm text-on-surface-variant mb-2 uppercase tracking-wide">Available Cash</div>
+<div class="font-metric-xl text-metric-xl text-equity-blue">₹2,00,000</div>
+</div>
+<div class="card p-4 flex flex-col justify-between">
+<div class="text-body-sm text-on-surface-variant mb-2 uppercase tracking-wide">Exposure</div>
+<div class="font-metric-xl text-metric-xl text-on-surface">80%</div>
+</div>
+<div class="card p-4 flex flex-col justify-between bg-surface-container-low border-l-4 border-l-success">
+<div class="text-body-sm text-on-surface-variant mb-2 uppercase tracking-wide">Unrealized P&amp;L</div>
+<div class="font-metric-xl text-metric-xl text-success">+₹15,000</div>
+</div>
+</div>
+<!-- Main Layout Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-gutter">
+<!-- Recent Runs Table (Takes up 2 columns on lg) -->
+<div class="lg:col-span-2 card flex flex-col">
+<div class="card-header-bg p-4 border-b border-outline-variant flex justify-between items-center rounded-t">
+<h2 class="font-headline-sm text-headline-sm text-primary">Recent Runs</h2>
+<button class="text-body-sm text-primary hover:underline">View All</button>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="border-b border-outline-variant bg-surface">
+<th class="p-3 text-body-sm font-semibold text-on-surface-variant">Run ID</th>
+<th class="p-3 text-body-sm font-semibold text-on-surface-variant">Status</th>
+<th class="p-3 text-body-sm font-semibold text-on-surface-variant">Started At</th>
+<th class="p-3 text-body-sm font-semibold text-on-surface-variant">Symbols</th>
+<th class="p-3 text-body-sm font-semibold text-on-surface-variant text-right">Success/Fail</th>
+</tr>
+</thead>
+<tbody class="font-label-mono text-label-mono divide-y divide-outline-variant">
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="p-3 text-primary">pr-20231027-01</td>
+<td class="p-3">
+<span class="bg-success/10 text-success border border-success/20 px-2 py-1 rounded inline-flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">check_circle</span> COMPLETED
+                                        </span>
+</td>
+<td class="p-3 text-on-surface-variant">10:45 AM, Oct 27</td>
+<td class="p-3 text-equity-blue">INFY, RELIANCE</td>
+<td class="p-3 text-right">2 / 0</td>
+</tr>
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="p-3 text-primary">pr-20231027-02</td>
+<td class="p-3">
+<span class="bg-caution/10 text-caution border border-caution/20 px-2 py-1 rounded inline-flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">warning</span> PARTIAL_FAILED
+                                        </span>
+</td>
+<td class="p-3 text-on-surface-variant">11:15 AM, Oct 27</td>
+<td class="p-3 text-equity-blue">TCS, HDFC</td>
+<td class="p-3 text-right">1 / 1</td>
+</tr>
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="p-3 text-primary">pr-20231026-05</td>
+<td class="p-3">
+<span class="bg-success/10 text-success border border-success/20 px-2 py-1 rounded inline-flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">check_circle</span> COMPLETED
+                                        </span>
+</td>
+<td class="p-3 text-on-surface-variant">14:30 PM, Oct 26</td>
+<td class="p-3 text-equity-blue">WIPRO, ITC</td>
+<td class="p-3 text-right">2 / 0</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- Right Sidebar / Panels -->
+<div class="flex flex-col gap-gutter">
+<!-- Active Positions -->
+<div class="card flex flex-col h-full">
+<div class="card-header-bg p-3 border-b border-outline-variant rounded-t">
+<h3 class="font-headline-sm text-headline-sm text-primary">Active Positions</h3>
+</div>
+<div class="p-4 flex-grow flex flex-col gap-3">
+<div class="flex justify-between items-center border-b border-outline-variant pb-2">
+<div>
+<div class="font-label-mono text-label-mono text-primary font-bold">RELIANCE</div>
+<div class="text-body-sm text-on-surface-variant">150 Qty</div>
+</div>
+<div class="text-right">
+<div class="font-label-mono text-label-mono text-success">+₹4,500</div>
+<div class="text-body-sm text-success bg-success/10 px-1 rounded inline-block">+1.2%</div>
+</div>
+</div>
+<div class="flex justify-between items-center border-b border-outline-variant pb-2">
+<div>
+<div class="font-label-mono text-label-mono text-primary font-bold">INFY</div>
+<div class="text-body-sm text-on-surface-variant">300 Qty</div>
+</div>
+<div class="text-right">
+<div class="font-label-mono text-label-mono text-failure">-₹1,200</div>
+<div class="text-body-sm text-failure bg-failure/10 px-1 rounded inline-block">-0.5%</div>
+</div>
+</div>
+</div>
+</div>
+<!-- System Warnings -->
+<div class="card flex flex-col border-caution/50 border">
+<div class="bg-caution/10 p-3 border-b border-caution/20 rounded-t flex items-center gap-2">
+<span class="material-symbols-outlined text-caution text-[18px]">gpp_maybe</span>
+<h3 class="font-headline-sm text-headline-sm text-caution">System Warnings</h3>
+</div>
+<div class="p-4 text-body-sm">
+<div class="flex items-start gap-2 mb-3">
+<div class="w-1.5 h-1.5 rounded-full bg-caution mt-1.5 flex-shrink-0"></div>
+<p class="text-on-surface">API Rate limit approaching for broker endpoints. (85% utilization)</p>
+</div>
+<div class="flex items-start gap-2">
+<div class="w-1.5 h-1.5 rounded-full bg-caution mt-1.5 flex-shrink-0"></div>
+<p class="text-on-surface">TCS data feed latency detected &gt; 500ms during last run.</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</body></html>

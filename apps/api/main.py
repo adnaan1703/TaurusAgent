@@ -3,6 +3,7 @@ from __future__ import annotations
 import time
 
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 
 from apps.api.routes_data import router as data_router
 from apps.api.routes_alerts import router as alerts_router
@@ -14,6 +15,7 @@ from apps.api.routes_research import router as research_router
 from apps.api.routes_replay import router as replay_router
 from apps.api.routes_risk import router as risk_router
 from apps.api.routes_runs import router as runs_router
+from apps.api.routes_ui import router as ui_router
 from taurus_core.config import Settings, get_settings
 from taurus_core.db.session import build_session_factory
 from taurus_core.logging import configure_logging, get_logger
@@ -32,6 +34,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.state.settings = settings
     app.state.session_factory = build_session_factory(settings)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+        ],
+        allow_credentials=False,
+        allow_methods=["GET", "OPTIONS"],
+        allow_headers=["*"],
+    )
     app.include_router(health_router)
     app.include_router(alerts_router)
     app.include_router(data_router)
@@ -42,6 +54,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(risk_router)
     app.include_router(paper_router)
     app.include_router(runs_router)
+    app.include_router(ui_router)
 
     logger = get_logger(__name__)
     logger.info(

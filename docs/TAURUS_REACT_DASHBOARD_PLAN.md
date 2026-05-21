@@ -595,7 +595,11 @@ make ui
 
 ## Milestone Operating Procedure
 
-Each M16 submilestone should be implemented as a separate unit of work.
+Each M16 submilestone must be implemented as a separate milestone-grade unit of work.
+Do not automatically continue from one M16 submilestone to the next. After a submilestone
+meets its implementation checklist, acceptance criteria, verification commands, cleanup,
+and completion-summary requirements, stop work and report the achieved results to the user.
+Only start the next M16 submilestone after the user explicitly asks to proceed.
 
 At submilestone start:
 
@@ -616,6 +620,14 @@ During implementation:
 At submilestone completion:
 
 - Run the verification commands listed for that submilestone.
+- Confirm every acceptance checkbox for that submilestone is satisfied, or document the exact blocker.
+- Complete any submilestone-specific cleanup, including stopping local dev servers/processes started for verification.
+- Inspect `/Users/adnaan/.codex/rules/default.rules`.
+- Treat entries after the user's `# END MY CUSTOM ADDITION` marker as accidental global approvals.
+- Copy Taurus-specific approved prefixes into `.codex/rules/default.rules` if missing.
+- Document Taurus-specific commands in `docs/TAURUS_COMMANDS.md`.
+- Remove Taurus-specific accidental approvals from the global rules file.
+- Do not copy unrelated global approvals.
 - Update checkboxes in this plan if the work is complete.
 - Update `docs/TAURUS_MILESTONE_TODO.md`.
 - Add a completion summary with:
@@ -623,6 +635,8 @@ At submilestone completion:
   - Mocks created
   - Mocks used
 - If a category is empty, write `None`.
+- Stop after reporting the submilestone completion. Do not mark the next M16 submilestone
+  in progress and do not begin implementation for it unless the user gives a new proceed request.
 
 At full M16 completion:
 
@@ -653,16 +667,16 @@ Out of scope:
 
 Implementation instructions:
 
-- [ ] Validate that `docs/stitch/paper-trade-event-monitor/STITCH_MANIFEST.md` is present and contains the requested screen URLs.
-- [ ] Create `docs/stitch/paper-trade-event-monitor/assets/`.
-- [ ] Download screenshots for each requested Stitch screen using the Stitch `screenshot.downloadUrl` values and `curl -L`.
-- [ ] Download generated HTML for each requested Stitch screen using the Stitch `htmlCode.downloadUrl` values and `curl -L`.
-- [ ] Store each file with a stable, readable name such as `01-run-overview-dark-v2.png` and `01-run-overview-dark-v2.html`.
-- [ ] Update `docs/stitch/paper-trade-event-monitor/README.md` with the files downloaded during M16.1.
-- [ ] In the Stitch README, document the project ID, asset ID, screen IDs, downloaded filenames, and when they were fetched.
-- [ ] In the Stitch README, state that these assets are references only and must not be treated as source code.
-- [ ] Extract the important visual tokens from the dark design system: background, card surfaces, outline, primary accent, success, caution, failure, typography, and spacing.
-- [ ] Add a short mapping from Stitch screens to Taurus routes:
+- [x] Validate that `docs/stitch/paper-trade-event-monitor/STITCH_MANIFEST.md` is present and contains the requested screen URLs.
+- [x] Create `docs/stitch/paper-trade-event-monitor/assets/`.
+- [x] Download screenshots for each requested Stitch screen using the Stitch `screenshot.downloadUrl` values and `curl -L`.
+- [x] Download generated HTML for each requested Stitch screen using the Stitch `htmlCode.downloadUrl` values and `curl -L`.
+- [x] Store each file with a stable, readable name such as `01-run-overview-dark-v2.png` and `01-run-overview-dark-v2.html`.
+- [x] Update `docs/stitch/paper-trade-event-monitor/README.md` with the files downloaded during M16.1.
+- [x] In the Stitch README, document the project ID, asset ID, screen IDs, downloaded filenames, and when they were fetched.
+- [x] In the Stitch README, state that these assets are references only and must not be treated as source code.
+- [x] Extract the important visual tokens from the dark design system: background, card surfaces, outline, primary accent, success, caution, failure, typography, and spacing.
+- [x] Add a short mapping from Stitch screens to Taurus routes:
   - Run Overview -> `/`
   - Run Detail -> `/runs/:runId`
   - Decision Trail -> `/runs/:runId/symbols/:symbol`
@@ -670,8 +684,8 @@ Implementation instructions:
   - Risk Engine -> `/risk`
   - Portfolio & Account -> `/portfolio`
   - Run History -> `/history`
-- [ ] Confirm that v1 remains read-only and does not include run-control actions, even if Stitch mocks show a "Run Agent" button.
-- [ ] Update this plan if the reference extraction reveals screen behavior that needs to change.
+- [x] Confirm that v1 remains read-only and does not include run-control actions, even if Stitch mocks show a "Run Agent" button.
+- [x] Update this plan if the reference extraction reveals screen behavior that needs to change.
 
 Deliverables:
 
@@ -683,12 +697,12 @@ Deliverables:
 
 Acceptance:
 
-- [ ] Reference screenshots and HTML are stored under `docs/stitch/paper-trade-event-monitor/`.
-- [ ] Every requested screen has either a downloaded screenshot or an explicit note explaining why it could not be downloaded.
-- [ ] The Stitch reference README lists project ID, asset ID, screen IDs, and local filenames.
-- [ ] The React implementation is explicitly based on clean components, not direct static HTML porting.
-- [ ] The route map is documented in this plan.
-- [ ] V1 read-only scope is restated and any Stitch control buttons are marked non-functional or deferred.
+- [x] Reference screenshots and HTML are stored under `docs/stitch/paper-trade-event-monitor/`.
+- [x] Every requested screen has either a downloaded screenshot or an explicit note explaining why it could not be downloaded.
+- [x] The Stitch reference README lists project ID, asset ID, screen IDs, and local filenames.
+- [x] The React implementation is explicitly based on clean components, not direct static HTML porting.
+- [x] The route map is documented in this plan.
+- [x] V1 read-only scope is restated and any Stitch control buttons are marked non-functional or deferred.
 
 Verification:
 
@@ -697,11 +711,17 @@ git status --short
 find docs/stitch/paper-trade-event-monitor -maxdepth 1 -type f | sort
 ```
 
+Notes:
+
+- Downloaded 7 screenshots and 7 generated HTML reference files under `docs/stitch/paper-trade-event-monitor/assets/`.
+- The Stitch reference README now lists the project ID, design-system asset ID, screen IDs, local filenames, dark visual tokens, route mapping, and read-only scope rule.
+- No route or screen behavior changes were needed after reference extraction.
+
 Completion summary:
 
-- Assumptions made: TBD
-- Mocks created: TBD
-- Mocks used: TBD
+- Assumptions made: The downloaded Stitch screenshots and HTML are reference material only; M16 production React must be implemented as clean components using the aggregate API contracts. V1 remains read-only even if a visual reference suggests run-control UI.
+- Mocks created: None
+- Mocks used: None
 
 ## M16.2 - Backend Aggregate APIs
 
@@ -722,12 +742,12 @@ Out of scope:
 
 Implementation instructions:
 
-- [ ] Add `apps/api/routes_ui.py`.
-- [ ] Include the UI router in `apps/api/main.py`.
-- [ ] Add CORS configuration for `http://localhost:5173` and `http://127.0.0.1:5173`.
-- [ ] Keep CORS local-development scoped; do not enable `*` unless there is a documented reason.
-- [ ] Add Pydantic response schemas for UI payloads. Keep these schemas separate from raw domain schemas if they are presentation-oriented.
-- [ ] Add repository methods that filter by `run_id` and `symbol` together for:
+- [x] Add `apps/api/routes_ui.py`.
+- [x] Include the UI router in `apps/api/main.py`.
+- [x] Add CORS configuration for `http://localhost:5173` and `http://127.0.0.1:5173`.
+- [x] Keep CORS local-development scoped; do not enable `*` unless there is a documented reason.
+- [x] Add Pydantic response schemas for UI payloads. Keep these schemas separate from raw domain schemas if they are presentation-oriented.
+- [x] Add repository methods that filter by `run_id` and `symbol` together for:
   - analyst reports
   - debates
   - trader proposals
@@ -738,21 +758,21 @@ Implementation instructions:
   - paper positions
   - paper accounts
   - audit rows
-- [ ] Ensure server-side joins use the strongest available keys:
+- [x] Ensure server-side joins use the strongest available keys:
   - `run_id + symbol` for run trail artifacts
   - `decision_id` for replay and order/fill linkage
   - artifact IDs from `paper_runs.artifacts.symbols` when present
-- [ ] Build a shared helper that normalizes stage status into a small frontend vocabulary: `complete`, `running`, `blocked`, `rejected`, `failed`, `missing`, `skipped`.
-- [ ] Build a shared helper that formats missing stages with a clear reason instead of returning `null`.
-- [ ] Implement `/ui/overview`.
-- [ ] Implement `/ui/runs/{run_id}`.
-- [ ] Implement `/ui/runs/{run_id}/symbols/{symbol}/decision-trail`.
-- [ ] Implement `/ui/replay/{decision_id}`.
-- [ ] Implement `/ui/risk`.
-- [ ] Implement `/ui/portfolio`.
-- [ ] Implement `/ui/history`.
-- [ ] Add tests with completed runs, partial failures, unknown run IDs, unknown symbols, rejected or missing order cases, and replay not found cases.
-- [ ] Confirm existing raw endpoints still pass their current tests.
+- [x] Build a shared helper that normalizes stage status into a small frontend vocabulary: `complete`, `running`, `blocked`, `rejected`, `failed`, `missing`, `skipped`.
+- [x] Build a shared helper that formats missing stages with a clear reason instead of returning `null`.
+- [x] Implement `/ui/overview`.
+- [x] Implement `/ui/runs/{run_id}`.
+- [x] Implement `/ui/runs/{run_id}/symbols/{symbol}/decision-trail`.
+- [x] Implement `/ui/replay/{decision_id}`.
+- [x] Implement `/ui/risk`.
+- [x] Implement `/ui/portfolio`.
+- [x] Implement `/ui/history`.
+- [x] Add tests with completed runs, partial failures, unknown run IDs, unknown symbols, rejected or missing order cases, and replay not found cases.
+- [x] Confirm existing raw endpoints still pass their current tests.
 
 Endpoint responsibilities:
 
@@ -775,14 +795,14 @@ Deliverables:
 
 Acceptance:
 
-- [ ] UI endpoints return data for a completed paper run.
-- [ ] UI endpoints return correct missing-stage state for failed or skipped symbols.
-- [ ] UI endpoints do not mix artifacts from different runs.
-- [ ] `GET /ui/runs/{run_id}/symbols/{symbol}/decision-trail` returns stages in the required display order.
-- [ ] `GET /ui/replay/{decision_id}` preserves raw replay artifacts.
-- [ ] Unknown run IDs, symbols, and decision IDs return appropriate 404 responses.
-- [ ] CORS allows the Vite dev server and does not broaden production exposure unnecessarily.
-- [ ] Existing raw API endpoints remain backward compatible.
+- [x] UI endpoints return data for a completed paper run.
+- [x] UI endpoints return correct missing-stage state for failed or skipped symbols.
+- [x] UI endpoints do not mix artifacts from different runs.
+- [x] `GET /ui/runs/{run_id}/symbols/{symbol}/decision-trail` returns stages in the required display order.
+- [x] `GET /ui/replay/{decision_id}` preserves raw replay artifacts.
+- [x] Unknown run IDs, symbols, and decision IDs return appropriate 404 responses.
+- [x] CORS allows the Vite dev server and does not broaden production exposure unnecessarily.
+- [x] Existing raw API endpoints remain backward compatible.
 
 Verification:
 
@@ -797,11 +817,19 @@ curl http://localhost:8000/ui/runs/<run_id>
 curl http://localhost:8000/ui/runs/<run_id>/symbols/INFY/decision-trail
 ```
 
+Notes:
+
+- Added `apps/api/routes_ui.py` with read-only aggregate endpoints for overview, run detail, symbol decision trail, replay, risk, portfolio, and history.
+- Added local Vite CORS origins only: `http://localhost:5173` and `http://127.0.0.1:5173`.
+- Added run-scoped repository filters for trader proposals, risk reviews, final decisions, paper orders, paper fills, paper positions, and audit rows.
+- Added `tests/unit/test_ui_aggregate_api.py` covering completed runs, partial failures, 404s, run-scoped repeated symbols, empty migrated database state, and CORS.
+- Verification run used `run_id=pr-75fdbb0381152d57` and `decision_id=dec-1d59184394a64b42`; all `/ui/*` smoke checks returned `200`.
+
 Completion summary:
 
-- Assumptions made: TBD
-- Mocks created: TBD
-- Mocks used: TBD
+- Assumptions made: UI aggregate APIs may return presentation-oriented payloads that wrap existing raw artifact payloads without changing the raw endpoints. Audit rows are run-scoped and symbol-filtered when the audit payload has symbol information; run-level audit rows are included for symbol trails. Empty database behavior assumes migrations have created the tables.
+- Mocks created: Unit-test temporary SQLite databases, including completed paper runs, partial-failure runs, repeated-symbol run-scope checks, and migrated empty database state.
+- Mocks used: Deterministic mock market data, mock news provider, mock LLM analyst outputs, mock alert provider, internal PaperBroker, and SQLite verification database at `/private/tmp/taurus-m16-api-20260521.db`.
 
 ## M16.3 - React App Foundation
 

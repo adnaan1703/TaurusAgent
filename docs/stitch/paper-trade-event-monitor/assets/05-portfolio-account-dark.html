@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Taurus Portfolio</title>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-family: 'Material Symbols Outlined';
+            font-weight: normal;
+            font-style: normal;
+            font-size: 24px;
+            line-height: 1;
+            letter-spacing: normal;
+            text-transform: none;
+            display: inline-block;
+            white-space: nowrap;
+            word-wrap: normal;
+            direction: ltr;
+            -webkit-font-feature-settings: 'liga';
+            -webkit-font-smoothing: antialiased;
+        }
+        /* Hide scrollbar for clean look */
+        ::-webkit-scrollbar { display: none; }
+    </style>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container-high": "#222a3d",
+                        "tertiary-fixed": "#d4e4fa",
+                        "on-secondary-fixed": "#07006c",
+                        "primary": "#8ed5ff",
+                        "on-tertiary": "#233143",
+                        "on-secondary-container": "#b0b2ff",
+                        "secondary-fixed": "#e1e0ff",
+                        "inverse-primary": "#00668a",
+                        "on-surface-variant": "#bdc8d1",
+                        "secondary-container": "#3131c0",
+                        "inverse-surface": "#dae2fd",
+                        "on-error": "#690005",
+                        "error": "#ffb4ab",
+                        "surface-dim": "#0b1326",
+                        "on-primary-container": "#004965",
+                        "surface-variant": "#2d3449",
+                        "surface-bright": "#31394d",
+                        "secondary": "#c0c1ff",
+                        "surface-container": "#171f33",
+                        "on-tertiary-fixed": "#0d1c2d",
+                        "on-primary-fixed-variant": "#004c69",
+                        "on-background": "#dae2fd",
+                        "secondary-fixed-dim": "#c0c1ff",
+                        "tertiary": "#becee4",
+                        "on-primary-fixed": "#001e2c",
+                        "outline-variant": "#3e484f",
+                        "on-tertiary-fixed-variant": "#39485a",
+                        "on-surface": "#dae2fd",
+                        "on-secondary": "#1000a9",
+                        "surface": "#0b1326",
+                        "outline": "#87929a",
+                        "on-error-container": "#ffdad6",
+                        "surface-container-low": "#131b2e",
+                        "primary-container": "#38bdf8",
+                        "on-tertiary-container": "#364557",
+                        "on-secondary-fixed-variant": "#2f2ebe",
+                        "primary-fixed": "#c4e7ff",
+                        "on-primary": "#00354a",
+                        "tertiary-fixed-dim": "#b9c8de",
+                        "surface-container-highest": "#2d3449",
+                        "tertiary-container": "#a3b2c7",
+                        "surface-container-lowest": "#060e20",
+                        "background": "#0b1326",
+                        "error-container": "#93000a",
+                        "inverse-on-surface": "#283044",
+                        "surface-tint": "#7bd0ff",
+                        "primary-fixed-dim": "#7bd0ff",
+                        /* Financial semantic colors not explicitly in config but requested in guidelines */
+                        "positive": "#10b981", /* Emerald */
+                        "negative": "#f43f5e"  /* Rose */
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "sm": "0.75rem",
+                        "xl": "2rem",
+                        "gutter": "1.5rem",
+                        "xs": "0.5rem",
+                        "lg": "1.5rem",
+                        "base": "4px",
+                        "md": "1rem",
+                        "xxs": "0.25rem",
+                        "margin": "2rem"
+                    },
+                    "fontFamily": {
+                        "headline-lg": ["Inter"],
+                        "body-md": ["Inter"],
+                        "label-md": ["Inter"],
+                        "headline-lg-mobile": ["Inter"],
+                        "label-sm": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "mono-data": ["monospace"]
+                    },
+                    "fontSize": {
+                        "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                        "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.01em", "fontWeight": "500"}],
+                        "headline-lg-mobile": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                        "label-sm": ["11px", {"lineHeight": "14px", "letterSpacing": "0.03em", "fontWeight": "600"}],
+                        "headline-md": ["20px", {"lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "mono-data": ["13px", {"lineHeight": "18px", "fontWeight": "400"}]
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-background text-on-background min-h-screen flex font-body-md overflow-hidden">
+<!-- JSON Component: SideNavBar (Desktop) -->
+<aside class="hidden md:flex flex-col py-lg border-r border-outline-variant bg-surface-container w-64 h-screen shrink-0 z-40 fixed left-0 top-0">
+<div class="px-lg mb-xl">
+<h1 class="font-headline-md text-headline-md text-primary">TAURUS AI</h1>
+<p class="font-label-sm text-label-sm text-on-surface-variant mt-1 tracking-widest uppercase">Vigilant Mode</p>
+</div>
+<nav class="flex-1 px-sm space-y-1">
+<!-- Dashboard -->
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest transition-all active:scale-95 duration-150" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="dashboard">dashboard</span>
+<span class="font-label-md text-label-md">Dashboard</span>
+</a>
+<!-- Active Runs -->
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest transition-all active:scale-95 duration-150" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="play_circle">play_circle</span>
+<span class="font-label-md text-label-md">Active Runs</span>
+</a>
+<!-- History -->
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest transition-all active:scale-95 duration-150" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="history">history</span>
+<span class="font-label-md text-label-md">History</span>
+</a>
+<!-- Risk Engine -->
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest transition-all active:scale-95 duration-150" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="security">security</span>
+<span class="font-label-md text-label-md">Risk Engine</span>
+</a>
+<!-- Portfolio (ACTIVE) -->
+<a class="flex items-center gap-3 px-3 py-2 bg-secondary-container text-on-secondary-container rounded-lg font-bold transition-all active:scale-95 duration-150 shadow-[0_0_15px_rgba(49,49,192,0.2)]" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="pie_chart" style="font-variation-settings: 'FILL' 1;">pie_chart</span>
+<span class="font-label-md text-label-md">Portfolio</span>
+</a>
+</nav>
+<div class="px-sm mt-auto pt-lg border-t border-outline-variant space-y-1">
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest transition-all" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="description">description</span>
+<span class="font-label-md text-label-md">Docs</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest transition-all" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="help">help</span>
+<span class="font-label-md text-label-md">Support</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="flex-1 md:ml-64 relative h-screen overflow-y-auto bg-background">
+<!-- JSON Component: TopNavBar (Mobile) / Header Area (Desktop) -->
+<header class="sticky top-0 w-full z-30 flex justify-between items-center px-lg h-16 border-b border-outline-variant bg-surface-dim backdrop-blur-md bg-opacity-90">
+<!-- Mobile Brand -->
+<div class="md:hidden">
+<span class="text-headline-md font-headline-md font-black tracking-tighter text-primary">TAURUS AI</span>
+</div>
+<!-- Desktop Title -->
+<div class="hidden md:block">
+<h2 class="font-headline-md text-headline-md text-on-surface">Paper Portfolio Management</h2>
+</div>
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-on-surface-variant hover:text-primary cursor-pointer hover:bg-surface-container-high transition-colors p-1 rounded" data-icon="account_balance_wallet">account_balance_wallet</span>
+<span class="material-symbols-outlined text-on-surface-variant hover:text-primary cursor-pointer hover:bg-surface-container-high transition-colors p-1 rounded" data-icon="sensors">sensors</span>
+<span class="material-symbols-outlined text-on-surface-variant hover:text-primary cursor-pointer hover:bg-surface-container-high transition-colors p-1 rounded" data-icon="settings">settings</span>
+</div>
+</header>
+<div class="p-lg md:p-margin max-w-7xl mx-auto space-y-gutter">
+<!-- Top Stats -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-gutter">
+<!-- Stat: Portfolio Value -->
+<div class="bg-surface-container rounded-lg p-md border border-outline-variant relative overflow-hidden group hover:border-primary transition-colors">
+<div class="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+<span class="material-symbols-outlined text-5xl" data-icon="account_balance">account_balance</span>
+</div>
+<p class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Portfolio Value</p>
+<p class="font-headline-lg text-headline-lg-mobile md:text-headline-lg text-on-surface mt-2">₹10,45,200</p>
+<div class="mt-4 flex items-center gap-2">
+<span class="px-2 py-1 bg-positive/10 text-positive rounded font-mono-data text-mono-data flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">arrow_upward</span>
+                            +₹15,000 (1.2%)
+                        </span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Today's P&amp;L</span>
+</div>
+</div>
+<!-- Stat: Available Cash -->
+<div class="bg-surface-container rounded-lg p-md border border-outline-variant">
+<p class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Available Cash</p>
+<p class="font-headline-lg text-headline-lg-mobile md:text-headline-lg text-on-surface mt-2">₹2,00,000</p>
+<div class="mt-4 h-1 w-full bg-surface-container-high rounded-full overflow-hidden">
+<div class="h-full bg-primary" style="width: 19%;"></div>
+</div>
+<p class="font-label-sm text-label-sm text-on-surface-variant mt-2 text-right">19% of Total</p>
+</div>
+<!-- Stat: Gross Exposure -->
+<div class="bg-surface-container rounded-lg p-md border border-outline-variant border-t-2 border-t-tertiary">
+<p class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Gross Exposure</p>
+<p class="font-headline-lg text-headline-lg-mobile md:text-headline-lg text-on-surface mt-2">80%</p>
+<div class="mt-4 flex justify-between items-center">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Realized: <span class="text-positive font-mono-data">₹45,000</span></span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Unrealized: <span class="text-positive font-mono-data">₹82,200</span></span>
+</div>
+</div>
+</div>
+<!-- Position Blotter -->
+<div class="bg-surface-container border border-outline-variant rounded-lg overflow-hidden flex flex-col">
+<div class="p-md border-b border-outline-variant flex justify-between items-center bg-surface-container-low">
+<h3 class="font-headline-md text-headline-md text-on-surface">Position Blotter</h3>
+<button class="bg-surface-container-high text-on-surface px-3 py-1.5 rounded border border-outline-variant font-label-md text-label-md flex items-center gap-2 hover:bg-surface-bright transition-colors">
+<span class="material-symbols-outlined text-[16px]">filter_list</span> Filter
+                    </button>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse min-w-[800px]">
+<thead>
+<tr class="border-b border-outline-variant bg-surface-container">
+<th class="p-3 font-label-md text-label-md text-on-surface-variant font-medium">Symbol</th>
+<th class="p-3 font-label-md text-label-md text-on-surface-variant font-medium text-right">Quantity</th>
+<th class="p-3 font-label-md text-label-md text-on-surface-variant font-medium text-right">Avg Cost</th>
+<th class="p-3 font-label-md text-label-md text-on-surface-variant font-medium text-right">Last Price</th>
+<th class="p-3 font-label-md text-label-md text-on-surface-variant font-medium text-right">Market Value</th>
+<th class="p-3 font-label-md text-label-md text-on-surface-variant font-medium text-right">Unrealized P&amp;L</th>
+<th class="p-3 font-label-md text-label-md text-on-surface-variant font-medium text-center">Action</th>
+</tr>
+</thead>
+<tbody class="font-mono-data text-mono-data text-on-surface divide-y divide-outline-variant/50">
+<tr class="hover:bg-surface-container-high transition-colors">
+<td class="p-3 font-body-md text-body-md font-semibold">RELIANCE</td>
+<td class="p-3 text-right">150</td>
+<td class="p-3 text-right">₹2,850.00</td>
+<td class="p-3 text-right">₹2,920.50</td>
+<td class="p-3 text-right">₹4,38,075</td>
+<td class="p-3 text-right text-positive">+₹10,575</td>
+<td class="p-3 text-center">
+<button class="text-primary hover:text-primary-container font-label-sm text-label-sm border border-primary/30 px-2 py-1 rounded">View Trail</button>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-high transition-colors">
+<td class="p-3 font-body-md text-body-md font-semibold">TCS</td>
+<td class="p-3 text-right">50</td>
+<td class="p-3 text-right">₹3,900.00</td>
+<td class="p-3 text-right">₹4,010.00</td>
+<td class="p-3 text-right">₹2,00,500</td>
+<td class="p-3 text-right text-positive">+₹5,500</td>
+<td class="p-3 text-center">
+<button class="text-primary hover:text-primary-container font-label-sm text-label-sm border border-primary/30 px-2 py-1 rounded">View Trail</button>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-high transition-colors">
+<td class="p-3 font-body-md text-body-md font-semibold">HDFC BANK</td>
+<td class="p-3 text-right">300</td>
+<td class="p-3 text-right">₹1,650.00</td>
+<td class="p-3 text-right">₹1,620.00</td>
+<td class="p-3 text-right">₹4,86,000</td>
+<td class="p-3 text-right text-negative">-₹9,000</td>
+<td class="p-3 text-center">
+<button class="text-primary hover:text-primary-container font-label-sm text-label-sm border border-primary/30 px-2 py-1 rounded">View Trail</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- Recent Paper Fills -->
+<div class="bg-surface-container border border-outline-variant rounded-lg p-md">
+<h3 class="font-headline-md text-headline-md text-on-surface mb-4">Recent Paper Fills</h3>
+<div class="space-y-2">
+<div class="flex items-center justify-between p-3 bg-surface-container-low border border-outline-variant/30 rounded">
+<div class="flex items-center gap-3">
+<span class="px-2 py-1 bg-positive/10 text-positive rounded font-label-sm text-label-sm border border-positive/20">BUY</span>
+<span class="font-body-md text-body-md font-semibold text-on-surface">RELIANCE</span>
+</div>
+<div class="text-right font-mono-data text-mono-data">
+<span class="text-on-surface-variant block">Fill: ₹2,920.00</span>
+<span class="text-positive text-[11px]">Slippage: 0.00%</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</body></html>

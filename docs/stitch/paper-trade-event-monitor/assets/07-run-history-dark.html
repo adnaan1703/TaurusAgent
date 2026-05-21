@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Taurus - Run History</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-family: 'Material Symbols Outlined';
+            font-weight: normal;
+            font-style: normal;
+            font-size: 24px;
+            line-height: 1;
+            letter-spacing: normal;
+            text-transform: none;
+            display: inline-block;
+            white-space: nowrap;
+            word-wrap: normal;
+            direction: ltr;
+            -webkit-font-feature-settings: 'liga';
+            -webkit-font-smoothing: antialiased;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "outline": "#87929a",
+                        "on-secondary-container": "#b0b2ff",
+                        "error": "#ffb4ab",
+                        "surface-bright": "#31394d",
+                        "secondary-fixed": "#e1e0ff",
+                        "on-primary-fixed": "#001e2c",
+                        "on-tertiary-fixed": "#0d1c2d",
+                        "surface-container": "#171f33",
+                        "secondary": "#c0c1ff",
+                        "on-secondary": "#1000a9",
+                        "on-secondary-fixed-variant": "#2f2ebe",
+                        "primary-container": "#38bdf8",
+                        "tertiary-container": "#a3b2c7",
+                        "on-surface-variant": "#bdc8d1",
+                        "on-surface": "#dae2fd",
+                        "surface": "#0b1326",
+                        "primary-fixed-dim": "#7bd0ff",
+                        "on-tertiary-container": "#364557",
+                        "primary-fixed": "#c4e7ff",
+                        "outline-variant": "#3e484f",
+                        "surface-tint": "#7bd0ff",
+                        "primary": "#8ed5ff",
+                        "secondary-container": "#3131c0",
+                        "surface-dim": "#0b1326",
+                        "tertiary-fixed": "#d4e4fa",
+                        "surface-container-highest": "#2d3449",
+                        "inverse-on-surface": "#283044",
+                        "surface-container-low": "#131b2e",
+                        "on-tertiary-fixed-variant": "#39485a",
+                        "on-primary-container": "#004965",
+                        "background": "#0b1326",
+                        "on-background": "#dae2fd",
+                        "inverse-primary": "#00668a",
+                        "tertiary": "#becee4",
+                        "on-error-container": "#ffdad6",
+                        "secondary-fixed-dim": "#c0c1ff",
+                        "on-primary": "#00354a",
+                        "surface-variant": "#2d3449",
+                        "inverse-surface": "#dae2fd",
+                        "on-tertiary": "#233143",
+                        "on-primary-fixed-variant": "#004c69",
+                        "surface-container-lowest": "#060e20",
+                        "on-error": "#690005",
+                        "error-container": "#93000a",
+                        "surface-container-high": "#222a3d",
+                        "tertiary-fixed-dim": "#b9c8de",
+                        "on-secondary-fixed": "#07006c"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "md": "1rem",
+                        "lg": "1.5rem",
+                        "xs": "0.5rem",
+                        "xl": "2rem",
+                        "gutter": "1.5rem",
+                        "xxs": "0.25rem",
+                        "base": "4px",
+                        "margin": "2rem",
+                        "sm": "0.75rem"
+                    },
+                    "fontFamily": {
+                        "label-sm": ["Inter"],
+                        "body-md": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "mono-data": ["monospace"],
+                        "label-md": ["Inter"],
+                        "headline-lg-mobile": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "headline-lg": ["Inter"]
+                    },
+                    "fontSize": {
+                        "label-sm": ["11px", { "lineHeight": "14px", "letterSpacing": "0.03em", "fontWeight": "600" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "mono-data": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "label-md": ["12px", { "lineHeight": "16px", "letterSpacing": "0.01em", "fontWeight": "500" }],
+                        "headline-lg-mobile": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+                        "headline-md": ["20px", { "lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-background text-on-background flex h-screen overflow-hidden selection:bg-primary selection:text-on-primary">
+<!-- SideNavBar Component -->
+<nav class="h-screen w-64 fixed left-0 top-0 flex flex-col bg-surface-container-low border-r border-outline-variant z-50 py-lg px-md gap-md">
+<!-- Header -->
+<div class="flex items-center gap-sm mb-lg px-xs">
+<span class="material-symbols-outlined text-primary text-3xl" data-weight="fill" style="font-variation-settings: 'FILL' 1;">view_in_ar</span>
+<div>
+<h1 class="font-headline-md text-headline-md font-bold text-primary tracking-tight">Taurus</h1>
+<p class="font-label-sm text-label-sm text-on-surface-variant">AI Trading System</p>
+</div>
+</div>
+<!-- CTA -->
+<button class="w-full bg-primary-container text-on-primary-container font-label-md text-label-md py-sm px-md rounded flex justify-center items-center gap-xs hover:bg-primary transition-colors mb-md">
+<span class="material-symbols-outlined text-sm">add</span>
+            New Run
+        </button>
+<!-- Main Tabs -->
+<div class="flex flex-col gap-xs flex-1">
+<a class="flex items-center gap-sm px-sm py-sm rounded-r hover:bg-surface-container-high hover:text-on-surface transition-colors text-on-surface-variant font-label-md text-label-md group" href="#">
+<span class="material-symbols-outlined group-hover:text-primary transition-colors text-xl">dashboard</span>
+                Dashboard
+            </a>
+<a class="flex items-center gap-sm px-sm py-sm rounded-r hover:bg-surface-container-high hover:text-on-surface transition-colors text-on-surface-variant font-label-md text-label-md group" href="#">
+<span class="material-symbols-outlined group-hover:text-primary transition-colors text-xl">play_circle</span>
+                Active Runs
+            </a>
+<a class="flex items-center gap-sm px-sm py-sm rounded-r hover:bg-surface-container-high hover:text-on-surface transition-colors text-primary font-bold border-r-2 border-primary scale-95 duration-100 bg-surface-container-highest group" href="#">
+<span class="material-symbols-outlined text-primary text-xl">history</span>
+                History
+            </a>
+<a class="flex items-center gap-sm px-sm py-sm rounded-r hover:bg-surface-container-high hover:text-on-surface transition-colors text-on-surface-variant font-label-md text-label-md group" href="#">
+<span class="material-symbols-outlined group-hover:text-primary transition-colors text-xl">security</span>
+                Risk Engine
+            </a>
+<a class="flex items-center gap-sm px-sm py-sm rounded-r hover:bg-surface-container-high hover:text-on-surface transition-colors text-on-surface-variant font-label-md text-label-md group" href="#">
+<span class="material-symbols-outlined group-hover:text-primary transition-colors text-xl">account_balance_wallet</span>
+                Portfolio
+            </a>
+</div>
+<!-- Footer Tabs -->
+<div class="flex flex-col gap-xs mt-auto pt-md border-t border-outline-variant">
+<a class="flex items-center gap-sm px-sm py-sm rounded-r hover:bg-surface-container-high hover:text-on-surface transition-colors text-on-surface-variant font-label-md text-label-md group" href="#">
+<span class="material-symbols-outlined group-hover:text-primary transition-colors text-xl">sensors</span>
+                System Health
+            </a>
+<a class="flex items-center gap-sm px-sm py-sm rounded-r hover:bg-surface-container-high hover:text-on-surface transition-colors text-on-surface-variant font-label-md text-label-md group" href="#">
+<span class="material-symbols-outlined group-hover:text-primary transition-colors text-xl">settings</span>
+                Settings
+            </a>
+</div>
+</nav>
+<!-- Main Content Area -->
+<div class="flex-1 flex flex-col ml-64 overflow-hidden relative">
+<!-- TopNavBar Component -->
+<header class="flex justify-between items-center w-full h-16 px-gutter border-b border-outline-variant bg-surface/80 backdrop-blur-md sticky top-0 z-40 transition-opacity hover:opacity-100 opacity-95">
+<!-- Brand / Context -->
+<div class="flex items-center gap-md">
+<h2 class="font-headline-md text-headline-md font-extrabold text-on-surface">Taurus Observability</h2>
+</div>
+<!-- Search (on_left implicitly handled by keeping it before trailing icons if visible, but standard is right-aligned in this shell usually, placing middle) -->
+<div class="flex-1 max-w-md mx-md">
+<div class="relative w-full">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm">search</span>
+<input class="w-full bg-surface-container border border-outline-variant rounded py-xs pl-8 pr-sm font-body-md text-body-md text-on-surface focus:outline-none focus:border-primary placeholder-on-surface-variant transition-colors" placeholder="Search logs, runs, or tickers..." type="text"/>
+</div>
+</div>
+<!-- Trailing Actions -->
+<div class="flex items-center gap-sm">
+<button class="p-xs rounded hover:bg-surface-container-high hover:text-primary-fixed-dim transition-colors text-on-surface-variant flex items-center justify-center">
+<span class="material-symbols-outlined text-xl">notifications</span>
+</button>
+<button class="p-xs rounded hover:bg-surface-container-high hover:text-primary-fixed-dim transition-colors text-on-surface-variant flex items-center justify-center">
+<span class="material-symbols-outlined text-xl">hub</span>
+</button>
+<button class="p-xs rounded hover:bg-surface-container-high hover:text-primary-fixed-dim transition-colors text-on-surface-variant flex items-center justify-center">
+<span class="material-symbols-outlined text-xl">account_circle</span>
+</button>
+</div>
+</header>
+<!-- Canvas (Scrollable Data View) -->
+<main class="flex-1 overflow-y-auto p-gutter flex flex-col gap-lg bg-background">
+<!-- Section 1: Header & Filters -->
+<section class="flex flex-col md:flex-row justify-between items-start md:items-end gap-md">
+<div>
+<h2 class="font-headline-lg text-headline-lg text-on-surface">Run History</h2>
+<p class="font-body-md text-body-md text-on-surface-variant mt-xs">Comprehensive log of all completed, failed, and partial paper trading runs.</p>
+</div>
+<div class="flex flex-wrap items-center gap-sm">
+<!-- Filter: Status -->
+<div class="relative">
+<select class="appearance-none bg-surface-container border border-outline-variant text-on-surface font-label-md text-label-md rounded py-xs pl-sm pr-lg focus:outline-none focus:border-primary cursor-pointer">
+<option value="all">All Statuses</option>
+<option value="completed">Completed</option>
+<option value="partial">Partial Failed</option>
+<option value="failed">Failed</option>
+</select>
+<span class="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none text-sm">arrow_drop_down</span>
+</div>
+<!-- Filter: Date Range -->
+<div class="relative flex items-center bg-surface-container border border-outline-variant rounded px-sm py-xs">
+<span class="material-symbols-outlined text-on-surface-variant text-sm mr-xs">calendar_today</span>
+<input class="bg-transparent border-none p-0 m-0 font-label-md text-label-md text-on-surface w-24 cursor-pointer focus:ring-0" readonly="" type="text" value="Last 30 Days"/>
+</div>
+<!-- Filter: Ticker -->
+<div class="relative">
+<span class="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm">filter_alt</span>
+<input class="bg-surface-container border border-outline-variant text-on-surface font-label-md text-label-md rounded py-xs pl-8 pr-sm focus:outline-none focus:border-primary w-36" placeholder="Filter by Ticker" type="text"/>
+</div>
+</div>
+</section>
+<!-- Section 2: Summary Cards -->
+<section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-md">
+<!-- Card 1 -->
+<div class="bg-surface-container rounded-lg border border-outline-variant p-md flex flex-col justify-between">
+<div class="flex justify-between items-center mb-sm">
+<span class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Total Runs</span>
+<span class="material-symbols-outlined text-tertiary-container text-sm">database</span>
+</div>
+<div class="font-headline-lg text-headline-lg text-on-surface">1,248</div>
+<div class="font-label-sm text-label-sm text-on-surface-variant mt-xs"><span class="text-primary">+12</span> since last week</div>
+</div>
+<!-- Card 2 -->
+<div class="bg-surface-container rounded-lg border border-outline-variant border-t-2 border-t-primary p-md flex flex-col justify-between">
+<div class="flex justify-between items-center mb-sm">
+<span class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Success Rate</span>
+<span class="material-symbols-outlined text-primary text-sm">check_circle</span>
+</div>
+<div class="font-headline-lg text-headline-lg text-on-surface">98.4%</div>
+<div class="font-label-sm text-label-sm text-on-surface-variant mt-xs">Across all strategies</div>
+</div>
+<!-- Card 3 -->
+<div class="bg-surface-container rounded-lg border border-outline-variant p-md flex flex-col justify-between">
+<div class="flex justify-between items-center mb-sm">
+<span class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Total Executions</span>
+<span class="material-symbols-outlined text-tertiary-container text-sm">swap_horiz</span>
+</div>
+<div class="font-headline-lg text-headline-lg text-on-surface">24,892</div>
+<div class="font-label-sm text-label-sm text-on-surface-variant mt-xs">Simulated fills</div>
+</div>
+<!-- Card 4 -->
+<div class="bg-surface-container rounded-lg border border-outline-variant p-md flex flex-col justify-between relative overflow-hidden">
+<div class="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent pointer-events-none"></div>
+<div class="flex justify-between items-center mb-sm relative z-10">
+<span class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Cumulative P&amp;L (Paper)</span>
+<span class="material-symbols-outlined text-primary text-sm">trending_up</span>
+</div>
+<div class="font-headline-lg text-headline-lg text-primary relative z-10">+$142,850.00</div>
+<div class="font-label-sm text-label-sm text-on-surface-variant mt-xs relative z-10">Trailing 30 days</div>
+</div>
+</section>
+<!-- Section 3: Main Table -->
+<section class="flex-1 bg-surface-container border border-outline-variant rounded-lg overflow-hidden flex flex-col">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead class="bg-surface-container-low border-b border-outline-variant">
+<tr>
+<th class="font-label-md text-label-md text-on-surface-variant py-sm px-md font-medium">Run ID</th>
+<th class="font-label-md text-label-md text-on-surface-variant py-sm px-md font-medium">Status</th>
+<th class="font-label-md text-label-md text-on-surface-variant py-sm px-md font-medium">Started</th>
+<th class="font-label-md text-label-md text-on-surface-variant py-sm px-md font-medium">Duration</th>
+<th class="font-label-md text-label-md text-on-surface-variant py-sm px-md font-medium">Symbols</th>
+<th class="font-label-md text-label-md text-on-surface-variant py-sm px-md font-medium">Success/Fail</th>
+<th class="font-label-md text-label-md text-on-surface-variant py-sm px-md font-medium text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="font-body-md text-body-md text-on-surface">
+<!-- Row 1 -->
+<tr class="border-b border-outline-variant hover:bg-surface-container-high transition-colors group">
+<td class="py-sm px-md font-mono-data text-mono-data">pr-20231026-05</td>
+<td class="py-sm px-md">
+<span class="inline-flex items-center px-2 py-1 rounded bg-primary/10 text-primary font-label-sm text-label-sm uppercase">
+<span class="w-1.5 h-1.5 rounded-full bg-primary mr-2"></span>
+                                        Completed
+                                    </span>
+</td>
+<td class="py-sm px-md text-on-surface-variant">2023-10-26 14:30:00 UTC</td>
+<td class="py-sm px-md text-on-surface-variant">45m 12s</td>
+<td class="py-sm px-md">150</td>
+<td class="py-sm px-md"><span class="text-primary">150</span> / <span class="text-on-surface-variant">0</span></td>
+<td class="py-sm px-md text-right">
+<button class="text-primary hover:text-primary-fixed font-label-md text-label-md transition-colors opacity-0 group-hover:opacity-100">View Detail</button>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="border-b border-outline-variant hover:bg-surface-container-high transition-colors group">
+<td class="py-sm px-md font-mono-data text-mono-data">pr-20231026-04</td>
+<td class="py-sm px-md">
+<span class="inline-flex items-center px-2 py-1 rounded bg-error/10 text-error font-label-sm text-label-sm uppercase">
+<span class="w-1.5 h-1.5 rounded-full bg-error mr-2"></span>
+                                        Failed
+                                    </span>
+</td>
+<td class="py-sm px-md text-on-surface-variant">2023-10-26 12:15:00 UTC</td>
+<td class="py-sm px-md text-on-surface-variant">2m 04s</td>
+<td class="py-sm px-md">50</td>
+<td class="py-sm px-md"><span class="text-primary">0</span> / <span class="text-error">50</span></td>
+<td class="py-sm px-md text-right">
+<button class="text-primary hover:text-primary-fixed font-label-md text-label-md transition-colors opacity-0 group-hover:opacity-100">View Detail</button>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="border-b border-outline-variant hover:bg-surface-container-high transition-colors group">
+<td class="py-sm px-md font-mono-data text-mono-data">pr-20231026-03</td>
+<td class="py-sm px-md">
+<span class="inline-flex items-center px-2 py-1 rounded bg-tertiary/10 text-tertiary font-label-sm text-label-sm uppercase">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary mr-2"></span>
+                                        Partial Failed
+                                    </span>
+</td>
+<td class="py-sm px-md text-on-surface-variant">2023-10-26 09:00:00 UTC</td>
+<td class="py-sm px-md text-on-surface-variant">1h 15m</td>
+<td class="py-sm px-md">200</td>
+<td class="py-sm px-md"><span class="text-primary">198</span> / <span class="text-tertiary">2</span></td>
+<td class="py-sm px-md text-right">
+<button class="text-primary hover:text-primary-fixed font-label-md text-label-md transition-colors opacity-0 group-hover:opacity-100">View Detail</button>
+</td>
+</tr>
+<!-- Row 4 -->
+<tr class="border-b border-outline-variant hover:bg-surface-container-high transition-colors group">
+<td class="py-sm px-md font-mono-data text-mono-data">pr-20231025-02</td>
+<td class="py-sm px-md">
+<span class="inline-flex items-center px-2 py-1 rounded bg-primary/10 text-primary font-label-sm text-label-sm uppercase">
+<span class="w-1.5 h-1.5 rounded-full bg-primary mr-2"></span>
+                                        Completed
+                                    </span>
+</td>
+<td class="py-sm px-md text-on-surface-variant">2023-10-25 15:45:00 UTC</td>
+<td class="py-sm px-md text-on-surface-variant">32m 10s</td>
+<td class="py-sm px-md">100</td>
+<td class="py-sm px-md"><span class="text-primary">100</span> / <span class="text-on-surface-variant">0</span></td>
+<td class="py-sm px-md text-right">
+<button class="text-primary hover:text-primary-fixed font-label-md text-label-md transition-colors opacity-0 group-hover:opacity-100">View Detail</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Pagination / Footer of Table -->
+<div class="mt-auto border-t border-outline-variant bg-surface-container-low p-sm flex justify-between items-center text-on-surface-variant font-label-sm text-label-sm">
+<span>Showing 1 to 4 of 1,248 runs</span>
+<div class="flex gap-xs">
+<button class="p-xs rounded hover:bg-surface-container-high hover:text-on-surface transition-colors disabled:opacity-50">
+<span class="material-symbols-outlined text-sm">chevron_left</span>
+</button>
+<button class="p-xs rounded hover:bg-surface-container-high hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined text-sm">chevron_right</span>
+</button>
+</div>
+</div>
+</section>
+</main>
+</div>
+</body></html>

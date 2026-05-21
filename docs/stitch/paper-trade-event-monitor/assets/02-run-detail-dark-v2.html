@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Run Detail - Taurus AI</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "error-container": "#93000a",
+                      "background": "#0b1326",
+                      "inverse-on-surface": "#283044",
+                      "surface-tint": "#7bd0ff",
+                      "primary-fixed-dim": "#7bd0ff",
+                      "on-tertiary-container": "#364557",
+                      "on-secondary-fixed-variant": "#2f2ebe",
+                      "surface-container-low": "#131b2e",
+                      "primary-container": "#38bdf8",
+                      "primary-fixed": "#c4e7ff",
+                      "tertiary-fixed-dim": "#b9c8de",
+                      "surface-container-highest": "#2d3449",
+                      "on-primary": "#00354a",
+                      "tertiary-container": "#a3b2c7",
+                      "surface-container-lowest": "#060e20",
+                      "on-surface": "#dae2fd",
+                      "on-secondary": "#1000a9",
+                      "surface": "#0b1326",
+                      "outline": "#87929a",
+                      "on-error-container": "#ffdad6",
+                      "secondary-fixed-dim": "#c0c1ff",
+                      "outline-variant": "#3e484f",
+                      "tertiary": "#becee4",
+                      "on-primary-fixed": "#001e2c",
+                      "on-tertiary-fixed-variant": "#39485a",
+                      "on-primary-container": "#004965",
+                      "surface-dim": "#0b1326",
+                      "surface-container": "#171f33",
+                      "on-tertiary-fixed": "#0d1c2d",
+                      "surface-variant": "#2d3449",
+                      "surface-bright": "#31394d",
+                      "secondary": "#c0c1ff",
+                      "on-primary-fixed-variant": "#004c69",
+                      "on-background": "#dae2fd",
+                      "on-error": "#690005",
+                      "error": "#ffb4ab",
+                      "secondary-fixed": "#e1e0ff",
+                      "inverse-primary": "#00668a",
+                      "on-tertiary": "#233143",
+                      "on-secondary-container": "#b0b2ff",
+                      "on-surface-variant": "#bdc8d1",
+                      "secondary-container": "#3131c0",
+                      "inverse-surface": "#dae2fd",
+                      "surface-container-high": "#222a3d",
+                      "primary": "#8ed5ff",
+                      "tertiary-fixed": "#d4e4fa",
+                      "on-secondary-fixed": "#07006c",
+                      "success": "#4ade80",
+                      "failure": "#f87171",
+                      "blocked": "#94a3b8",
+                      "caution": "#fbbf24",
+                      "running": "#60a5fa",
+                      "equity-blue": "#38bdf8"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "spacing": {
+                      "xxs": "0.25rem",
+                      "margin": "2rem",
+                      "md": "1rem",
+                      "base": "4px",
+                      "xs": "0.5rem",
+                      "lg": "1.5rem",
+                      "gutter": "1.5rem",
+                      "xl": "2rem",
+                      "sm": "0.75rem",
+                      "container-max-width": "1440px"
+              },
+              "fontFamily": {
+                      "label-sm": ["Inter"],
+                      "headline-md": ["Inter"],
+                      "body-lg": ["Inter"],
+                      "mono-data": ["monospace"],
+                      "headline-lg": ["Inter"],
+                      "body-md": ["Inter"],
+                      "label-md": ["Inter"],
+                      "headline-lg-mobile": ["Inter"],
+                      "metric-xl": ["Inter"],
+                      "headline-sm": ["Inter"],
+                      "body-sm": ["Inter"],
+                      "label-mono": ["JetBrains Mono"]
+              },
+              "fontSize": {
+                      "label-sm": ["11px", {"lineHeight": "14px", "letterSpacing": "0.03em", "fontWeight": "600"}],
+                      "headline-md": ["20px", {"lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                      "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                      "mono-data": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                      "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                      "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                      "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.01em", "fontWeight": "500"}],
+                      "headline-lg-mobile": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                      "metric-xl": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.04em", "fontWeight": "700"}],
+                      "headline-sm": ["16px", {"lineHeight": "24px", "fontWeight": "600"}],
+                      "body-sm": ["12px", {"lineHeight": "16px", "fontWeight": "400"}],
+                      "label-mono": ["12px", {"lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "500"}]
+              }
+            }
+          }
+        }
+      </script>
+<style>
+        .material-symbols-outlined {
+          font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+      </style>
+</head>
+<body class="bg-surface text-on-surface font-body-md min-h-screen flex">
+<!-- SideNavBar -->
+<nav class="bg-surface-container-low text-primary font-body-sm h-screen w-64 fixed left-0 top-0 border-r border-outline-variant flex flex-col pt-20 pb-4 px-4 hidden md:flex z-40">
+<div class="mb-8 px-2">
+<div class="font-headline-sm text-headline-sm font-semibold text-on-surface mb-1">System Status</div>
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-caution"></span>
+<span class="text-on-surface-variant">Live: Simulation Mode</span>
+</div>
+<button class="mt-4 w-full flex items-center justify-center gap-2 py-2 px-4 bg-outline-variant/20 border border-outline-variant rounded text-primary hover:bg-outline-variant/30 transition-colors">
+<span class="material-symbols-outlined text-[18px]">lock</span>
+                Safety Toggle
+            </button>
+</div>
+<ul class="flex flex-col gap-1 flex-1">
+<li><a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:bg-surface-container-high hover:bg-surface-container-highest transition-all scale-95 duration-150 rounded" href="#"><span class="material-symbols-outlined">dashboard</span> Overview</a></li>
+<li><a class="flex items-center gap-3 px-3 py-2 bg-secondary-container text-on-secondary-container rounded-lg font-semibold hover:bg-surface-container-highest transition-all scale-95 duration-150" href="#"><span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">play_circle</span> Active Runs</a></li>
+<li><a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:bg-surface-container-high hover:bg-surface-container-highest transition-all scale-95 duration-150 rounded" href="#"><span class="material-symbols-outlined">history</span> History</a></li>
+<li><a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:bg-surface-container-high hover:bg-surface-container-highest transition-all scale-95 duration-150 rounded" href="#"><span class="material-symbols-outlined">shield</span> Risk Engine</a></li>
+<li><a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:bg-surface-container-high hover:bg-surface-container-highest transition-all scale-95 duration-150 rounded" href="#"><span class="material-symbols-outlined">account_balance</span> Portfolio</a></li>
+</ul>
+<div class="mt-auto border-t border-outline-variant pt-4">
+<ul class="flex flex-col gap-1">
+<li><a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:bg-surface-container-high hover:bg-surface-container-highest transition-all scale-95 duration-150 rounded" href="#"><span class="material-symbols-outlined">help</span> Support</a></li>
+<li><a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:bg-surface-container-high hover:bg-surface-container-highest transition-all scale-95 duration-150 rounded" href="#"><span class="material-symbols-outlined">code</span> API Docs</a></li>
+</ul>
+</div>
+</nav>
+<!-- Main Content Area -->
+<main class="flex-1 md:ml-64 flex flex-col min-h-screen">
+<!-- TopNavBar -->
+<header class="bg-surface text-primary font-body-md border-b border-outline-variant flex justify-between items-center px-margin py-base w-full sticky top-0 z-50">
+<div class="flex items-center gap-6">
+<div class="font-headline-md text-headline-md font-bold text-primary md:hidden">Taurus AI</div>
+<div class="hidden md:flex items-center bg-surface-container border border-outline-variant rounded px-3 py-1.5 focus-within:border-primary transition-colors">
+<span class="material-symbols-outlined text-outline-variant mr-2 text-[18px]">search</span>
+<input class="bg-transparent border-none focus:ring-0 text-body-sm p-0 w-64 placeholder-outline-variant text-on-surface outline-none" placeholder="Search logs, symbols..." type="text"/>
+</div>
+</div>
+<nav class="hidden md:flex gap-6">
+<a class="text-on-surface-variant hover:text-primary transition-colors cursor-pointer active:opacity-80" href="#">Dashboard</a>
+<a class="text-primary border-b-2 border-primary font-bold pb-1 hover:text-primary transition-colors cursor-pointer active:opacity-80" href="#">Analytics</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors cursor-pointer active:opacity-80" href="#">Logs</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors cursor-pointer active:opacity-80" href="#">Settings</a>
+</nav>
+<div class="flex items-center gap-4">
+<button class="bg-primary text-on-primary px-4 py-1.5 rounded font-body-sm font-semibold hover:bg-equity-blue transition-colors hidden sm:block">Run Agent</button>
+<div class="flex items-center gap-2 text-on-surface-variant">
+<button class="p-1 hover:bg-surface-container-high rounded transition-colors"><span class="material-symbols-outlined">notifications</span></button>
+<button class="p-1 hover:bg-surface-container-high rounded transition-colors"><span class="material-symbols-outlined">account_balance_wallet</span></button>
+<button class="p-1 hover:bg-surface-container-high rounded transition-colors"><span class="material-symbols-outlined">settings</span></button>
+</div>
+</div>
+</header>
+<!-- Canvas -->
+<div class="p-margin max-w-container-max-width mx-auto w-full flex-1 flex flex-col gap-gutter">
+<!-- Page Header -->
+<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-2">
+<div>
+<div class="flex items-center gap-3 mb-1">
+<h1 class="font-headline-lg text-headline-lg text-on-surface">Run pr-20231027-01</h1>
+<span class="px-2 py-0.5 bg-success/20 text-success border border-success/30 rounded font-label-mono text-label-mono uppercase">COMPLETED</span>
+</div>
+<p class="text-on-surface-variant font-body-sm">Started Oct 27, 2023 09:30 UTC · Duration: 4m 12s</p>
+</div>
+<div class="flex gap-2">
+<button class="px-3 py-1.5 border border-outline-variant rounded font-body-sm text-on-surface-variant hover:bg-surface-container flex items-center gap-2 transition-colors">
+<span class="material-symbols-outlined text-[16px]">download</span> Export CSV
+                    </button>
+</div>
+</div>
+<!-- Pipeline Summary Cards -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-gutter mb-2">
+<div class="bg-surface-container-lowest border border-outline-variant rounded p-4">
+<div class="text-on-surface-variant font-body-sm mb-1">Total Symbols</div>
+<div class="font-metric-xl text-metric-xl text-on-surface">42</div>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant rounded p-4">
+<div class="text-on-surface-variant font-body-sm mb-1">Actionable (BUY/SELL)</div>
+<div class="font-metric-xl text-metric-xl text-on-surface">18</div>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant rounded p-4">
+<div class="text-on-surface-variant font-body-sm mb-1">Risk Blocked</div>
+<div class="font-metric-xl text-metric-xl text-blocked">3</div>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant rounded p-4">
+<div class="text-on-surface-variant font-body-sm mb-1">Pipeline Errors</div>
+<div class="font-metric-xl text-metric-xl text-failure">1</div>
+</div>
+</div>
+<!-- Main Data Table Container -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded flex flex-col flex-1 overflow-hidden">
+<!-- Table Toolbar -->
+<div class="px-4 py-3 border-b border-outline-variant bg-surface-container-low flex justify-between items-center">
+<div class="flex items-center gap-2">
+<span class="font-headline-sm text-headline-sm">Symbol Pipeline</span>
+<span class="px-2 py-0.5 bg-surface-container border border-outline-variant rounded font-label-mono text-label-mono text-on-surface-variant">42 ITEMS</span>
+</div>
+<div class="flex gap-2">
+<div class="relative">
+<span class="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-outline-variant text-[16px]">filter_list</span>
+<select class="pl-8 pr-8 py-1.5 border border-outline-variant rounded bg-surface font-body-sm text-on-surface text-sm focus:ring-0 focus:border-primary appearance-none">
+<option>All Statuses</option>
+<option>Failed Only</option>
+<option>Actionable</option>
+</select>
+</div>
+</div>
+</div>
+<!-- Table -->
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="border-b border-outline-variant bg-surface-container-lowest font-label-mono text-label-mono text-on-surface-variant uppercase">
+<th class="px-4 py-3 font-medium">Symbol</th>
+<th class="px-4 py-3 font-medium w-1/2">Pipeline Progress</th>
+<th class="px-4 py-3 font-medium text-right">Final Action</th>
+<th class="px-4 py-3 font-medium text-right">Status</th>
+</tr>
+</thead>
+<tbody class="font-body-sm divide-y divide-surface-container-high">
+<!-- Row 1: Success Buy -->
+<tr class="hover:bg-surface-container-low transition-colors group cursor-pointer">
+<td class="px-4 py-3">
+<div class="flex items-center gap-2">
+<span class="font-label-mono text-label-mono font-bold">INFY</span>
+<span class="text-on-surface-variant text-[10px]">Infosys Ltd</span>
+</div>
+</td>
+<td class="px-4 py-3">
+<div class="flex items-center w-full max-w-md">
+<div class="flex-1 flex items-center">
+<div class="w-4 h-4 rounded-full bg-success flex items-center justify-center shrink-0 z-10"><span class="material-symbols-outlined text-background text-[10px]">check</span></div>
+<div class="h-[2px] bg-success flex-1 -ml-1"></div>
+</div>
+<div class="flex-1 flex items-center">
+<div class="w-4 h-4 rounded-full bg-success flex items-center justify-center shrink-0 z-10"><span class="material-symbols-outlined text-background text-[10px]">check</span></div>
+<div class="h-[2px] bg-success flex-1 -ml-1"></div>
+</div>
+<div class="flex-1 flex items-center">
+<div class="w-4 h-4 rounded-full bg-success flex items-center justify-center shrink-0 z-10"><span class="material-symbols-outlined text-background text-[10px]">check</span></div>
+<div class="h-[2px] bg-success flex-1 -ml-1"></div>
+</div>
+<div class="w-4 h-4 rounded-full bg-success flex items-center justify-center shrink-0 z-10"><span class="material-symbols-outlined text-background text-[10px]">check</span></div>
+</div>
+<div class="flex justify-between w-full max-w-md mt-1 text-[10px] text-on-surface-variant px-1">
+<span>Analyst</span>
+<span>Debate</span>
+<span>Proposal</span>
+<span>Risk</span>
+</div>
+</td>
+<td class="px-4 py-3 text-right">
+<span class="font-label-mono text-label-mono font-bold text-success">BUY</span>
+</td>
+<td class="px-4 py-3 text-right">
+<span class="px-2 py-0.5 bg-success/20 text-success border border-success/30 rounded font-label-mono text-[10px] uppercase">Success</span>
+</td>
+</tr>
+<!-- Row 2: Blocked by Risk -->
+<tr class="hover:bg-surface-container-low transition-colors group cursor-pointer bg-surface-container-highest/20">
+<td class="px-4 py-3">
+<div class="flex items-center gap-2">
+<span class="font-label-mono text-label-mono font-bold">RELIANCE</span>
+<span class="text-on-surface-variant text-[10px]">Reliance Ind</span>
+</div>
+</td>
+<td class="px-4 py-3">
+<div class="flex items-center w-full max-w-md">
+<div class="flex-1 flex items-center">
+<div class="w-4 h-4 rounded-full bg-success flex items-center justify-center shrink-0 z-10"><span class="material-symbols-outlined text-background text-[10px]">check</span></div>
+<div class="h-[2px] bg-success flex-1 -ml-1"></div>
+</div>
+<div class="flex-1 flex items-center">
+<div class="w-4 h-4 rounded-full bg-success flex items-center justify-center shrink-0 z-10"><span class="material-symbols-outlined text-background text-[10px]">check</span></div>
+<div class="h-[2px] bg-success flex-1 -ml-1"></div>
+</div>
+<div class="flex-1 flex items-center">
+<div class="w-4 h-4 rounded-full bg-success flex items-center justify-center shrink-0 z-10"><span class="material-symbols-outlined text-background text-[10px]">check</span></div>
+<div class="h-[2px] bg-blocked flex-1 -ml-1"></div>
+</div>
+<div class="w-4 h-4 rounded-full bg-blocked flex items-center justify-center shrink-0 z-10"><span class="material-symbols-outlined text-background text-[10px]">block</span></div>
+</div>
+</td>
+<td class="px-4 py-3 text-right">
+<span class="font-label-mono text-label-mono font-bold text-blocked">HOLD</span>
+</td>
+<td class="px-4 py-3 text-right">
+<span class="px-2 py-0.5 bg-blocked/20 text-blocked border border-blocked/30 rounded font-label-mono text-[10px] uppercase">Risk Blocked</span>
+</td>
+</tr>
+<!-- Row 3: Pipeline Error -->
+<tr class="hover:bg-surface-container-low transition-colors group cursor-pointer bg-error-container/20">
+<td class="px-4 py-3">
+<div class="flex items-center gap-2">
+<span class="font-label-mono text-label-mono font-bold">TCS</span>
+<span class="text-on-surface-variant text-[10px]">Tata Consultancy</span>
+</div>
+</td>
+<td class="px-4 py-3">
+<div class="flex items-center w-full max-w-md">
+<div class="flex-1 flex items-center">
+<div class="w-4 h-4 rounded-full bg-success flex items-center justify-center shrink-0 z-10"><span class="material-symbols-outlined text-background text-[10px]">check</span></div>
+<div class="h-[2px] bg-failure flex-1 -ml-1"></div>
+</div>
+<div class="flex-1 flex items-center">
+<div class="w-4 h-4 rounded-full bg-failure flex items-center justify-center shrink-0 z-10"><span class="material-symbols-outlined text-background text-[10px]">error</span></div>
+<div class="h-[2px] border-t-2 border-dashed border-outline-variant flex-1 -ml-1 mt-[1px]"></div>
+</div>
+<div class="flex-1 flex items-center">
+<div class="w-4 h-4 rounded-full border-2 border-outline-variant bg-surface flex items-center justify-center shrink-0 z-10"></div>
+<div class="h-[2px] border-t-2 border-dashed border-outline-variant flex-1 -ml-1 mt-[1px]"></div>
+</div>
+<div class="w-4 h-4 rounded-full border-2 border-outline-variant bg-surface flex items-center justify-center shrink-0 z-10"></div>
+</div>
+</td>
+<td class="px-4 py-3 text-right">
+<span class="font-label-mono text-label-mono text-on-surface-variant">--</span>
+</td>
+<td class="px-4 py-3 text-right">
+<span class="px-2 py-0.5 bg-failure/20 text-failure border border-failure/30 rounded font-label-mono text-[10px] uppercase">Agent Error</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</main>
+</body></html>

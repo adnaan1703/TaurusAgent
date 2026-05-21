@@ -49,6 +49,8 @@ Never commit real API keys, broker credentials, Telegram tokens, or user CSV exp
 
 Implement one milestone at a time. Update `docs/TAURUS_MILESTONE_TODO.md` whenever task status changes. Keep Codex command approvals project-local in `.codex/rules/default.rules`; do not broaden global approvals for this repo.
 
+Treat React dashboard M16 submilestones exactly like main milestones. After a submilestone is complete, verified, cleaned up, and documented with its completion summary, stop and report what was achieved. Do not automatically begin the next M16 submilestone unless the user explicitly asks to proceed.
+
 At the completion of every milestone task, include an explicit completion summary section that lists: assumptions made, mocks created, and mocks used. If any category is empty, state `None` rather than omitting it.
 
 At milestone completion and cleanup, inspect `/Users/adnaan/.codex/rules/default.rules`. Treat entries after the user's `# END MY CUSTOM ADDITION` marker as accidental global approvals. Any Taurus-specific approved prefixes found after that marker must be copied into `.codex/rules/default.rules` if missing, documented in `docs/TAURUS_COMMANDS.md`, and removed from the global rules file. Do not copy unrelated global approvals, such as `npx clasp`, into this project.

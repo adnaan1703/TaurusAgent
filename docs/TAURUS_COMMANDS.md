@@ -170,6 +170,33 @@ make test
 make lint
 ```
 
+## M16.1 Commands Used
+
+```bash
+git status --short
+find docs/stitch/paper-trade-event-monitor -maxdepth 1 -type f | sort
+find docs/stitch/paper-trade-event-monitor/assets -maxdepth 1 -type f | sort
+curl -L '<stitch-screenshot-url>' -o docs/stitch/paper-trade-event-monitor/assets/<screen>.png
+curl -L '<stitch-html-url>' -o docs/stitch/paper-trade-event-monitor/assets/<screen>.html
+```
+
+## M16.2 Commands Used
+
+```bash
+make test
+make lint
+DATABASE_URL=sqlite:////private/tmp/taurus-m16-api-20260521.db make paper-loop-mock
+DATABASE_URL=sqlite:////private/tmp/taurus-m16-api-20260521.db make api
+curl -sS -o /private/tmp/taurus-m16-ui-overview.json -w '%{http_code}' http://127.0.0.1:8000/ui/overview
+curl -sS -o /private/tmp/taurus-m16-ui-history.json -w '%{http_code}' http://127.0.0.1:8000/ui/history
+curl -sS -o /private/tmp/taurus-m16-ui-run.json -w '%{http_code}' http://127.0.0.1:8000/ui/runs/pr-75fdbb0381152d57
+curl -sS -o /private/tmp/taurus-m16-ui-trail.json -w '%{http_code}' http://127.0.0.1:8000/ui/runs/pr-75fdbb0381152d57/symbols/INFY/decision-trail
+curl -sS -o /private/tmp/taurus-m16-ui-replay.json -w '%{http_code}' http://127.0.0.1:8000/ui/replay/dec-1d59184394a64b42
+curl -sS -o /private/tmp/taurus-m16-ui-risk.json -w '%{http_code}' http://127.0.0.1:8000/ui/risk
+curl -sS -o /private/tmp/taurus-m16-ui-portfolio.json -w '%{http_code}' http://127.0.0.1:8000/ui/portfolio
+pkill -f "uvicorn apps.api.main:app"
+```
+
 ## Current Make Targets
 
 ```bash
@@ -266,6 +293,13 @@ curl http://localhost:8000/paper/positions
 curl http://localhost:8000/paper/account
 curl http://localhost:8000/runs
 curl http://localhost:8000/runs/{run_id}
+curl http://localhost:8000/ui/overview
+curl http://localhost:8000/ui/history
+curl http://localhost:8000/ui/runs/{run_id}
+curl http://localhost:8000/ui/runs/{run_id}/symbols/INFY/decision-trail
+curl http://localhost:8000/ui/replay/{decision_id}
+curl http://localhost:8000/ui/risk
+curl http://localhost:8000/ui/portfolio
 curl -X POST http://localhost:8000/alerts/test
 curl http://localhost:8000/replay/{decision_id}
 ```
@@ -339,6 +373,8 @@ prefix_rule(pattern=["make", "paper-loop-mock"], decision="allow")
 prefix_rule(pattern=["/bin/zsh", "-lc", "DATABASE_URL=sqlite:////private/tmp/taurus-m11-verify-20260520.db make paper-loop-mock"], decision="allow")
 prefix_rule(pattern=["/bin/zsh", "-lc", "DATABASE_URL=sqlite:////private/tmp/taurus-m11-verify-20260520.db make api"], decision="allow")
 prefix_rule(pattern=["/bin/zsh", "-lc", "DATABASE_URL=sqlite:////private/tmp/taurus-m11-verify-20260520.db make dashboard"], decision="allow")
+prefix_rule(pattern=["/bin/zsh", "-lc", "DATABASE_URL=sqlite:////private/tmp/taurus-m16-api-20260521.db make paper-loop-mock"], decision="allow")
+prefix_rule(pattern=["/bin/zsh", "-lc", "DATABASE_URL=sqlite:////private/tmp/taurus-m16-api-20260521.db make api"], decision="allow")
 prefix_rule(pattern=["make", "alert-smoke"], decision="allow")
 prefix_rule(pattern=["make", "replay-decision"], decision="allow")
 prefix_rule(pattern=["make", "backup-local"], decision="allow")
@@ -373,6 +409,13 @@ prefix_rule(pattern=["curl", "http://localhost:8000/paper/positions"], decision=
 prefix_rule(pattern=["curl", "http://localhost:8000/paper/account"], decision="allow")
 prefix_rule(pattern=["curl", "http://localhost:8000/runs"], decision="allow")
 prefix_rule(pattern=["curl", "http://localhost:8000/runs/pr-edecbedf6614c240"], decision="allow")
+prefix_rule(pattern=["curl", "-sS", "-o", "/private/tmp/taurus-m16-ui-overview.json", "-w", "%{http_code}", "http://127.0.0.1:8000/ui/overview"], decision="allow")
+prefix_rule(pattern=["curl", "-sS", "-o", "/private/tmp/taurus-m16-ui-history.json", "-w", "%{http_code}", "http://127.0.0.1:8000/ui/history"], decision="allow")
+prefix_rule(pattern=["curl", "-sS", "-o", "/private/tmp/taurus-m16-ui-run.json", "-w", "%{http_code}", "http://127.0.0.1:8000/ui/runs/pr-75fdbb0381152d57"], decision="allow")
+prefix_rule(pattern=["curl", "-sS", "-o", "/private/tmp/taurus-m16-ui-trail.json", "-w", "%{http_code}", "http://127.0.0.1:8000/ui/runs/pr-75fdbb0381152d57/symbols/INFY/decision-trail"], decision="allow")
+prefix_rule(pattern=["curl", "-sS", "-o", "/private/tmp/taurus-m16-ui-replay.json", "-w", "%{http_code}", "http://127.0.0.1:8000/ui/replay/dec-1d59184394a64b42"], decision="allow")
+prefix_rule(pattern=["curl", "-sS", "-o", "/private/tmp/taurus-m16-ui-risk.json", "-w", "%{http_code}", "http://127.0.0.1:8000/ui/risk"], decision="allow")
+prefix_rule(pattern=["curl", "-sS", "-o", "/private/tmp/taurus-m16-ui-portfolio.json", "-w", "%{http_code}", "http://127.0.0.1:8000/ui/portfolio"], decision="allow")
 prefix_rule(pattern=["curl", "http://127.0.0.1:8000/paper/orders"], decision="allow")
 prefix_rule(pattern=["curl", "http://127.0.0.1:8000/paper/fills"], decision="allow")
 prefix_rule(pattern=["curl", "http://127.0.0.1:8000/paper/positions"], decision="allow")

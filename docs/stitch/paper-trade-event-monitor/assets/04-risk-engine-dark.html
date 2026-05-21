@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Risk Engine &amp; Safety Gates - TAURUS AI</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "surface-container-high": "#222a3d",
+                        "tertiary-fixed": "#d4e4fa",
+                        "on-secondary-fixed": "#07006c",
+                        "primary": "#8ed5ff",
+                        "on-tertiary": "#233143",
+                        "on-secondary-container": "#b0b2ff",
+                        "secondary-fixed": "#e1e0ff",
+                        "inverse-primary": "#00668a",
+                        "on-surface-variant": "#bdc8d1",
+                        "secondary-container": "#3131c0",
+                        "inverse-surface": "#dae2fd",
+                        "on-error": "#690005",
+                        "error": "#ffb4ab",
+                        "surface-dim": "#0b1326",
+                        "on-primary-container": "#004965",
+                        "surface-variant": "#2d3449",
+                        "surface-bright": "#31394d",
+                        "secondary": "#c0c1ff",
+                        "surface-container": "#171f33",
+                        "on-tertiary-fixed": "#0d1c2d",
+                        "on-primary-fixed-variant": "#004c69",
+                        "on-background": "#dae2fd",
+                        "secondary-fixed-dim": "#c0c1ff",
+                        "tertiary": "#becee4",
+                        "on-primary-fixed": "#001e2c",
+                        "outline-variant": "#3e484f",
+                        "on-tertiary-fixed-variant": "#39485a",
+                        "on-surface": "#dae2fd",
+                        "on-secondary": "#1000a9",
+                        "surface": "#0b1326",
+                        "outline": "#87929a",
+                        "on-error-container": "#ffdad6",
+                        "surface-container-low": "#131b2e",
+                        "primary-container": "#38bdf8",
+                        "on-tertiary-container": "#364557",
+                        "on-secondary-fixed-variant": "#2f2ebe",
+                        "primary-fixed": "#c4e7ff",
+                        "on-primary": "#00354a",
+                        "tertiary-fixed-dim": "#b9c8de",
+                        "surface-container-highest": "#2d3449",
+                        "tertiary-container": "#a3b2c7",
+                        "surface-container-lowest": "#060e20",
+                        "background": "#0b1326",
+                        "error-container": "#93000a",
+                        "inverse-on-surface": "#283044",
+                        "surface-tint": "#7bd0ff",
+                        "primary-fixed-dim": "#7bd0ff"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    spacing: {
+                        "sm": "0.75rem",
+                        "xl": "2rem",
+                        "gutter": "1.5rem",
+                        "xs": "0.5rem",
+                        "lg": "1.5rem",
+                        "base": "4px",
+                        "md": "1rem",
+                        "xxs": "0.25rem",
+                        "margin": "2rem"
+                    },
+                    fontFamily: {
+                        "headline-lg": ["Inter"],
+                        "body-md": ["Inter"],
+                        "label-md": ["Inter"],
+                        "headline-lg-mobile": ["Inter"],
+                        "label-sm": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "mono-data": ["monospace"]
+                    },
+                    fontSize: {
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "label-md": ["12px", { "lineHeight": "16px", "letterSpacing": "0.01em", "fontWeight": "500" }],
+                        "headline-lg-mobile": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+                        "label-sm": ["11px", { "lineHeight": "14px", "letterSpacing": "0.03em", "fontWeight": "600" }],
+                        "headline-md": ["20px", { "lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "mono-data": ["13px", { "lineHeight": "18px", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-background text-on-surface min-h-screen font-body-md overflow-x-hidden selection:bg-primary-container selection:text-on-primary-container">
+<!-- TopNavBar (Mobile Only) -->
+<nav class="md:hidden fixed top-0 w-full z-50 flex justify-between items-center px-lg h-16 bg-surface-dim border-b border-outline-variant">
+<div class="flex items-center gap-sm">
+<span class="text-headline-md font-headline-md font-black tracking-tighter text-primary">TAURUS AI</span>
+</div>
+<div class="flex items-center gap-sm text-primary">
+<button class="cursor-pointer active:opacity-80 p-xs hover:bg-surface-container-high transition-colors rounded-DEFAULT">
+<span class="material-symbols-outlined" data-icon="account_balance_wallet">account_balance_wallet</span>
+</button>
+<button class="cursor-pointer active:opacity-80 p-xs hover:bg-surface-container-high transition-colors rounded-DEFAULT">
+<span class="material-symbols-outlined" data-icon="sensors">sensors</span>
+</button>
+<button class="cursor-pointer active:opacity-80 p-xs hover:bg-surface-container-high transition-colors rounded-DEFAULT">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+</button>
+</div>
+</nav>
+<!-- SideNavBar (Desktop Only) -->
+<aside class="hidden md:flex fixed left-0 top-0 h-full flex-col py-lg border-r border-outline-variant bg-surface-container docked left-0 h-screen w-64 z-50">
+<div class="px-lg mb-xl flex flex-col gap-xs">
+<div class="font-headline-md text-headline-md text-primary font-black tracking-tighter">TAURUS AI</div>
+<div class="font-label-sm text-label-sm text-on-surface-variant flex items-center gap-xs">
+<div class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
+                Vigilant Mode
+            </div>
+</div>
+<div class="flex-1 px-sm flex flex-col gap-xs overflow-y-auto">
+<a class="flex items-center gap-md px-md py-sm rounded-DEFAULT text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest transition-all active:scale-95 duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-label-md text-label-md">Dashboard</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm rounded-DEFAULT text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest transition-all active:scale-95 duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="play_circle">play_circle</span>
+<span class="font-label-md text-label-md">Active Runs</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm rounded-DEFAULT text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest transition-all active:scale-95 duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="history">history</span>
+<span class="font-label-md text-label-md">History</span>
+</a>
+<!-- ACTIVE TAB -->
+<a class="flex items-center gap-md px-md py-sm rounded-lg font-bold bg-secondary-container text-on-secondary-container transition-all active:scale-95 duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="security" data-weight="fill" style="font-variation-settings: 'FILL' 1;">security</span>
+<span class="font-label-md text-label-md">Risk Engine</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm rounded-DEFAULT text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest transition-all active:scale-95 duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="pie_chart">pie_chart</span>
+<span class="font-label-md text-label-md">Portfolio</span>
+</a>
+</div>
+<div class="px-sm mt-auto pt-lg border-t border-outline-variant flex flex-col gap-xs">
+<a class="flex items-center gap-md px-md py-sm rounded-DEFAULT text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest transition-all active:scale-95 duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="description">description</span>
+<span class="font-label-md text-label-md">Docs</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm rounded-DEFAULT text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest transition-all active:scale-95 duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="help">help</span>
+<span class="font-label-md text-label-md">Support</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="pt-20 md:pt-lg px-margin md:pl-[calc(16rem+2rem)] pb-xl min-h-screen">
+<!-- Header Section -->
+<header class="flex flex-col md:flex-row md:justify-between md:items-end gap-md mb-xl">
+<div>
+<h1 class="font-headline-lg-mobile md:font-headline-lg text-headline-lg-mobile md:text-headline-lg text-on-surface">Risk Engine &amp; Safety Gates</h1>
+<p class="font-body-md text-body-md text-on-surface-variant mt-xs">Safety Gate dashboard for Indian equities.</p>
+</div>
+<div class="flex items-center gap-md bg-surface-container-high px-md py-sm rounded-lg border border-outline-variant">
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Gate Status</span>
+<div class="flex items-center gap-xs mt-1">
+<div class="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]"></div>
+<span class="font-label-md text-label-md font-bold text-emerald-400">ARMED</span>
+</div>
+</div>
+<div class="w-px h-8 bg-outline-variant"></div>
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Last Eval</span>
+<span class="font-mono-data text-mono-data text-on-surface mt-1">14:02:45 IST</span>
+</div>
+</div>
+</header>
+<!-- Main Grid Layout -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-gutter">
+<!-- Global Limits (Spans full width on mobile, 4 cols on desktop) -->
+<section class="lg:col-span-4 flex flex-col gap-sm">
+<h2 class="font-headline-md text-headline-md text-on-surface flex items-center gap-xs">
+<span class="material-symbols-outlined text-primary" data-icon="monitoring">monitoring</span>
+                    Global Limits
+                </h2>
+<div class="bg-surface-container-high rounded-lg border border-outline-variant p-md flex flex-col gap-md">
+<div class="flex justify-between items-center border-b border-outline-variant pb-sm">
+<span class="font-body-md text-body-md text-on-surface-variant">Max Position Size</span>
+<span class="font-mono-data text-mono-data font-bold text-on-surface">5.0%</span>
+</div>
+<div class="flex justify-between items-center border-b border-outline-variant pb-sm">
+<span class="font-body-md text-body-md text-on-surface-variant">Daily Loss Limit</span>
+<span class="font-mono-data text-mono-data font-bold text-error">-2.0%</span>
+</div>
+<div class="flex justify-between items-center border-b border-outline-variant pb-sm">
+<span class="font-body-md text-body-md text-on-surface-variant">Max Leverage</span>
+<span class="font-mono-data text-mono-data font-bold text-on-surface">1.5x</span>
+</div>
+<div class="flex justify-between items-center">
+<span class="font-body-md text-body-md text-on-surface-variant">Gross Exposure</span>
+<div class="flex items-center gap-sm">
+<div class="w-24 h-1.5 bg-surface-dim rounded-full overflow-hidden">
+<div class="h-full bg-amber-400 w-[84%]"></div>
+</div>
+<span class="font-mono-data text-mono-data font-bold text-amber-400">84%</span>
+</div>
+</div>
+</div>
+<!-- Persona Review Analysis (Stacked under Global Limits) -->
+<h2 class="font-headline-md text-headline-md text-on-surface flex items-center gap-xs mt-md">
+<span class="material-symbols-outlined text-secondary" data-icon="psychology">psychology</span>
+                    Persona Review
+                </h2>
+<div class="bg-surface-container-high rounded-lg border border-outline-variant p-md flex flex-col gap-sm relative overflow-hidden">
+<!-- Decorative subtle gradient -->
+<div class="absolute top-0 right-0 w-32 h-32 bg-secondary opacity-5 blur-2xl rounded-full translate-x-1/2 -translate-y-1/2"></div>
+<div class="flex justify-between items-start z-10">
+<span class="font-label-md text-label-md text-secondary border border-secondary/30 bg-secondary/10 px-xs py-xxs rounded-DEFAULT uppercase">AI Heuristic Eval</span>
+<span class="font-label-md text-label-md text-on-surface-variant">82% Confidence</span>
+</div>
+<h3 class="font-body-lg text-body-lg font-semibold text-on-surface z-10">Aggressive Momentum Logic</h3>
+<p class="font-body-md text-body-md text-on-surface-variant z-10 leading-relaxed">
+                        Proposal exhibits characteristics of aggressive momentum chasing. Strategy relies heavily on rapid price acceleration in mid-cap tech constituents, ignoring underlying fundamental valuation stretch. Probability of sharp mean reversion is elevated in current market conditions.
+                    </p>
+<div class="flex flex-wrap gap-xs mt-xs z-10">
+<span class="font-label-sm text-label-sm text-amber-400 bg-amber-400/10 px-xs py-xxs rounded-DEFAULT flex items-center gap-1 border border-amber-400/20">
+<span class="material-symbols-outlined text-[14px]" data-icon="warning">warning</span> Over-trading Risk
+                        </span>
+<span class="font-label-sm text-label-sm text-error bg-error/10 px-xs py-xxs rounded-DEFAULT flex items-center gap-1 border border-error/20">
+<span class="material-symbols-outlined text-[14px]" data-icon="trending_up">trending_up</span> High Volatility
+                        </span>
+</div>
+</div>
+</section>
+<!-- Center/Right Content (Spans 8 cols on desktop) -->
+<section class="lg:col-span-8 flex flex-col gap-lg">
+<!-- Deterministic Safety Gates Grid -->
+<div class="flex flex-col gap-sm">
+<h2 class="font-headline-md text-headline-md text-on-surface flex items-center gap-xs">
+<span class="material-symbols-outlined text-primary" data-icon="gavel">gavel</span>
+                        Deterministic Safety Gates
+                    </h2>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-md">
+<!-- Passed Card -->
+<div class="bg-surface-container-high rounded-lg border-t-2 border-t-emerald-500 border border-outline-variant p-md flex flex-col gap-sm">
+<div class="flex justify-between items-center">
+<span class="font-body-md text-body-md font-medium text-on-surface">Max Drawdown Check</span>
+<span class="font-label-sm text-label-sm text-emerald-400 bg-emerald-400/10 px-xs py-xxs rounded-DEFAULT border border-emerald-400/20">PASSED</span>
+</div>
+<div class="font-mono-data text-mono-data text-on-surface-variant mt-auto">Current: -1.2% / Limit: -3.0%</div>
+</div>
+<!-- Blocked Card -->
+<div class="bg-surface-container-high rounded-lg border-t-2 border-t-error border border-outline-variant p-md flex flex-col gap-sm relative overflow-hidden">
+<div class="absolute inset-0 bg-error/5 mix-blend-overlay"></div>
+<div class="flex justify-between items-center z-10">
+<span class="font-body-md text-body-md font-medium text-on-surface">Concentration Limit</span>
+<span class="font-label-sm text-label-sm text-error bg-error/10 px-xs py-xxs rounded-DEFAULT border border-error/20 flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]" data-icon="block">block</span> BLOCKED
+                                </span>
+</div>
+<div class="font-mono-data text-mono-data text-error z-10 mt-auto">TSLA &gt; 5% Cap (Proposed: 6.2%)</div>
+</div>
+<!-- Warning Card -->
+<div class="bg-surface-container-high rounded-lg border-t-2 border-t-amber-500 border border-outline-variant p-md flex flex-col gap-sm">
+<div class="flex justify-between items-center">
+<span class="font-body-md text-body-md font-medium text-on-surface">Sector Exposure</span>
+<span class="font-label-sm text-label-sm text-amber-400 bg-amber-400/10 px-xs py-xxs rounded-DEFAULT border border-amber-400/20 flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]" data-icon="warning">warning</span> WARNING
+                                </span>
+</div>
+<div class="font-mono-data text-mono-data text-amber-400 mt-auto">Tech 28% (Nearing 30% Limit)</div>
+</div>
+<!-- Passed Card -->
+<div class="bg-surface-container-high rounded-lg border-t-2 border-t-emerald-500 border border-outline-variant p-md flex flex-col gap-sm">
+<div class="flex justify-between items-center">
+<span class="font-body-md text-body-md font-medium text-on-surface">Wash Trade Prevention</span>
+<span class="font-label-sm text-label-sm text-emerald-400 bg-emerald-400/10 px-xs py-xxs rounded-DEFAULT border border-emerald-400/20">PASSED</span>
+</div>
+<div class="font-mono-data text-mono-data text-on-surface-variant mt-auto">No conflicting intraday orders detected.</div>
+</div>
+</div>
+</div>
+<!-- Recent Interventions Log -->
+<div class="flex flex-col gap-sm">
+<h2 class="font-headline-md text-headline-md text-on-surface flex items-center gap-xs">
+<span class="material-symbols-outlined text-primary" data-icon="list_alt">list_alt</span>
+                        Recent Interventions Log
+                    </h2>
+<div class="bg-surface-container-high rounded-lg border border-outline-variant overflow-hidden">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="border-b border-outline-variant bg-surface-dim">
+<th class="font-label-sm text-label-sm text-on-surface-variant py-sm px-md font-medium uppercase tracking-wider w-24">Time</th>
+<th class="font-label-sm text-label-sm text-on-surface-variant py-sm px-md font-medium uppercase tracking-wider w-24">Action</th>
+<th class="font-label-sm text-label-sm text-on-surface-variant py-sm px-md font-medium uppercase tracking-wider">Details</th>
+</tr>
+</thead>
+<tbody class="font-mono-data text-mono-data">
+<tr class="border-b border-outline-variant hover:bg-surface-variant/50 transition-colors">
+<td class="py-sm px-md text-on-surface-variant">14:01:22</td>
+<td class="py-sm px-md">
+<span class="text-error bg-error/10 px-xs py-xxs rounded-DEFAULT border border-error/20 text-[11px] font-bold">REJECTED</span>
+</td>
+<td class="py-sm px-md text-on-surface">Proposed buy 500 TSLA pushes exposure to 6.2% (Limit 5.0%). Order blocked.</td>
+</tr>
+<tr class="border-b border-outline-variant hover:bg-surface-variant/50 transition-colors">
+<td class="py-sm px-md text-on-surface-variant">13:45:09</td>
+<td class="py-sm px-md">
+<span class="text-amber-400 bg-amber-400/10 px-xs py-xxs rounded-DEFAULT border border-amber-400/20 text-[11px] font-bold">MODIFIED</span>
+</td>
+<td class="py-sm px-md text-on-surface">Order qty reduced. Buy 200 INFY (Original 500) to maintain daily volume constraint.</td>
+</tr>
+<tr class="border-b border-outline-variant hover:bg-surface-variant/50 transition-colors">
+<td class="py-sm px-md text-on-surface-variant">11:30:00</td>
+<td class="py-sm px-md">
+<span class="text-primary bg-primary/10 px-xs py-xxs rounded-DEFAULT border border-primary/20 text-[11px] font-bold">FLAGGED</span>
+</td>
+<td class="py-sm px-md text-on-surface">High frequency momentum detected in Bank Nifty options. Strategy flagged for review.</td>
+</tr>
+<tr class="hover:bg-surface-variant/50 transition-colors">
+<td class="py-sm px-md text-on-surface-variant">09:15:05</td>
+<td class="py-sm px-md">
+<span class="text-error bg-error/10 px-xs py-xxs rounded-DEFAULT border border-error/20 text-[11px] font-bold">REJECTED</span>
+</td>
+<td class="py-sm px-md text-on-surface">Pre-market order outside standard deviation band. Discarded to prevent slippage.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+</div>
+</main>
+</body></html>

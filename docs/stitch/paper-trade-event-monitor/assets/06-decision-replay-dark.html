@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Decision Audit: INFY - Taurus Observability</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "outline": "#87929a",
+                      "on-secondary-container": "#b0b2ff",
+                      "error": "#ffb4ab",
+                      "surface-bright": "#31394d",
+                      "secondary-fixed": "#e1e0ff",
+                      "on-primary-fixed": "#001e2c",
+                      "on-tertiary-fixed": "#0d1c2d",
+                      "surface-container": "#171f33",
+                      "secondary": "#c0c1ff",
+                      "on-secondary": "#1000a9",
+                      "on-secondary-fixed-variant": "#2f2ebe",
+                      "primary-container": "#38bdf8",
+                      "tertiary-container": "#a3b2c7",
+                      "on-surface-variant": "#bdc8d1",
+                      "on-surface": "#dae2fd",
+                      "surface": "#0b1326",
+                      "primary-fixed-dim": "#7bd0ff",
+                      "on-tertiary-container": "#364557",
+                      "primary-fixed": "#c4e7ff",
+                      "outline-variant": "#3e484f",
+                      "surface-tint": "#7bd0ff",
+                      "primary": "#8ed5ff",
+                      "secondary-container": "#3131c0",
+                      "surface-dim": "#0b1326",
+                      "tertiary-fixed": "#d4e4fa",
+                      "surface-container-highest": "#2d3449",
+                      "inverse-on-surface": "#283044",
+                      "surface-container-low": "#131b2e",
+                      "on-tertiary-fixed-variant": "#39485a",
+                      "on-primary-container": "#004965",
+                      "background": "#0b1326",
+                      "on-background": "#dae2fd",
+                      "inverse-primary": "#00668a",
+                      "tertiary": "#becee4",
+                      "on-error-container": "#ffdad6",
+                      "secondary-fixed-dim": "#c0c1ff",
+                      "on-primary": "#00354a",
+                      "surface-variant": "#2d3449",
+                      "inverse-surface": "#dae2fd",
+                      "on-tertiary": "#233143",
+                      "on-primary-fixed-variant": "#004c69",
+                      "surface-container-lowest": "#060e20",
+                      "on-error": "#690005",
+                      "error-container": "#93000a",
+                      "surface-container-high": "#222a3d",
+                      "tertiary-fixed-dim": "#b9c8de",
+                      "on-secondary-fixed": "#07006c"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "spacing": {
+                      "md": "1rem",
+                      "lg": "1.5rem",
+                      "xs": "0.5rem",
+                      "xl": "2rem",
+                      "gutter": "1.5rem",
+                      "xxs": "0.25rem",
+                      "base": "4px",
+                      "margin": "2rem",
+                      "sm": "0.75rem"
+              },
+              "fontFamily": {
+                      "label-sm": [
+                              "Inter"
+                      ],
+                      "body-md": [
+                              "Inter"
+                      ],
+                      "body-lg": [
+                              "Inter"
+                      ],
+                      "mono-data": [
+                              "monospace"
+                      ],
+                      "label-md": [
+                              "Inter"
+                      ],
+                      "headline-lg-mobile": [
+                              "Inter"
+                      ],
+                      "headline-md": [
+                              "Inter"
+                      ],
+                      "headline-lg": [
+                              "Inter"
+                      ]
+              },
+              "fontSize": {
+                      "label-sm": [
+                              "11px",
+                              {
+                                      "lineHeight": "14px",
+                                      "letterSpacing": "0.03em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "body-md": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "body-lg": [
+                              "16px",
+                              {
+                                      "lineHeight": "24px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "mono-data": [
+                              "13px",
+                              {
+                                      "lineHeight": "18px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "label-md": [
+                              "12px",
+                              {
+                                      "lineHeight": "16px",
+                                      "letterSpacing": "0.01em",
+                                      "fontWeight": "500"
+                              }
+                      ],
+                      "headline-lg-mobile": [
+                              "24px",
+                              {
+                                      "lineHeight": "32px",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "headline-md": [
+                              "20px",
+                              {
+                                      "lineHeight": "28px",
+                                      "letterSpacing": "-0.01em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "headline-lg": [
+                              "32px",
+                              {
+                                      "lineHeight": "40px",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "600"
+                              }
+                      ]
+              }
+      },
+          },
+        }
+      </script>
+</head>
+<body class="bg-background text-on-background font-body-md min-h-screen flex flex-col antialiased">
+<!-- TopNavBar -->
+<header class="bg-surface dark:bg-surface border-b border-outline-variant dark:border-outline-variant bg-surface/80 backdrop-blur-md docked full-width sticky top-0 z-40 flat no shadows flex justify-between items-center w-full h-16 px-gutter ml-0 max-w-full lg:ml-64 lg:max-w-[calc(100%-16rem)]">
+<div class="flex items-center gap-md">
+<!-- Mobile Menu Toggle (Visible only on small screens) -->
+<button class="lg:hidden text-on-surface hover:text-primary-fixed-dim transition-colors opacity-80 transition-opacity">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">menu</span>
+</button>
+<h1 class="font-headline-md text-headline-md font-extrabold text-on-surface dark:text-on-surface">Taurus Observability</h1>
+</div>
+<div class="flex items-center gap-lg">
+<div class="hidden md:flex items-center bg-surface-container-high border border-outline-variant rounded-full px-4 py-1.5 focus-within:border-primary-container focus-within:ring-1 focus-within:ring-primary-container transition-all">
+<span class="material-symbols-outlined text-on-surface-variant mr-2 text-[18px]">search</span>
+<input class="bg-transparent border-none outline-none text-body-md text-on-surface placeholder-on-surface-variant w-48 focus:ring-0" placeholder="Search logs, tickets..." type="text"/>
+</div>
+<div class="flex items-center gap-md">
+<button class="text-on-surface-variant font-medium hover:text-primary-fixed-dim transition-colors opacity-80 transition-opacity relative">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">notifications</span>
+<span class="absolute top-0 right-0 w-2 h-2 bg-error rounded-full"></span>
+</button>
+<button class="text-on-surface-variant font-medium hover:text-primary-fixed-dim transition-colors opacity-80 transition-opacity">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">hub</span>
+</button>
+<button class="text-on-surface-variant font-medium hover:text-primary-fixed-dim transition-colors opacity-80 transition-opacity">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">account_circle</span>
+</button>
+</div>
+</div>
+</header>
+<!-- SideNavBar (Hidden on Mobile) -->
+<nav class="hidden lg:flex bg-surface-container-low dark:bg-surface-container-low border-r border-outline-variant dark:border-outline-variant flat no shadows h-screen w-64 fixed left-0 top-0 flex-col py-lg px-md gap-md z-50">
+<div class="flex items-center gap-3 mb-xl px-2">
+<div class="w-8 h-8 rounded-md bg-primary-container flex items-center justify-center overflow-hidden">
+<span class="material-symbols-outlined text-on-primary-container text-[20px]" style="font-variation-settings: 'FILL' 1;">monitoring</span>
+</div>
+<div>
+<div class="font-headline-md text-headline-md font-bold text-primary dark:text-primary tracking-tight leading-none">Taurus</div>
+<div class="font-label-sm text-label-sm text-on-surface-variant mt-1">AI Trading System</div>
+</div>
+</div>
+<button class="bg-primary-container text-on-primary-container font-label-md text-label-md py-2 px-4 rounded hover:bg-primary-fixed transition-colors flex items-center justify-center gap-2 mb-md w-full">
+<span class="material-symbols-outlined text-[18px]">add</span>
+            New Run
+        </button>
+<div class="flex-1 flex flex-col gap-1 overflow-y-auto">
+<a class="flex items-center gap-3 px-3 py-2 rounded text-on-surface-variant dark:text-on-surface-variant font-label-md text-label-md hover:bg-surface-container-high dark:hover:bg-surface-container-high hover:text-on-surface transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 0;">dashboard</span>
+                Dashboard
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 rounded text-on-surface-variant dark:text-on-surface-variant font-label-md text-label-md hover:bg-surface-container-high dark:hover:bg-surface-container-high hover:text-on-surface transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 0;">play_circle</span>
+                Active Runs
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 rounded text-primary dark:text-primary font-bold border-r-2 border-primary bg-surface-container-high/50" href="#">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">history</span>
+                History
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 rounded text-on-surface-variant dark:text-on-surface-variant font-label-md text-label-md hover:bg-surface-container-high dark:hover:bg-surface-container-high hover:text-on-surface transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 0;">security</span>
+                Risk Engine
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 rounded text-on-surface-variant dark:text-on-surface-variant font-label-md text-label-md hover:bg-surface-container-high dark:hover:bg-surface-container-high hover:text-on-surface transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 0;">account_balance_wallet</span>
+                Portfolio
+            </a>
+</div>
+<div class="mt-auto pt-md border-t border-outline-variant/50 flex flex-col gap-1">
+<a class="flex items-center gap-3 px-3 py-2 rounded text-on-surface-variant dark:text-on-surface-variant font-label-md text-label-md hover:bg-surface-container-high dark:hover:bg-surface-container-high hover:text-on-surface transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 0;">sensors</span>
+                System Health
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 rounded text-on-surface-variant dark:text-on-surface-variant font-label-md text-label-md hover:bg-surface-container-high dark:hover:bg-surface-container-high hover:text-on-surface transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 0;">settings</span>
+                Settings
+            </a>
+</div>
+</nav>
+<!-- Main Content Canvas -->
+<main class="flex-1 lg:ml-64 p-gutter overflow-x-hidden">
+<!-- Context Header (Breadcrumbs & Badges) -->
+<div class="mb-xl">
+<div class="flex items-center text-on-surface-variant font-label-sm text-label-sm gap-2 mb-xs">
+<a class="hover:text-primary transition-colors" href="#">History</a>
+<span class="material-symbols-outlined text-[14px]">chevron_right</span>
+<a class="hover:text-primary transition-colors flex items-center gap-1" href="#">
+<span class="material-symbols-outlined text-[14px]">folder</span>
+                    Run pr-20231027-01
+                </a>
+<span class="material-symbols-outlined text-[14px]">chevron_right</span>
+<span class="text-on-surface">INFY Replay</span>
+</div>
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-md">
+<div class="flex items-center gap-md">
+<h2 class="font-headline-lg text-headline-lg-mobile md:text-headline-lg text-on-surface">Decision Audit: INFY</h2>
+<div class="bg-primary-container/20 text-primary border border-primary/30 px-3 py-1 rounded-full font-label-sm text-label-sm flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">verified</span>
+                        APPROVED_FOR_PAPER
+                    </div>
+</div>
+<div class="flex items-center gap-sm">
+<div class="text-right">
+<div class="font-label-sm text-label-sm text-on-surface-variant">Execution Time</div>
+<div class="font-mono-data text-mono-data text-on-surface">2023-10-27 14:32:05 UTC</div>
+</div>
+<button class="bg-surface-container-high border border-outline-variant hover:bg-surface-container-highest text-on-surface p-2 rounded transition-colors" title="Export Audit JSON">
+<span class="material-symbols-outlined text-[20px]">download</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Replay Canvas Layout -->
+<div class="grid grid-cols-1 xl:grid-cols-12 gap-gutter">
+<!-- Left Column: Timeline Overview (3 cols) -->
+<div class="xl:col-span-3 flex flex-col gap-md">
+<div class="bg-surface-container rounded-xl border border-outline-variant p-md">
+<h3 class="font-label-md text-label-md text-on-surface mb-md uppercase tracking-wider">Decision Stages</h3>
+<div class="relative pl-4 border-l-2 border-outline-variant/30 space-y-6">
+<!-- Stage 1: Analysts -->
+<div class="relative">
+<div class="absolute -left-[21px] top-0 w-4 h-4 rounded-full bg-primary-container flex items-center justify-center ring-4 ring-surface-container">
+<span class="material-symbols-outlined text-[10px] text-on-primary-container font-bold">check</span>
+</div>
+<div class="font-label-md text-label-md text-on-surface">Analyst Reports</div>
+<div class="font-body-md text-body-md text-on-surface-variant text-[12px] mt-1">3 sources analyzed</div>
+</div>
+<!-- Stage 2: Debate -->
+<div class="relative">
+<div class="absolute -left-[21px] top-0 w-4 h-4 rounded-full bg-primary-container flex items-center justify-center ring-4 ring-surface-container">
+<span class="material-symbols-outlined text-[10px] text-on-primary-container font-bold">check</span>
+</div>
+<div class="font-label-md text-label-md text-on-surface">Debate Summary</div>
+<div class="font-body-md text-body-md text-on-surface-variant text-[12px] mt-1">Bull thesis favored</div>
+</div>
+<!-- Stage 3: Proposal -->
+<div class="relative">
+<div class="absolute -left-[21px] top-0 w-4 h-4 rounded-full bg-primary-container flex items-center justify-center ring-4 ring-surface-container">
+<span class="material-symbols-outlined text-[10px] text-on-primary-container font-bold">check</span>
+</div>
+<div class="font-label-md text-label-md text-on-surface">Trader Proposal</div>
+<div class="font-body-md text-body-md text-on-surface-variant text-[12px] mt-1">BUY 500 @ MKT</div>
+</div>
+<!-- Stage 4: Risk -->
+<div class="relative">
+<div class="absolute -left-[21px] top-0 w-4 h-4 rounded-full bg-primary-container flex items-center justify-center ring-4 ring-surface-container">
+<span class="material-symbols-outlined text-[10px] text-on-primary-container font-bold">check</span>
+</div>
+<div class="font-label-md text-label-md text-on-surface text-primary">Risk Review</div>
+<div class="font-body-md text-body-md text-primary-fixed-dim text-[12px] mt-1">All rules passed</div>
+</div>
+<!-- Stage 5: Final -->
+<div class="relative">
+<div class="absolute -left-[21px] top-0 w-4 h-4 rounded-full bg-primary-container flex items-center justify-center ring-4 ring-surface-container">
+<span class="material-symbols-outlined text-[10px] text-on-primary-container font-bold">check</span>
+</div>
+<div class="font-label-md text-label-md text-on-surface">Final PM Decision</div>
+<div class="font-body-md text-body-md text-on-surface-variant text-[12px] mt-1">Approved</div>
+</div>
+<!-- Stage 6: Execution -->
+<div class="relative">
+<div class="absolute -left-[21px] top-0 w-4 h-4 rounded-full bg-surface-variant border border-outline-variant flex items-center justify-center ring-4 ring-surface-container">
+</div>
+<div class="font-label-md text-label-md text-on-surface-variant">Execution</div>
+<div class="font-body-md text-body-md text-on-surface-variant text-[12px] mt-1">Paper Simulated</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Right Column: Stage Details (9 cols) -->
+<div class="xl:col-span-9 flex flex-col gap-lg">
+<!-- Expanded Detail Panel: Risk Review -->
+<div class="bg-surface-container border-t-2 border-t-primary rounded-b-xl border-x border-b border-outline-variant shadow-[0_4px_24px_-4px_rgba(0,0,0,0.4)]">
+<div class="p-md border-b border-outline-variant flex justify-between items-center bg-surface-container-high">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary">security</span>
+<h3 class="font-headline-md text-headline-md text-on-surface">Risk Review Outcome</h3>
+</div>
+<span class="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded text-[11px] font-bold uppercase tracking-wider">Passed</span>
+</div>
+<div class="p-md">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="border-b border-outline-variant text-on-surface-variant font-label-sm text-label-sm uppercase">
+<th class="py-2 px-2 font-medium">Rule Name</th>
+<th class="py-2 px-2 font-medium">Evaluated Value</th>
+<th class="py-2 px-2 font-medium">Threshold</th>
+<th class="py-2 px-2 font-medium text-right">Status</th>
+</tr>
+</thead>
+<tbody class="font-mono-data text-mono-data text-on-surface">
+<tr class="border-b border-surface-variant hover:bg-surface-container-high transition-colors">
+<td class="py-3 px-2">Max Position Size</td>
+<td class="py-3 px-2">2.4%</td>
+<td class="py-3 px-2">&lt; 5.0%</td>
+<td class="py-3 px-2 text-right text-emerald-400">PASS</td>
+</tr>
+<tr class="border-b border-surface-variant hover:bg-surface-container-high transition-colors">
+<td class="py-3 px-2">Daily Volume Limit</td>
+<td class="py-3 px-2">0.01%</td>
+<td class="py-3 px-2">&lt; 1.0%</td>
+<td class="py-3 px-2 text-right text-emerald-400">PASS</td>
+</tr>
+<tr class="border-b border-surface-variant hover:bg-surface-container-high transition-colors">
+<td class="py-3 px-2">Wash Trade Prevention</td>
+<td class="py-3 px-2">No recent trades</td>
+<td class="py-3 px-2">N/A</td>
+<td class="py-3 px-2 text-right text-emerald-400">PASS</td>
+</tr>
+<tr class="hover:bg-surface-container-high transition-colors">
+<td class="py-3 px-2">Restricted List Check</td>
+<td class="py-3 px-2">Not listed</td>
+<td class="py-3 px-2">N/A</td>
+<td class="py-3 px-2 text-right text-emerald-400">PASS</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<!-- Collapsed Panel: Debate Summary -->
+<div class="bg-surface-container rounded-xl border border-outline-variant">
+<button class="w-full p-md flex justify-between items-center hover:bg-surface-container-high transition-colors rounded-xl focus:outline-none">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-on-surface-variant">forum</span>
+<h3 class="font-label-md text-label-md text-on-surface font-semibold">Debate Summary</h3>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant">expand_more</span>
+</button>
+</div>
+<!-- Collapsed Panel: Trader Proposal -->
+<div class="bg-surface-container rounded-xl border border-outline-variant">
+<button class="w-full p-md flex justify-between items-center hover:bg-surface-container-high transition-colors rounded-xl focus:outline-none">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-on-surface-variant">assignment</span>
+<h3 class="font-label-md text-label-md text-on-surface font-semibold">Trader Proposal</h3>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant">expand_more</span>
+</button>
+</div>
+<!-- Raw Data Toggle Section -->
+<div class="mt-xl">
+<div class="flex items-center gap-2 mb-sm cursor-pointer hover:text-primary-fixed-dim transition-colors w-max text-on-surface-variant">
+<span class="material-symbols-outlined text-[18px]">data_object</span>
+<span class="font-label-sm text-label-sm uppercase tracking-widest">View Raw JSON Artifact</span>
+</div>
+<div class="bg-[#0f172a] rounded-lg border border-outline-variant p-md overflow-x-auto relative hidden">
+<!-- Pseudo hidden state, showing it for design demonstration -->
+</div>
+<div class="bg-[#0f172a] rounded-lg border border-outline-variant p-md overflow-x-auto relative">
+<pre class="font-mono-data text-mono-data text-tertiary-fixed text-[12px] leading-relaxed">{
+  "ticker": "INFY",
+  "run_id": "pr-20231027-01",
+  "timestamp": "2023-10-27T14:32:05Z",
+  "final_decision": "APPROVED_FOR_PAPER",
+  "risk_evaluation": {
+    "status": "PASSED",
+    "rules": [
+      {"name": "Max Position Size", "passed": true, "val": 0.024},
+      {"name": "Daily Volume Limit", "passed": true, "val": 0.0001}
+    ]
+  }
+}
+                        </pre>
+<button class="absolute top-2 right-2 p-1.5 bg-surface-container-high rounded border border-outline-variant hover:bg-surface-container-highest transition-colors text-on-surface-variant">
+<span class="material-symbols-outlined text-[16px]">content_copy</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</main>
+</body></html>
