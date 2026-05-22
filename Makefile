@@ -27,7 +27,7 @@ dev-down:
 	$(COMPOSE) down
 
 api:
-	PYTHONPATH=packages:. $(UV) run uvicorn apps.api.main:app --host 0.0.0.0 --port 8000 --reload
+	DATABASE_URL="$(DATABASE_URL)" PYTHONPATH=packages:. $(UV) run uvicorn apps.api.main:app --host 0.0.0.0 --port 8000 --reload
 
 ui:
 	cd apps/web && $(PNPM) dev

@@ -2,7 +2,7 @@
 
 Taurus is an observable, paper-trading-first algo trading MVP for Indian cash equities.
 
-M13 is the current paper-trading MVP release. It can run the local mock-data flow end to end: market data seeding, news/events, backtests, analyst reports, bull/bear debate, trader proposal, risk review, final approval, PaperBroker execution, scheduled paper loop, replay, backup, API, dashboard, Prometheus metrics, and Grafana dashboards.
+The paper-trading MVP is complete, and the React run-loop observability dashboard is the primary local UI. Taurus can run the local mock-data flow end to end: market data seeding, news/events, backtests, analyst reports, bull/bear debate, trader proposal, risk review, final approval, PaperBroker execution, scheduled paper loop, replay, backup, API, React dashboard, Streamlit fallback dashboard, Prometheus metrics, and Grafana dashboards.
 
 Broker sandbox and live broker integration are intentionally deferred. See `docs/UPSTOX_INTEGRATION_PLAN.md` for the post-MVP broker path.
 
@@ -24,6 +24,7 @@ Prerequisites:
 
 - Python 3.11+
 - uv
+- pnpm
 - Docker Desktop
 - make
 
@@ -31,6 +32,7 @@ Install dependencies:
 
 ```bash
 make setup
+make setup-ui
 ```
 
 Run tests:
@@ -96,7 +98,15 @@ Run the API directly without Docker:
 make api
 ```
 
-Run the dashboard:
+Run the React dashboard:
+
+```bash
+make ui
+```
+
+Open `http://localhost:5173`. The React app reads the local FastAPI aggregate `/ui/*` endpoints and remains read-only.
+
+Run the Streamlit fallback dashboard:
 
 ```bash
 make dashboard
@@ -107,6 +117,8 @@ Usage and one-loop observation guidance is documented in `docs/TAURUS_USAGE_GUID
 ## Local Services
 
 - Taurus API: `http://localhost:8000`
+- React dashboard: `http://localhost:5173`
+- Streamlit fallback dashboard: `http://localhost:8501`
 - Prometheus: `http://localhost:9090`
 - Grafana: `http://localhost:3000`
 - Postgres: `localhost:5432`

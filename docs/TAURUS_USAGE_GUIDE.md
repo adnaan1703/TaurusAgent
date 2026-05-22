@@ -23,7 +23,8 @@ The system rejects live trading mode in the current MVP. Analyst reports, debate
 When the local stack is running, use these URLs:
 
 - Taurus API: `http://localhost:8000`
-- Streamlit dashboard: `http://localhost:8501`
+- React dashboard: `http://localhost:5173`
+- Streamlit fallback dashboard: `http://localhost:8501`
 - Prometheus: `http://localhost:9090`
 - Grafana: `http://localhost:3000`
 
@@ -33,6 +34,7 @@ Install dependencies:
 
 ```bash
 make setup
+make setup-ui
 ```
 
 Start the local stack:
@@ -49,13 +51,14 @@ make seed-mock
 make import-mock-news
 ```
 
-Run the dashboard:
+Run the API and React dashboard:
 
 ```bash
-make dashboard
+make api
+make ui
 ```
 
-Open `http://localhost:8501`.
+Open `http://localhost:5173`.
 
 ## Fast Health Checks
 
@@ -123,17 +126,53 @@ For each symbol, a successful loop can create:
 - Paper position and account records.
 - A replayable decision trail.
 
-## How To Observe A Loop In The Dashboard
+## How To Observe A Loop In The React Dashboard
 
-Start the dashboard:
+Start the API and React dashboard:
+
+```bash
+make api
+make ui
+```
+
+Open `http://localhost:5173`.
+
+Use the React dashboard as the primary local observability UI. It is read-only and uses the FastAPI `/ui/*` aggregate endpoints, so it does not start loops, place orders, enable live trading, or mutate Taurus state.
+
+Recommended flow:
+
+1. `Overview`: confirm paper mode, live trading disabled, latest run, latest final decision, latest order, warnings, and active positions.
+2. `Run Detail`: inspect run status, schedule, market-data summary, strategy summary, symbol success/failure status, and pipeline progress.
+3. `Decision Trail`: inspect one `run_id + symbol` from inputs through analyst reports, debate, trader proposal, risk review, final decision, paper order, fills, and audit log.
+4. `Replay`: open a stored `decision_id` to reconstruct the evidence chain.
+5. `Risk`: scan hard rules, persona reviews, final decisions, reductions, rejections, and blocks.
+6. `Portfolio`: inspect paper account, positions, orders, fills, slippage, costs, and P&L.
+7. `History`: search and filter previous paper runs.
+
+If the app has no data yet, run:
+
+```bash
+make migrate
+make seed-mock
+make import-mock-news
+make paper-loop-mock
+```
+
+If the React app reports that the API is unavailable, run:
+
+```bash
+make api
+```
+
+## Streamlit Fallback Dashboard
+
+Start the fallback dashboard:
 
 ```bash
 make dashboard
 ```
 
-Open `http://localhost:8501`.
-
-Use the sidebar `Symbol` filter to select the stock you ran, such as `INFY`.
+Open `http://localhost:8501`. Use this fallback when you want the older diagnostic tables, direct database views, or a secondary check against the React UI. Use the sidebar `Symbol` filter to select the stock you ran, such as `INFY`.
 
 ### Main Dashboard
 
@@ -364,7 +403,8 @@ make migrate
 make seed-mock
 make import-mock-news
 make paper-loop-once SYMBOLS=INFY
-make dashboard
+make api
+make ui
 ```
 
 Inspect latest paper state:
@@ -397,6 +437,8 @@ make dev-down
 - No live intraday or tick-stream evaluation is included.
 - The paper loop is a simple local scheduler, not a distributed job system.
 - Mock data can look old in freshness views because the fixtures are deterministic historical data.
+- The React dashboard is local and unauthenticated; use it only on a trusted development machine/network.
+- Streamlit remains available as a fallback diagnostic dashboard.
 
 ## Where To Go Next
 

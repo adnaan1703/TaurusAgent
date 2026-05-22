@@ -1,10 +1,10 @@
 # Taurus React Dashboard Plan
 
-Status: In progress
+Status: Done
 
 Owner: Taurus local development workflow
 
-Last updated: 2026-05-21 21:31 IST
+Last updated: 2026-05-22 10:43 IST
 
 ## Purpose
 
@@ -952,17 +952,17 @@ Out of scope:
 
 Implementation instructions:
 
-- [ ] Implement Overview screen.
-- [ ] Implement Run Detail screen.
-- [ ] Implement Symbol Decision Trail screen.
-- [ ] Implement Decision Replay screen.
-- [ ] Implement Risk Engine screen.
-- [ ] Implement Portfolio & Account screen.
-- [ ] Implement Run History screen.
-- [ ] Add polling behavior and manual refresh.
-- [ ] Add responsive layout for desktop, tablet, and mobile.
-- [ ] Add raw JSON drawer or collapsible raw artifact panels.
-- [ ] Add screen-level tests for route rendering and key states.
+- [x] Implement Overview screen.
+- [x] Implement Run Detail screen.
+- [x] Implement Symbol Decision Trail screen.
+- [x] Implement Decision Replay screen.
+- [x] Implement Risk Engine screen.
+- [x] Implement Portfolio & Account screen.
+- [x] Implement Run History screen.
+- [x] Add polling behavior and manual refresh.
+- [x] Add responsive layout for desktop, tablet, and mobile.
+- [x] Add raw JSON drawer or collapsible raw artifact panels.
+- [x] Add screen-level tests for route rendering and key states.
 
 Screen responsibilities:
 
@@ -1006,18 +1006,18 @@ Deliverables:
 
 Acceptance:
 
-- [ ] User can navigate from overview to run detail to symbol decision trail.
-- [ ] Decision trail displays all available stages in order.
-- [ ] Missing artifacts are visible and labeled.
-- [ ] The decision trail never silently omits a known stage.
-- [ ] The selected run and symbol remain visible while inspecting details.
-- [ ] Replay can be opened by `decision_id`.
-- [ ] Risk screen highlights blocked/rejected/reduced decisions.
-- [ ] Portfolio screen shows account, positions, orders, and fills.
-- [ ] History screen supports status scanning and run navigation.
-- [ ] Empty backend state shows commands to seed and run mock data.
-- [ ] API unavailable state shows `make api`.
-- [ ] The UI remains readable on desktop and mobile widths.
+- [x] User can navigate from overview to run detail to symbol decision trail.
+- [x] Decision trail displays all available stages in order.
+- [x] Missing artifacts are visible and labeled.
+- [x] The decision trail never silently omits a known stage.
+- [x] The selected run and symbol remain visible while inspecting details.
+- [x] Replay can be opened by `decision_id`.
+- [x] Risk screen highlights blocked/rejected/reduced decisions.
+- [x] Portfolio screen shows account, positions, orders, and fills.
+- [x] History screen supports status scanning and run navigation.
+- [x] Empty backend state shows commands to seed and run mock data.
+- [x] API unavailable state shows `make api`.
+- [x] The UI remains readable on desktop and mobile widths.
 
 Verification:
 
@@ -1041,9 +1041,9 @@ make ui
 
 Completion summary:
 
-- Assumptions made: TBD
-- Mocks created: TBD
-- Mocks used: TBD
+- Assumptions made: The `/ui` run summary can safely expose `timezone` and `run_after_market_close` as additive aggregate fields because run-detail screens need schedule context and existing raw endpoints remain unchanged. Generic artifact rendering can show the first common payload fields while preserving full raw JSON for debugging. The Browser plugin's required Node control tool was not exposed in this session, so local visual verification was limited to served-page HTTP smoke plus automated frontend tests.
+- Mocks created: Frontend screen-state fixtures for overview, run detail, decision trail, replay, risk, portfolio, and history, including missing debate artifacts, approved-with-reduction risk, blocked risk, filled order, fill, and searchable history states.
+- Mocks used: Mocked browser `fetch` responses in Vitest; deterministic mock market data, mock news, mock LLM outputs, mock alert provider, internal PaperBroker, and SQLite smoke database at `/private/tmp/taurus-m16-ui-20260521.db`.
 
 ## M16.5 - Verification And Polish
 
@@ -1063,32 +1063,32 @@ Out of scope:
 
 Implementation instructions:
 
-- [ ] Run full backend and frontend verification.
-- [ ] Validate layout against Stitch reference screens.
-- [ ] Check mobile and desktop breakpoints.
-- [ ] Update README with React UI commands.
-- [ ] Update `docs/TAURUS_COMMANDS.md`.
-- [ ] Update `docs/TAURUS_USAGE_GUIDE.md` if appropriate.
-- [ ] Document known limitations.
-- [ ] Keep Streamlit documented as fallback.
-- [ ] Inspect `/Users/adnaan/.codex/rules/default.rules` at milestone completion and move accidental Taurus-specific global approvals into `.codex/rules/default.rules` if needed.
-- [ ] Confirm `.gitignore` covers frontend build outputs, test coverage, and dependency folders.
-- [ ] Confirm no real secrets, tokens, exported CSVs, or downloaded user data were committed.
-- [ ] Confirm any new command approvals are Taurus-specific and project-local when required.
-- [ ] Add final M16 notes to `docs/TAURUS_MILESTONE_TODO.md`.
-- [ ] Record verification command outputs in the milestone notes.
+- [x] Run full backend and frontend verification.
+- [x] Validate layout against Stitch reference screens.
+- [x] Check mobile and desktop breakpoints.
+- [x] Update README with React UI commands.
+- [x] Update `docs/TAURUS_COMMANDS.md`.
+- [x] Update `docs/TAURUS_USAGE_GUIDE.md` if appropriate.
+- [x] Document known limitations.
+- [x] Keep Streamlit documented as fallback.
+- [x] Inspect `/Users/adnaan/.codex/rules/default.rules` at milestone completion and move accidental Taurus-specific global approvals into `.codex/rules/default.rules` if needed.
+- [x] Confirm `.gitignore` covers frontend build outputs, test coverage, and dependency folders.
+- [x] Confirm no real secrets, tokens, exported CSVs, or downloaded user data were committed.
+- [x] Confirm any new command approvals are Taurus-specific and project-local when required.
+- [x] Add final M16 notes to `docs/TAURUS_MILESTONE_TODO.md`.
+- [x] Record verification command outputs in the milestone notes.
 
 Quality checklist:
 
-- [ ] No TypeScript build errors.
-- [ ] No Python compile errors.
-- [ ] Backend tests pass.
-- [ ] Frontend tests pass.
-- [ ] Vite production build passes.
-- [ ] Main API and UI smoke path works locally.
-- [ ] Read-only scope is preserved.
-- [ ] Safety banner clearly shows paper mode and live trading disabled.
-- [ ] Streamlit fallback command remains documented.
+- [x] No TypeScript build errors.
+- [x] No Python compile errors.
+- [x] Backend tests pass.
+- [x] Frontend tests pass.
+- [x] Vite production build passes.
+- [x] Main API and UI smoke path works locally.
+- [x] Read-only scope is preserved.
+- [x] Safety banner clearly shows paper mode and live trading disabled.
+- [x] Streamlit fallback command remains documented.
 
 Deliverables:
 
@@ -1100,12 +1100,12 @@ Deliverables:
 
 Acceptance:
 
-- [ ] React dashboard is documented as the primary run-loop observability UI.
-- [ ] Streamlit remains available as a fallback.
-- [ ] Full test suite and frontend build pass.
-- [ ] No live-trading or broker-control capability is introduced.
-- [ ] Milestone completion summary lists assumptions made, mocks created, and mocks used.
-- [ ] `/Users/adnaan/.codex/rules/default.rules` inspection requirement is satisfied and documented.
+- [x] React dashboard is documented as the primary run-loop observability UI.
+- [x] Streamlit remains available as a fallback.
+- [x] Full test suite and frontend build pass.
+- [x] No live-trading or broker-control capability is introduced.
+- [x] Milestone completion summary lists assumptions made, mocks created, and mocks used.
+- [x] `/Users/adnaan/.codex/rules/default.rules` inspection requirement is satisfied and documented.
 
 Verification:
 
@@ -1117,11 +1117,43 @@ make build-ui
 make taurus-smoke
 ```
 
+Notes:
+
+- Reran full M16.5 verification on 2026-05-22 after permission issues were resolved.
+- Fixed `make api` to pass `DATABASE_URL="$(DATABASE_URL)"` to Uvicorn. The retest exposed that direct local API serving otherwise used the config default SQLite database while smoke data was in Postgres.
+- Post-fix retest verified `make test`: `62 passed`.
+- Post-fix retest verified `make lint`: Python compile-checks passed.
+- Post-fix retest verified `make test-ui`: `18 passed`.
+- Post-fix retest verified `make build-ui`: Vite production build succeeded.
+- Post-fix retest verified default Postgres `make taurus-smoke`: `status=passed`, `paper_loop_run_id=pr-e65310164943cf50`, `decision_id=dec-9d0a05ac264c1ddd`, `paper_order_id=po-4b91cac3077afaf7`, backup `backups/taurus-20260522T050955533184Z`, and all API smoke statuses `200`.
+- Post-fix local React/API smoke returned `200` for `/ui/overview`, `/ui/runs/pr-e65310164943cf50`, `/ui/runs/pr-e65310164943cf50/symbols/INFY/decision-trail`, and `http://127.0.0.1:5173/`.
+- Captured fresh headless Chrome screenshots for overview and decision trail at desktop `1440x1000` and mobile `390x844`; desktop and mobile layouts remained readable.
+- Inspected `/Users/adnaan/.codex/rules/default.rules` after the retest. A broad accidental `curl -sS` global approval was removed and no entries remained after `# END MY CUSTOM ADDITION`.
+- Stopped the API, Vite dev server, and Docker Compose services after the retest; ports `8000` and `5173` were clear and `docker compose ps` showed no running services.
+- Verified `make test`: `62 passed`.
+- Verified `make lint`: Python compile-checks passed.
+- Verified `make test-ui`: `18 passed`.
+- Verified `make build-ui`: Vite production build succeeded with no TypeScript build errors.
+- Initial `make taurus-smoke` failed because local Postgres on port `5432` was not running.
+- Initial `make dev-up` did not create services before it was stopped; starting only the required local database services with `docker compose up -d postgres redis` succeeded.
+- Verified default Postgres `make taurus-smoke`: `status=passed`, `paper_loop_run_id=pr-a9ff400716c11825`, `decision_id=dec-9d0a05ac264c1ddd`, `paper_order_id=po-4b91cac3077afaf7`, and all API smoke statuses `200`.
+- Verified isolated SQLite smoke fallback as well: `DATABASE_URL=sqlite:////private/tmp/taurus-m16-final-smoke-20260521.db BACKUP_DIR=/private/tmp/taurus-m16-final-backups make taurus-smoke` returned `status=passed`.
+- Verified local React smoke with API on `8000` and Vite on `5173`; `/ui/overview`, `/ui/runs/pr-16216828cc03acfe`, `/ui/runs/pr-16216828cc03acfe/symbols/INFY/decision-trail`, and `http://127.0.0.1:5173/` returned `200`.
+- Captured headless Chrome screenshots for overview and decision trail at desktop `1440x1000` and mobile `390x844`.
+- Layout inspection found no page-level horizontal overflow on desktop or the decision-trail mobile route; mobile nav and wide tables use contained horizontal scrolling.
+- Compared the React layout to the Stitch dark overview reference for visual direction: deep navy background, bordered dark surfaces, cyan/green status accents, fixed desktop side nav, and compact observability-first panels.
+- Updated `README.md` and `docs/TAURUS_USAGE_GUIDE.md` so the React dashboard is primary and Streamlit is fallback.
+- Updated `docs/TAURUS_COMMANDS.md` with M16.5 verification commands.
+- Confirmed `.gitignore` covers `node_modules/`, `dist`, `coverage`, `.coverage*`, `backups/`, local env files, and generated Python caches.
+- Scanned changed files for obvious secrets, API keys, tokens, and private-key material; no real secrets were found.
+- Inspected `/Users/adnaan/.codex/rules/default.rules`; there were no entries after `# END MY CUSTOM ADDITION`, so no Taurus-specific approvals needed to be moved.
+- Stopped the API, Vite dev server, and Docker Compose services after verification; ports `8000` and `5173` were clear and `docker compose ps` showed no running services.
+
 Completion summary:
 
-- Assumptions made: TBD
-- Mocks created: TBD
-- Mocks used: TBD
+- Assumptions made: Headless Chrome screenshots and DOM layout checks are sufficient for local M16.5 visual verification because the in-app Browser control tool was not exposed in this session. Starting only Postgres and Redis is sufficient for the default `make taurus-smoke` verification because the smoke script runs locally and does not require the API container. React can be documented as the primary local observability UI while Streamlit remains a fallback diagnostic surface.
+- Mocks created: None
+- Mocks used: Deterministic mock market data, mock news provider, mock LLM outputs, mock alert provider, internal PaperBroker, Docker Compose Postgres verification database, and isolated SQLite smoke database at `/private/tmp/taurus-m16-final-smoke-20260521.db`.
 
 ## Implementation Order
 

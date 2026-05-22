@@ -45,6 +45,8 @@ export type UiRunSummary = {
   started_at: string;
   completed_at?: string | null;
   duration_seconds?: number | null;
+  timezone: string;
+  run_after_market_close: boolean;
   symbols: string[];
   succeeded_symbols: string[];
   failed_symbols: string[];

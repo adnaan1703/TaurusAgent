@@ -13,6 +13,8 @@ const runSummary = {
   started_at: "2026-05-21T15:00:00Z",
   completed_at: "2026-05-21T15:01:00Z",
   duration_seconds: 60,
+  timezone: "Asia/Kolkata",
+  run_after_market_close: true,
   symbols: ["INFY"],
   succeeded_symbols: ["INFY"],
   failed_symbols: [],

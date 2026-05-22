@@ -209,6 +209,75 @@ make test
 make lint
 ```
 
+## M16.4 Commands Used
+
+```bash
+make test-ui
+make build-ui
+make test
+make lint
+DATABASE_URL=sqlite:////private/tmp/taurus-m16-ui-20260521.db make paper-loop-mock
+DATABASE_URL=sqlite:////private/tmp/taurus-m16-ui-20260521.db make api
+make ui
+curl -sS -o /private/tmp/taurus-m16-ui-overview-smoke.json -w '%{http_code}' http://127.0.0.1:8000/ui/overview
+curl -sS -o /private/tmp/taurus-m16-ui-run-smoke.json -w '%{http_code}' http://127.0.0.1:8000/ui/runs/pr-03c57d458f851eaf
+curl -sS -o /private/tmp/taurus-m16-ui-trail-smoke.json -w '%{http_code}' http://127.0.0.1:8000/ui/runs/pr-03c57d458f851eaf/symbols/INFY/decision-trail
+curl -sS -o /private/tmp/taurus-m16-ui-vite-smoke.html -w '%{http_code}' http://127.0.0.1:5173/
+lsof -iTCP:8000 -sTCP:LISTEN -n -P
+lsof -iTCP:5173 -sTCP:LISTEN -n -P
+```
+
+## M16.5 Commands Used
+
+```bash
+make test
+make lint
+make test-ui
+make build-ui
+make taurus-smoke
+make dev-up
+docker compose ps
+docker compose up -d postgres redis
+make taurus-smoke
+DATABASE_URL=sqlite:////private/tmp/taurus-m16-final-smoke-20260521.db BACKUP_DIR=/private/tmp/taurus-m16-final-backups make taurus-smoke
+DATABASE_URL=sqlite:////private/tmp/taurus-m16-final-smoke-20260521.db make api
+make ui
+curl -sS -o /private/tmp/taurus-m16-final-ui-overview.json -w '%{http_code}' http://127.0.0.1:8000/ui/overview
+curl -sS -o /private/tmp/taurus-m16-final-ui-run.json -w '%{http_code}' http://127.0.0.1:8000/ui/runs/pr-16216828cc03acfe
+curl -sS -o /private/tmp/taurus-m16-final-ui-trail.json -w '%{http_code}' http://127.0.0.1:8000/ui/runs/pr-16216828cc03acfe/symbols/INFY/decision-trail
+curl -sS -o /private/tmp/taurus-m16-final-vite.html -w '%{http_code}' http://127.0.0.1:5173/
+'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' --headless=new --disable-gpu --hide-scrollbars --window-size=1440,1000 --virtual-time-budget=5000 --screenshot=/private/tmp/taurus-m16-overview-desktop.png http://127.0.0.1:5173/
+'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' --headless=new --disable-gpu --hide-scrollbars --window-size=390,844 --virtual-time-budget=5000 --screenshot=/private/tmp/taurus-m16-overview-mobile.png http://127.0.0.1:5173/
+'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' --headless=new --disable-gpu --hide-scrollbars --window-size=1440,1000 --virtual-time-budget=5000 --screenshot=/private/tmp/taurus-m16-trail-desktop.png http://127.0.0.1:5173/runs/pr-16216828cc03acfe/symbols/INFY
+'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' --headless=new --disable-gpu --hide-scrollbars --window-size=390,844 --virtual-time-budget=5000 --screenshot=/private/tmp/taurus-m16-trail-mobile.png http://127.0.0.1:5173/runs/pr-16216828cc03acfe/symbols/INFY
+lsof -iTCP:8000 -sTCP:LISTEN -n -P
+lsof -iTCP:5173 -sTCP:LISTEN -n -P
+make dev-down
+```
+
+## M16.5 Retest Commands Used
+
+```bash
+make test
+make lint
+make test-ui
+make build-ui
+docker compose up -d postgres redis
+make taurus-smoke
+make api
+make ui
+curl -sS -o /private/tmp/taurus-retry-ui-overview-final.json -w '%{http_code}' http://127.0.0.1:8000/ui/overview
+curl -sS -o /private/tmp/taurus-retry-ui-run-final.json -w '%{http_code}' http://127.0.0.1:8000/ui/runs/pr-e65310164943cf50
+curl -sS -o /private/tmp/taurus-retry-ui-trail-final.json -w '%{http_code}' http://127.0.0.1:8000/ui/runs/pr-e65310164943cf50/symbols/INFY/decision-trail
+curl -sS -o /private/tmp/taurus-retry-vite-final.html -w '%{http_code}' http://127.0.0.1:5173/
+'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' --headless=new --disable-gpu --hide-scrollbars --window-size=1440,1000 --virtual-time-budget=5000 --screenshot=/private/tmp/taurus-retry-overview-desktop.png http://127.0.0.1:5173/
+'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' --headless=new --disable-gpu --hide-scrollbars --window-size=390,844 --virtual-time-budget=5000 --screenshot=/private/tmp/taurus-retry-overview-mobile.png http://127.0.0.1:5173/
+'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' --headless=new --disable-gpu --hide-scrollbars --window-size=1440,1000 --virtual-time-budget=5000 --screenshot=/private/tmp/taurus-retry-trail-desktop.png http://127.0.0.1:5173/runs/pr-e65310164943cf50/symbols/INFY
+'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' --headless=new --disable-gpu --hide-scrollbars --window-size=390,844 --virtual-time-budget=5000 --screenshot=/private/tmp/taurus-retry-trail-mobile.png http://127.0.0.1:5173/runs/pr-e65310164943cf50/symbols/INFY
+pkill -f "uvicorn apps.api.main:app"
+make dev-down
+```
+
 ## Current Make Targets
 
 ```bash

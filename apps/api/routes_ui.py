@@ -88,6 +88,8 @@ class UiRunSummary(BaseModel):
     started_at: datetime
     completed_at: datetime | None
     duration_seconds: float | None
+    timezone: str
+    run_after_market_close: bool
     symbols: list[str]
     succeeded_symbols: list[str]
     failed_symbols: list[str]
@@ -467,6 +469,8 @@ def _run_summary(
         started_at=run.started_at,
         completed_at=run.completed_at,
         duration_seconds=_duration_seconds(run.started_at, run.completed_at),
+        timezone=run.timezone,
+        run_after_market_close=run.run_after_market_close,
         symbols=list(run.symbols),
         succeeded_symbols=list(run.succeeded_symbols),
         failed_symbols=list(run.failed_symbols),
