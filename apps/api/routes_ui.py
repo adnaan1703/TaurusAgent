@@ -108,6 +108,14 @@ class UiStageSummary(BaseModel):
     artifact_ids: list[str] = Field(default_factory=list)
 
 
+class UiAnalystRoster(BaseModel):
+    enabled: list[str] = Field(default_factory=list)
+    skipped: list[str] = Field(default_factory=list)
+    report_count: int = 0
+    min_required: int = 1
+    status: str = "unknown"
+
+
 class UiSymbolPipelineRow(BaseModel):
     symbol: str
     run_id: str
@@ -116,6 +124,7 @@ class UiSymbolPipelineRow(BaseModel):
     final_action: str | None
     order_status: str | None
     decision_id: str | None
+    analyst_roster: UiAnalystRoster | None = None
     stages: list[UiStageSummary]
     errors: list[str] = Field(default_factory=list)
 
@@ -162,6 +171,7 @@ class UiDecisionTrailResponse(BaseModel):
     final_status: str | None
     final_action: str | None
     can_send_to_broker: bool | None
+    analyst_roster: UiAnalystRoster | None = None
     selected_stage_id: str
     stages: list[UiTimelineStage]
     warnings: list[UiWarning] = Field(default_factory=list)
@@ -303,6 +313,7 @@ def get_decision_trail(
         can_send_to_broker=final_decision.can_send_to_broker
         if final_decision is not None
         else None,
+        analyst_roster=_analyst_roster(run=run, symbol=normalized_symbol),
         selected_stage_id=stages[0].id,
         stages=stages,
         warnings=_decision_warnings(run=run, symbol=normalized_symbol, context=context),
@@ -547,6 +558,7 @@ def _symbol_pipeline_row(
         final_action=final_decision.final_action if final_decision is not None else None,
         order_status=orders[0].status if orders else None,
         decision_id=final_decision.decision_id if final_decision is not None else None,
+        analyst_roster=_analyst_roster(run=run, symbol=symbol),
         stages=stages,
         errors=errors,
     )
@@ -959,6 +971,14 @@ def _symbol_artifacts(run: PaperRunModel, symbol: str) -> dict[str, Any]:
         return {}
     value = symbols.get(symbol.upper(), {})
     return _json_safe(value if isinstance(value, dict) else {})
+
+
+def _analyst_roster(run: PaperRunModel, symbol: str) -> UiAnalystRoster | None:
+    artifacts = _symbol_artifacts(run, symbol)
+    roster = artifacts.get("analyst_roster")
+    if not isinstance(roster, dict):
+        return None
+    return UiAnalystRoster.model_validate(_json_safe(roster))
 
 
 def _market_provider(run: PaperRunModel) -> str | None:

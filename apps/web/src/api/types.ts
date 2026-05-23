@@ -65,6 +65,14 @@ export type UiStageSummary = {
   artifact_ids: string[];
 };
 
+export type UiAnalystRoster = {
+  enabled: string[];
+  skipped: string[];
+  report_count: number;
+  min_required: number;
+  status: string;
+};
+
 export type UiSymbolPipelineRow = {
   symbol: string;
   run_id: string;
@@ -73,6 +81,7 @@ export type UiSymbolPipelineRow = {
   final_action?: string | null;
   order_status?: string | null;
   decision_id?: string | null;
+  analyst_roster?: UiAnalystRoster | null;
   stages: UiStageSummary[];
   errors: string[];
 };
@@ -119,6 +128,7 @@ export type UiDecisionTrailResponse = {
   final_status?: string | null;
   final_action?: string | null;
   can_send_to_broker?: boolean | null;
+  analyst_roster?: UiAnalystRoster | null;
   selected_stage_id: string;
   stages: UiTimelineStage[];
   warnings: UiWarning[];

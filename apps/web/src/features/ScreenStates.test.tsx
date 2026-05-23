@@ -225,6 +225,13 @@ const runDetail = {
       final_action: "BUY",
       order_status: "FILLED",
       decision_id: "dec-test",
+      analyst_roster: {
+        enabled: ["technical", "news"],
+        skipped: ["sentiment", "fundamentals"],
+        report_count: 2,
+        min_required: 1,
+        status: "enough_reports",
+      },
       stages: stages.map(({ artifacts, metrics, raw, ...stage }) => ({
         ...stage,
         artifact_ids: stage.artifact_ids,
@@ -247,6 +254,7 @@ const trail = {
   final_status: "APPROVED_FOR_PAPER",
   final_action: "BUY",
   can_send_to_broker: true,
+  analyst_roster: runDetail.symbols[0].analyst_roster,
   selected_stage_id: "inputs",
   stages,
   warnings: [],
@@ -343,6 +351,9 @@ describe("M16.4 screen states", () => {
     renderRoute("/runs/pr-test/symbols/INFY");
 
     expect(await screen.findByText("Open replay")).toBeInTheDocument();
+    expect(screen.getByText("Analyst Roster")).toBeInTheDocument();
+    expect(screen.getByText("technical")).toBeInTheDocument();
+    expect(screen.getByText("fundamentals")).toBeInTheDocument();
     expect(screen.getByText("No debate report is stored for this run and symbol.")).toBeInTheDocument();
     expect(screen.getByText("Paper Fills")).toBeInTheDocument();
   });

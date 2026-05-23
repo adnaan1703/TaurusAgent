@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import { taurusApi } from "../api/client";
-import type { JsonObject, UiTimelineStage } from "../api/types";
+import type { JsonObject, UiAnalystRoster, UiTimelineStage } from "../api/types";
 import { DataPanel } from "../components/DataPanel";
 import { DataTable } from "../components/DataTable";
 import { JsonDrawer } from "../components/JsonDrawer";
@@ -118,12 +118,72 @@ export function DecisionTrailPage() {
             </ol>
           </DataPanel>
 
+          <AnalystRosterPanel roster={trailQuery.data.analyst_roster} />
+
           {selectedStage && <StageDetail stage={selectedStage} />}
 
           <JsonDrawer title="Decision trail payload" value={trailQuery.data} />
         </div>
       )}
     </PageScaffold>
+  );
+}
+
+function AnalystRosterPanel({ roster }: { roster: UiAnalystRoster | null | undefined }) {
+  if (!roster) {
+    return null;
+  }
+
+  return (
+    <DataPanel
+      eyebrow="Analyst configuration"
+      title="Analyst Roster"
+      actions={<StatusBadge status={roster.status === "enough_reports" ? "complete" : "failed"} size="sm" />}
+    >
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
+        <div className="grid gap-3">
+          <RosterGroup label="Enabled" values={roster.enabled} tone="text-taurus-text" />
+          <RosterGroup label="Skipped" values={roster.skipped} tone="text-taurus-muted" />
+        </div>
+        <KeyValueGrid
+          items={[
+            { label: "Reports stored", value: formatNumber(roster.report_count) },
+            { label: "Minimum required", value: formatNumber(roster.min_required) },
+            { label: "Roster status", value: roster.status.replace(/_/g, " ") },
+          ]}
+        />
+      </div>
+    </DataPanel>
+  );
+}
+
+function RosterGroup({
+  label,
+  values,
+  tone,
+}: {
+  label: string;
+  values: string[];
+  tone: string;
+}) {
+  return (
+    <section className="rounded-md border border-taurus-outline bg-taurus-shell p-4">
+      <h3 className="text-sm font-semibold text-taurus-text">{label}</h3>
+      {values.length === 0 ? (
+        <p className="mt-3 text-sm text-taurus-muted">None</p>
+      ) : (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {values.map((value) => (
+            <span
+              className={`rounded border border-taurus-outline bg-taurus-surface px-2 py-1 text-xs font-medium uppercase ${tone}`}
+              key={value}
+            >
+              {value}
+            </span>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 

@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 
 import { taurusApi } from "../api/client";
+import type { UiRunDetailResponse } from "../api/types";
 import { DataPanel } from "../components/DataPanel";
 import { DataTable } from "../components/DataTable";
 import { EmptyState } from "../components/EmptyState";
@@ -146,6 +147,11 @@ export function RunDetailPage() {
                       </div>
                     ),
                   },
+                  {
+                    key: "analysts",
+                    header: "Analysts",
+                    render: (row) => <AnalystRosterSummary row={row} />,
+                  },
                 ]}
                 getRowKey={(row) => row.symbol}
                 rows={runQuery.data.symbols}
@@ -180,5 +186,27 @@ export function RunDetailPage() {
         </div>
       )}
     </PageScaffold>
+  );
+}
+
+function AnalystRosterSummary({
+  row,
+}: {
+  row: UiRunDetailResponse["symbols"][number];
+}) {
+  const roster = row.analyst_roster;
+  if (!roster) {
+    return <span className="text-taurus-muted">Not recorded</span>;
+  }
+
+  return (
+    <div className="space-y-1 text-xs">
+      <p className="text-taurus-text">
+        {roster.enabled.length} enabled, {roster.skipped.length} skipped
+      </p>
+      <p className="text-taurus-muted">
+        Reports: {roster.report_count}/{roster.min_required}
+      </p>
+    </div>
   );
 }

@@ -51,11 +51,19 @@ def test_ui_aggregate_endpoints_return_completed_run_trail(tmp_path: Path) -> No
     assert detail_payload["symbols"][0]["symbol"] == "INFY"
     assert detail_payload["symbols"][0]["pipeline_status"] == "complete"
     assert detail_payload["symbols"][0]["order_status"] == "FILLED"
+    assert detail_payload["symbols"][0]["analyst_roster"] == {
+        "enabled": ["technical", "news", "sentiment", "fundamentals"],
+        "skipped": [],
+        "report_count": 4,
+        "min_required": 1,
+        "status": "enough_reports",
+    }
 
     assert trail.status_code == 200
     trail_payload = trail.json()
     assert [stage["id"] for stage in trail_payload["stages"]] == EXPECTED_TRAIL_STAGES
     assert trail_payload["final_status"] == "APPROVED_FOR_PAPER"
+    assert trail_payload["analyst_roster"] == detail_payload["symbols"][0]["analyst_roster"]
     assert _stage_status(trail_payload, "paper_order") == "complete"
     assert _stage_status(trail_payload, "paper_fills") == "complete"
     assert trail_payload["decision_id"]
