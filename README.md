@@ -35,6 +35,8 @@ make setup
 make setup-ui
 ```
 
+Dependency management for this repo is always done through `uv`. If a vendor guide or service integration doc says `pip install`, treat that as the conceptual instruction and execute it with the `uv` workflow instead so the project stays isolated in `.venv`.
+
 Run tests:
 
 ```bash

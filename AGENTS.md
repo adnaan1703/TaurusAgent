@@ -14,6 +14,10 @@ Taurus is a Python monorepo for an observable, paper-trading-first algo trading 
 
 ## Build, Test, and Development Commands
 
+- Use `uv` for all Python dependency management in this repo. Do not use global `pip install` for project packages.
+- If external service docs say to use `pip`, translate that step to the `uv` equivalent:
+  - add or remove dependencies with `uv add`, `uv remove`, or `uv sync`
+  - install one-off packages inside the project environment with `uv pip install` or `uv run python -m pip` only when a package doc requires `pip` syntax
 - `make setup`: install dependencies with `uv sync --dev`.
 - `make test`: run the pytest suite.
 - `make lint`: compile-check Python files.

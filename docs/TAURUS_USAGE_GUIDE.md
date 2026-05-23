@@ -37,6 +37,8 @@ make setup
 make setup-ui
 ```
 
+All Python dependency changes in Taurus should go through `uv` so they stay scoped to the project virtual environment. If a third-party integration guide uses `pip install`, interpret that as "install the package into Taurus's `.venv`" and use the corresponding `uv` command instead.
+
 Start the local stack:
 
 ```bash
