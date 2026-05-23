@@ -76,6 +76,10 @@ make replay-decision DECISION_ID=sample
 make backup-local
 ```
 
+Analysts are enabled with `TAURUS_ENABLED_ANALYSTS`. The default is
+`technical,news,sentiment,fundamentals`; use `technical,news,sentiment` to
+skip fundamentals until imported fundamental data is available.
+
 Verify the API:
 
 ```bash

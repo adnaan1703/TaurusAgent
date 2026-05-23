@@ -9,7 +9,6 @@ from scripts.seed_mock_data import seed_mock_data
 from taurus_core.agents.runner import DEFAULT_ANALYST_RUN_ID, run_analyst_suite
 from taurus_core.config import Settings, get_settings
 from taurus_core.data.providers.mock_market_data import MockMarketDataProvider
-from taurus_core.db.repositories import AnalystReportRepository
 from taurus_core.db.session import build_session_factory
 from taurus_core.intelligence.mock_news_provider import MockNewsProvider
 from taurus_core.llm import build_llm_provider
@@ -30,16 +29,13 @@ def run_mock_research_debate(
     _prepare_mock_inputs(session_factory, settings)
 
     with session_factory() as session:
-        if not AnalystReportRepository(session).list_for_run_symbol(
+        run_analyst_suite(
+            session,
             symbol=symbol,
             run_id=run_id,
-        ):
-            run_analyst_suite(
-                session,
-                symbol=symbol,
-                run_id=run_id,
-                llm_provider=build_llm_provider(settings),
-            )
+            llm_provider=build_llm_provider(settings),
+            enabled_analysts=settings.enabled_analyst_keys,
+        )
 
     with session_factory() as session:
         debate = ResearchDebateService(session).run(

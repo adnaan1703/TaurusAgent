@@ -18,6 +18,8 @@ def test_default_settings_are_safe() -> None:
     assert settings.taurus_mock_candle_count == 252
     assert settings.taurus_market_data_provider == "mock"
     assert settings.taurus_llm_provider == "mock"
+    assert settings.taurus_enabled_analysts == "technical,news,sentiment,fundamentals"
+    assert settings.enabled_analyst_keys == ("technical", "news", "sentiment", "fundamentals")
     assert settings.taurus_initial_capital_inr == 1_000_000
     assert settings.taurus_max_position_pct == 5
     assert settings.taurus_max_open_positions == 8
@@ -41,6 +43,20 @@ def test_unknown_market_data_provider_is_rejected(monkeypatch: pytest.MonkeyPatc
     monkeypatch.setenv("TAURUS_MARKET_DATA_PROVIDER", "scraper")
 
     with pytest.raises(ValidationError, match="market data provider"):
+        Settings()
+
+
+def test_unknown_enabled_analyst_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("TAURUS_ENABLED_ANALYSTS", "technical,macro")
+
+    with pytest.raises(ValidationError, match="Unsupported analyst key"):
+        Settings()
+
+
+def test_empty_enabled_analyst_roster_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("TAURUS_ENABLED_ANALYSTS", "")
+
+    with pytest.raises(ValidationError, match="at least one analyst"):
         Settings()
 
 

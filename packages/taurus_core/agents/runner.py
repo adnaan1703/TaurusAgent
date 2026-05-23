@@ -1,11 +1,17 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Sequence
 
 from sqlalchemy.orm import Session
 
 from taurus_core.agents.fundamentals_analyst import FundamentalsAnalystAgent
 from taurus_core.agents.news_analyst import NewsAnalystAgent
+from taurus_core.agents.roster import (
+    DEFAULT_ENABLED_ANALYSTS,
+    MIN_ANALYST_REPORTS,
+    parse_enabled_analysts,
+)
 from taurus_core.agents.schemas import AnalystReport
 from taurus_core.agents.sentiment_analyst import SentimentAnalystAgent
 from taurus_core.agents.technical_analyst import TechnicalAnalystAgent
@@ -17,6 +23,13 @@ from taurus_core.observability.tracing import bound_trace_context
 
 DEFAULT_ANALYST_RUN_ID = "analyst-mock-latest"
 
+ANALYST_REGISTRY = {
+    "technical": TechnicalAnalystAgent,
+    "news": NewsAnalystAgent,
+    "sentiment": SentimentAnalystAgent,
+    "fundamentals": FundamentalsAnalystAgent,
+}
+
 
 def run_analyst_suite(
     session: Session,
@@ -24,17 +37,15 @@ def run_analyst_suite(
     symbol: str,
     llm_provider: LLMProvider,
     run_id: str = DEFAULT_ANALYST_RUN_ID,
+    enabled_analysts: str | Sequence[str] | None = None,
 ) -> list[AnalystReport]:
     symbol = symbol.upper()
     if InstrumentRepository(session).get(symbol) is None:
         raise ValueError(f"Instrument {symbol} is not available. Run make seed-mock first.")
 
-    agents = (
-        TechnicalAnalystAgent(session, llm_provider),
-        NewsAnalystAgent(session, llm_provider),
-        SentimentAnalystAgent(session, llm_provider),
-        FundamentalsAnalystAgent(session, llm_provider),
-    )
+    enabled_value = DEFAULT_ENABLED_ANALYSTS if enabled_analysts is None else enabled_analysts
+    enabled_keys = parse_enabled_analysts(enabled_value)
+    agents = tuple(ANALYST_REGISTRY[key](session, llm_provider) for key in enabled_keys)
     logger = get_logger(__name__)
     reports: list[AnalystReport] = []
     for agent in agents:
@@ -57,6 +68,11 @@ def run_analyst_suite(
                 duration_seconds=round(duration_seconds, 6),
             )
         reports.append(report)
+    if len(reports) < MIN_ANALYST_REPORTS:
+        raise ValueError(
+            f"Analyst roster produced {len(reports)} report(s); "
+            f"at least {MIN_ANALYST_REPORTS} report is required."
+        )
     AnalystReportRepository(session).replace_for_run_symbol(
         run_id=run_id,
         symbol=symbol,

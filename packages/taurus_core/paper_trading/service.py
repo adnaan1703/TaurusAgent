@@ -13,6 +13,7 @@ from taurus_core.alerts.templates import scheduled_job_failure_event
 from scripts.import_mock_news import import_mock_news
 from scripts.migrate import run_migrations
 from taurus_core.agents.portfolio_manager import PortfolioManagerAgent
+from taurus_core.agents.roster import MIN_ANALYST_REPORTS, skipped_analysts
 from taurus_core.agents.runner import run_analyst_suite
 from taurus_core.agents.trader_agent import TraderAgent
 from taurus_core.config import Settings, get_settings
@@ -168,12 +169,14 @@ class PaperRunService:
         with bound_trace_context(run_id=run_id):
             self.logger.info("paper_run.symbol.started", symbol=symbol)
 
+        enabled_analysts = self.settings.enabled_analyst_keys
         with self.session_factory() as session:
             reports = run_analyst_suite(
                 session,
                 symbol=symbol,
                 run_id=run_id,
                 llm_provider=build_llm_provider(self.settings),
+                enabled_analysts=enabled_analysts,
             )
 
         with self.session_factory() as session:
@@ -213,6 +216,10 @@ class PaperRunService:
         result = {
             "symbol": symbol,
             "report_ids": [report.report_id for report in reports],
+            "analyst_roster": _analyst_roster_dict(
+                enabled_analysts=enabled_analysts,
+                report_count=len(reports),
+            ),
             "debate_id": debate.debate_id,
             "proposal_id": proposal.proposal_id,
             "risk_check_id": review.risk_check_id,
@@ -432,6 +439,23 @@ def _normalize_symbols(symbols: Iterable[str]) -> list[str]:
             if cleaned and cleaned not in normalized:
                 normalized.append(cleaned)
     return normalized
+
+
+def _analyst_roster_dict(
+    *,
+    enabled_analysts: Iterable[str],
+    report_count: int,
+) -> dict[str, object]:
+    enabled = list(enabled_analysts)
+    return {
+        "enabled": enabled,
+        "skipped": list(skipped_analysts(enabled)),
+        "report_count": report_count,
+        "min_required": MIN_ANALYST_REPORTS,
+        "status": "enough_reports"
+        if report_count >= MIN_ANALYST_REPORTS
+        else "failed_no_reports",
+    }
 
 
 def _status_for(succeeded_symbols: list[str], failed_symbols: list[str]) -> str:

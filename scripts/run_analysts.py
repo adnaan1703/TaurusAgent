@@ -38,6 +38,7 @@ def run_mock_analysts(
             symbol=symbol,
             run_id=run_id,
             llm_provider=build_llm_provider(settings),
+            enabled_analysts=settings.enabled_analyst_keys,
         )
         return [report.model_dump(mode="json") for report in reports]
 

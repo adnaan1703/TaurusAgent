@@ -318,6 +318,15 @@ make test
 make lint
 ```
 
+Optional analyst roster:
+
+```bash
+TAURUS_ENABLED_ANALYSTS=technical,news,sentiment make run-analysts-mock SYMBOL=INFY
+TAURUS_ENABLED_ANALYSTS=technical make paper-once-mock SYMBOL=INFY
+```
+
+Default roster is `technical,news,sentiment,fundamentals`.
+
 ## Expected Project Commands By Milestone
 
 ```bash
@@ -448,6 +457,7 @@ prefix_rule(pattern=["make", "trader-proposal-mock"], decision="allow")
 prefix_rule(pattern=["make", "risk-review-mock"], decision="allow")
 prefix_rule(pattern=["make", "final-approval-mock"], decision="allow")
 prefix_rule(pattern=["make", "paper-once-mock"], decision="allow")
+prefix_rule(pattern=["/bin/zsh", "-lc", "DATABASE_URL=sqlite:////private/tmp/taurus-optional-analysts-default-20260523.db make paper-once-mock SYMBOL=INFY"], decision="allow")
 prefix_rule(pattern=["/bin/zsh", "-lc", "DATABASE_URL=sqlite:////private/tmp/taurus-m7-verify-20260519.db make paper-once-mock SYMBOL=INFY"], decision="allow")
 prefix_rule(pattern=["/bin/zsh", "-lc", "DATABASE_URL=sqlite:////private/tmp/taurus-m7-verify-20260519.db make api"], decision="allow")
 prefix_rule(pattern=["/bin/zsh", "-lc", "DATABASE_URL=sqlite:////private/tmp/taurus-m7-deterministic-20260519.db TAURUS_LLM_PROVIDER=mock SYMBOL=INFY PYTHONPATH=packages:. uv run python scripts/run_paper_once.py"], decision="allow")
@@ -512,6 +522,7 @@ prefix_rule(pattern=["curl", "-sS", "-o", "/private/tmp/taurus-m16-ui-replay.jso
 prefix_rule(pattern=["curl", "-sS", "-o", "/private/tmp/taurus-m16-ui-risk.json", "-w", "%{http_code}", "http://127.0.0.1:8000/ui/risk"], decision="allow")
 prefix_rule(pattern=["curl", "-sS", "-o", "/private/tmp/taurus-m16-ui-portfolio.json", "-w", "%{http_code}", "http://127.0.0.1:8000/ui/portfolio"], decision="allow")
 prefix_rule(pattern=["curl", "-sS", "-o", "/private/tmp/taurus-m16-ui-vite.html", "-w", "%{http_code}", "http://127.0.0.1:5173/"], decision="allow")
+prefix_rule(pattern=["curl", "-sS", "-o", "/private/tmp/taurus-vite-check.html", "-w", "%{http_code}", "http://127.0.0.1:5173/"], decision="allow")
 prefix_rule(pattern=["curl", "http://127.0.0.1:8000/paper/orders"], decision="allow")
 prefix_rule(pattern=["curl", "http://127.0.0.1:8000/paper/fills"], decision="allow")
 prefix_rule(pattern=["curl", "http://127.0.0.1:8000/paper/positions"], decision="allow")

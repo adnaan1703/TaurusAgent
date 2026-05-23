@@ -9,6 +9,7 @@ from pydantic import Field, ValidationError, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from taurus_core import __version__
+from taurus_core.agents.roster import DEFAULT_ENABLED_ANALYSTS, parse_enabled_analysts
 
 
 class Settings(BaseSettings):
@@ -122,6 +123,10 @@ class Settings(BaseSettings):
     taurus_llm_provider: str = Field(default="mock", validation_alias="TAURUS_LLM_PROVIDER")
     taurus_llm_base_url: str = Field(default="", validation_alias="TAURUS_LLM_BASE_URL")
     taurus_alert_provider: str = Field(default="mock", validation_alias="TAURUS_ALERT_PROVIDER")
+    taurus_enabled_analysts: str = Field(
+        default=DEFAULT_ENABLED_ANALYSTS,
+        validation_alias="TAURUS_ENABLED_ANALYSTS",
+    )
     openai_api_key: str = Field(default="", validation_alias="OPENAI_API_KEY")
     telegram_bot_token: str = Field(default="", validation_alias="TELEGRAM_BOT_TOKEN")
     telegram_chat_id: str = Field(default="", validation_alias="TELEGRAM_CHAT_ID")
@@ -143,7 +148,12 @@ class Settings(BaseSettings):
             raise ValueError("Unsupported Taurus LLM provider.")
         if self.taurus_alert_provider not in {"mock", "telegram", "disabled"}:
             raise ValueError("Unsupported Taurus alert provider.")
+        parse_enabled_analysts(self.taurus_enabled_analysts)
         return self
+
+    @property
+    def enabled_analyst_keys(self) -> tuple[str, ...]:
+        return parse_enabled_analysts(self.taurus_enabled_analysts)
 
     def safe_dict(self) -> dict[str, Any]:
         redacted = self.model_dump()

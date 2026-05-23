@@ -65,6 +65,44 @@ def test_analyst_suite_falls_back_when_llm_provider_fails(tmp_path: Path) -> Non
     assert all("LLM provider fallback used" in " ".join(report.risks) for report in reports)
 
 
+def test_analyst_suite_can_skip_fundamentals(tmp_path: Path) -> None:
+    settings = _settings_for_temp_db(tmp_path)
+    session_factory = _prepare_intelligence_db(settings)
+
+    with session_factory() as session:
+        reports = run_analyst_suite(
+            session,
+            symbol="INFY",
+            llm_provider=MockLLMProvider(),
+            run_id="no-fundamentals-run",
+            enabled_analysts=("technical", "news", "sentiment"),
+        )
+
+    assert {report.agent_name for report in reports} == {
+        "TechnicalAnalystAgent",
+        "NewsAnalystAgent",
+        "SentimentAnalystAgent",
+    }
+    assert all(report.agent_name != "FundamentalsAnalystAgent" for report in reports)
+
+
+def test_analyst_suite_allows_technical_only_roster(tmp_path: Path) -> None:
+    settings = _settings_for_temp_db(tmp_path)
+    session_factory = _prepare_intelligence_db(settings)
+
+    with session_factory() as session:
+        reports = run_analyst_suite(
+            session,
+            symbol="INFY",
+            llm_provider=MockLLMProvider(),
+            run_id="technical-only-run",
+            enabled_analysts=("technical",),
+        )
+
+    assert len(reports) == 1
+    assert reports[0].agent_name == "TechnicalAnalystAgent"
+
+
 def test_intelligence_api_returns_events_and_agent_reports(tmp_path: Path) -> None:
     settings = _settings_for_temp_db(tmp_path)
     session_factory = _prepare_intelligence_db(settings)

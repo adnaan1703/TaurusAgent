@@ -32,17 +32,13 @@ def run_mock_trader_proposal(
     _prepare_mock_inputs(session_factory, settings)
 
     with session_factory() as session:
-        reports = AnalystReportRepository(session).list_for_run_symbol(
+        run_analyst_suite(
+            session,
             symbol=symbol,
             run_id=run_id,
+            llm_provider=build_llm_provider(settings),
+            enabled_analysts=settings.enabled_analyst_keys,
         )
-        if not reports:
-            run_analyst_suite(
-                session,
-                symbol=symbol,
-                run_id=run_id,
-                llm_provider=build_llm_provider(settings),
-            )
 
     with session_factory() as session:
         reports = AnalystReportRepository(session).list_for_run_symbol(
