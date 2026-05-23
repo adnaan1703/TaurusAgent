@@ -106,6 +106,14 @@ make ui
 
 Open `http://localhost:5173`. The React app reads the local FastAPI aggregate `/ui/*` endpoints and remains read-only.
 
+Run a full mock paper loop and open the React dashboard in one command:
+
+```bash
+make paper-loop-dashboard
+```
+
+This target starts the Docker stack, prepares mock data, runs one paper loop, then starts the React dev server in the foreground.
+
 Run the Streamlit fallback dashboard:
 
 ```bash

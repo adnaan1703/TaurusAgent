@@ -128,7 +128,15 @@ For each symbol, a successful loop can create:
 
 ## How To Observe A Loop In The React Dashboard
 
-Start the API and React dashboard:
+For the normal one-command mock run and dashboard startup:
+
+```bash
+make paper-loop-dashboard
+```
+
+This starts the Docker stack, runs migrations, seeds mock market data, imports mock news, executes one mock paper loop, and starts the React dashboard on `http://localhost:5173`. The final `make ui` step stays in the foreground; stop it with `Ctrl+C` when finished, then run `make dev-down` to stop Docker services.
+
+For manual API and React dashboard startup:
 
 ```bash
 make api

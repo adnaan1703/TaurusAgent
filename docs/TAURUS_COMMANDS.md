@@ -305,6 +305,7 @@ make paper-once-mock SYMBOL=INFY
 make paper-loop-mock
 make paper-loop-once
 make paper-loop-start
+make paper-loop-dashboard
 make alert-smoke
 make alert-test-telegram
 make replay-decision DECISION_ID=sample
@@ -343,6 +344,7 @@ make backtest-real-data
 make paper-loop-mock
 make paper-loop-start
 make paper-loop-once
+make paper-loop-dashboard
 make replay-decision DECISION_ID=sample
 make backup-local
 make backup-db
