@@ -1050,6 +1050,70 @@ Completion summary:
 - Mocks created: Synthetic HalalStock HTML table fixtures, unknown-icon fixture, renamed-column fixture, duplicate-NSE fixture, injected fetch-result fixture, and SQLite compliance DBs for tests.
 - Mocks used: Synthetic HalalStock HTML fixtures, injected fetch-result fixture, temporary YAML export paths, SQLite test DBs, and SQLite live-sync verification database at `/private/tmp/taurus-halal.db`.
 
+## M19 - Shariah Dashboard And Run Universe Provenance
+
+Status: Done
+
+Objective: Add a read-only React Shariah compliance dashboard backed by active `halal_stock_compliance` rows, and persist the symbol universe provenance used by paper loop runs.
+
+Detailed plan:
+
+- Add `/ui/shariah` with server-side search, compliance status filtering, pagination, active counts, latest import metadata, and halal NSE universe export metadata.
+- Add a React `/shariah` page with summary cards, search/filter controls, a paginated compliance table, source/detail links, and empty-state guidance for `make sync-halal-stocks`.
+- Add Shariah navigation to desktop and mobile React shells.
+- Store paper run universe provenance in the existing run payload JSON without a DB migration.
+- Display paper run universe provenance in Overview, History, and Run Detail.
+- Add focused backend and frontend tests.
+
+Tasks:
+
+- [x] Add Shariah aggregate API and repository readers.
+- [x] Add paper run universe provenance schemas and run-loop resolver.
+- [x] Add React Shariah page, nav item, and universe displays.
+- [x] Add backend and frontend tests.
+- [x] Run verification and Codex rules cleanup.
+
+Verification:
+
+- [x] `uv run pytest tests/unit/test_halal_stock_compliance.py tests/unit/test_ui_aggregate_api.py tests/unit/test_kite_market_data.py tests/unit/test_paper_runs.py`
+- [x] `make test`
+- [x] `make lint`
+- [x] `cd apps/web && pnpm test`
+- [x] `cd apps/web && pnpm build`
+
+Acceptance:
+
+- [x] `/ui/shariah` returns active halal and haram rows from the DB, not the YAML export.
+- [x] Shariah search matches company name, NSE symbol, and BSE code.
+- [x] Shariah status filtering and pagination return correct totals.
+- [x] Empty compliance DBs return an empty Shariah payload without error.
+- [x] Paper loop runs record market-data universe provenance when symbols are loaded from a universe YAML.
+- [x] Manual symbol runs record manual symbol provenance.
+- [x] Overview, History, and Run Detail display universe provenance, with older runs shown as not recorded.
+- [x] React Shariah page and navigation are covered by Vitest.
+
+Notes:
+
+- Added `GET /ui/shariah` backed by active `halal_stock_compliance` rows with `query`, `status`, `page`, and `page_size` parameters.
+- Added Shariah response metadata for active counts, latest HalalStock import details, and configured halal NSE universe YAML export status.
+- Added `/shariah` to the React dashboard with summary metrics, search, status filtering, pagination, active-row table, detail/source links, latest import metadata, exported universe metadata, and empty-state guidance for `make sync-halal-stocks`.
+- Added run universe provenance to `PaperRun` payloads. Market-data universe runs record provider, universe name, YAML path, available symbol count, selected symbol count, and selected symbols. Manual runs record `manual_symbols`.
+- Preserved `_symbols_from_env()` as the compatibility wrapper and added richer environment resolution for paper loop provenance.
+- Added universe provenance displays in Overview, History, and Run Detail. Historical rows without payload metadata render as `Not recorded`.
+- Focused backend verification reported `31 passed`.
+- `make test` reported `97 passed`.
+- `make lint` compile-checks passed.
+- `cd apps/web && pnpm test` reported `21 passed`.
+- `cd apps/web && pnpm build` completed successfully.
+- Local smoke with API on `8000` and Vite on `5173` returned `200` for `/ui/shariah?page=1&page_size=5` and `http://127.0.0.1:5173/shariah`.
+- Inspected `/Users/adnaan/.codex/rules/default.rules`; no entries existed after `# END MY CUSTOM ADDITION`, so no global approvals needed to be moved.
+
+Completion summary:
+
+- Assumptions made: "All stocks" means active rows imported from the HalalStock source, including halal and haram statuses, not every Kite/NSE-listed stock. The halal NSE YAML remains an export/trading universe and is not the source for the Shariah dashboard table. Existing historical paper runs without universe payload metadata should remain readable and display `Not recorded`.
+- Mocks created: Synthetic Shariah compliance HTML table fixtures, temporary missing halal YAML paths for API metadata coverage, frontend Shariah response fixtures, and env-resolved paper loop provenance fixtures.
+- Mocks used: Synthetic Shariah HTML fixtures, fake Kite universe YAML fixtures from existing Kite tests, mock market data, mock news provider, mock LLM outputs, mock alert provider, internal PaperBroker, mocked browser `fetch` responses in Vitest, and SQLite test databases.
+
 ## Post-MVP Follow-Ups
 
 These tasks are intentionally deferred until after the M13 paper-trading MVP release.

@@ -56,6 +56,9 @@ const STATUS_MAP: Record<string, StatusConfig> = {
   PARTIALLY_FILLED: { label: "Partially filled", tone: "caution", icon: Clock3 },
   FILLED: { label: "Filled", tone: "success", icon: CheckCircle2 },
   CANCELLED: { label: "Cancelled", tone: "neutral", icon: MinusCircle },
+
+  halal: { label: "Halal", tone: "success", icon: ShieldCheck },
+  haram: { label: "Haram", tone: "failure", icon: Ban },
 };
 
 export function getStatusConfig(status: string | StageStatus | null | undefined): StatusConfig {

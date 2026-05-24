@@ -9,6 +9,7 @@ import { PortfolioPage } from "../features/PortfolioPage";
 import { ReplayPage } from "../features/ReplayPage";
 import { RiskPage } from "../features/RiskPage";
 import { RunDetailPage } from "../features/RunDetailPage";
+import { ShariahPage } from "../features/ShariahPage";
 
 export const routes: RouteObject[] = [
   {
@@ -22,6 +23,7 @@ export const routes: RouteObject[] = [
       { path: "replay/:decisionId", element: <ReplayPage /> },
       { path: "risk", element: <RiskPage /> },
       { path: "portfolio", element: <PortfolioPage /> },
+      { path: "shariah", element: <ShariahPage /> },
       { path: "history", element: <HistoryPage /> },
     ],
   },

@@ -106,6 +106,19 @@ const payloads = {
     status_counts: { COMPLETED: 1 },
     filters_metadata: {},
   },
+  shariah: {
+    rows: [],
+    pagination: { page: 1, page_size: 50, total: 0, total_pages: 0 },
+    counts: { active_total: 0, halal: 0, haram: 0 },
+    latest_import: null,
+    halal_universe_export: {
+      yaml_path: "configs/market_data/halal_nse_cash.yaml",
+      universe_name: null,
+      exported_symbol_count: 0,
+      loaded: false,
+      error: null,
+    },
+  },
 };
 
 describe("route skeletons", () => {
@@ -125,9 +138,11 @@ describe("route skeletons", () => {
                   ? payloads.risk
                   : url.includes("/ui/portfolio")
                     ? payloads.portfolio
-                    : url.includes("/ui/history")
-                      ? payloads.history
-                      : payloads.overview;
+                    : url.includes("/ui/shariah")
+                      ? payloads.shariah
+                      : url.includes("/ui/history")
+                        ? payloads.history
+                        : payloads.overview;
 
         return new Response(JSON.stringify(payload), {
           status: 200,
@@ -144,6 +159,7 @@ describe("route skeletons", () => {
     ["/replay/dec-test", "dec-test"],
     ["/risk", "Risk And Controls"],
     ["/portfolio", "Portfolio And Account"],
+    ["/shariah", "Shariah"],
     ["/history", "History"],
   ])("renders %s", async (path, heading) => {
     const router = createMemoryRouter(routes, { initialEntries: [path] });

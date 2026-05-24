@@ -4,7 +4,7 @@ from datetime import date, datetime, time, timezone
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import Select, delete, func, select
+from sqlalchemy import Select, delete, func, or_, select
 from sqlalchemy.orm import Session
 
 from taurus_core.db.models import (
@@ -730,6 +730,69 @@ class HalalStockComplianceRepository:
             )
         )
 
+    def search_active(
+        self,
+        *,
+        query: str = "",
+        compliance_status: str | None = None,
+        page: int = 1,
+        page_size: int = 50,
+    ) -> tuple[list[HalalStockComplianceModel], int]:
+        filters = self._active_filters(
+            query=query,
+            compliance_status=compliance_status,
+        )
+        total = int(
+            self.session.scalar(
+                select(func.count())
+                .select_from(HalalStockComplianceModel)
+                .where(*filters)
+            )
+            or 0
+        )
+        statement = (
+            select(HalalStockComplianceModel)
+            .where(*filters)
+            .order_by(
+                HalalStockComplianceModel.nse_code,
+                HalalStockComplianceModel.bse_code,
+                HalalStockComplianceModel.name,
+            )
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+        return list(self.session.scalars(statement)), total
+
+    def active_status_counts(self) -> dict[str, int]:
+        statement = (
+            select(
+                HalalStockComplianceModel.compliance_status,
+                func.count(),
+            )
+            .where(HalalStockComplianceModel.active.is_(True))
+            .group_by(HalalStockComplianceModel.compliance_status)
+        )
+        counts = {
+            str(status): int(count)
+            for status, count in self.session.execute(statement).all()
+        }
+        counts["active_total"] = sum(counts.values())
+        counts.setdefault("halal", 0)
+        counts.setdefault("haram", 0)
+        return counts
+
+    def latest_import(self) -> HalalStockImportModel | None:
+        statement = (
+            select(HalalStockImportModel)
+            .order_by(
+                HalalStockImportModel.imported_at.desc(),
+                HalalStockImportModel.fetched_at.desc(),
+                HalalStockImportModel.import_id,
+            )
+            .limit(1)
+        )
+        return self.session.scalar(statement)
+
     def list_imports(self, *, limit: int | None = 50) -> list[HalalStockImportModel]:
         statement = select(HalalStockImportModel).order_by(
             HalalStockImportModel.imported_at.desc(),
@@ -738,6 +801,27 @@ class HalalStockComplianceRepository:
         if limit is not None:
             statement = statement.limit(limit)
         return list(self.session.scalars(statement))
+
+    @staticmethod
+    def _active_filters(
+        *,
+        query: str,
+        compliance_status: str | None,
+    ) -> list[Any]:
+        filters: list[Any] = [HalalStockComplianceModel.active.is_(True)]
+        if compliance_status is not None:
+            filters.append(HalalStockComplianceModel.compliance_status == compliance_status)
+        cleaned_query = query.strip()
+        if cleaned_query:
+            pattern = f"%{cleaned_query}%"
+            filters.append(
+                or_(
+                    HalalStockComplianceModel.name.ilike(pattern),
+                    HalalStockComplianceModel.nse_code.ilike(pattern),
+                    HalalStockComplianceModel.bse_code.ilike(pattern),
+                )
+            )
+        return filters
 
 
 class ResearchRepository:

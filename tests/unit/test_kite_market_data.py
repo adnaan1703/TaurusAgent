@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 
 from apps.api.main import create_app
 from scripts.migrate import run_migrations
-from scripts.run_paper_loop import _symbols_from_env
+from scripts.run_paper_loop import _resolve_symbols_from_env, _symbols_from_env
 from taurus_core.config import Settings
 from taurus_core.data.providers.factory import build_market_data_provider
 from taurus_core.data.providers.kite_market_data import KiteMarketDataProvider
@@ -315,6 +315,24 @@ def test_kite_paper_loop_uses_universe_symbols_when_env_symbols_are_absent(
     monkeypatch.setenv("SYMBOLS", "")
 
     assert _symbols_from_env(_settings(tmp_path)) == ["INFY", "TCS"]
+
+
+def test_kite_paper_loop_resolver_records_market_data_universe_provenance(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("SYMBOL", "")
+    monkeypatch.setenv("SYMBOLS", "")
+
+    resolved = _resolve_symbols_from_env(_settings(tmp_path))
+
+    assert resolved.symbols == ["INFY", "TCS"]
+    assert resolved.universe.source == "market_data_universe"
+    assert resolved.universe.provider == "kite"
+    assert resolved.universe.universe_name == "kite_test"
+    assert resolved.universe.available_symbol_count == 2
+    assert resolved.universe.selected_symbol_count == 2
+    assert resolved.universe.yaml_path is not None
 
 
 def _settings(tmp_path: Path, **overrides: object) -> Settings:

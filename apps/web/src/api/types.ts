@@ -38,6 +38,16 @@ export type UiMetric = {
   tone: MetricTone;
 };
 
+export type UiRunUniverse = {
+  source: string;
+  provider?: string | null;
+  universe_name?: string | null;
+  yaml_path?: string | null;
+  available_symbol_count?: number | null;
+  selected_symbol_count?: number | null;
+  symbols: string[];
+};
+
 export type UiRunSummary = {
   run_id: string;
   status: RunStatus;
@@ -52,6 +62,7 @@ export type UiRunSummary = {
   failed_symbols: string[];
   error_count: number;
   market_provider?: string | null;
+  universe?: UiRunUniverse | null;
   final_status_counts: Record<string, number>;
   order_status_counts: Record<string, number>;
 };
@@ -166,4 +177,65 @@ export type UiHistoryResponse = {
   runs: UiRunSummary[];
   status_counts: Record<string, number>;
   filters_metadata: JsonObject;
+};
+
+export type ShariahStatusFilter = "all" | "halal" | "haram";
+
+export type UiPagination = {
+  page: number;
+  page_size: number;
+  total: number;
+  total_pages: number;
+};
+
+export type UiShariahRow = {
+  name: string;
+  nse_code: string;
+  bse_code: string;
+  industry: string;
+  compliance_status: string;
+  active: boolean;
+  first_seen_at: string;
+  last_seen_at: string;
+  status_changed_at: string;
+  details_url: string;
+  source_url: string;
+};
+
+export type UiShariahCounts = {
+  active_total: number;
+  halal: number;
+  haram: number;
+};
+
+export type UiHalalStockLatestImport = {
+  import_id: string;
+  source_url: string;
+  source_checksum: string;
+  fetched_at: string;
+  imported_at: string;
+  rows_seen: number;
+  rows_imported: number;
+  halal_count: number;
+  haram_count: number;
+  unknown_count: number;
+  duplicate_count: number;
+  generated_yaml_path: string;
+  status: string;
+};
+
+export type UiHalalUniverseExport = {
+  yaml_path?: string | null;
+  universe_name?: string | null;
+  exported_symbol_count: number;
+  loaded: boolean;
+  error?: string | null;
+};
+
+export type UiShariahResponse = {
+  rows: UiShariahRow[];
+  pagination: UiPagination;
+  counts: UiShariahCounts;
+  latest_import?: UiHalalStockLatestImport | null;
+  halal_universe_export: UiHalalUniverseExport;
 };

@@ -10,6 +10,7 @@ import { JsonDrawer } from "../components/JsonDrawer";
 import { KeyValueGrid } from "../components/KeyValueGrid";
 import { MetricCard } from "../components/MetricCard";
 import { RefreshButton } from "../components/RefreshButton";
+import { RunUniverseSummary, runUniverseTitle } from "../components/RunUniverse";
 import { SafetyBanner } from "../components/SafetyBanner";
 import { ErrorState, LoadingState } from "../components/States";
 import { StatusBadge } from "../components/StatusBadge";
@@ -79,6 +80,18 @@ export function RunDetailPage() {
                   value: runQuery.data.run.run_after_market_close ? "Yes" : "No",
                 },
                 { label: "Market provider", value: runQuery.data.run.market_provider ?? "-" },
+                {
+                  label: "Universe",
+                  value: <RunUniverseSummary universe={runQuery.data.run.universe} />,
+                },
+                {
+                  label: "Universe YAML",
+                  value: runQuery.data.run.universe?.yaml_path ?? "-",
+                },
+                {
+                  label: "Universe source",
+                  value: runUniverseTitle(runQuery.data.run.universe),
+                },
                 { label: "Error count", value: formatNumber(runQuery.data.run.error_count) },
               ]}
             />

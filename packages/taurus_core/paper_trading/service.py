@@ -34,7 +34,12 @@ from taurus_core.intelligence.mock_news_provider import MockNewsProvider
 from taurus_core.llm import build_llm_provider
 from taurus_core.logging import get_logger
 from taurus_core.observability.tracing import bound_trace_context
-from taurus_core.paper_trading.schemas import PaperRun, PaperRunError, paper_run_id
+from taurus_core.paper_trading.schemas import (
+    PaperRun,
+    PaperRunError,
+    PaperRunUniverse,
+    paper_run_id,
+)
 from taurus_core.research.debate_service import DEFAULT_DEBATE_ROUNDS, ResearchDebateService
 from taurus_core.risk.review_service import RiskReviewService
 from taurus_core.strategies import DEFAULT_STRATEGY_CONFIG_PATH, load_strategy_config
@@ -69,6 +74,7 @@ class PaperRunService:
         self,
         *,
         symbols: Iterable[str],
+        universe: PaperRunUniverse | None = None,
         csv_path: str | Path | None = None,
         directory: str | Path | None = None,
         strategy_config_path: str | Path | None = None,
@@ -91,6 +97,10 @@ class PaperRunService:
             symbols=normalized_symbols,
             timezone=self.timezone_name,
             run_after_market_close=self.run_after_market_close,
+            universe=universe or _manual_universe(
+                provider=self.settings.taurus_market_data_provider,
+                symbols=normalized_symbols,
+            ),
         )
         self._store_run(run, audit_event="paper_run.started")
 
@@ -399,6 +409,7 @@ class SimplePaperScheduler:
         symbols: Iterable[str],
         interval_seconds: float,
         iterations: int,
+        universe: PaperRunUniverse | None = None,
         csv_path: str | Path | None = None,
         directory: str | Path | None = None,
         strategy_config_path: str | Path | None = None,
@@ -411,6 +422,7 @@ class SimplePaperScheduler:
         self.symbols = _normalize_symbols(symbols)
         self.interval_seconds = interval_seconds
         self.iterations = iterations
+        self.universe = universe
         self.csv_path = csv_path
         self.directory = directory
         self.strategy_config_path = strategy_config_path
@@ -421,6 +433,7 @@ class SimplePaperScheduler:
             runs.append(
                 self.service.run_once(
                     symbols=self.symbols,
+                    universe=self.universe,
                     csv_path=self.csv_path,
                     directory=self.directory,
                     strategy_config_path=self.strategy_config_path,
@@ -456,6 +469,15 @@ def _analyst_roster_dict(
         if report_count >= MIN_ANALYST_REPORTS
         else "failed_no_reports",
     }
+
+
+def _manual_universe(*, provider: str, symbols: list[str]) -> PaperRunUniverse:
+    return PaperRunUniverse(
+        source="manual_symbols",
+        provider=provider,
+        selected_symbol_count=len(symbols),
+        symbols=list(symbols),
+    )
 
 
 def _status_for(succeeded_symbols: list[str], failed_symbols: list[str]) -> str:

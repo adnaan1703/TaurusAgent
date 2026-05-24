@@ -9,6 +9,7 @@ import { EmptyState } from "../components/EmptyState";
 import { JsonDrawer } from "../components/JsonDrawer";
 import { MetricCard } from "../components/MetricCard";
 import { RefreshButton } from "../components/RefreshButton";
+import { RunUniverseSummary } from "../components/RunUniverse";
 import { SafetyBanner } from "../components/SafetyBanner";
 import { ErrorState, LoadingState } from "../components/States";
 import { StatusBadge } from "../components/StatusBadge";
@@ -128,6 +129,11 @@ export function OverviewPage() {
                     key: "symbols",
                     header: "Symbols",
                     render: (run) => <SymbolLinks run={run} />,
+                  },
+                  {
+                    key: "universe",
+                    header: "Universe",
+                    render: (run) => <RunUniverseSummary universe={run.universe} />,
                   },
                   {
                     key: "decisions",

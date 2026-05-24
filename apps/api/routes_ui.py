@@ -4,6 +4,7 @@ from collections import Counter
 from collections.abc import Iterator
 from datetime import date, datetime, timezone
 from decimal import Decimal
+from pathlib import Path
 from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -17,6 +18,8 @@ from taurus_core.db.models import (
     CompanyEventModel,
     DebateReportModel,
     FinalDecisionModel,
+    HalalStockComplianceModel,
+    HalalStockImportModel,
     PaperFillModel,
     PaperOrderModel,
     PaperRunModel,
@@ -27,12 +30,14 @@ from taurus_core.db.repositories import (
     AnalystReportRepository,
     AuditLogRepository,
     ExecutionRepository,
+    HalalStockComplianceRepository,
     InstrumentRepository,
     IntelligenceRepository,
     PaperRunRepository,
     ResearchRepository,
     RiskRepository,
 )
+from taurus_core.data.universe import load_market_data_universe
 from taurus_core.replay.service import DecisionReplayService
 
 router = APIRouter(prefix="/ui", tags=["ui"])
@@ -49,6 +54,7 @@ StageStatus = Literal[
 ]
 WarningSeverity = Literal["info", "warning", "critical"]
 MetricTone = Literal["neutral", "success", "caution", "failure"]
+ShariahStatusFilter = Literal["all", "halal", "haram"]
 
 
 class UiSafetyStatus(BaseModel):
@@ -81,6 +87,16 @@ class UiArtifactRef(BaseModel):
     label: str | None = None
 
 
+class UiRunUniverse(BaseModel):
+    source: str
+    provider: str | None = None
+    universe_name: str | None = None
+    yaml_path: str | None = None
+    available_symbol_count: int | None = None
+    selected_symbol_count: int | None = None
+    symbols: list[str] = Field(default_factory=list)
+
+
 class UiRunSummary(BaseModel):
     run_id: str
     status: RunStatus
@@ -95,6 +111,7 @@ class UiRunSummary(BaseModel):
     failed_symbols: list[str]
     error_count: int
     market_provider: str | None
+    universe: UiRunUniverse | None = None
     final_status_counts: dict[str, int] = Field(default_factory=dict)
     order_status_counts: dict[str, int] = Field(default_factory=dict)
 
@@ -209,6 +226,65 @@ class UiHistoryResponse(BaseModel):
     runs: list[UiRunSummary]
     status_counts: dict[str, int]
     filters_metadata: dict[str, Any]
+
+
+class UiPagination(BaseModel):
+    page: int
+    page_size: int
+    total: int
+    total_pages: int
+
+
+class UiShariahRow(BaseModel):
+    name: str
+    nse_code: str
+    bse_code: str
+    industry: str
+    compliance_status: str
+    active: bool
+    first_seen_at: datetime
+    last_seen_at: datetime
+    status_changed_at: datetime
+    details_url: str
+    source_url: str
+
+
+class UiShariahCounts(BaseModel):
+    active_total: int = 0
+    halal: int = 0
+    haram: int = 0
+
+
+class UiHalalStockLatestImport(BaseModel):
+    import_id: str
+    source_url: str
+    source_checksum: str
+    fetched_at: datetime
+    imported_at: datetime
+    rows_seen: int
+    rows_imported: int
+    halal_count: int
+    haram_count: int
+    unknown_count: int
+    duplicate_count: int
+    generated_yaml_path: str
+    status: str
+
+
+class UiHalalUniverseExport(BaseModel):
+    yaml_path: str | None = None
+    universe_name: str | None = None
+    exported_symbol_count: int = 0
+    loaded: bool = False
+    error: str | None = None
+
+
+class UiShariahResponse(BaseModel):
+    rows: list[UiShariahRow]
+    pagination: UiPagination
+    counts: UiShariahCounts
+    latest_import: UiHalalStockLatestImport | None
+    halal_universe_export: UiHalalUniverseExport
 
 
 def get_db_session(request: Request) -> Iterator[Session]:
@@ -450,12 +526,116 @@ def get_ui_history(
     )
 
 
+@router.get("/shariah", response_model=UiShariahResponse)
+def get_ui_shariah(
+    request: Request,
+    query: str = Query(default="", max_length=100),
+    status: ShariahStatusFilter = Query(default="all"),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=50, ge=1, le=200),
+    session: Session = Depends(get_db_session),
+) -> UiShariahResponse:
+    settings: Settings = request.app.state.settings
+    repo = HalalStockComplianceRepository(session)
+    compliance_status = None if status == "all" else status
+    rows, total = repo.search_active(
+        query=query,
+        compliance_status=compliance_status,
+        page=page,
+        page_size=page_size,
+    )
+    latest_import = repo.latest_import()
+    return UiShariahResponse(
+        rows=[_shariah_row(row) for row in rows],
+        pagination=UiPagination(
+            page=page,
+            page_size=page_size,
+            total=total,
+            total_pages=(total + page_size - 1) // page_size,
+        ),
+        counts=UiShariahCounts.model_validate(repo.active_status_counts()),
+        latest_import=_latest_halal_import(latest_import),
+        halal_universe_export=_halal_universe_export(
+            settings=settings,
+            latest_import=latest_import,
+        ),
+    )
+
+
 def _safety(settings: Settings) -> UiSafetyStatus:
     return UiSafetyStatus(
         taurus_mode=settings.taurus_mode,
         broker_provider=settings.broker_provider,
         live_trading_enabled=settings.live_trading_enabled,
         alert_provider=settings.taurus_alert_provider,
+    )
+
+
+def _shariah_row(row: HalalStockComplianceModel) -> UiShariahRow:
+    return UiShariahRow(
+        name=row.name,
+        nse_code=row.nse_code,
+        bse_code=row.bse_code,
+        industry=row.industry,
+        compliance_status=row.compliance_status,
+        active=row.active,
+        first_seen_at=row.first_seen_at,
+        last_seen_at=row.last_seen_at,
+        status_changed_at=row.status_changed_at,
+        details_url=row.details_url,
+        source_url=row.source_url,
+    )
+
+
+def _latest_halal_import(
+    import_row: HalalStockImportModel | None,
+) -> UiHalalStockLatestImport | None:
+    if import_row is None:
+        return None
+    return UiHalalStockLatestImport(
+        import_id=import_row.import_id,
+        source_url=import_row.source_url,
+        source_checksum=import_row.source_checksum,
+        fetched_at=import_row.fetched_at,
+        imported_at=import_row.imported_at,
+        rows_seen=import_row.rows_seen,
+        rows_imported=import_row.rows_imported,
+        halal_count=import_row.halal_count,
+        haram_count=import_row.haram_count,
+        unknown_count=import_row.unknown_count,
+        duplicate_count=import_row.duplicate_count,
+        generated_yaml_path=import_row.generated_yaml_path,
+        status=import_row.status,
+    )
+
+
+def _halal_universe_export(
+    *,
+    settings: Settings,
+    latest_import: HalalStockImportModel | None,
+) -> UiHalalUniverseExport:
+    raw_path = (
+        latest_import.generated_yaml_path
+        if latest_import is not None and latest_import.generated_yaml_path
+        else settings.taurus_halal_stock_universe_path
+    )
+    if not raw_path:
+        return UiHalalUniverseExport(error="No halal universe YAML path is configured.")
+
+    path = Path(raw_path).expanduser()
+    try:
+        universe = load_market_data_universe(path)
+    except Exception as exc:
+        return UiHalalUniverseExport(
+            yaml_path=str(path),
+            error=str(exc),
+        )
+
+    return UiHalalUniverseExport(
+        yaml_path=str(path),
+        universe_name=universe.universe_name,
+        exported_symbol_count=len(universe.enabled_symbols()),
+        loaded=True,
     )
 
 
@@ -487,6 +667,7 @@ def _run_summary(
         failed_symbols=list(run.failed_symbols),
         error_count=len(run.errors),
         market_provider=_market_provider(run),
+        universe=_run_universe(run),
         final_status_counts=dict(Counter(row.status for row in final_decisions)),
         order_status_counts=dict(Counter(row.status for row in orders)),
     )
@@ -985,6 +1166,17 @@ def _market_provider(run: PaperRunModel) -> str | None:
     summary = run.market_data_summary or {}
     provider = summary.get("provider_name") or summary.get("provider")
     return str(provider) if provider is not None else None
+
+
+def _run_universe(run: PaperRunModel) -> UiRunUniverse | None:
+    payload = run.payload or {}
+    raw_universe = payload.get("universe")
+    if not isinstance(raw_universe, dict):
+        return None
+    safe_universe = _json_safe(raw_universe)
+    if not isinstance(safe_universe, dict) or not safe_universe.get("source"):
+        return None
+    return UiRunUniverse.model_validate(safe_universe)
 
 
 def _duration_seconds(

@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   ListTree,
   RefreshCw,
+  Scale,
   ShieldCheck,
   Wallet,
 } from "lucide-react";
@@ -20,6 +21,7 @@ const navItems = [
   { to: "/history", label: "History", icon: History },
   { to: "/risk", label: "Risk", icon: ShieldCheck },
   { to: "/portfolio", label: "Portfolio", icon: Wallet },
+  { to: "/shariah", label: "Shariah", icon: Scale },
 ];
 
 export function AppShell() {

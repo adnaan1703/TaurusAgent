@@ -6,6 +6,7 @@ import type {
   UiReplayResponse,
   UiRiskResponse,
   UiRunDetailResponse,
+  UiShariahResponse,
 } from "./types";
 
 export const TAURUS_API_BASE_URL =
@@ -63,6 +64,25 @@ function normalizeErrorDetail(detail: ErrorPayload["detail"]): string | null {
 export const taurusApi = {
   overview: () => apiFetch<UiOverviewResponse>("/ui/overview"),
   history: () => apiFetch<UiHistoryResponse>("/ui/history"),
+  shariah: ({
+    query = "",
+    status = "all",
+    page = 1,
+    pageSize = 50,
+  }: {
+    query?: string;
+    status?: "all" | "halal" | "haram";
+    page?: number;
+    pageSize?: number;
+  } = {}) => {
+    const params = new URLSearchParams({
+      query,
+      status,
+      page: String(page),
+      page_size: String(pageSize),
+    });
+    return apiFetch<UiShariahResponse>(`/ui/shariah?${params.toString()}`);
+  },
   run: (runId: string) => apiFetch<UiRunDetailResponse>(`/ui/runs/${runId}`),
   decisionTrail: (runId: string, symbol: string) =>
     apiFetch<UiDecisionTrailResponse>(

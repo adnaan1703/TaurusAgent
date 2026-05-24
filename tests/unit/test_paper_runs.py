@@ -7,6 +7,7 @@ from sqlalchemy import func, select
 
 from apps.api.main import create_app
 from apps.dashboard.data import list_paper_runs
+from scripts.run_paper_loop import _resolve_symbols_from_env, run_paper_loop
 from taurus_core.config import Settings
 from taurus_core.db.models import (
     AnalystReportModel,
@@ -134,6 +135,34 @@ def test_paper_run_succeeds_with_technical_only_roster(tmp_path: Path) -> None:
         "min_required": 1,
         "status": "enough_reports",
     }
+
+
+def test_paper_loop_records_manual_symbol_universe_provenance(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.setenv("SYMBOLS", "infy")
+    monkeypatch.setenv("SYMBOL", "")
+    settings = _settings_for_temp_db(tmp_path)
+    resolved = _resolve_symbols_from_env(settings)
+
+    payload = run_paper_loop(
+        symbols=resolved.symbols,
+        settings=settings,
+        iterations=1,
+        universe=resolved.universe,
+    )
+
+    universe = payload[0]["universe"]
+    assert universe["source"] == "manual_symbols"
+    assert universe["provider"] == "mock"
+    assert universe["selected_symbol_count"] == 1
+    assert universe["symbols"] == ["INFY"]
+
+    client = TestClient(create_app(settings))
+    overview = client.get("/ui/overview")
+    assert overview.status_code == 200
+    assert overview.json()["latest_run"]["universe"]["source"] == "manual_symbols"
 
 
 def _settings_for_temp_db(

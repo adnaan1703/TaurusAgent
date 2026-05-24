@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi.testclient import TestClient
 
 from apps.api.main import create_app
 from scripts.migrate import run_migrations
+from taurus_core.compliance import import_halal_stock_compliance, parse_halal_stock_rows
 from taurus_core.config import Settings
 from taurus_core.paper_trading.service import PaperRunService
 
@@ -153,6 +155,74 @@ def test_ui_overview_handles_migrated_empty_database(tmp_path: Path) -> None:
     assert payload["warnings"][0]["id"] == "missing-paper-account"
 
 
+def test_ui_shariah_returns_active_rows_search_filters_and_pagination(
+    tmp_path: Path,
+) -> None:
+    settings = _settings_for_temp_db(tmp_path)
+    run_migrations(settings)
+    parse_result = parse_halal_stock_rows(
+        _shariah_table(
+            [
+                _shariah_row("yes", "Alpha Foods Ltd", "543210", "ALPHA", "Food", "/alpha"),
+                _shariah_row("no", "Beta Finance Ltd", "654321", "BETA", "Finance", "/beta"),
+                _shariah_row("yes", "Gamma Tools Ltd", "765432", "GAMMA", "Engineering", "/gamma"),
+            ]
+        ),
+        source_url="https://example.test/halal-list/",
+    )
+    session_factory = create_app(settings).state.session_factory
+    with session_factory() as session:
+        import_halal_stock_compliance(
+            session,
+            parse_result,
+            source_checksum="ui-shariah",
+            fetched_at=datetime(2026, 5, 24, 9, 0, tzinfo=timezone.utc),
+            generated_yaml_path=str(tmp_path / "missing-halal.yaml"),
+        )
+        session.commit()
+
+    client = TestClient(create_app(settings))
+
+    all_rows = client.get("/ui/shariah?page=1&page_size=2")
+    haram_rows = client.get("/ui/shariah?status=haram")
+    name_search = client.get("/ui/shariah?query=alpha")
+    nse_search = client.get("/ui/shariah?query=GAM")
+    bse_search = client.get("/ui/shariah?query=654321")
+
+    assert all_rows.status_code == 200
+    payload = all_rows.json()
+    assert payload["counts"] == {"active_total": 3, "halal": 2, "haram": 1}
+    assert payload["pagination"] == {
+        "page": 1,
+        "page_size": 2,
+        "total": 3,
+        "total_pages": 2,
+    }
+    assert len(payload["rows"]) == 2
+    assert payload["latest_import"]["rows_imported"] == 3
+    assert payload["halal_universe_export"]["exported_symbol_count"] == 0
+
+    assert haram_rows.status_code == 200
+    assert [row["compliance_status"] for row in haram_rows.json()["rows"]] == ["haram"]
+    assert [row["name"] for row in name_search.json()["rows"]] == ["Alpha Foods Ltd"]
+    assert [row["name"] for row in nse_search.json()["rows"]] == ["Gamma Tools Ltd"]
+    assert [row["name"] for row in bse_search.json()["rows"]] == ["Beta Finance Ltd"]
+
+
+def test_ui_shariah_handles_empty_database(tmp_path: Path) -> None:
+    settings = _settings_for_temp_db(tmp_path)
+    run_migrations(settings)
+    client = TestClient(create_app(settings))
+
+    response = client.get("/ui/shariah")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["rows"] == []
+    assert payload["counts"] == {"active_total": 0, "halal": 0, "haram": 0}
+    assert payload["latest_import"] is None
+
+
 def test_ui_cors_allows_local_vite_origin(tmp_path: Path) -> None:
     settings = _settings_for_temp_db(tmp_path)
     run_migrations(settings)
@@ -176,6 +246,42 @@ def _settings_for_temp_db(tmp_path: Path) -> Settings:
         taurus_alert_provider="mock",
         taurus_llm_provider="mock",
         taurus_paper_partial_fill_threshold=1,
+    )
+
+
+def _shariah_row(
+    status: str,
+    name: str,
+    bse_code: str,
+    nse_code: str,
+    industry: str,
+    href: str,
+) -> str:
+    icon = {
+        "yes": "https://halalstock.in/wp-content/uploads/2021/06/hs-yes.jpg",
+        "no": "https://halalstock.in/wp-content/uploads/2021/06/hs-no.jpg",
+    }[status]
+    return (
+        "<tr>"
+        f'<td><img src="{icon}" /></td>'
+        f"<td>{name}</td>"
+        f"<td>{bse_code}</td>"
+        f"<td>{nse_code}</td>"
+        f"<td>{industry}</td>"
+        f'<td><a href="{href}">More</a></td>'
+        "</tr>"
+    )
+
+
+def _shariah_table(rows: list[str]) -> str:
+    return (
+        '<table id="tablepress-24">'
+        "<thead><tr>"
+        "<th>Halal</th><th>NAME</th><th>BSE-ID</th><th>NSECode</th>"
+        "<th>Industry</th><th>More</th>"
+        "</tr></thead>"
+        f"<tbody>{''.join(rows)}</tbody>"
+        "</table>"
     )
 
 

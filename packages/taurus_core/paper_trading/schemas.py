@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from taurus_core.intelligence.documents import stable_id
 
 PaperRunStatus = Literal["RUNNING", "COMPLETED", "PARTIAL_FAILED", "FAILED"]
+PaperRunUniverseSource = Literal["manual_symbols", "market_data_universe"]
 
 
 class PaperRunError(BaseModel):
@@ -22,6 +23,23 @@ class PaperRunError(BaseModel):
     @classmethod
     def normalize_symbol(cls, value: str) -> str:
         return value.upper()
+
+
+class PaperRunUniverse(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    source: PaperRunUniverseSource
+    provider: str | None = None
+    universe_name: str | None = None
+    yaml_path: str | None = None
+    available_symbol_count: int | None = None
+    selected_symbol_count: int
+    symbols: list[str] = Field(default_factory=list)
+
+    @field_validator("symbols")
+    @classmethod
+    def normalize_symbols(cls, value: list[str]) -> list[str]:
+        return [symbol.upper() for symbol in value if symbol.strip()]
 
 
 class PaperRun(BaseModel):
@@ -40,6 +58,7 @@ class PaperRun(BaseModel):
     artifacts: dict[str, object] = Field(default_factory=dict)
     timezone: str = "Asia/Kolkata"
     run_after_market_close: bool = True
+    universe: PaperRunUniverse | None = None
     model_version: str = "paper_run_v1"
 
     @field_validator("symbols", "succeeded_symbols", "failed_symbols")

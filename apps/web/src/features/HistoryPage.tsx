@@ -9,6 +9,7 @@ import { EmptyState } from "../components/EmptyState";
 import { JsonDrawer } from "../components/JsonDrawer";
 import { MetricCard } from "../components/MetricCard";
 import { RefreshButton } from "../components/RefreshButton";
+import { RunUniverseSummary } from "../components/RunUniverse";
 import { ErrorState, LoadingState } from "../components/States";
 import { StatusBadge } from "../components/StatusBadge";
 import {
@@ -157,6 +158,11 @@ export function HistoryPage() {
                     key: "success",
                     header: "Succeeded / failed",
                     render: (run) => `${run.succeeded_symbols.length} / ${run.failed_symbols.length}`,
+                  },
+                  {
+                    key: "universe",
+                    header: "Universe",
+                    render: (run) => <RunUniverseSummary universe={run.universe} />,
                   },
                   {
                     key: "final",
