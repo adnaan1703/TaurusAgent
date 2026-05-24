@@ -23,13 +23,17 @@ from apps.dashboard.data import (
 )
 from scripts.run_backtest import run_mock_backtest
 from scripts.run_paper_once import run_mock_paper_once
+from taurus_core.agents.roster import ANALYST_KEYS
 from taurus_core.config import Settings
 from taurus_core.db.session import build_session_factory
+
+FULL_ANALYST_ROSTER = ",".join(ANALYST_KEYS)
 
 
 def test_dashboard_queries_and_metrics_expose_m8_panels(tmp_path: Path) -> None:
     settings = Settings(
         database_url=f"sqlite:///{tmp_path / 'taurus.db'}",
+        taurus_enabled_analysts=FULL_ANALYST_ROSTER,
         taurus_paper_partial_fill_threshold=1,
     )
     run_mock_backtest(settings)

@@ -5,7 +5,10 @@ from pathlib import Path
 import pytest
 
 from scripts.taurus_smoke import run_taurus_smoke
+from taurus_core.agents.roster import ANALYST_KEYS
 from taurus_core.config import Settings
+
+FULL_ANALYST_ROSTER = ",".join(ANALYST_KEYS)
 
 
 def test_taurus_smoke_covers_paper_mvp_release_flow(
@@ -16,6 +19,7 @@ def test_taurus_smoke_covers_paper_mvp_release_flow(
     settings = Settings(
         database_url=f"sqlite:///{tmp_path / 'taurus.db'}",
         taurus_alert_provider="mock",
+        taurus_enabled_analysts=FULL_ANALYST_ROSTER,
         taurus_llm_provider="mock",
         taurus_paper_partial_fill_threshold=1,
     )

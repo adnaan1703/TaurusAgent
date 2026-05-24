@@ -113,11 +113,13 @@ Run data-only Kite market-data commands after adding a valid local
 make kite-sync-instruments
 make import-kite-candles
 make kite-ltp-smoke
+make paper-loop-kite
 curl "http://localhost:8000/data/quotes/latest?symbol=INFY"
 ```
 
 `configs/market_data/kite_nse_cash.yaml` defines the Kite-backed paper universe
-when `TAURUS_MARKET_DATA_PROVIDER=kite`.
+when `TAURUS_MARKET_DATA_PROVIDER=kite`. Use `make paper-loop-kite` to run that
+Kite-backed universe without overriding it through `SYMBOLS`.
 
 Analysts are enabled with `TAURUS_ENABLED_ANALYSTS`. The default is
 `technical`; add `news`, `sentiment`, and `fundamentals` explicitly when you

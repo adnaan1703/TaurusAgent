@@ -10,6 +10,7 @@ from scripts.import_mock_news import import_mock_news
 from scripts.migrate import run_migrations
 from scripts.seed_mock_data import seed_mock_data
 from taurus_core.agents.runner import run_analyst_suite
+from taurus_core.agents.roster import ANALYST_KEYS
 from taurus_core.agents.schemas import LLMAnalystOutput
 from taurus_core.config import Settings
 from taurus_core.data.providers.mock_market_data import MockMarketDataProvider
@@ -17,6 +18,8 @@ from taurus_core.db.models import AnalystReportModel, BacktestOrderModel
 from taurus_core.db.session import build_session_factory
 from taurus_core.intelligence.mock_news_provider import MockNewsProvider
 from taurus_core.llm.mock_provider import MockLLMProvider
+
+FULL_ANALYST_ROSTER = ANALYST_KEYS
 
 
 def test_analyst_suite_stores_four_reports_without_creating_orders(tmp_path: Path) -> None:
@@ -29,6 +32,7 @@ def test_analyst_suite_stores_four_reports_without_creating_orders(tmp_path: Pat
             symbol="INFY",
             llm_provider=MockLLMProvider(),
             run_id="test-run",
+            enabled_analysts=FULL_ANALYST_ROSTER,
         )
 
     with session_factory() as session:
@@ -58,6 +62,7 @@ def test_analyst_suite_falls_back_when_llm_provider_fails(tmp_path: Path) -> Non
             symbol="INFY",
             llm_provider=FailingLLMProvider(),
             run_id="fallback-run",
+            enabled_analysts=FULL_ANALYST_ROSTER,
         )
 
     assert len(reports) == 4
@@ -112,6 +117,7 @@ def test_intelligence_api_returns_events_and_agent_reports(tmp_path: Path) -> No
             symbol="INFY",
             llm_provider=MockLLMProvider(),
             run_id="api-run",
+            enabled_analysts=FULL_ANALYST_ROSTER,
         )
     client = TestClient(create_app(settings))
 

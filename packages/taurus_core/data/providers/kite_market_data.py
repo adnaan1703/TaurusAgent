@@ -129,6 +129,7 @@ class KiteMarketDataProvider:
             ),
             action=f"fetch Kite historical candles for {instrument.universe_symbol.symbol}",
         )
+        self._pace_request()
         if not rows:
             raise MarketDataProviderError(
                 f"Kite returned no historical daily candles for {instrument.universe_symbol.symbol} "

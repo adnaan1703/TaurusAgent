@@ -52,12 +52,19 @@ def run_mock_paper_loop(
 
 
 def _symbols_from_env(settings: Settings) -> list[str]:
-    raw = os.environ.get("SYMBOLS") or os.environ.get("SYMBOL")
+    raw = _non_empty_env("SYMBOLS") or _non_empty_env("SYMBOL")
     if raw is None and settings.taurus_market_data_provider == "kite":
         return load_market_data_universe(settings.taurus_market_data_universe_path).enabled_symbols()
     raw = raw or "INFY"
     symbols = [symbol.strip().upper() for symbol in raw.split(",") if symbol.strip()]
     return symbols or ["INFY"]
+
+
+def _non_empty_env(name: str) -> str | None:
+    value = os.environ.get(name)
+    if value is None or not value.strip():
+        return None
+    return value
 
 
 if __name__ == "__main__":

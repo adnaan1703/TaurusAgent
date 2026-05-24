@@ -292,6 +292,7 @@ DATABASE_URL=sqlite:////private/tmp/taurus-kite-plan-smoke.db make paper-loop-mo
 DATABASE_URL=sqlite:////private/tmp/taurus-kite-real-smoke.db make kite-sync-instruments
 DATABASE_URL=sqlite:////private/tmp/taurus-kite-real-smoke.db make import-kite-candles
 DATABASE_URL=sqlite:////private/tmp/taurus-kite-real-smoke.db make kite-ltp-smoke
+DATABASE_URL=sqlite:////private/tmp/taurus-kite-real-smoke.db make paper-loop-kite
 date '+%Y-%m-%d %H:%M %Z'
 ```
 
@@ -306,6 +307,7 @@ make kite-login-url
 make kite-sync-instruments
 make import-kite-candles
 make kite-ltp-smoke
+make paper-loop-kite
 curl "http://localhost:8000/data/quotes/latest?symbol=INFY"
 ```
 
@@ -341,6 +343,7 @@ make paper-once-mock SYMBOL=INFY
 make paper-loop-mock
 make paper-loop-once
 make paper-loop-start
+make paper-loop-kite
 make paper-loop-dashboard
 make alert-smoke
 make alert-test-telegram
@@ -394,6 +397,7 @@ make backtest-real-data
 make paper-loop-mock
 make paper-loop-start
 make paper-loop-once
+make paper-loop-kite
 make paper-loop-dashboard
 make replay-decision DECISION_ID=sample
 make backup-local

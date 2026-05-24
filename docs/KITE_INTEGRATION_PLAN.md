@@ -13,7 +13,7 @@ References:
 
 ## Decisions Locked
 
-- First implementation is data-only. No Kite orders, account reads, holdings sync, WebSocket ticks, OAuth callback flow, or live broker routing.
+- First implementation is data-only. No Kite orders, account reads, holdings sync, WebSocket ticks, or live broker routing.
 - `PaperBroker` remains the only execution path.
 - `LIVE_TRADING_ENABLED=false` and `BROKER_PROVIDER=paper` remain safe defaults.
 - Kite historical daily candles drive paper runs and backtests when Kite is selected as the market data provider.
@@ -331,6 +331,7 @@ Manual real-credential smoke checks:
 TAURUS_MARKET_DATA_PROVIDER=kite make kite-sync-instruments
 TAURUS_MARKET_DATA_PROVIDER=kite make import-kite-candles
 TAURUS_MARKET_DATA_PROVIDER=kite make kite-ltp-smoke
+make paper-loop-kite
 curl "http://localhost:8000/data/quotes/latest?symbol=INFY"
 ```
 
@@ -340,7 +341,7 @@ Manual token workflow:
 2. Run `make kite-login-url` to print the Kite login URL for the configured local `KITE_API_KEY`.
 3. Open the URL and complete Kite login.
 4. Kite redirects to `http://127.0.0.1:8000/` with `request_token=...`; Taurus exchanges it with `KITE_API_SECRET` and stores `KITE_ACCESS_TOKEN` in ignored `.env`.
-5. Rerun `make kite-sync-instruments`, `make import-kite-candles`, or `make kite-ltp-smoke`.
+5. Rerun `make kite-sync-instruments`, `make import-kite-candles`, `make kite-ltp-smoke`, or `make paper-loop-kite`.
 6. If the API was not running during login, run `make kite-exchange-token REQUEST_TOKEN=<request_token_from_redirect_url>` as a manual fallback.
 7. If a command reports that the access token is invalid or expired, regenerate the token and update `.env`.
 

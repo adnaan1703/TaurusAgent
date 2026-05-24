@@ -24,12 +24,14 @@ def test_kite_callback_exchanges_request_token_without_echoing_it(monkeypatch) -
         return "generated-access-token"
 
     monkeypatch.setattr(routes_kite_auth, "exchange_request_token", fake_exchange)
-    client = TestClient(create_app(Settings(kite_api_key="test-key", kite_api_secret="test-secret")))
+    app = create_app(Settings(kite_api_key="test-key", kite_api_secret="test-secret"))
+    client = TestClient(app)
 
     response = client.get("/?status=success&request_token=request-token")
 
     assert response.status_code == 200
     assert seen["request_token"] == "request-token"
+    assert app.state.settings.kite_access_token == "generated-access-token"
     assert "Kite access token stored locally" in response.text
     assert "request-token" not in response.text
     assert "generated-access-token" not in response.text

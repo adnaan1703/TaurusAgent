@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 
 from apps.api.main import create_app
 from scripts.migrate import run_migrations
+from scripts.run_paper_loop import _symbols_from_env
 from taurus_core.config import Settings
 from taurus_core.data.providers.factory import build_market_data_provider
 from taurus_core.data.providers.kite_market_data import KiteMarketDataProvider
@@ -182,6 +183,23 @@ def test_fake_kite_client_maps_instruments_and_historical_candles(tmp_path: Path
     assert candles[0].data_available_time == datetime(2026, 5, 21, 18, tzinfo=timezone.utc)
 
 
+def test_kite_provider_paces_historical_requests_with_injected_sleeper(tmp_path: Path) -> None:
+    client = FakeKiteClient()
+    sleeps: list[float] = []
+    provider = KiteMarketDataProvider(
+        _settings(tmp_path),
+        client=client,
+        request_interval_seconds=0.2,
+        sleep_func=sleeps.append,
+    )
+
+    provider.get_historical_candles("INFY", start_date=date(2026, 5, 1), end_date=date(2026, 5, 22))
+
+    assert client.instrument_calls == 1
+    assert client.historical_calls == 1
+    assert sleeps == [0.2, 0.2]
+
+
 def test_kite_sync_persists_provider_mappings(tmp_path: Path) -> None:
     settings = _settings(tmp_path, database_url=f"sqlite:///{tmp_path / 'sync.db'}")
     run_migrations(settings)
@@ -287,6 +305,16 @@ def test_kite_retry_uses_injected_sleeper_for_transient_errors(tmp_path: Path) -
     assert [instrument.symbol for instrument in instruments] == ["INFY", "TCS"]
     assert client.instrument_calls == 2
     assert sleeps == [0.25]
+
+
+def test_kite_paper_loop_uses_universe_symbols_when_env_symbols_are_absent(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("SYMBOL", "")
+    monkeypatch.setenv("SYMBOLS", "")
+
+    assert _symbols_from_env(_settings(tmp_path)) == ["INFY", "TCS"]
 
 
 def _settings(tmp_path: Path, **overrides: object) -> Settings:

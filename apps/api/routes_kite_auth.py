@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse
 
 from scripts.kite_auth import exchange_request_token
+from taurus_core.config import get_settings
 from taurus_core.domain.market_data import MarketDataProviderError
 
 router = APIRouter(tags=["kite-auth"])
@@ -32,6 +33,8 @@ def kite_login_callback(
         token = exchange_request_token(request_token, settings=settings)
     except MarketDataProviderError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    request.app.state.settings = settings.model_copy(update={"kite_access_token": token})
+    get_settings.cache_clear()
     return HTMLResponse(
         "<!doctype html><title>Kite Connected</title><h1>Kite Connected</h1>"
         f"<p>Kite access token stored locally in .env ({len(token)} characters).</p>"

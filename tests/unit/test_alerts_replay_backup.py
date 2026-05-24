@@ -10,6 +10,7 @@ from sqlalchemy import select
 from apps.api.main import create_app
 from scripts.migrate import run_migrations
 from scripts.run_paper_once import run_mock_paper_once
+from taurus_core.agents.roster import ANALYST_KEYS
 from taurus_core.alerts.templates import risk_review_events
 from taurus_core.config import Settings
 from taurus_core.db.models import AuditLogModel
@@ -17,6 +18,8 @@ from taurus_core.db.session import build_session_factory
 from taurus_core.ops import backup as backup_module
 from taurus_core.ops.backup import create_backup, restore_backup
 from taurus_core.risk.schemas import HardRuleResult, RiskPersonaReview, RiskReview
+
+FULL_ANALYST_ROSTER = ",".join(ANALYST_KEYS)
 
 
 def test_mock_alerts_are_stored_and_replay_api_reconstructs_decision_path(
@@ -175,6 +178,7 @@ def _settings_for_temp_db(tmp_path: Path) -> Settings:
     return Settings(
         database_url=f"sqlite:///{tmp_path / 'taurus.db'}",
         taurus_alert_provider="mock",
+        taurus_enabled_analysts=FULL_ANALYST_ROSTER,
         taurus_paper_partial_fill_threshold=1,
     )
 
