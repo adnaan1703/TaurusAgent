@@ -1,460 +1,209 @@
 # Taurus Usage Guide
 
-Taurus is currently an observable, paper-trading-first MVP. It is designed to let you run a local end-of-day paper trading workflow, inspect every decision artifact, and confirm that no real-money path is active.
+## Current State
 
-The current release uses deterministic mock market data, mock news, mock LLM outputs, and the internal `PaperBroker` by default. Broker sandbox and live trading integrations are deferred.
+- Backend tests: `make test` -> `97 passed`.
+- Frontend tests: `make test-ui` -> `21 passed`.
+- Compile check: `make lint` -> passed.
+- Git worktree is clean.
+- Docker Compose services are not currently running, but Docker volumes exist: `taurusagent_postgres_data`, `taurusagent_grafana_data`.
+- A local ignored SQLite file exists: `taurus.db`, containing `10` instruments and `2520` daily candles. This means not all local state is only in Docker.
+- Local `.env` exists and contains only Kite keys. It does not set `DATABASE_URL`, `TAURUS_MARKET_DATA_PROVIDER`, or analyst settings.
 
-## Safety Model
+## What Taurus Can Do Today
 
-The expected local defaults are:
+Taurus is a local, observable paper-trading simulator for Indian cash equities. It can:
 
-```text
-TAURUS_MODE=paper
-LIVE_TRADING_ENABLED=false
-BROKER_PROVIDER=paper
-TAURUS_LLM_PROVIDER=mock
-TAURUS_ALERT_PROVIDER=mock
-```
+- Import market data from deterministic mock data, CSV files, or Zerodha Kite daily candles.
+- Sync Kite instruments and import Kite historical daily candles.
+- Store latest Kite OHLC/LTP snapshots, but those snapshots are currently for visibility, not paper fills.
+- Compute technical indicators and strategy signals.
+- Run analyst reports with configurable analyst roster. Default is technical only.
+- Run bull/bear research debate, trader proposal, risk review, and final approval.
+- Simulate orders, fills, positions, cash, costs, and slippage through `PaperBroker`.
+- Track paper runs with audit artifacts.
+- Expose FastAPI endpoints and read-only React dashboard.
+- Provide replay, backup/restore, alerts, Prometheus metrics, and Grafana dashboards.
+- Sync HalalStock compliance data and generate a halal NSE universe YAML.
 
-The system rejects live trading mode in the current MVP. Analyst reports, debates, trader proposals, and risk reviews are decision artifacts only. A paper order can be routed only after a final decision is marked `APPROVED_FOR_PAPER`, and the only execution adapter is `PaperBroker`.
+**Key files:**
 
-## Local Services
+- `Makefile`
+- `packages/taurus_core/config.py`
+- `packages/taurus_core/paper_trading/service.py`
+- `packages/taurus_core/brokers/paper_broker.py`
+- `packages/taurus_core/data/providers/kite_market_data.py`
+- `docs/TAURUS_USAGE_GUIDE.md`
 
-When the local stack is running, use these URLs:
+**Important limitation:** This is not connected to a real broker paper account. It is a local paper simulator. Kite is data-only. Upstox/live broker order routing is still deferred.
 
-- Taurus API: `http://localhost:8000`
-- React dashboard: `http://localhost:5173`
-- Streamlit fallback dashboard: `http://localhost:8501`
-- Prometheus: `http://localhost:9090`
-- Grafana: `http://localhost:3000`
+## Main Commands
 
-## First-Time Setup
+### Setup And Checks
 
-Install dependencies:
+- `make setup`: install Python deps with `uv`.
+- `make setup-ui`: install React deps with `pnpm`.
+- `make test`: backend pytest suite.
+- `make test-ui`: frontend Vitest suite.
+- `make lint`: Python compile check.
+- `make build-ui`: production React build.
 
-```bash
-make setup
-make setup-ui
-```
+### Local Stack
 
-All Python dependency changes in Taurus should go through `uv` so they stay scoped to the project virtual environment. If a third-party integration guide uses `pip install`, interpret that as "install the package into Taurus's `.venv`" and use the corresponding `uv` command instead.
+- `make dev-up`: starts API, Postgres, Redis, Prometheus, and Grafana.
+- `make dev-down`: stops stack.
+- `make api`: runs FastAPI locally on port `8000`.
+- `make ui`: runs React dashboard on port `5173`.
+- `make dashboard`: runs the Streamlit fallback dashboard.
 
-Start the local stack:
+### Database And Data
+
+- `make migrate`: creates/updates DB schema.
+- `make seed-mock`: seeds deterministic mock instruments/candles.
+- `make import-price-csv CSV=/path/file.csv`: imports user OHLCV CSV.
+- `make import-screener CSV=/path/file.csv`: imports Screener fundamentals.
+- `make sync-halal-stocks`: fetches HalalStock data and exports halal NSE universe YAML.
+
+### Kite
+
+- `make kite-login-url`: prints Kite login URL.
+- `make kite-exchange-token REQUEST_TOKEN=...`: exchanges request token into local `.env`.
+- `make kite-sync-instruments`: syncs Kite instrument mappings.
+- `make import-kite-candles`: imports Kite daily candles.
+- `make kite-ltp-smoke`: stores latest Kite quote snapshots.
+
+### Paper Workflow
+
+- `make paper-loop-mock`: mock-data paper loop.
+- `make paper-loop-kite`: Kite-backed data import plus local `PaperBroker` simulation.
+- `make paper-loop-start PAPER_LOOP_ITERATIONS=5`: repeated local loop.
+- `make paper-loop-dashboard`: mock run plus React dashboard.
+- `make taurus-smoke`: full MVP smoke test using mocks.
+
+### Replay And Ops
+
+- `make replay-decision DECISION_ID=...`
+- `make backup-local`
+- `make restore-local BACKUP=...`
+- `make alert-smoke`
+- `make alert-test-telegram`
+
+## How To Start Real-Data Paper Trading
+
+Use this if "actual paper trading" means real Kite market data plus local simulated paper execution.
+
+1. **Start infrastructure:**
 
 ```bash
 make dev-up
-```
-
-Create database tables and seed the default mock inputs:
-
-```bash
 make migrate
-make seed-mock
-make import-mock-news
 ```
 
-Run the API and React dashboard:
+2. **Run API for Kite callback in one terminal:**
 
 ```bash
 make api
+```
+
+3. **In another terminal, generate Kite token:**
+
+```bash
+make kite-login-url
+```
+
+Complete Kite login. If callback works, Taurus stores `KITE_ACCESS_TOKEN` in ignored `.env`. If not:
+
+```bash
+make kite-exchange-token REQUEST_TOKEN=<request_token_from_redirect_url>
+```
+
+4. **Import real Kite data:**
+
+```bash
+make kite-sync-instruments
+make import-kite-candles
+make kite-ltp-smoke
+```
+
+5. **Run one technical-only paper loop:**
+
+```bash
+TAURUS_ENABLED_ANALYSTS=technical make paper-loop-kite
+```
+
+6. **Observe:**
+
+```bash
 make ui
 ```
 
 Open `http://localhost:5173`.
 
-## Fast Health Checks
+Do not run `make seed-mock` for a real-data paper DB unless you intentionally want mock instruments mixed into the database.
 
-Use these checks to confirm the app is alive and still in paper mode:
+## Mocks Still Used
 
-```bash
-curl http://localhost:8000/health
-curl http://localhost:8000/ready
-curl http://localhost:8000/metrics
-```
+Yes.
 
-Useful signals:
+**Runtime mocks/defaults still present:**
 
-- `/health` shows the service mode and `live_trading_enabled`.
-- `/ready` confirms config readiness and broker provider.
-- `/metrics` includes runtime, database, data freshness, and paper trading metrics.
+- Market data defaults to `mock` unless Kite/CSV is explicitly selected.
+- `make paper-loop-kite` uses real Kite market data, but still forces `TAURUS_LLM_PROVIDER=mock`.
+- `PaperRunService` imports `MockNewsProvider` on every paper run, even with technical-only analysts.
+- Alerts default to `MockAlertAdapter`.
+- `/alerts/test` always uses mock alert delivery.
+- Fundamentals use a mock fallback if the fundamentals analyst is enabled and no Screener data exists.
+- `PaperBroker` is a simulator. It is expected paper execution, but not a real broker paper account.
+- Paper costs are placeholder bps settings.
+- Paper fills use latest daily candle open/close, not live order book or Kite LTP execution.
 
-## Running One Paper Loop
+## Technical-Only Flow
 
-The most realistic single paper-trading simulation is:
+With `TAURUS_ENABLED_ANALYSTS=technical`:
 
-```bash
-make paper-loop-once SYMBOLS=INFY
-```
+- Only `TechnicalAnalystAgent` runs.
+- It computes technical score from candles/features/signals.
+- It still calls the configured LLM provider. Default/make target is mock LLM.
+- Mock news is still imported into the DB.
+- Risk engine still checks severe events in the DB, so mock news can still influence risk blocks if matching active instruments.
+- News, sentiment, and fundamentals analyst reports are skipped.
 
-For multiple symbols:
+So: technical-only does reduce the analyst roster, but it does not fully eliminate mocks.
 
-```bash
-make paper-loop-once SYMBOLS=INFY,RELIANCE,TCS
-```
+## DB And Data Storage
 
-This is an end-of-day batch workflow. It is not a live intraday stream. It uses the latest available daily candles and local inputs, then stores all outputs for inspection.
+Your assumption is only partly true.
 
-## What Happens In One Loop
+**Docker-backed:**
 
-One loop executes this sequence:
+- Postgres data lives in Docker named volume `taurusagent_postgres_data`.
+- Grafana data lives in Docker named volume `taurusagent_grafana_data`.
+- These persist after `make dev-down`.
+- They are removed only if you remove volumes, e.g. `docker compose down -v`.
 
-1. Migrations run so required tables exist.
-2. A `paper_run` record is created with status `RUNNING`.
-3. Market data is loaded from the configured provider.
-4. Mock news/events are imported.
-5. Technical features and strategy signals are computed.
-6. Analyst reports are generated for each symbol.
-7. A bull/bear research debate is created.
-8. A trader proposal is created.
-9. The risk review runs, including hard rule checks.
-10. The portfolio manager creates the final decision.
-11. If approved for paper trading, the decision is routed to `PaperBroker`.
-12. Paper orders, fills, positions, and account state are stored.
-13. The `paper_run` record is updated to `COMPLETED`, `PARTIAL_FAILED`, or `FAILED`.
+**Local repo/filesystem:**
 
-The output printed by the command includes the run ID, status, symbols, market data summary, strategy summary, and per-symbol artifact IDs.
+- `.env` is local and ignored.
+- `taurus.db` exists locally and is ignored.
+- `backups/` exists locally and is ignored.
+- CSV imports, generated YAMLs, docs, and fixture files are local files.
+- Redis has no persistent volume in `docker-compose.yml`.
 
-## Key Artifacts Created By A Loop
+> Important nuance: `make` targets default to Postgres at `localhost:5432`, but direct `uv run ...` without `DATABASE_URL` uses the code default SQLite database `sqlite:///./taurus.db`.
 
-For each symbol, a successful loop can create:
+## Main Gaps Before It Is "Super Ready"
 
-- Analyst reports from technical, news, sentiment, and fundamentals agents.
-- A debate report with bull thesis, bear thesis, and manager summary.
-- A trader proposal with action, confidence, requested position, stop loss, take profit, and invalidation rules.
-- A risk review with risk personas and deterministic hard rule results.
-- A final decision with approval status and final action.
-- A paper order if the final decision is `APPROVED_FOR_PAPER`.
-- Paper fills, including simulated slippage and costs.
-- Paper position and account records.
-- A replayable decision trail.
+1. Remove mock news from real paper runs, or add a real/no-news mode. Right now mock news can affect risk even with technical-only analysts.
+2. Stop forcing mock LLM in `paper-loop-kite`, or add a rule-only technical analyst path that does not call any LLM.
+3. Add true portfolio continuity across paper runs. Current paper account state is run-scoped; it does not behave like one persistent paper account across days.
+4. Avoid mixed mock/Kite data in the same DB. Active mock instruments can remain after `seed-mock`; real paper runs should use a clean DB or provider-scoped universe handling.
+5. Make Kite-backed backtesting first-class. Current backtest script supports `mock`/`csv`/`external`, not Kite directly.
+6. Replace placeholder cost/slippage/fill assumptions with broker-calibrated paper execution assumptions.
+7. Add a real news/data provider if news/sentiment risk is enabled.
+8. Validate real Screener CSV if fundamentals will be used.
+9. Add dashboard/API auth before using beyond a trusted local machine.
+10. Implement broker sandbox adapter only after explicit approval; Upstox/Kite execution is still deferred.
 
-## How To Observe A Loop In The React Dashboard
+## Bottom Line
 
-For the normal one-command mock run and dashboard startup:
-
-```bash
-make paper-loop-dashboard
-```
-
-This starts the Docker stack, runs migrations, seeds mock market data, imports mock news, executes one mock paper loop, and starts the React dashboard on `http://localhost:5173`. The final `make ui` step stays in the foreground; stop it with `Ctrl+C` when finished, then run `make dev-down` to stop Docker services.
-
-For manual API and React dashboard startup:
-
-```bash
-make api
-make ui
-```
-
-Open `http://localhost:5173`.
-
-Use the React dashboard as the primary local observability UI. It is read-only and uses the FastAPI `/ui/*` aggregate endpoints, so it does not start loops, place orders, enable live trading, or mutate Taurus state.
-
-Recommended flow:
-
-1. `Overview`: confirm paper mode, live trading disabled, latest run, latest final decision, latest order, warnings, and active positions.
-2. `Run Detail`: inspect run status, schedule, market-data summary, strategy summary, symbol success/failure status, and pipeline progress.
-3. `Decision Trail`: inspect one `run_id + symbol` from inputs through analyst reports, debate, trader proposal, risk review, final decision, paper order, fills, and audit log.
-4. `Replay`: open a stored `decision_id` to reconstruct the evidence chain.
-5. `Risk`: scan hard rules, persona reviews, final decisions, reductions, rejections, and blocks.
-6. `Portfolio`: inspect paper account, positions, orders, fills, slippage, costs, and P&L.
-7. `History`: search and filter previous paper runs.
-
-If the app has no data yet, run:
-
-```bash
-make migrate
-make seed-mock
-make import-mock-news
-make paper-loop-mock
-```
-
-If the React app reports that the API is unavailable, run:
-
-```bash
-make api
-```
-
-## Streamlit Fallback Dashboard
-
-Start the fallback dashboard:
-
-```bash
-make dashboard
-```
-
-Open `http://localhost:8501`. Use this fallback when you want the older diagnostic tables, direct database views, or a secondary check against the React UI. Use the sidebar `Symbol` filter to select the stock you ran, such as `INFY`.
-
-### Main Dashboard
-
-The main page gives the fastest overview:
-
-- Paper Equity
-- Paper Cash
-- Paper Run status
-- Final Status
-- Latest Order status
-- Backtest Return
-- Scheduled Runs table
-- Portfolio table
-- Agent Workflow tabs
-- Risk And Execution tabs
-- News And Freshness tabs
-
-Use this first to confirm whether the latest loop completed and whether an order was routed.
-
-### Agent Workflow
-
-Use this to inspect the reasoning artifacts:
-
-- `Analyst Reports`: per-agent score, confidence, stance, key points, risks, and source IDs.
-- `Bull Bear Debate`: bull thesis, bear thesis, consensus, open questions, and manager summary.
-- `Trader Proposals`: proposed action, requested position, confidence, stop loss, take profit, and whether risk approval is required.
-- `Fundamental Scores`: imported or mock fundamental scoring.
-- `Fundamental Metrics`: underlying metric snapshots when available.
-
-### Risk
-
-Use this to inspect the approval gate:
-
-- `Reviews`: overall risk review output.
-- `Hard Rules`: deterministic checks such as live-trading guard, kill switch, position cap, open-position cap, stale data, severe event block, and supported instrument.
-- `Final Decisions`: final paper approval status and final action.
-
-### Paper Trading
-
-Use this to inspect the paper execution result:
-
-- Account metrics: equity, cash, exposure, realized P&L.
-- `Runs`: paper run lifecycle and status.
-- `Decisions`: final decisions.
-- `Positions`: current paper holdings.
-- `Orders`: simulated paper orders.
-- `Fills`: simulated fills, costs, and slippage.
-
-### Orders
-
-Use this for a focused execution view:
-
-- `Orders`: order ID, symbol, action, quantity, status, and timestamps.
-- `Fills`: fill-level execution details.
-
-### Events
-
-Use this to inspect external-style inputs:
-
-- `Events`: imported news/events, event type, severity, sentiment score, and decayed score.
-- `Freshness`: latest available candle, feature, and fundamental timestamps.
-- `Ingestion`: news/document ingestion summary.
-
-### Portfolio
-
-Use this to inspect current account and holdings:
-
-- Paper equity
-- Cash
-- Exposure
-- Unrealized P&L
-- Positions
-- Latest backtest equity curve
-
-## How To Observe A Loop With API Calls
-
-After a loop, use this sequence.
-
-Check run lifecycle:
-
-```bash
-curl http://localhost:8000/runs
-curl http://localhost:8000/runs/<run_id>
-```
-
-Check input data and events:
-
-```bash
-curl http://localhost:8000/data/instruments
-curl "http://localhost:8000/data/candles?symbol=INFY&timeframe=1d"
-curl "http://localhost:8000/events?symbol=INFY"
-```
-
-Check analyst and research outputs:
-
-```bash
-curl "http://localhost:8000/agent-reports?symbol=INFY"
-curl "http://localhost:8000/debates?symbol=INFY"
-curl "http://localhost:8000/trader-proposals?symbol=INFY"
-```
-
-Check risk and approval:
-
-```bash
-curl "http://localhost:8000/risk-checks?symbol=INFY"
-curl "http://localhost:8000/final-decisions?symbol=INFY"
-```
-
-Check paper execution:
-
-```bash
-curl "http://localhost:8000/paper/orders?symbol=INFY"
-curl "http://localhost:8000/paper/fills?symbol=INFY"
-curl "http://localhost:8000/paper/positions?symbol=INFY"
-curl http://localhost:8000/paper/account
-```
-
-Replay a stored decision:
-
-```bash
-curl http://localhost:8000/replay/<decision_id>
-```
-
-Replay is the best endpoint when you want to reconstruct why a decision happened. It includes the stored reports, events, debate, proposal, risk review, final decision, paper order/fills, and relevant audit rows when available.
-
-## Running A Full Release Smoke Check
-
-Use this when you want to validate the whole MVP rather than only one paper loop:
-
-```bash
-make taurus-smoke
-```
-
-This runs the local paper MVP through seeding, mock news, backtest, analyst reports, debate, trader proposal, risk review, final approval, paper execution, paper loop, replay, backup, API checks, and safety checks.
-
-## Backtesting
-
-Run the default deterministic mock backtest:
-
-```bash
-make backtest-mock
-```
-
-Run with a specific strategy config:
-
-```bash
-make backtest-mock STRATEGY=configs/strategies/moving_average_crossover_v1.yaml
-make backtest-mock STRATEGY=configs/strategies/blended_score_v1.yaml
-```
-
-Run with CSV-backed market data:
-
-```bash
-make import-price-csv CSV=mock/market_data/prices_sample.csv
-make backtest-real-data
-```
-
-Backtest results are visible in the dashboard `Backtests` page and through the main dashboard equity curve.
-
-## Optional Real Local Inputs
-
-The MVP can use local files without external credentials:
-
-Import OHLCV CSV:
-
-```bash
-make import-price-csv CSV=/path/to/prices.csv
-```
-
-Import Screener fundamentals CSV:
-
-```bash
-make import-screener CSV=/path/to/screener.csv
-```
-
-Do not commit user CSV exports.
-
-## Alerts
-
-Default alerting is mock-only:
-
-```bash
-make alert-smoke
-```
-
-Optional Telegram smoke testing requires local uncommitted values:
-
-```text
-TELEGRAM_BOT_TOKEN=
-TELEGRAM_CHAT_ID=
-```
-
-Then run:
-
-```bash
-make alert-test-telegram
-```
-
-Alerts are intended for paper fills, paper order rejections, kill-switch blocks, severe-event blocks, stale-data blocks, risk rejections/blocks, and scheduled run failures.
-
-## Backup And Restore
-
-Create a local backup:
-
-```bash
-make backup-local
-```
-
-Restore from a backup:
-
-```bash
-make restore-local BACKUP=backups/taurus-<timestamp>
-```
-
-For Postgres restore, explicit confirmation is required:
-
-```bash
-RESTORE_CONFIRM=I_UNDERSTAND make restore-local BACKUP=backups/taurus-<timestamp>
-```
-
-## Common Operating Patterns
-
-Fresh local run:
-
-```bash
-make dev-up
-make migrate
-make seed-mock
-make import-mock-news
-make paper-loop-once SYMBOLS=INFY
-make api
-make ui
-```
-
-Inspect latest paper state:
-
-```bash
-curl http://localhost:8000/runs
-curl http://localhost:8000/paper/orders
-curl http://localhost:8000/paper/fills
-curl http://localhost:8000/paper/positions
-curl http://localhost:8000/paper/account
-```
-
-Repeat a batch-style simulation:
-
-```bash
-make paper-loop-start SYMBOLS=INFY PAPER_LOOP_ITERATIONS=5 PAPER_LOOP_INTERVAL_SECONDS=60
-```
-
-Stop the local stack:
-
-```bash
-make dev-down
-```
-
-## Current Limitations
-
-- No live broker adapter exists in the MVP.
-- No Upstox sandbox adapter is included yet.
-- No real-money orders are placed.
-- No live intraday or tick-stream evaluation is included.
-- The paper loop is a simple local scheduler, not a distributed job system.
-- Mock data can look old in freshness views because the fixtures are deterministic historical data.
-- The React dashboard is local and unauthenticated; use it only on a trusted development machine/network.
-- Streamlit remains available as a fallback diagnostic dashboard.
-
-## Where To Go Next
-
-Use these documents for deeper operational detail:
-
-- `docs/TAURUS_MVP_RELEASE.md`: release assumptions and known limitations.
-- `docs/TAURUS_OPERATIONS_RUNBOOK.md`: alerts, replay, backup, and restore procedures.
-- `docs/TAURUS_COMMANDS.md`: full command reference.
-- `docs/UPSTOX_INTEGRATION_PLAN.md`: deferred broker integration plan.
+Taurus is green and usable today for local, observable, real-Kite-data paper simulation with technical-only analysis. It is not yet clean of mocks, and it is not broker-level paper trading. For your current technical-only setup, the biggest mock contamination is mock LLM plus mock news imported into risk context.
