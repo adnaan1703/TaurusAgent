@@ -311,6 +311,34 @@ make paper-loop-kite
 curl "http://localhost:8000/data/quotes/latest?symbol=INFY"
 ```
 
+## M18 Commands Used
+
+```bash
+uv add 'beautifulsoup4>=4,<5'
+uv run pytest tests/unit/test_halal_stock_compliance.py
+make test
+make lint
+DATABASE_URL=sqlite:////private/tmp/taurus-halal.db make sync-halal-stocks
+uv run python - <<'PY'
+from taurus_core.data.universe import load_market_data_universe
+u = load_market_data_universe('configs/market_data/halal_nse_cash.yaml')
+print(u.universe_name, len(u.symbols), u.enabled_symbols()[:5], u.enabled_symbols()[-5:])
+PY
+DATABASE_URL=sqlite:////private/tmp/taurus-halal.db PYTHONPATH=packages:. uv run python - <<'PY'
+from sqlalchemy import func, select
+from taurus_core.config import Settings
+from taurus_core.db.models import HalalStockComplianceModel, HalalStockImportModel
+from taurus_core.db.session import build_session_factory
+s = Settings(database_url='sqlite:////private/tmp/taurus-halal.db')
+f = build_session_factory(s)
+with f() as session:
+    print('imports', session.scalar(select(func.count()).select_from(HalalStockImportModel)))
+    print('active', session.scalar(select(func.count()).select_from(HalalStockComplianceModel).where(HalalStockComplianceModel.active.is_(True))))
+    print('halal active', session.scalar(select(func.count()).select_from(HalalStockComplianceModel).where(HalalStockComplianceModel.active.is_(True), HalalStockComplianceModel.compliance_status == 'halal')))
+PY
+date '+%Y-%m-%d %H:%M %Z'
+```
+
 ## Current Make Targets
 
 ```bash
@@ -329,6 +357,7 @@ make backtest-real-data
 make import-mock-news
 make import-screener CSV=/path/to/screener.csv
 make import-price-csv CSV=mock/market_data/prices_sample.csv
+make sync-halal-stocks
 make kite-login-url
 make kite-exchange-token REQUEST_TOKEN=<request_token_from_redirect_url>
 make kite-sync-instruments
@@ -388,6 +417,7 @@ make dashboard
 make import-screener CSV=/path/to/screener.csv
 make import-price-csv CSV=/path/to/prices.csv
 make import-price-csv DIR=/path/to/price_csvs
+make sync-halal-stocks
 make kite-login-url
 make kite-exchange-token REQUEST_TOKEN=<request_token_from_redirect_url>
 make kite-sync-instruments
@@ -518,6 +548,7 @@ prefix_rule(pattern=["/bin/zsh", "-lc", "DATABASE_URL=sqlite:////private/tmp/tau
 prefix_rule(pattern=["make", "dashboard"], decision="allow")
 prefix_rule(pattern=["make", "import-screener"], decision="allow")
 prefix_rule(pattern=["make", "import-price-csv"], decision="allow")
+prefix_rule(pattern=["make", "sync-halal-stocks"], decision="allow")
 prefix_rule(pattern=["make", "kite-login-url"], decision="allow")
 prefix_rule(pattern=["make", "kite-exchange-token"], decision="allow")
 prefix_rule(pattern=["make", "kite-sync-instruments"], decision="allow")

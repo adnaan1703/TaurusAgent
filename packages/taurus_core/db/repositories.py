@@ -24,6 +24,8 @@ from taurus_core.db.models import (
     FundamentalImportModel,
     FundamentalScoreModel,
     FundamentalSnapshotModel,
+    HalalStockComplianceModel,
+    HalalStockImportModel,
     InstrumentProviderMappingModel,
     InstrumentModel,
     MarketPriceSnapshotModel,
@@ -630,6 +632,108 @@ class FundamentalsRepository:
         statement = select(FundamentalImportModel).order_by(
             FundamentalImportModel.imported_at.desc(),
             FundamentalImportModel.import_id,
+        )
+        if limit is not None:
+            statement = statement.limit(limit)
+        return list(self.session.scalars(statement))
+
+
+class HalalStockComplianceRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def replace_import(
+        self,
+        *,
+        import_row: HalalStockImportModel,
+        rows: list[Any],
+        seen_at: datetime,
+    ) -> tuple[int, int]:
+        self.session.execute(
+            delete(HalalStockImportModel).where(
+                HalalStockImportModel.import_id == import_row.import_id
+            )
+        )
+        self.session.add(import_row)
+        self.session.flush()
+
+        seen_source_keys: set[str] = set()
+        for row in rows:
+            seen_source_keys.add(row.source_key)
+            model = self.session.get(HalalStockComplianceModel, row.source_key)
+            if model is None:
+                model = HalalStockComplianceModel(
+                    source_key=row.source_key,
+                    name=row.name,
+                    bse_code=row.bse_code,
+                    nse_code=row.nse_code,
+                    industry=row.industry,
+                    compliance_status=row.compliance_status,
+                    status_icon_url=row.status_icon_url,
+                    details_url=row.details_url,
+                    source_url=row.source_url,
+                    active=True,
+                    first_seen_at=seen_at,
+                    last_seen_at=seen_at,
+                    status_changed_at=seen_at,
+                    raw_metadata=_json_safe(row.raw_metadata),
+                )
+                self.session.add(model)
+            else:
+                if model.compliance_status != row.compliance_status:
+                    model.status_changed_at = seen_at
+                model.name = row.name
+                model.bse_code = row.bse_code
+                model.nse_code = row.nse_code
+                model.industry = row.industry
+                model.compliance_status = row.compliance_status
+                model.status_icon_url = row.status_icon_url
+                model.details_url = row.details_url
+                model.source_url = row.source_url
+                model.active = True
+                model.last_seen_at = seen_at
+                model.raw_metadata = _json_safe(row.raw_metadata)
+
+        inactive_count = 0
+        statement = select(HalalStockComplianceModel).where(
+            HalalStockComplianceModel.source_url == import_row.source_url,
+            HalalStockComplianceModel.active.is_(True),
+        )
+        for model in self.session.scalars(statement):
+            if model.source_key in seen_source_keys:
+                continue
+            model.active = False
+            model.last_seen_at = seen_at
+            inactive_count += 1
+
+        self.session.flush()
+        return len(seen_source_keys), inactive_count
+
+    def list_active(
+        self,
+        *,
+        compliance_status: str | None = None,
+    ) -> list[HalalStockComplianceModel]:
+        statement = select(HalalStockComplianceModel).where(
+            HalalStockComplianceModel.active.is_(True)
+        )
+        if compliance_status is not None:
+            statement = statement.where(
+                HalalStockComplianceModel.compliance_status == compliance_status
+            )
+        return list(
+            self.session.scalars(
+                statement.order_by(
+                    HalalStockComplianceModel.nse_code,
+                    HalalStockComplianceModel.name,
+                )
+            )
+        )
+
+    def list_imports(self, *, limit: int | None = 50) -> list[HalalStockImportModel]:
+        statement = select(HalalStockImportModel).order_by(
+            HalalStockImportModel.imported_at.desc(),
+            HalalStockImportModel.import_id,
         )
         if limit is not None:
             statement = statement.limit(limit)

@@ -7,8 +7,9 @@ Source of truth:
 - `docs/UPSTOX_INTEGRATION_PLAN.md` for deferred broker integration
 - `docs/TAURUS_REACT_DASHBOARD_PLAN.md` for M16 React dashboard work
 - `docs/KITE_INTEGRATION_PLAN.md` for M17 Kite market data integration
+- `docs/HALAL_STCK_COMPLIANCE_PLAN.md` for M18 halal stock compliance universe
 
-Last updated: 2026-05-24 09:17 IST
+Last updated: 2026-05-24 21:09 IST
 
 Status legend:
 
@@ -44,6 +45,7 @@ Milestone completion reporting:
 | M15 | Deferred | Upstox production readiness | Broker/compliance approval required | Yes |
 | M16 | Done | React run-loop observability dashboard | No | No |
 | M17 | Done | Kite Connect market data provider | Kite access token required for real smoke | Yes |
+| M18 | Done | Halal stock compliance universe | No | No |
 
 ## M0 - Project Foundation
 
@@ -979,6 +981,74 @@ Completion summary:
 - Assumptions made: Kite access tokens are short-lived manual login artifacts and must remain local; SQLite is acceptable for real Kite smoke validation when local Postgres is stopped. The provided API secret is stored locally for the manual token workflow but is not required by the data provider after `KITE_ACCESS_TOKEN` is generated.
 - Mocks created: Fake Kite client, fake transient network exception, fake token-expiry exception, temporary universe YAML files, and SQLite quote/sync/paper-loop test databases.
 - Mocks used: Fake Kite client for instrument master, historical candle, OHLC/LTP snapshot, retry, and token-expiry tests; deterministic mock market data, mock news provider, mock LLM outputs, mock alert provider, internal PaperBroker, SQLite verification database at `/private/tmp/taurus-kite-plan-smoke.db`, and real Kite smoke SQLite database at `/private/tmp/taurus-kite-real-smoke.db`.
+
+## M18 - Halal Stock Compliance Universe
+
+Status: Done
+
+Objective: Scrape HalalStock.in compliance rows, store BSE/NSE compliance data in the DB, and generate an NSE-only halal market-data universe for Kite/paper-trading flows.
+
+Detailed plan:
+
+- `docs/HALAL_STCK_COMPLIANCE_PLAN.md`
+
+Tasks:
+
+- [x] Add HalalStock fetcher with browser-like headers, timeout, checksum, and no cookies.
+- [x] Add parser for the first `tablepress-24` table only.
+- [x] Map `hs-yes.jpg` to `halal` and `hs-no.jpg` to `haram`.
+- [x] Hard-fail on unknown icon URLs before DB writes.
+- [x] Dedupe by normalized name, BSE code, NSE code, and details URL; fail conflicting duplicates.
+- [x] Add `halal_stock_imports` and `halal_stock_compliance` DB models/repository.
+- [x] Upsert compliance rows and mark missing prior rows inactive.
+- [x] Export `configs/market_data/halal_nse_cash.yaml` deterministically from active halal NSE rows.
+- [x] Validate generated YAML with `load_market_data_universe`.
+- [x] Add `scripts/sync_halal_stocks.py` and `make sync-halal-stocks`.
+- [x] Add settings/env defaults.
+- [x] Add parser, DB/service, and export tests.
+- [x] Update docs and command references.
+- [x] Run verification and Codex rules cleanup.
+
+Verification:
+
+- [x] `uv run pytest tests/unit/test_halal_stock_compliance.py`
+- [x] `make test`
+- [x] `make lint`
+- [x] `DATABASE_URL=sqlite:////private/tmp/taurus-halal.db make sync-halal-stocks`
+- [x] `uv run python - <<'PY' ... load_market_data_universe('configs/market_data/halal_nse_cash.yaml') ... PY`
+
+Acceptance:
+
+- [x] Parser maps yes/no icons correctly.
+- [x] Parser ignores duplicate responsive/secondary tables by selecting the first exact `tablepress-24` table.
+- [x] Parser rejects unknown status icons and missing/renamed required columns.
+- [x] Exact duplicate rows are deduped; conflicting duplicates fail.
+- [x] Import metadata is stored.
+- [x] Compliance rows are upserted and missing old rows are marked inactive.
+- [x] `status_changed_at` updates only when compliance status changes.
+- [x] Export excludes haram rows and rows without `NSECode`.
+- [x] Export fails on duplicate NSE symbol conflicts.
+- [x] Generated YAML loads through the existing market-data universe loader.
+- [x] No new HTTP API or automatic trading loop was added.
+
+Notes:
+
+- Added dependency `beautifulsoup4>=4,<5` for tolerant parsing of the source page's real-world HTML.
+- Added `packages/taurus_core/compliance/halal_stocks.py` with fetch, parse, import, export, and sync helpers.
+- Added `TAURUS_HALAL_STOCK_SOURCE_URL`, `TAURUS_HALAL_STOCK_TABLE_ID`, `TAURUS_HALAL_STOCK_UNIVERSE_PATH`, and `TAURUS_HALAL_STOCK_MIN_ROWS`.
+- Live sync on 2026-05-24 fetched source checksum `445f5ded2e931370e7b26553539f1cc9c2b5daae32a4b926111ba9f0571d00de`.
+- `DATABASE_URL=sqlite:////private/tmp/taurus-halal.db make sync-halal-stocks` produced `import_id=hsi-f5efd9e21016f020`, `rows_seen=5312`, `rows_imported=5310`, `duplicate_count=2`, `halal_count=2726`, `haram_count=2586`, `unknown_count=0`, and `active_count=5310`.
+- The two duplicate source rows were exact halal duplicates; after dedupe, active halal DB rows are `2724`.
+- Generated `configs/market_data/halal_nse_cash.yaml` with `1711` active halal NSE symbols.
+- `make test` verified `93 passed`.
+- `make lint` compile-checks pass.
+- Inspected `/Users/adnaan/.codex/rules/default.rules`; no entries existed after `# END MY CUSTOM ADDITION`, so no global approvals needed to be moved.
+
+Completion summary:
+
+- Assumptions made: HalalStock.in is stored as source-provided compliance data, not independently certified by Taurus. M18 exports NSE-only halal symbols because the current Kite universe flow is NSE-first. The generated halal universe is an allowed universe, not an instruction to trade every symbol.
+- Mocks created: Synthetic HalalStock HTML table fixtures, unknown-icon fixture, renamed-column fixture, duplicate-NSE fixture, injected fetch-result fixture, and SQLite compliance DBs for tests.
+- Mocks used: Synthetic HalalStock HTML fixtures, injected fetch-result fixture, temporary YAML export paths, SQLite test DBs, and SQLite live-sync verification database at `/private/tmp/taurus-halal.db`.
 
 ## Post-MVP Follow-Ups
 

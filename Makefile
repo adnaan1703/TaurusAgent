@@ -1,4 +1,4 @@
-.PHONY: setup setup-ui dev-up dev-down api ui build-ui test-ui dashboard migrate seed-mock backtest-mock backtest-real-data import-mock-news import-screener import-price-csv kite-login-url kite-exchange-token kite-sync-instruments import-kite-candles kite-ltp-smoke run-analysts-mock debate-mock trader-proposal-mock risk-review-mock final-approval-mock paper-once-mock paper-loop-mock paper-loop-once paper-loop-start paper-loop-kite paper-loop-dashboard alert-smoke alert-test-telegram replay-decision backup-local backup-db restore-local taurus-smoke llm-smoke test lint
+.PHONY: setup setup-ui dev-up dev-down api ui build-ui test-ui dashboard migrate seed-mock backtest-mock backtest-real-data import-mock-news import-screener import-price-csv sync-halal-stocks kite-login-url kite-exchange-token kite-sync-instruments import-kite-candles kite-ltp-smoke run-analysts-mock debate-mock trader-proposal-mock risk-review-mock final-approval-mock paper-once-mock paper-loop-mock paper-loop-once paper-loop-start paper-loop-kite paper-loop-dashboard alert-smoke alert-test-telegram replay-decision backup-local backup-db restore-local taurus-smoke llm-smoke test lint
 
 UV ?= uv
 PNPM ?= pnpm
@@ -70,6 +70,9 @@ import-screener:
 
 import-price-csv:
 	DATABASE_URL="$(DATABASE_URL)" CSV="$(if $(CSV),$(CSV),$(PRICE_CSV))" DIR="$(DIR)" PYTHONPATH=packages:. $(UV) run python scripts/import_price_csv.py
+
+sync-halal-stocks:
+	DATABASE_URL="$(DATABASE_URL)" PYTHONPATH=packages:. $(UV) run python scripts/sync_halal_stocks.py
 
 kite-login-url:
 	PYTHONPATH=packages:. $(UV) run python scripts/kite_auth.py login-url

@@ -540,6 +540,57 @@ class FundamentalScoreModel(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
 
 
+class HalalStockImportModel(Base):
+    __tablename__ = "halal_stock_imports"
+    __table_args__ = (
+        Index("ix_halal_stock_imports_fetched_at", "fetched_at"),
+    )
+
+    import_id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    source_url: Mapped[str] = mapped_column(Text, nullable=False)
+    source_checksum: Mapped[str] = mapped_column(String(128), nullable=False)
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    rows_seen: Mapped[int] = mapped_column(nullable=False, default=0)
+    rows_imported: Mapped[int] = mapped_column(nullable=False, default=0)
+    halal_count: Mapped[int] = mapped_column(nullable=False, default=0)
+    haram_count: Mapped[int] = mapped_column(nullable=False, default=0)
+    unknown_count: Mapped[int] = mapped_column(nullable=False, default=0)
+    duplicate_count: Mapped[int] = mapped_column(nullable=False, default=0)
+    generated_yaml_path: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="IMPORTED")
+    imported_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+class HalalStockComplianceModel(Base):
+    __tablename__ = "halal_stock_compliance"
+    __table_args__ = (
+        Index("ix_halal_stock_compliance_active_status", "active", "compliance_status"),
+        Index("ix_halal_stock_compliance_nse_code", "nse_code"),
+    )
+
+    source_key: Mapped[str] = mapped_column(String(128), primary_key=True)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    bse_code: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    nse_code: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    industry: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    compliance_status: Mapped[str] = mapped_column(String(16), nullable=False)
+    status_icon_url: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    details_url: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    source_url: Mapped[str] = mapped_column(Text, nullable=False)
+    active: Mapped[bool] = mapped_column(nullable=False, default=True)
+    first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    status_changed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    raw_metadata: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc_now,
+        onupdate=utc_now,
+    )
+
+
 class DebateReportModel(Base):
     __tablename__ = "debate_reports"
     __table_args__ = (

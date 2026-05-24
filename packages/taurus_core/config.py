@@ -46,6 +46,23 @@ class Settings(BaseSettings):
         default="configs/market_data/kite_nse_cash.yaml",
         validation_alias="TAURUS_MARKET_DATA_UNIVERSE_PATH",
     )
+    taurus_halal_stock_source_url: str = Field(
+        default="https://halalstock.in/halal-shariah-compliant-shares-list/",
+        validation_alias="TAURUS_HALAL_STOCK_SOURCE_URL",
+    )
+    taurus_halal_stock_table_id: str = Field(
+        default="tablepress-24",
+        validation_alias="TAURUS_HALAL_STOCK_TABLE_ID",
+    )
+    taurus_halal_stock_universe_path: str = Field(
+        default="configs/market_data/halal_nse_cash.yaml",
+        validation_alias="TAURUS_HALAL_STOCK_UNIVERSE_PATH",
+    )
+    taurus_halal_stock_min_rows: int = Field(
+        default=5000,
+        ge=1,
+        validation_alias="TAURUS_HALAL_STOCK_MIN_ROWS",
+    )
     taurus_market_data_lookback_days: int = Field(
         default=400,
         ge=1,
