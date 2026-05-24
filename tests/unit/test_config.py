@@ -21,8 +21,8 @@ def test_default_settings_are_safe() -> None:
     assert settings.taurus_market_data_lookback_days == 400
     assert settings.taurus_kite_exchange == "NSE"
     assert settings.taurus_llm_provider == "mock"
-    assert settings.taurus_enabled_analysts == "technical,news,sentiment,fundamentals"
-    assert settings.enabled_analyst_keys == ("technical", "news", "sentiment", "fundamentals")
+    assert settings.taurus_enabled_analysts == "technical"
+    assert settings.enabled_analyst_keys == ("technical",)
     assert settings.taurus_initial_capital_inr == 1_000_000
     assert settings.taurus_max_position_pct == 5
     assert settings.taurus_max_open_positions == 8

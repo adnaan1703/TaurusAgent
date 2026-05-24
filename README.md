@@ -120,8 +120,8 @@ curl "http://localhost:8000/data/quotes/latest?symbol=INFY"
 when `TAURUS_MARKET_DATA_PROVIDER=kite`.
 
 Analysts are enabled with `TAURUS_ENABLED_ANALYSTS`. The default is
-`technical,news,sentiment,fundamentals`; use `technical,news,sentiment` to
-skip fundamentals until imported fundamental data is available.
+`technical`; add `news`, `sentiment`, and `fundamentals` explicitly when you
+want those reports.
 
 Verify the API:
 

@@ -361,7 +361,7 @@ TAURUS_ENABLED_ANALYSTS=technical,news,sentiment make run-analysts-mock SYMBOL=I
 TAURUS_ENABLED_ANALYSTS=technical make paper-once-mock SYMBOL=INFY
 ```
 
-Default roster is `technical,news,sentiment,fundamentals`.
+Default roster is `technical`.
 
 ## Expected Project Commands By Milestone
 

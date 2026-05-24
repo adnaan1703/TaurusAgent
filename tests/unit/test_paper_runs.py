@@ -33,9 +33,9 @@ def test_paper_run_service_executes_full_chain_and_api_returns_runs(tmp_path: Pa
     assert run.artifacts["symbols"]["INFY"]["final_status"] == "APPROVED_FOR_PAPER"
     assert run.artifacts["symbols"]["INFY"]["order_status"] == "FILLED"
     assert run.artifacts["symbols"]["INFY"]["analyst_roster"] == {
-        "enabled": ["technical", "news", "sentiment", "fundamentals"],
-        "skipped": [],
-        "report_count": 4,
+        "enabled": ["technical"],
+        "skipped": ["news", "sentiment", "fundamentals"],
+        "report_count": 1,
         "min_required": 1,
         "status": "enough_reports",
     }
@@ -139,7 +139,7 @@ def test_paper_run_succeeds_with_technical_only_roster(tmp_path: Path) -> None:
 def _settings_for_temp_db(
     tmp_path: Path,
     *,
-    enabled_analysts: str = "technical,news,sentiment,fundamentals",
+    enabled_analysts: str = "technical",
 ) -> Settings:
     return Settings(
         database_url=f"sqlite:///{tmp_path / 'taurus.db'}",

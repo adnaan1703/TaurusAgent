@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 ANALYST_KEYS: tuple[str, ...] = ("technical", "news", "sentiment", "fundamentals")
-DEFAULT_ENABLED_ANALYSTS = ",".join(ANALYST_KEYS)
+DEFAULT_ENABLED_ANALYSTS = "technical"
 MIN_ANALYST_REPORTS = 1
 
 
