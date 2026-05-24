@@ -17,6 +17,9 @@ def test_default_settings_are_safe() -> None:
     assert settings.taurus_mock_seed == 42
     assert settings.taurus_mock_candle_count == 252
     assert settings.taurus_market_data_provider == "mock"
+    assert settings.taurus_market_data_universe_path == "configs/market_data/kite_nse_cash.yaml"
+    assert settings.taurus_market_data_lookback_days == 400
+    assert settings.taurus_kite_exchange == "NSE"
     assert settings.taurus_llm_provider == "mock"
     assert settings.taurus_enabled_analysts == "technical,news,sentiment,fundamentals"
     assert settings.enabled_analyst_keys == ("technical", "news", "sentiment", "fundamentals")
@@ -46,6 +49,12 @@ def test_unknown_market_data_provider_is_rejected(monkeypatch: pytest.MonkeyPatc
         Settings()
 
 
+def test_kite_market_data_provider_is_allowed(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("TAURUS_MARKET_DATA_PROVIDER", "kite")
+
+    assert Settings().taurus_market_data_provider == "kite"
+
+
 def test_unknown_enabled_analyst_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("TAURUS_ENABLED_ANALYSTS", "technical,macro")
 
@@ -62,8 +71,15 @@ def test_empty_enabled_analyst_roster_is_rejected(monkeypatch: pytest.MonkeyPatc
 
 def test_secret_values_are_redacted(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    monkeypatch.setenv("KITE_API_KEY", "kite-key")
+    monkeypatch.setenv("KITE_API_SECRET", "kite-secret")
+    monkeypatch.setenv("KITE_ACCESS_TOKEN", "kite-token")
 
-    assert Settings().safe_dict()["openai_api_key"] == "***REDACTED***"
+    safe = Settings().safe_dict()
+    assert safe["openai_api_key"] == "***REDACTED***"
+    assert safe["kite_api_key"] == "***REDACTED***"
+    assert safe["kite_api_secret"] == "***REDACTED***"
+    assert safe["kite_access_token"] == "***REDACTED***"
 
 
 def test_database_url_password_is_redacted() -> None:

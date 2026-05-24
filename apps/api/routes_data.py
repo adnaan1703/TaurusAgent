@@ -9,7 +9,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session, sessionmaker
 
-from taurus_core.db.repositories import CandleRepository, InstrumentRepository
+from taurus_core.db.repositories import (
+    CandleRepository,
+    InstrumentRepository,
+    MarketPriceSnapshotRepository,
+)
 
 router = APIRouter(prefix="/data", tags=["data"])
 
@@ -40,6 +44,24 @@ class CandleResponse(BaseModel):
     volume: int
     source: str
     data_available_time: datetime
+
+
+class MarketPriceSnapshotResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    symbol: str
+    provider: str
+    exchange: str
+    provider_symbol: str
+    instrument_token: str | None
+    last_price: Decimal
+    open: Decimal
+    high: Decimal
+    low: Decimal
+    close: Decimal
+    volume: int | None
+    fetched_at: datetime
+    source: str
 
 
 def get_db_session(request: Request) -> Iterator[Session]:
@@ -81,3 +103,17 @@ def list_candles(
         end_date=end_date,
     )
     return [CandleResponse.model_validate(candle) for candle in candles]
+
+
+@router.get("/quotes/latest", response_model=MarketPriceSnapshotResponse)
+def latest_quote(
+    symbol: str = Query(..., min_length=1),
+    session: Session = Depends(get_db_session),
+) -> MarketPriceSnapshotResponse:
+    snapshot = MarketPriceSnapshotRepository(session).latest(symbol=symbol)
+    if snapshot is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Latest quote snapshot for {symbol.upper()} not found",
+        )
+    return MarketPriceSnapshotResponse.model_validate(snapshot)

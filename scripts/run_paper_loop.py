@@ -4,6 +4,7 @@ import json
 import os
 
 from taurus_core.config import Settings, get_settings
+from taurus_core.data.universe import load_market_data_universe
 from taurus_core.logging import configure_logging
 from taurus_core.paper_trading.service import PaperRunService, SimplePaperScheduler
 
@@ -50,19 +51,24 @@ def run_mock_paper_loop(
     )
 
 
-def _symbols_from_env() -> list[str]:
-    raw = os.environ.get("SYMBOLS") or os.environ.get("SYMBOL") or "INFY"
+def _symbols_from_env(settings: Settings) -> list[str]:
+    raw = os.environ.get("SYMBOLS") or os.environ.get("SYMBOL")
+    if raw is None and settings.taurus_market_data_provider == "kite":
+        return load_market_data_universe(settings.taurus_market_data_universe_path).enabled_symbols()
+    raw = raw or "INFY"
     symbols = [symbol.strip().upper() for symbol in raw.split(",") if symbol.strip()]
     return symbols or ["INFY"]
 
 
 if __name__ == "__main__":
     configure_logging()
-    symbols = _symbols_from_env()
+    settings = get_settings()
+    symbols = _symbols_from_env(settings)
     iterations = int(os.environ.get("PAPER_LOOP_ITERATIONS", "1"))
     interval_seconds = float(os.environ.get("PAPER_LOOP_INTERVAL_SECONDS", "0"))
     payload = run_paper_loop(
         symbols=symbols,
+        settings=settings,
         iterations=iterations,
         interval_seconds=interval_seconds,
         csv_path=os.environ.get("CSV") or None,

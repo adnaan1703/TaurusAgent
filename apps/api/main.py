@@ -10,6 +10,7 @@ from apps.api.routes_alerts import router as alerts_router
 from apps.api.routes_fundamentals import router as fundamentals_router
 from apps.api.routes_health import router as health_router
 from apps.api.routes_intelligence import router as intelligence_router
+from apps.api.routes_kite_auth import router as kite_auth_router
 from apps.api.routes_paper import router as paper_router
 from apps.api.routes_research import router as research_router
 from apps.api.routes_replay import router as replay_router
@@ -44,6 +45,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_methods=["GET", "OPTIONS"],
         allow_headers=["*"],
     )
+    app.include_router(kite_auth_router)
     app.include_router(health_router)
     app.include_router(alerts_router)
     app.include_router(data_router)

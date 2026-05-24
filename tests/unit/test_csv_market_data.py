@@ -45,6 +45,13 @@ def test_csv_market_data_provider_reads_synthetic_fixture() -> None:
     )
     assert provider.get_latest_candle("INFY") == infy_candles[-1]
 
+    snapshots = provider.get_latest_snapshots(["infy"])
+    assert len(snapshots) == 1
+    assert snapshots[0].symbol == "INFY"
+    assert snapshots[0].provider == "csv"
+    assert snapshots[0].last_price == infy_candles[-1].close
+    assert snapshots[0].source == "csv_market_data:prices_sample.csv:latest_candle"
+
 
 def test_csv_market_data_import_records_source_and_available_time(tmp_path: Path) -> None:
     settings = Settings(database_url=f"sqlite:///{tmp_path / 'taurus.db'}")

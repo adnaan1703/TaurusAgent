@@ -1,0 +1,19 @@
+universe_name: kite_nse_cash
+default_exchange: NSE
+default_segment: EQUITY
+symbols:
+  - symbol: INFY
+    name: Infosys Ltd
+    enabled: true
+    providers:
+      kite:
+        exchange: NSE
+        tradingsymbol: INFY
+
+  - symbol: TCS
+    name: Tata Consultancy Services Ltd
+    enabled: true
+    providers:
+      kite:
+        exchange: NSE
+        tradingsymbol: TCS

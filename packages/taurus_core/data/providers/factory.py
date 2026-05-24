@@ -7,6 +7,7 @@ from taurus_core.data.providers.csv_market_data import (
     CSVMarketDataProvider,
     DisabledExternalMarketDataProvider,
 )
+from taurus_core.data.providers.kite_market_data import KiteMarketDataProvider
 from taurus_core.data.providers.mock_market_data import MockMarketDataProvider
 from taurus_core.domain.market_data import MarketDataProvider, MarketDataProviderError
 
@@ -27,6 +28,8 @@ def build_market_data_provider(
         csv_path = csv_path or settings.taurus_price_csv_path or None
         directory = directory or settings.taurus_price_csv_dir or None
         return CSVMarketDataProvider(csv_path=csv_path, directory=directory)
+    if provider == "kite":
+        return KiteMarketDataProvider(settings)
     if provider == "external":
         return DisabledExternalMarketDataProvider()
     raise MarketDataProviderError(f"Unsupported market data provider: {provider}")

@@ -42,6 +42,15 @@ class Settings(BaseSettings):
         default="mock",
         validation_alias="TAURUS_MARKET_DATA_PROVIDER",
     )
+    taurus_market_data_universe_path: str = Field(
+        default="configs/market_data/kite_nse_cash.yaml",
+        validation_alias="TAURUS_MARKET_DATA_UNIVERSE_PATH",
+    )
+    taurus_market_data_lookback_days: int = Field(
+        default=400,
+        ge=1,
+        validation_alias="TAURUS_MARKET_DATA_LOOKBACK_DAYS",
+    )
     taurus_price_csv_path: str = Field(default="", validation_alias="TAURUS_PRICE_CSV_PATH")
     taurus_price_csv_dir: str = Field(default="", validation_alias="TAURUS_PRICE_CSV_DIR")
     taurus_mock_seed: int = Field(default=42, validation_alias="TAURUS_MOCK_SEED")
@@ -130,6 +139,10 @@ class Settings(BaseSettings):
     openai_api_key: str = Field(default="", validation_alias="OPENAI_API_KEY")
     telegram_bot_token: str = Field(default="", validation_alias="TELEGRAM_BOT_TOKEN")
     telegram_chat_id: str = Field(default="", validation_alias="TELEGRAM_CHAT_ID")
+    kite_api_key: str = Field(default="", validation_alias="KITE_API_KEY")
+    kite_api_secret: str = Field(default="", validation_alias="KITE_API_SECRET")
+    kite_access_token: str = Field(default="", validation_alias="KITE_ACCESS_TOKEN")
+    taurus_kite_exchange: str = Field(default="NSE", validation_alias="TAURUS_KITE_EXCHANGE")
     upstox_client_id: str = Field(default="", validation_alias="UPSTOX_CLIENT_ID")
     upstox_client_secret: str = Field(default="", validation_alias="UPSTOX_CLIENT_SECRET")
     upstox_redirect_uri: str = Field(default="", validation_alias="UPSTOX_REDIRECT_URI")
@@ -142,7 +155,7 @@ class Settings(BaseSettings):
             raise ValueError("Live trading is disabled and cannot be enabled.")
         if self.broker_provider != "paper":
             raise ValueError("Taurus currently supports only the paper broker provider.")
-        if self.taurus_market_data_provider not in {"mock", "csv", "external"}:
+        if self.taurus_market_data_provider not in {"mock", "csv", "kite", "external"}:
             raise ValueError("Unsupported Taurus market data provider.")
         if self.taurus_llm_provider not in {"mock", "lmstudio", "openai"}:
             raise ValueError("Unsupported Taurus LLM provider.")
@@ -161,6 +174,9 @@ class Settings(BaseSettings):
             "openai_api_key",
             "telegram_bot_token",
             "telegram_chat_id",
+            "kite_api_key",
+            "kite_api_secret",
+            "kite_access_token",
             "upstox_client_id",
             "upstox_client_secret",
             "upstox_redirect_uri",

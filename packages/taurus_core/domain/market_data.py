@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Protocol
+from typing import Any, Protocol
 
 from taurus_core.domain.instruments import Instrument
 
@@ -20,6 +20,24 @@ class DailyCandle:
     timeframe: str = "1d"
     source: str = "mock_market_data"
     data_available_time: datetime | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class MarketPriceSnapshot:
+    symbol: str
+    provider: str
+    exchange: str
+    provider_symbol: str
+    instrument_token: str | None
+    last_price: Decimal
+    open: Decimal
+    high: Decimal
+    low: Decimal
+    close: Decimal
+    volume: int | None
+    fetched_at: datetime
+    source: str
+    raw: dict[str, Any] | None = None
 
 
 class MarketDataProvider(Protocol):
@@ -47,6 +65,11 @@ class MarketDataProvider(Protocol):
         ...
 
     def get_latest_candle(self, symbol: str) -> DailyCandle | None:
+        ...
+
+
+class MarketQuoteProvider(Protocol):
+    def get_latest_snapshots(self, symbols: list[str]) -> list[MarketPriceSnapshot]:
         ...
 
 

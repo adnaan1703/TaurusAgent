@@ -6,8 +6,9 @@ Source of truth:
 - `docs/TAURUS_CODEX_TASKS_v0_3.yaml`
 - `docs/UPSTOX_INTEGRATION_PLAN.md` for deferred broker integration
 - `docs/TAURUS_REACT_DASHBOARD_PLAN.md` for M16 React dashboard work
+- `docs/KITE_INTEGRATION_PLAN.md` for M17 Kite market data integration
 
-Last updated: 2026-05-22 10:43 IST
+Last updated: 2026-05-24 09:17 IST
 
 Status legend:
 
@@ -42,6 +43,7 @@ Milestone completion reporting:
 | M14 | Deferred | Upstox sandbox adapter | Sandbox token required | Yes |
 | M15 | Deferred | Upstox production readiness | Broker/compliance approval required | Yes |
 | M16 | Done | React run-loop observability dashboard | No | No |
+| M17 | Done | Kite Connect market data provider | Kite access token required for real smoke | Yes |
 
 ## M0 - Project Foundation
 
@@ -900,6 +902,83 @@ M16 completion summary:
 - Assumptions made: React dashboard v1 remains read-only and local-first, using backend aggregate `/ui/*` endpoints instead of client-side artifact joins. Streamlit remains available as a fallback diagnostic dashboard and is not removed.
 - Mocks created: None during M16.5; earlier M16 submilestones created frontend screen-state fixtures for UI test coverage.
 - Mocks used: Deterministic mock market data, mock news provider, mock LLM outputs, mock alert provider, internal PaperBroker, Docker Compose Postgres verification database, and SQLite smoke/test databases documented in M16.2-M16.5 notes.
+
+## M17 - Kite Connect Market Data Provider
+
+Status: Done
+
+Objective: Integrate Zerodha Kite Connect as a data-only market data provider while preserving paper-only execution and safe mock defaults.
+
+Detailed plan:
+
+- `docs/KITE_INTEGRATION_PLAN.md`
+
+User input required:
+
+- [x] `KITE_API_KEY` saved locally in ignored `.env`.
+- [x] `KITE_API_SECRET` saved locally in ignored `.env`.
+- [!] `KITE_ACCESS_TOKEN` still required for real Kite sync/import/smoke commands.
+
+Tasks:
+
+- [x] Add safe configuration and provider-neutral Kite universe.
+- [x] Add quote domain types and latest snapshot persistence.
+- [x] Add Kite market data provider with instrument sync, historical candles, and quote snapshots.
+- [x] Add Kite scripts and Make targets.
+- [x] Add persisted latest quote API endpoint.
+- [x] Add automated tests that do not require real Kite credentials.
+- [x] Update docs and command references.
+- [x] Run verification and Codex rules cleanup.
+
+Verification:
+
+- [x] `uv run pytest tests/unit/test_kite_market_data.py`
+- [x] `uv run pytest tests/unit/test_kite_auth.py`
+- [x] `make kite-login-url`
+- [x] `make test`
+- [x] `make lint`
+- [x] `DATABASE_URL=sqlite:////private/tmp/taurus-kite-plan-smoke.db make paper-loop-mock`
+- [x] Manual real Kite smoke: `make kite-sync-instruments`, `make import-kite-candles`, and `make kite-ltp-smoke` after `KITE_ACCESS_TOKEN` was generated locally.
+
+Acceptance:
+
+- [x] Mock and CSV market data paths still pass tests.
+- [x] Kite provider is selected only when explicitly configured.
+- [x] Missing Kite credentials do not break default test runs.
+- [x] Kite instrument sync resolves enabled YAML symbols in automated fake-client tests.
+- [x] Kite candle import maps daily candles with provider source metadata in automated fake-client tests.
+- [x] Kite LTP/OHLC smoke path persists snapshots in automated fake-client tests.
+- [x] Real Kite instrument sync, candle import, and quote snapshot smoke succeeded with the generated local access token.
+- [x] `/data/quotes/latest` serves persisted snapshots without making live Kite calls.
+- [x] Paper trading remains paper-only.
+- [x] No real secrets are committed or logged.
+
+Notes:
+
+- Added `kiteconnect>=5,<6` and `pyyaml>=6,<7` through `uv add`.
+- Added `configs/market_data/kite_nse_cash.yaml` as the provider-neutral universe file for enabled Kite-backed symbols.
+- Added `MarketPriceSnapshot`, `MarketQuoteProvider`, `instrument_provider_mappings`, and `market_price_snapshots`.
+- Added `KiteMarketDataProvider` with credential checks, universe resolution, instrument-master caching, historical daily candle mapping, OHLC/LTP snapshot mapping, conservative pacing, bounded retry, and token-expiry error translation.
+- Added latest quote snapshots for mock and CSV providers from their latest daily candles.
+- Added `scripts/sync_kite_instruments.py`, `scripts/import_kite_candles.py`, `scripts/kite_ltp_smoke.py`, and Make targets `kite-sync-instruments`, `import-kite-candles`, and `kite-ltp-smoke`.
+- Added `scripts/kite_auth.py` and Make targets `kite-login-url` and `kite-exchange-token` for the manual Kite login/request-token/access-token flow.
+- Added the local-only FastAPI root callback for Kite redirects, so `http://127.0.0.1:8000/?request_token=...` exchanges and stores `KITE_ACCESS_TOKEN` automatically when `make api` is running.
+- Added `GET /data/quotes/latest?symbol=INFY`, which reads only persisted snapshots.
+- `make kite-login-url` generated the Kite Connect login URL for the configured local API key and the URL was opened in the default browser on 2026-05-24.
+- `make kite-exchange-token REQUEST_TOKEN=...` exchanged the Kite request token for an access token and stored it in ignored `.env` without printing the token.
+- Default Postgres Kite sync failed while local Postgres was stopped; the real Kite smoke was rerun against isolated SQLite at `/private/tmp/taurus-kite-real-smoke.db`.
+- `DATABASE_URL=sqlite:////private/tmp/taurus-kite-real-smoke.db make kite-sync-instruments` synced `2` Kite mappings: `INFY`, `TCS`.
+- `DATABASE_URL=sqlite:////private/tmp/taurus-kite-real-smoke.db make import-kite-candles` imported `542` Kite daily candles for `2` instruments, dates `2025-04-21..2026-05-22`.
+- `DATABASE_URL=sqlite:////private/tmp/taurus-kite-real-smoke.db make kite-ltp-smoke` stored `2` Kite quote snapshots for `INFY`, `TCS`.
+- `DATABASE_URL=sqlite:////private/tmp/taurus-kite-plan-smoke.db make paper-loop-mock` completed with `run_id=pr-d96f32b86d4d1c87`, `status=COMPLETED`, `final_status=APPROVED_FOR_PAPER`, and `order_status=FILLED`.
+- `KITE_API_KEY`, `KITE_API_SECRET`, and generated `KITE_ACCESS_TOKEN` are saved only in ignored, permission-restricted `.env`.
+- Inspected `/Users/adnaan/.codex/rules/default.rules`; no entries existed after `# END MY CUSTOM ADDITION`, so no global approvals needed to be moved.
+
+Completion summary:
+
+- Assumptions made: Kite access tokens are short-lived manual login artifacts and must remain local; SQLite is acceptable for real Kite smoke validation when local Postgres is stopped. The provided API secret is stored locally for the manual token workflow but is not required by the data provider after `KITE_ACCESS_TOKEN` is generated.
+- Mocks created: Fake Kite client, fake transient network exception, fake token-expiry exception, temporary universe YAML files, and SQLite quote/sync/paper-loop test databases.
+- Mocks used: Fake Kite client for instrument master, historical candle, OHLC/LTP snapshot, retry, and token-expiry tests; deterministic mock market data, mock news provider, mock LLM outputs, mock alert provider, internal PaperBroker, SQLite verification database at `/private/tmp/taurus-kite-plan-smoke.db`, and real Kite smoke SQLite database at `/private/tmp/taurus-kite-real-smoke.db`.
 
 ## Post-MVP Follow-Ups
 

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from datetime import date, datetime, time, timezone
+from decimal import Decimal
+from typing import Any
 
 from sqlalchemy import Select, delete, func, select
 from sqlalchemy.orm import Session
@@ -22,7 +24,9 @@ from taurus_core.db.models import (
     FundamentalImportModel,
     FundamentalScoreModel,
     FundamentalSnapshotModel,
+    InstrumentProviderMappingModel,
     InstrumentModel,
+    MarketPriceSnapshotModel,
     PaperRunModel,
     PaperAccountModel,
     PaperFillModel,
@@ -34,7 +38,7 @@ from taurus_core.db.models import (
     TraderProposalModel,
 )
 from taurus_core.domain.instruments import Instrument
-from taurus_core.domain.market_data import DailyCandle
+from taurus_core.domain.market_data import DailyCandle, MarketPriceSnapshot
 from taurus_core.intelligence.documents import NewsEvent, RawDocument, SentimentScore
 from taurus_core.agents.schemas import AnalystReport
 from taurus_core.research.schemas import DebateReport, TraderProposal
@@ -168,6 +172,110 @@ class CandleRepository:
         if symbol is not None:
             statement = statement.where(DailyCandleModel.symbol == symbol.upper())
         return statement.order_by(DailyCandleModel.symbol, DailyCandleModel.trade_date)
+
+
+class InstrumentProviderMappingRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def upsert(
+        self,
+        *,
+        provider: str,
+        symbol: str,
+        exchange: str,
+        provider_symbol: str,
+        instrument_token: str | None,
+        segment: str,
+        currency: str,
+        lot_size: int,
+        tick_size: Decimal,
+        active: bool = True,
+        raw: dict[str, object] | None = None,
+        synced_at: datetime | None = None,
+    ) -> InstrumentProviderMappingModel:
+        normalized_provider = provider.lower()
+        normalized_symbol = symbol.upper()
+        statement = select(InstrumentProviderMappingModel).where(
+            InstrumentProviderMappingModel.provider == normalized_provider,
+            InstrumentProviderMappingModel.symbol == normalized_symbol,
+        )
+        model = self.session.scalar(statement)
+        if model is None:
+            model = InstrumentProviderMappingModel(
+                provider=normalized_provider,
+                symbol=normalized_symbol,
+                exchange=exchange.upper(),
+                provider_symbol=provider_symbol,
+                instrument_token=instrument_token,
+                segment=segment,
+                currency=currency,
+                lot_size=lot_size,
+                tick_size=tick_size,
+                active=active,
+                raw=_json_safe(raw or {}),
+                synced_at=synced_at or _utc_now(),
+            )
+            self.session.add(model)
+        else:
+            model.exchange = exchange.upper()
+            model.provider_symbol = provider_symbol
+            model.instrument_token = instrument_token
+            model.segment = segment
+            model.currency = currency
+            model.lot_size = lot_size
+            model.tick_size = tick_size
+            model.active = active
+            model.raw = _json_safe(raw or {})
+            model.synced_at = synced_at or _utc_now()
+        self.session.flush()
+        return model
+
+    def list(self, *, provider: str | None = None, active_only: bool = False) -> list[InstrumentProviderMappingModel]:
+        statement = select(InstrumentProviderMappingModel).order_by(
+            InstrumentProviderMappingModel.provider,
+            InstrumentProviderMappingModel.symbol,
+        )
+        if provider is not None:
+            statement = statement.where(InstrumentProviderMappingModel.provider == provider.lower())
+        if active_only:
+            statement = statement.where(InstrumentProviderMappingModel.active.is_(True))
+        return list(self.session.scalars(statement))
+
+    def get(self, *, provider: str, symbol: str) -> InstrumentProviderMappingModel | None:
+        statement = select(InstrumentProviderMappingModel).where(
+            InstrumentProviderMappingModel.provider == provider.lower(),
+            InstrumentProviderMappingModel.symbol == symbol.upper(),
+        )
+        return self.session.scalar(statement)
+
+
+class MarketPriceSnapshotRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def insert_many(self, snapshots: list[MarketPriceSnapshot]) -> list[MarketPriceSnapshotModel]:
+        models = [_snapshot_to_model(snapshot) for snapshot in snapshots]
+        self.session.add_all(models)
+        self.session.flush()
+        return models
+
+    def latest(
+        self,
+        *,
+        symbol: str,
+        provider: str | None = None,
+    ) -> MarketPriceSnapshotModel | None:
+        statement = select(MarketPriceSnapshotModel).where(
+            MarketPriceSnapshotModel.symbol == symbol.upper()
+        )
+        if provider is not None:
+            statement = statement.where(MarketPriceSnapshotModel.provider == provider.lower())
+        statement = statement.order_by(
+            MarketPriceSnapshotModel.fetched_at.desc(),
+            MarketPriceSnapshotModel.id.desc(),
+        )
+        return self.session.scalar(statement.limit(1))
 
 
 class BacktestRepository:
@@ -1126,6 +1234,43 @@ def _delete_paper_artifacts_for_run_symbol(
     )
     if remaining_fills == 0:
         session.execute(delete(PaperAccountModel).where(PaperAccountModel.run_id == run_id))
+
+
+def _utc_now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _snapshot_to_model(snapshot: MarketPriceSnapshot) -> MarketPriceSnapshotModel:
+    return MarketPriceSnapshotModel(
+        provider=snapshot.provider.lower(),
+        symbol=snapshot.symbol.upper(),
+        exchange=snapshot.exchange.upper(),
+        provider_symbol=snapshot.provider_symbol,
+        instrument_token=snapshot.instrument_token,
+        last_price=snapshot.last_price,
+        open=snapshot.open,
+        high=snapshot.high,
+        low=snapshot.low,
+        close=snapshot.close,
+        volume=snapshot.volume,
+        fetched_at=snapshot.fetched_at,
+        source=snapshot.source,
+        raw=_json_safe(snapshot.raw or {}),
+    )
+
+
+def _json_safe(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {str(key): _json_safe(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_json_safe(item) for item in value]
+    if isinstance(value, tuple):
+        return [_json_safe(item) for item in value]
+    if isinstance(value, (date, datetime)):
+        return value.isoformat()
+    if isinstance(value, Decimal):
+        return str(value)
+    return value
 
 
 def _paper_run_to_model(run: PaperRun) -> PaperRunModel:

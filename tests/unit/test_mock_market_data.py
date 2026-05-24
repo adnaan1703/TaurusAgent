@@ -25,6 +25,20 @@ def test_mock_market_data_provider_is_deterministic() -> None:
     assert len(first_provider.get_daily_candles("INFY")) == 252
 
 
+def test_mock_market_data_provider_returns_quote_snapshots() -> None:
+    provider = MockMarketDataProvider(seed=7, candle_count=252)
+
+    snapshots = provider.get_latest_snapshots(["infy"])
+    latest = provider.get_latest_candle("INFY")
+
+    assert latest is not None
+    assert len(snapshots) == 1
+    assert snapshots[0].symbol == "INFY"
+    assert snapshots[0].provider == "mock"
+    assert snapshots[0].last_price == latest.close
+    assert snapshots[0].source == "mock_market_data:latest_candle"
+
+
 def test_seed_mock_data_is_idempotent_and_repositories_can_read(tmp_path: Path) -> None:
     settings = _settings_for_temp_db(tmp_path)
     run_migrations(settings)

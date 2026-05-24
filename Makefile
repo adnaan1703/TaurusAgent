@@ -1,4 +1,4 @@
-.PHONY: setup setup-ui dev-up dev-down api ui build-ui test-ui dashboard migrate seed-mock backtest-mock backtest-real-data import-mock-news import-screener import-price-csv run-analysts-mock debate-mock trader-proposal-mock risk-review-mock final-approval-mock paper-once-mock paper-loop-mock paper-loop-once paper-loop-start paper-loop-dashboard alert-smoke alert-test-telegram replay-decision backup-local backup-db restore-local taurus-smoke llm-smoke test lint
+.PHONY: setup setup-ui dev-up dev-down api ui build-ui test-ui dashboard migrate seed-mock backtest-mock backtest-real-data import-mock-news import-screener import-price-csv kite-login-url kite-exchange-token kite-sync-instruments import-kite-candles kite-ltp-smoke run-analysts-mock debate-mock trader-proposal-mock risk-review-mock final-approval-mock paper-once-mock paper-loop-mock paper-loop-once paper-loop-start paper-loop-dashboard alert-smoke alert-test-telegram replay-decision backup-local backup-db restore-local taurus-smoke llm-smoke test lint
 
 UV ?= uv
 PNPM ?= pnpm
@@ -69,6 +69,21 @@ import-screener:
 
 import-price-csv:
 	DATABASE_URL="$(DATABASE_URL)" CSV="$(if $(CSV),$(CSV),$(PRICE_CSV))" DIR="$(DIR)" PYTHONPATH=packages:. $(UV) run python scripts/import_price_csv.py
+
+kite-login-url:
+	PYTHONPATH=packages:. $(UV) run python scripts/kite_auth.py login-url
+
+kite-exchange-token:
+	PYTHONPATH=packages:. $(UV) run python scripts/kite_auth.py exchange --request-token "$(REQUEST_TOKEN)"
+
+kite-sync-instruments:
+	DATABASE_URL="$(DATABASE_URL)" TAURUS_MARKET_DATA_PROVIDER=kite PYTHONPATH=packages:. $(UV) run python scripts/sync_kite_instruments.py
+
+import-kite-candles:
+	DATABASE_URL="$(DATABASE_URL)" TAURUS_MARKET_DATA_PROVIDER=kite PYTHONPATH=packages:. $(UV) run python scripts/import_kite_candles.py
+
+kite-ltp-smoke:
+	DATABASE_URL="$(DATABASE_URL)" TAURUS_MARKET_DATA_PROVIDER=kite PYTHONPATH=packages:. $(UV) run python scripts/kite_ltp_smoke.py
 
 run-analysts-mock:
 	DATABASE_URL="$(DATABASE_URL)" TAURUS_LLM_PROVIDER=mock SYMBOL="$(SYMBOL)" PYTHONPATH=packages:. $(UV) run python scripts/run_analysts.py

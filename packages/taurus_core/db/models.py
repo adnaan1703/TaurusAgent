@@ -90,6 +90,64 @@ class DailyCandleModel(Base):
     )
 
 
+class InstrumentProviderMappingModel(Base):
+    __tablename__ = "instrument_provider_mappings"
+    __table_args__ = (
+        UniqueConstraint("provider", "symbol", name="uq_provider_mappings_provider_symbol"),
+        Index("ix_provider_mappings_provider_symbol", "provider", "symbol"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    provider: Mapped[str] = mapped_column(String(32), nullable=False)
+    symbol: Mapped[str] = mapped_column(
+        String(32),
+        ForeignKey("instruments.symbol", ondelete="CASCADE"),
+        nullable=False,
+    )
+    exchange: Mapped[str] = mapped_column(String(32), nullable=False)
+    provider_symbol: Mapped[str] = mapped_column(String(128), nullable=False)
+    instrument_token: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    segment: Mapped[str] = mapped_column(String(32), nullable=False, default="EQUITY")
+    currency: Mapped[str] = mapped_column(String(8), nullable=False, default="INR")
+    lot_size: Mapped[int] = mapped_column(nullable=False, default=1)
+    tick_size: Mapped[Decimal] = mapped_column(
+        Numeric(10, 4),
+        nullable=False,
+        default=Decimal("0.05"),
+    )
+    active: Mapped[bool] = mapped_column(nullable=False, default=True)
+    raw: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
+    synced_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+class MarketPriceSnapshotModel(Base):
+    __tablename__ = "market_price_snapshots"
+    __table_args__ = (
+        Index("ix_market_price_snapshots_provider_symbol_time", "provider", "symbol", "fetched_at"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    provider: Mapped[str] = mapped_column(String(32), nullable=False)
+    symbol: Mapped[str] = mapped_column(
+        String(32),
+        ForeignKey("instruments.symbol", ondelete="CASCADE"),
+        nullable=False,
+    )
+    exchange: Mapped[str] = mapped_column(String(32), nullable=False)
+    provider_symbol: Mapped[str] = mapped_column(String(128), nullable=False)
+    instrument_token: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    last_price: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
+    open: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
+    high: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
+    low: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
+    close: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
+    volume: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    source: Mapped[str] = mapped_column(String(128), nullable=False)
+    raw: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
 class PortfolioSnapshotModel(Base):
     __tablename__ = "portfolio_snapshots"
 

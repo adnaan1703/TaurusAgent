@@ -5,6 +5,9 @@ Taurus is an observable, paper-trading-first algo trading MVP for Indian cash eq
 The paper-trading MVP is complete, and the React run-loop observability dashboard is the primary local UI. Taurus can run the local mock-data flow end to end: market data seeding, news/events, backtests, analyst reports, bull/bear debate, trader proposal, risk review, final approval, PaperBroker execution, scheduled paper loop, replay, backup, API, React dashboard, Streamlit fallback dashboard, Prometheus metrics, and Grafana dashboards.
 
 Broker sandbox and live broker integration are intentionally deferred. See `docs/UPSTOX_INTEGRATION_PLAN.md` for the post-MVP broker path.
+Kite Connect support is data-only: it can sync instruments, import historical
+daily candles, and store latest OHLC/LTP snapshots, but all execution still
+routes through `PaperBroker`.
 
 ## Safety Defaults
 
@@ -17,6 +20,31 @@ BROKER_PROVIDER=paper
 ```
 
 Do not commit real API keys, broker credentials, or tokens. Use `.env` locally if needed later; it is ignored by Git.
+
+Kite credentials, when used, also stay local:
+
+```bash
+KITE_API_KEY=
+KITE_API_SECRET=
+KITE_ACCESS_TOKEN=
+```
+
+The access token is a short-lived manual Kite Connect login artifact. If Kite
+commands fail with an expired-token message, generate a fresh token locally and
+update `.env`; do not put credentials in tracked files or command references.
+
+Generate and store the access token locally:
+
+```bash
+make api
+make kite-login-url
+```
+
+Open the printed URL while the API is running. Kite redirects back to
+`http://127.0.0.1:8000/`, and Taurus exchanges the `request_token` into
+`KITE_ACCESS_TOKEN` automatically. If the API was not running during login, use
+`make kite-exchange-token REQUEST_TOKEN=<request_token_from_redirect_url>` as a
+manual fallback.
 
 ## Local Setup
 
@@ -78,6 +106,19 @@ make replay-decision DECISION_ID=sample
 make backup-local
 ```
 
+Run data-only Kite market-data commands after adding a valid local
+`KITE_ACCESS_TOKEN`:
+
+```bash
+make kite-sync-instruments
+make import-kite-candles
+make kite-ltp-smoke
+curl "http://localhost:8000/data/quotes/latest?symbol=INFY"
+```
+
+`configs/market_data/kite_nse_cash.yaml` defines the Kite-backed paper universe
+when `TAURUS_MARKET_DATA_PROVIDER=kite`.
+
 Analysts are enabled with `TAURUS_ENABLED_ANALYSTS`. The default is
 `technical,news,sentiment,fundamentals`; use `technical,news,sentiment` to
 skip fundamentals until imported fundamental data is available.
@@ -90,6 +131,7 @@ curl http://localhost:8000/ready
 curl http://localhost:8000/metrics
 curl http://localhost:8000/data/instruments
 curl "http://localhost:8000/data/candles?symbol=INFY&timeframe=1d"
+curl "http://localhost:8000/data/quotes/latest?symbol=INFY"
 ```
 
 Stop the local stack:

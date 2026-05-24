@@ -6,7 +6,7 @@ from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal
 
 from taurus_core.domain.instruments import Instrument
-from taurus_core.domain.market_data import DailyCandle
+from taurus_core.domain.market_data import DailyCandle, MarketPriceSnapshot
 
 MOCK_INSTRUMENTS: tuple[Instrument, ...] = (
     Instrument(symbol="RELIANCE", name="Reliance Industries Ltd"),
@@ -105,6 +105,34 @@ class MockMarketDataProvider:
     def get_latest_candle(self, symbol: str) -> DailyCandle | None:
         candles = self.get_daily_candles(symbol)
         return candles[-1] if candles else None
+
+    def get_latest_snapshots(self, symbols: list[str]) -> list[MarketPriceSnapshot]:
+        snapshots: list[MarketPriceSnapshot] = []
+        for symbol in symbols:
+            normalized_symbol = symbol.upper()
+            candle = self.get_latest_candle(normalized_symbol)
+            if candle is None:
+                continue
+            snapshots.append(
+                MarketPriceSnapshot(
+                    symbol=normalized_symbol,
+                    provider=self.provider_name,
+                    exchange=self._instruments[normalized_symbol].exchange,
+                    provider_symbol=normalized_symbol,
+                    instrument_token=None,
+                    last_price=candle.close,
+                    open=candle.open,
+                    high=candle.high,
+                    low=candle.low,
+                    close=candle.close,
+                    volume=candle.volume,
+                    fetched_at=candle.data_available_time
+                    or datetime.combine(candle.trade_date, time(18, 0), tzinfo=timezone.utc),
+                    source=f"{self.source}:latest_candle",
+                    raw=None,
+                )
+            )
+        return snapshots
 
 
 def _stable_seed(seed: int, symbol: str) -> int:

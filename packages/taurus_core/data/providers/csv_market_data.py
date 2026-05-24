@@ -9,7 +9,7 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
 from taurus_core.domain.instruments import Instrument
-from taurus_core.domain.market_data import DailyCandle, MarketDataProviderError
+from taurus_core.domain.market_data import DailyCandle, MarketDataProviderError, MarketPriceSnapshot
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,6 +74,35 @@ class CSVMarketDataProvider:
     def get_latest_candle(self, symbol: str) -> DailyCandle | None:
         candles = self.get_daily_candles(symbol)
         return candles[-1] if candles else None
+
+    def get_latest_snapshots(self, symbols: list[str]) -> list[MarketPriceSnapshot]:
+        snapshots: list[MarketPriceSnapshot] = []
+        for symbol in symbols:
+            normalized_symbol = symbol.upper()
+            candle = self.get_latest_candle(normalized_symbol)
+            instrument = self._instruments.get(normalized_symbol)
+            if candle is None or instrument is None:
+                continue
+            snapshots.append(
+                MarketPriceSnapshot(
+                    symbol=normalized_symbol,
+                    provider=self.provider_name,
+                    exchange=instrument.exchange,
+                    provider_symbol=normalized_symbol,
+                    instrument_token=None,
+                    last_price=candle.close,
+                    open=candle.open,
+                    high=candle.high,
+                    low=candle.low,
+                    close=candle.close,
+                    volume=candle.volume,
+                    fetched_at=candle.data_available_time
+                    or datetime.combine(candle.trade_date, time(18, 0), tzinfo=timezone.utc),
+                    source=f"{candle.source}:latest_candle",
+                    raw=None,
+                )
+            )
+        return snapshots
 
     def _load(self) -> None:
         for path in self._paths:

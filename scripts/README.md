@@ -5,6 +5,8 @@ Operational scripts for local milestone workflows.
 - `migrate.py`: create or update local database tables.
 - `seed_mock_data.py`: load deterministic mock instruments and daily candles.
 - `import_price_csv.py`: import user-supplied or synthetic OHLCV CSV candles.
+- `kite_auth.py`: print Kite login URL and exchange a manual request token into local `.env`.
+- `sync_kite_instruments.py`, `import_kite_candles.py`, `kite_ltp_smoke.py`: run data-only Kite Connect market-data sync, candle import, and latest quote snapshot smoke checks.
 - `run_backtest.py`: run deterministic mock or CSV-backed backtests.
 - `import_mock_news.py`: load deterministic mock news and events.
 - `run_analysts.py`, `run_research_debate.py`, `run_trader_proposal.py`: run mock analyst and research workflows.

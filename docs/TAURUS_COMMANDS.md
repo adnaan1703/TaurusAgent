@@ -278,6 +278,37 @@ pkill -f "uvicorn apps.api.main:app"
 make dev-down
 ```
 
+## M17 Commands Used
+
+```bash
+uv add 'kiteconnect>=5,<6' 'PyYAML>=6,<7'
+make kite-login-url
+uv run pytest tests/unit/test_kite_auth.py
+uv run pytest tests/unit/test_kite_market_data.py tests/unit/test_config.py tests/unit/test_mock_market_data.py tests/unit/test_csv_market_data.py
+uv run pytest tests/unit/test_kite_market_data.py
+make test
+make lint
+DATABASE_URL=sqlite:////private/tmp/taurus-kite-plan-smoke.db make paper-loop-mock
+DATABASE_URL=sqlite:////private/tmp/taurus-kite-real-smoke.db make kite-sync-instruments
+DATABASE_URL=sqlite:////private/tmp/taurus-kite-real-smoke.db make import-kite-candles
+DATABASE_URL=sqlite:////private/tmp/taurus-kite-real-smoke.db make kite-ltp-smoke
+date '+%Y-%m-%d %H:%M %Z'
+```
+
+Manual real-credential Kite commands, after a fresh local `KITE_ACCESS_TOKEN` is added to ignored `.env`:
+
+```bash
+make api
+make kite-login-url
+# Browser redirects to http://127.0.0.1:8000/ and Taurus stores KITE_ACCESS_TOKEN.
+# Fallback if the API was not running:
+# make kite-exchange-token REQUEST_TOKEN=<request_token_from_redirect_url>
+make kite-sync-instruments
+make import-kite-candles
+make kite-ltp-smoke
+curl "http://localhost:8000/data/quotes/latest?symbol=INFY"
+```
+
 ## Current Make Targets
 
 ```bash
@@ -296,6 +327,11 @@ make backtest-real-data
 make import-mock-news
 make import-screener CSV=/path/to/screener.csv
 make import-price-csv CSV=mock/market_data/prices_sample.csv
+make kite-login-url
+make kite-exchange-token REQUEST_TOKEN=<request_token_from_redirect_url>
+make kite-sync-instruments
+make import-kite-candles
+make kite-ltp-smoke
 make run-analysts-mock SYMBOL=INFY
 make debate-mock SYMBOL=INFY
 make trader-proposal-mock SYMBOL=INFY
@@ -349,6 +385,11 @@ make dashboard
 make import-screener CSV=/path/to/screener.csv
 make import-price-csv CSV=/path/to/prices.csv
 make import-price-csv DIR=/path/to/price_csvs
+make kite-login-url
+make kite-exchange-token REQUEST_TOKEN=<request_token_from_redirect_url>
+make kite-sync-instruments
+make import-kite-candles
+make kite-ltp-smoke
 make backtest-real-data
 make paper-loop-mock
 make paper-loop-start
@@ -378,6 +419,7 @@ curl http://localhost:8000/ready
 curl http://localhost:8000/metrics
 curl http://localhost:8000/data/instruments
 curl "http://localhost:8000/data/candles?symbol=INFY&timeframe=1d"
+curl "http://localhost:8000/data/quotes/latest?symbol=INFY"
 curl http://localhost:8000/backtests
 curl http://localhost:8000/events
 curl "http://localhost:8000/agent-reports?symbol=INFY"
@@ -472,6 +514,11 @@ prefix_rule(pattern=["/bin/zsh", "-lc", "DATABASE_URL=sqlite:////private/tmp/tau
 prefix_rule(pattern=["make", "dashboard"], decision="allow")
 prefix_rule(pattern=["make", "import-screener"], decision="allow")
 prefix_rule(pattern=["make", "import-price-csv"], decision="allow")
+prefix_rule(pattern=["make", "kite-login-url"], decision="allow")
+prefix_rule(pattern=["make", "kite-exchange-token"], decision="allow")
+prefix_rule(pattern=["make", "kite-sync-instruments"], decision="allow")
+prefix_rule(pattern=["make", "import-kite-candles"], decision="allow")
+prefix_rule(pattern=["make", "kite-ltp-smoke"], decision="allow")
 prefix_rule(pattern=["make", "paper-loop-start"], decision="allow")
 prefix_rule(pattern=["make", "paper-loop-once"], decision="allow")
 prefix_rule(pattern=["make", "paper-loop-mock"], decision="allow")
