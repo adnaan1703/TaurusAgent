@@ -1,0 +1,123 @@
+universe_name: nifty_50_shariah
+default_exchange: NSE
+default_segment: EQUITY
+symbols:
+- symbol: ASIANPAINT
+  name: ASIAN PAINTS LTD.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: ASIANPAINT
+- symbol: CIPLA
+  name: CIPLA LTD.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: CIPLA
+- symbol: DRREDDY
+  name: DR.REDDY'S LABORATORIES LTD.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: DRREDDY
+- symbol: HCLTECH
+  name: HCL TECHNOLOGIES LTD.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: HCLTECH
+- symbol: HINDALCO
+  name: Hindalco Industries
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: HINDALCO
+- symbol: HINDUNILVR
+  name: HINDUSTAN UNILEVER LTD.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: HINDUNILVR
+- symbol: INFY
+  name: INFOSYS LTD.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: INFY
+- symbol: MAXHEALTH
+  name: MAX HEALTHCARE INSTITUTE LTD
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: MAXHEALTH
+- symbol: NESTLEIND
+  name: NESTLE INDIA LTD.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: NESTLEIND
+- symbol: ONGC
+  name: Oil & Natural Gas Corporation
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: ONGC
+- symbol: SUNPHARMA
+  name: SUN PHARMACEUTICAL INDUSTRIES LTD.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: SUNPHARMA
+- symbol: TATACONSUM
+  name: TATA CONSUMER PRODUCTS LTD
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: TATACONSUM
+- symbol: TCS
+  name: TATA CONSULTANCY SERVICES LTD.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: TCS
+- symbol: TECHM
+  name: TECH MAHINDRA LTD.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: TECHM
+- symbol: TMPV
+  name: Tata Motors Passenger Vehicles Limited
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: TMPV
+- symbol: TRENT
+  name: TRENT LTD.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: TRENT
+- symbol: ULTRACEMCO
+  name: ULTRATECH CEMENT LTD.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: ULTRACEMCO
