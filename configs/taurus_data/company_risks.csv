@@ -1,0 +1,398 @@
+batch_id,input_symbol,input_company_name,risk_name,risk_category,affected_segment,expected_impact_direction,time_horizon,peer_or_company_specific,source,confidence
+nifty_500_shariah,ZYDUSWELL,Zydus Wellness Ltd.,consumer demand slowdown,demand cyclicality,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,ZYDUSWELL,Zydus Wellness Ltd.,input-cost inflation,raw material price risk,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,3MINDIA,3M India Ltd.,demand slowdown,demand cyclicality,Core Business,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,3MINDIA,3M India Ltd.,input-cost inflation,raw material price risk,Core Business,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,ABFRL,Aditya Birla Fashion and Retail Ltd.,feedstock price volatility,raw material price risk,Chemicals,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,ABFRL,Aditya Birla Fashion and Retail Ltd.,regulatory or environmental action,regulatory risk,Chemicals,negative,medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,ABLBL,Aditya Birla Lifestyle Brands Ltd.,feedstock price volatility,raw material price risk,Chemicals,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,ABLBL,Aditya Birla Lifestyle Brands Ltd.,regulatory or environmental action,regulatory risk,Chemicals,negative,medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,ACE,Action Construction Equipment Ltd.,auto demand slowdown,demand cyclicality,Automotive,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,ACE,Action Construction Equipment Ltd.,commodity and component inflation,raw material price risk,Automotive,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,ACUTAAS,Acutaas Chemicals Ltd.,regulatory compliance action,regulatory risk,all,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,ACUTAAS,Acutaas Chemicals Ltd.,pricing pressure or tender volatility,demand/pricing risk,all,mixed,medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,AFCONS,Afcons Infrastructure Ltd.,order deferral or execution delay,execution risk,Capital Goods,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,AFCONS,Afcons Infrastructure Ltd.,commodity price volatility,raw material price risk,Capital Goods,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,AJANTPHARM,Ajanta Pharma Ltd.,regulatory compliance action,regulatory risk,all,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,AJANTPHARM,Ajanta Pharma Ltd.,pricing pressure or tender volatility,demand/pricing risk,all,mixed,medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,ALKEM,Alkem Laboratories Ltd.,regulatory compliance action,regulatory risk,all,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,ALKEM,Alkem Laboratories Ltd.,pricing pressure or tender volatility,demand/pricing risk,all,mixed,medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,AMBER,Amber Enterprises India Ltd.,consumer demand slowdown,demand cyclicality,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,AMBER,Amber Enterprises India Ltd.,input-cost inflation,raw material price risk,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,ANANTRAJ,Anant Raj Ltd.,consumer demand slowdown,demand cyclicality,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,ANANTRAJ,Anant Raj Ltd.,input-cost inflation,raw material price risk,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,APARINDS,Apar Industries Ltd.,order deferral or execution delay,execution risk,Capital Goods,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,APARINDS,Apar Industries Ltd.,commodity price volatility,raw material price risk,Capital Goods,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,APLAPOLLO,APL Apollo Tubes Ltd.,order deferral or execution delay,execution risk,Capital Goods,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,APLAPOLLO,APL Apollo Tubes Ltd.,commodity price volatility,raw material price risk,Capital Goods,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,APOLLOTYRE,Apollo Tyres Ltd.,auto demand slowdown,demand cyclicality,Automotive,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,APOLLOTYRE,Apollo Tyres Ltd.,commodity and component inflation,raw material price risk,Automotive,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,ARE&M,Amara Raja Energy & Mobility Ltd.,auto demand slowdown,demand cyclicality,Automotive,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,ARE&M,Amara Raja Energy & Mobility Ltd.,commodity and component inflation,raw material price risk,Automotive,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_50_shariah,ASIANPAINT,ASIAN PAINTS LTD.,raw-material inflation,raw material price risk,all,negative,near_to_medium_term,peer,Annual Report 2024-25 risk factors and business review,0.72
+nifty_50_shariah,ASIANPAINT,ASIAN PAINTS LTD.,slower housing/repainting demand,demand cyclicality,Decorative Paints and Coatings,negative,near_to_medium_term,peer,Annual Report 2024-25 risk factors and business review,0.72
+nifty_500_shariah,ASTERDM,Aster DM Healthcare Ltd.,regulatory compliance action,regulatory risk,all,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,ASTERDM,Aster DM Healthcare Ltd.,pricing pressure or tender volatility,demand/pricing risk,all,mixed,medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,ASTRAL,Astral Ltd.,order deferral or execution delay,execution risk,Capital Goods,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,ASTRAL,Astral Ltd.,commodity price volatility,raw material price risk,Capital Goods,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,ATGL,Adani Total Gas Ltd.,commodity price and supply volatility,commodity risk,Energy and Utilities,mixed,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,ATGL,Adani Total Gas Ltd.,tariff or policy change,regulatory risk,Energy and Utilities,mixed,medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,ATUL,Atul Ltd.,feedstock price volatility,raw material price risk,Chemicals,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,ATUL,Atul Ltd.,regulatory or environmental action,regulatory risk,Chemicals,negative,medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,AUROPHARMA,Aurobindo Pharma Ltd.,regulatory compliance action,regulatory risk,all,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,AUROPHARMA,Aurobindo Pharma Ltd.,pricing pressure or tender volatility,demand/pricing risk,all,mixed,medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,BALKRISIND,Balkrishna Industries Ltd.,auto demand slowdown,demand cyclicality,Automotive,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,BALKRISIND,Balkrishna Industries Ltd.,commodity and component inflation,raw material price risk,Automotive,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,BATAINDIA,Bata India Ltd.,consumer demand slowdown,demand cyclicality,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,BATAINDIA,Bata India Ltd.,input-cost inflation,raw material price risk,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,BAYERCROP,Bayer Cropscience Ltd.,feedstock price volatility,raw material price risk,Chemicals,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,BAYERCROP,Bayer Cropscience Ltd.,regulatory or environmental action,regulatory risk,Chemicals,negative,medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,BBTC,The Bombay Burmah Trading Corporation Ltd.,consumer demand slowdown,demand cyclicality,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,BBTC,The Bombay Burmah Trading Corporation Ltd.,input-cost inflation,raw material price risk,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,BERGEPAINT,Berger Paints (India) Ltd.,consumer demand slowdown,demand cyclicality,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,BERGEPAINT,Berger Paints (India) Ltd.,input-cost inflation,raw material price risk,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,BHEL,Bharat Heavy Electricals Ltd.,order deferral or execution delay,execution risk,Capital Goods,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,BHEL,Bharat Heavy Electricals Ltd.,commodity price volatility,raw material price risk,Capital Goods,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,BIKAJI,Bikaji Foods International Ltd.,consumer demand slowdown,demand cyclicality,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,BIKAJI,Bikaji Foods International Ltd.,input-cost inflation,raw material price risk,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,BLUEDART,Blue Dart Express Ltd.,demand slowdown,demand cyclicality,Core Business,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,BLUEDART,Blue Dart Express Ltd.,input-cost inflation,raw material price risk,Core Business,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,BLUEJET,Blue Jet Healthcare Ltd,regulatory compliance action,regulatory risk,all,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,BLUEJET,Blue Jet Healthcare Ltd,pricing pressure or tender volatility,demand/pricing risk,all,mixed,medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,BLUESTARCO,Blue Star Ltd.,consumer demand slowdown,demand cyclicality,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,BLUESTARCO,Blue Star Ltd.,input-cost inflation,raw material price risk,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,BPCL,Bharat Petroleum Corporation Ltd.,commodity price and supply volatility,commodity risk,Energy and Utilities,mixed,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,BPCL,Bharat Petroleum Corporation Ltd.,tariff or policy change,regulatory risk,Energy and Utilities,mixed,medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,BRITANNIA,Britannia Industries Ltd.,consumer demand slowdown,demand cyclicality,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,BRITANNIA,Britannia Industries Ltd.,input-cost inflation,raw material price risk,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,BSOFT,Birlasoft Ltd.,client discretionary-spend slowdown,demand cyclicality,Technology Services,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,BSOFT,Birlasoft Ltd.,wage inflation and attrition,labour risk,Technology Services,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,CARBORUNIV,Carborundum Universal Ltd.,order deferral or execution delay,execution risk,Capital Goods,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,CARBORUNIV,Carborundum Universal Ltd.,commodity price volatility,raw material price risk,Capital Goods,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,CASTROLIND,Castrol India Ltd.,commodity price and supply volatility,commodity risk,Energy and Utilities,mixed,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,CASTROLIND,Castrol India Ltd.,tariff or policy change,regulatory risk,Energy and Utilities,mixed,medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,CEATLTD,Ceat Ltd.,auto demand slowdown,demand cyclicality,Automotive,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,CEATLTD,Ceat Ltd.,commodity and component inflation,raw material price risk,Automotive,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,CEMPRO,Cemindia Projects Ltd.,order deferral or execution delay,execution risk,Capital Goods,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,CEMPRO,Cemindia Projects Ltd.,commodity price volatility,raw material price risk,Capital Goods,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,CGPOWER,CG Power and Industrial Solutions Ltd.,order deferral or execution delay,execution risk,Capital Goods,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,CGPOWER,CG Power and Industrial Solutions Ltd.,commodity price volatility,raw material price risk,Capital Goods,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,CHAMBLFERT,Chambal Fertilisers & Chemicals Ltd.,feedstock price volatility,raw material price risk,Chemicals,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,CHAMBLFERT,Chambal Fertilisers & Chemicals Ltd.,regulatory or environmental action,regulatory risk,Chemicals,negative,medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,CHENNPETRO,Chennai Petroleum Corporation Ltd.,commodity price and supply volatility,commodity risk,Energy and Utilities,mixed,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,CHENNPETRO,Chennai Petroleum Corporation Ltd.,tariff or policy change,regulatory risk,Energy and Utilities,mixed,medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_50_shariah,CIPLA,CIPLA LTD.,US price erosion and approval delays,regulatory risk,North America,negative,medium_term,peer,Annual Report 2024-25 risk factors and business review,0.72
+nifty_50_shariah,CIPLA,CIPLA LTD.,manufacturing compliance observations,regulatory risk,all,negative,near_to_medium_term,peer,Annual Report 2024-25 risk factors and business review,0.72
+nifty_500_shariah,COFORGE,Coforge Ltd.,client discretionary-spend slowdown,demand cyclicality,Technology Services,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,COFORGE,Coforge Ltd.,wage inflation and attrition,labour risk,Technology Services,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,COHANCE,Cohance Lifesciences Ltd.,regulatory compliance action,regulatory risk,all,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,COHANCE,Cohance Lifesciences Ltd.,pricing pressure or tender volatility,demand/pricing risk,all,mixed,medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,COLPAL,Colgate-Palmolive (India) Ltd.,consumer demand slowdown,demand cyclicality,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,COLPAL,Colgate-Palmolive (India) Ltd.,input-cost inflation,raw material price risk,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,CONCORDBIO,Concord Biotech Ltd.,regulatory compliance action,regulatory risk,all,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,CONCORDBIO,Concord Biotech Ltd.,pricing pressure or tender volatility,demand/pricing risk,all,mixed,medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,COROMANDEL,Coromandel International Ltd.,feedstock price volatility,raw material price risk,Chemicals,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,COROMANDEL,Coromandel International Ltd.,regulatory or environmental action,regulatory risk,Chemicals,negative,medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,CPPLUS,Aditya Infotech Ltd.,order deferral or execution delay,execution risk,Capital Goods,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,CPPLUS,Aditya Infotech Ltd.,commodity price volatility,raw material price risk,Capital Goods,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,CRISIL,Crisil Ltd.,demand slowdown,demand cyclicality,Core Business,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,CRISIL,Crisil Ltd.,input-cost inflation,raw material price risk,Core Business,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,CROMPTON,Crompton Greaves Consumer Electricals Ltd.,order deferral or execution delay,execution risk,Capital Goods,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,CROMPTON,Crompton Greaves Consumer Electricals Ltd.,commodity price volatility,raw material price risk,Capital Goods,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,CUMMINSIND,Cummins India Ltd.,order deferral or execution delay,execution risk,Capital Goods,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,CUMMINSIND,Cummins India Ltd.,commodity price volatility,raw material price risk,Capital Goods,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,CYIENT,Cyient Ltd.,client discretionary-spend slowdown,demand cyclicality,Technology Services,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,CYIENT,Cyient Ltd.,wage inflation and attrition,labour risk,Technology Services,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,DALBHARAT,Dalmia Bharat Ltd.,order deferral or execution delay,execution risk,Capital Goods,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,DALBHARAT,Dalmia Bharat Ltd.,commodity price volatility,raw material price risk,Capital Goods,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,DEEPAKNTR,Deepak Nitrite Ltd.,feedstock price volatility,raw material price risk,Chemicals,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,DEEPAKNTR,Deepak Nitrite Ltd.,regulatory or environmental action,regulatory risk,Chemicals,negative,medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,DIXON,Dixon Technologies (India) Ltd.,consumer demand slowdown,demand cyclicality,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,DIXON,Dixon Technologies (India) Ltd.,input-cost inflation,raw material price risk,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,DMART,Avenue Supermarts Ltd.,consumer demand slowdown,demand cyclicality,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,DMART,Avenue Supermarts Ltd.,input-cost inflation,raw material price risk,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,DOMS,DOMS Industries Ltd.,consumer demand slowdown,demand cyclicality,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,DOMS,DOMS Industries Ltd.,input-cost inflation,raw material price risk,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_50_shariah,DRREDDY,DR.REDDY'S LABORATORIES LTD.,US price erosion,demand/pricing risk,Global Generics,negative,medium_term,peer,Annual Report 2024-25 risk factors and business review,0.72
+nifty_50_shariah,DRREDDY,DR.REDDY'S LABORATORIES LTD.,regulatory compliance action,regulatory risk,all,negative,near_to_medium_term,peer,Annual Report 2024-25 risk factors and business review,0.72
+nifty_500_shariah,ECLERX,eClerx Services Ltd.,demand slowdown,demand cyclicality,Core Business,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,ECLERX,eClerx Services Ltd.,input-cost inflation,raw material price risk,Core Business,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,ELECON,Elecon Engineering Company Ltd.,order deferral or execution delay,execution risk,Capital Goods,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,ELECON,Elecon Engineering Company Ltd.,commodity price volatility,raw material price risk,Capital Goods,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,ELGIEQUIP,Elgi Equipments Ltd.,order deferral or execution delay,execution risk,Capital Goods,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,ELGIEQUIP,Elgi Equipments Ltd.,commodity price volatility,raw material price risk,Capital Goods,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,EMAMILTD,Emami Ltd.,consumer demand slowdown,demand cyclicality,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,EMAMILTD,Emami Ltd.,input-cost inflation,raw material price risk,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,EMCURE,Emcure Pharmaceuticals Ltd.,regulatory compliance action,regulatory risk,all,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,EMCURE,Emcure Pharmaceuticals Ltd.,pricing pressure or tender volatility,demand/pricing risk,all,mixed,medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,ENDURANCE,Endurance Technologies Ltd.,auto demand slowdown,demand cyclicality,Automotive,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,ENDURANCE,Endurance Technologies Ltd.,commodity and component inflation,raw material price risk,Automotive,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,ENRIN,Siemens Energy India Ltd.,order deferral or execution delay,execution risk,Capital Goods,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,ENRIN,Siemens Energy India Ltd.,commodity price volatility,raw material price risk,Capital Goods,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,EXIDEIND,Exide Industries Ltd.,auto demand slowdown,demand cyclicality,Automotive,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,EXIDEIND,Exide Industries Ltd.,commodity and component inflation,raw material price risk,Automotive,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,FINCABLES,Finolex Cables Ltd.,order deferral or execution delay,execution risk,Capital Goods,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,FINCABLES,Finolex Cables Ltd.,commodity price volatility,raw material price risk,Capital Goods,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,FIRSTCRY,Brainbees Solutions Ltd.,consumer demand slowdown,demand cyclicality,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,FIRSTCRY,Brainbees Solutions Ltd.,input-cost inflation,raw material price risk,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,FLUOROCHEM,Gujarat Fluorochemicals Ltd.,feedstock price volatility,raw material price risk,Chemicals,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,FLUOROCHEM,Gujarat Fluorochemicals Ltd.,regulatory or environmental action,regulatory risk,Chemicals,negative,medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,FORCEMOT,Force Motors Ltd.,auto demand slowdown,demand cyclicality,Automotive,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,FORCEMOT,Force Motors Ltd.,commodity and component inflation,raw material price risk,Automotive,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,FORTIS,Fortis Healthcare Ltd.,regulatory compliance action,regulatory risk,all,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,FORTIS,Fortis Healthcare Ltd.,pricing pressure or tender volatility,demand/pricing risk,all,mixed,medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,FSL,Firstsource Solutions Ltd.,demand slowdown,demand cyclicality,Core Business,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,FSL,Firstsource Solutions Ltd.,input-cost inflation,raw material price risk,Core Business,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,GABRIEL,Gabriel India Ltd.,auto demand slowdown,demand cyclicality,Automotive,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,GABRIEL,Gabriel India Ltd.,commodity and component inflation,raw material price risk,Automotive,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,GAIL,GAIL (India) Ltd.,commodity price and supply volatility,commodity risk,Energy and Utilities,mixed,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,GAIL,GAIL (India) Ltd.,tariff or policy change,regulatory risk,Energy and Utilities,mixed,medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,GALLANTT,Gallantt Ispat Ltd.,order deferral or execution delay,execution risk,Capital Goods,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,GALLANTT,Gallantt Ispat Ltd.,commodity price volatility,raw material price risk,Capital Goods,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,GILLETTE,Gillette India Ltd.,consumer demand slowdown,demand cyclicality,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,GILLETTE,Gillette India Ltd.,input-cost inflation,raw material price risk,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,GLENMARK,Glenmark Pharmaceuticals Ltd.,regulatory compliance action,regulatory risk,all,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,GLENMARK,Glenmark Pharmaceuticals Ltd.,pricing pressure or tender volatility,demand/pricing risk,all,mixed,medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,GODREJCP,Godrej Consumer Products Ltd.,consumer demand slowdown,demand cyclicality,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,GODREJCP,Godrej Consumer Products Ltd.,input-cost inflation,raw material price risk,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,GPIL,Godawari Power & Ispat Ltd.,order deferral or execution delay,execution risk,Capital Goods,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,GPIL,Godawari Power & Ispat Ltd.,commodity price volatility,raw material price risk,Capital Goods,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,GRANULES,Granules India Ltd.,regulatory compliance action,regulatory risk,all,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,GRANULES,Granules India Ltd.,pricing pressure or tender volatility,demand/pricing risk,all,mixed,medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,GRAVITA,Gravita India Ltd.,commodity price downturn,commodity cycle risk,Metals,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,GRAVITA,Gravita India Ltd.,energy and freight inflation,raw material price risk,Metals,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,GVT&D,GE Vernova T&D India Ltd.,order deferral or execution delay,execution risk,Capital Goods,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,GVT&D,GE Vernova T&D India Ltd.,commodity price volatility,raw material price risk,Capital Goods,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,HAVELLS,Havells India Ltd.,consumer demand slowdown,demand cyclicality,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,HAVELLS,Havells India Ltd.,input-cost inflation,raw material price risk,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_50_shariah,HCLTECH,HCL TECHNOLOGIES LTD.,client discretionary-spend slowdown,demand cyclicality,all,negative,near_to_medium_term,peer,Annual Report 2024-25 risk factors and business review,0.72
+nifty_50_shariah,HCLTECH,HCL TECHNOLOGIES LTD.,wage inflation and attrition,labour risk,all,negative,near_term,peer,Annual Report 2024-25 risk factors and business review,0.72
+nifty_500_shariah,HEG,HEG Ltd.,order deferral or execution delay,execution risk,Capital Goods,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,HEG,HEG Ltd.,commodity price volatility,raw material price risk,Capital Goods,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,HEROMOTOCO,Hero MotoCorp Ltd.,auto demand slowdown,demand cyclicality,Automotive,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,HEROMOTOCO,Hero MotoCorp Ltd.,commodity and component inflation,raw material price risk,Automotive,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,HEXT,Hexaware Technologies Ltd.,client discretionary-spend slowdown,demand cyclicality,Technology Services,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,HEXT,Hexaware Technologies Ltd.,wage inflation and attrition,labour risk,Technology Services,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,HFCL,HFCL Ltd.,order deferral or execution delay,execution risk,Capital Goods,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,HFCL,HFCL Ltd.,commodity price volatility,raw material price risk,Capital Goods,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_50_shariah,HINDALCO,Hindalco Industries,commodity price volatility,commodity cycle risk,all,mixed,near_to_medium_term,peer,Annual Report 2024-25 risk factors and business review,0.72
+nifty_50_shariah,HINDALCO,Hindalco Industries,energy cost and availability,raw material price risk,Aluminium Upstream,negative,near_term,peer,Annual Report 2024-25 risk factors and business review,0.72
+nifty_500_shariah,HINDCOPPER,Hindustan Copper Ltd.,commodity price downturn,commodity cycle risk,Metals,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,HINDCOPPER,Hindustan Copper Ltd.,energy and freight inflation,raw material price risk,Metals,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_50_shariah,HINDUNILVR,HINDUSTAN UNILEVER LTD.,rural demand slowdown,demand cyclicality,all,negative,near_to_medium_term,peer,Annual Report 2024-25 risk factors and business review,0.72
+nifty_50_shariah,HINDUNILVR,HINDUSTAN UNILEVER LTD.,commodity input inflation,raw material price risk,all,negative,near_term,peer,Annual Report 2024-25 risk factors and business review,0.72
+nifty_500_shariah,HSCL,Himadri Speciality Chemical Ltd.,feedstock price volatility,raw material price risk,Chemicals,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,HSCL,Himadri Speciality Chemical Ltd.,regulatory or environmental action,regulatory risk,Chemicals,negative,medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,HYUNDAI,Hyundai Motor India Ltd.,auto demand slowdown,demand cyclicality,Automotive,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,HYUNDAI,Hyundai Motor India Ltd.,commodity and component inflation,raw material price risk,Automotive,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,IGL,Indraprastha Gas Ltd.,commodity price and supply volatility,commodity risk,Energy and Utilities,mixed,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,IGL,Indraprastha Gas Ltd.,tariff or policy change,regulatory risk,Energy and Utilities,mixed,medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,INDUSTOWER,Indus Towers Ltd.,order deferral or execution delay,execution risk,Capital Goods,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,INDUSTOWER,Indus Towers Ltd.,commodity price volatility,raw material price risk,Capital Goods,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_50_shariah,INFY,INFOSYS LTD.,discretionary technology-spend slowdown,demand cyclicality,all,negative,near_to_medium_term,peer,Annual Report 2024-25 risk factors and business review,0.72
+nifty_50_shariah,INFY,INFOSYS LTD.,currency and wage pressure,currency risk,all,mixed,near_term,peer,Annual Report 2024-25 risk factors and business review,0.72
+nifty_500_shariah,INOXWIND,Inox Wind Ltd.,order deferral or execution delay,execution risk,Capital Goods,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,INOXWIND,Inox Wind Ltd.,commodity price volatility,raw material price risk,Capital Goods,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,IPCALAB,Ipca Laboratories Ltd.,regulatory compliance action,regulatory risk,all,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,IPCALAB,Ipca Laboratories Ltd.,pricing pressure or tender volatility,demand/pricing risk,all,mixed,medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,ITI,ITI Ltd.,order deferral or execution delay,execution risk,Capital Goods,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,ITI,ITI Ltd.,commodity price volatility,raw material price risk,Capital Goods,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,JBCHEPHARM,J B Chemicals & Pharmaceuticals Ltd.,regulatory compliance action,regulatory risk,all,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,JBCHEPHARM,J B Chemicals & Pharmaceuticals Ltd.,pricing pressure or tender volatility,demand/pricing risk,all,mixed,medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,JINDALSAW,Jindal Saw Ltd.,order deferral or execution delay,execution risk,Capital Goods,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,JINDALSAW,Jindal Saw Ltd.,commodity price volatility,raw material price risk,Capital Goods,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,JINDALSTEL,Jindal Steel Ltd.,commodity price downturn,commodity cycle risk,Metals,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,JINDALSTEL,Jindal Steel Ltd.,energy and freight inflation,raw material price risk,Metals,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,JSL,Jindal Stainless Ltd.,commodity price downturn,commodity cycle risk,Metals,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,JSL,Jindal Stainless Ltd.,energy and freight inflation,raw material price risk,Metals,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,JSWDULUX,JSW Dulux Ltd.,consumer demand slowdown,demand cyclicality,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,JSWDULUX,JSW Dulux Ltd.,input-cost inflation,raw material price risk,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,JUBLINGREA,Jubilant Ingrevia Ltd.,feedstock price volatility,raw material price risk,Chemicals,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,JUBLINGREA,Jubilant Ingrevia Ltd.,regulatory or environmental action,regulatory risk,Chemicals,negative,medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,JUBLPHARMA,Jubilant Pharmova Ltd.,regulatory compliance action,regulatory risk,all,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,JUBLPHARMA,Jubilant Pharmova Ltd.,pricing pressure or tender volatility,demand/pricing risk,all,mixed,medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,JWL,Jupiter Wagons Ltd.,order deferral or execution delay,execution risk,Capital Goods,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,JWL,Jupiter Wagons Ltd.,commodity price volatility,raw material price risk,Capital Goods,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,JYOTICNC,Jyoti CNC Automation Ltd.,auto demand slowdown,demand cyclicality,Automotive,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,JYOTICNC,Jyoti CNC Automation Ltd.,commodity and component inflation,raw material price risk,Automotive,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,KAJARIACER,Kajaria Ceramics Ltd.,consumer demand slowdown,demand cyclicality,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,KAJARIACER,Kajaria Ceramics Ltd.,input-cost inflation,raw material price risk,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,KEC,KEC International Ltd.,order deferral or execution delay,execution risk,Capital Goods,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,KEC,KEC International Ltd.,commodity price volatility,raw material price risk,Capital Goods,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,KEI,KEI Industries Ltd.,order deferral or execution delay,execution risk,Capital Goods,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,KEI,KEI Industries Ltd.,commodity price volatility,raw material price risk,Capital Goods,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,KPIL,Kalpataru Projects International Ltd.,order deferral or execution delay,execution risk,Capital Goods,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,KPIL,Kalpataru Projects International Ltd.,commodity price volatility,raw material price risk,Capital Goods,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,KPITTECH,KPIT Technologies Ltd.,client discretionary-spend slowdown,demand cyclicality,Technology Services,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,KPITTECH,KPIT Technologies Ltd.,wage inflation and attrition,labour risk,Technology Services,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,LINDEINDIA,Linde India Ltd.,feedstock price volatility,raw material price risk,Chemicals,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,LINDEINDIA,Linde India Ltd.,regulatory or environmental action,regulatory risk,Chemicals,negative,medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,LLOYDSME,Lloyds Metals & Energy Ltd.,commodity price downturn,commodity cycle risk,Metals,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,LLOYDSME,Lloyds Metals & Energy Ltd.,energy and freight inflation,raw material price risk,Metals,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,LODHA,Lodha Developers Ltd.,consumer demand slowdown,demand cyclicality,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,LODHA,Lodha Developers Ltd.,input-cost inflation,raw material price risk,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,LTFOODS,LT Foods Ltd.,consumer demand slowdown,demand cyclicality,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,LTFOODS,LT Foods Ltd.,input-cost inflation,raw material price risk,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,LTM,LTM Ltd.,client discretionary-spend slowdown,demand cyclicality,Technology Services,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,LTM,LTM Ltd.,wage inflation and attrition,labour risk,Technology Services,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,LTTS,L&T Technology Services Ltd.,client discretionary-spend slowdown,demand cyclicality,Technology Services,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,LTTS,L&T Technology Services Ltd.,wage inflation and attrition,labour risk,Technology Services,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,LUPIN,Lupin Ltd.,regulatory compliance action,regulatory risk,all,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,LUPIN,Lupin Ltd.,pricing pressure or tender volatility,demand/pricing risk,all,mixed,medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,MARICO,Marico Ltd.,consumer demand slowdown,demand cyclicality,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,MARICO,Marico Ltd.,input-cost inflation,raw material price risk,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_50_shariah,MAXHEALTH,MAX HEALTHCARE INSTITUTE LTD,regulatory controls on hospital pricing,regulatory risk,Hospital Services,negative,medium_term,peer,Annual Report 2024-25 risk factors and business review,0.72
+nifty_50_shariah,MAXHEALTH,MAX HEALTHCARE INSTITUTE LTD,capex and acquisition integration,execution risk,Hospital Services,mixed,medium_term,peer,Annual Report 2024-25 risk factors and business review,0.72
+nifty_500_shariah,MEDANTA,Global Health Ltd.,regulatory compliance action,regulatory risk,all,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,MEDANTA,Global Health Ltd.,pricing pressure or tender volatility,demand/pricing risk,all,mixed,medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,MGL,Mahanagar Gas Ltd.,commodity price and supply volatility,commodity risk,Energy and Utilities,mixed,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,MGL,Mahanagar Gas Ltd.,tariff or policy change,regulatory risk,Energy and Utilities,mixed,medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,MOTHERSON,Samvardhana Motherson International Ltd.,auto demand slowdown,demand cyclicality,Automotive,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,MOTHERSON,Samvardhana Motherson International Ltd.,commodity and component inflation,raw material price risk,Automotive,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,MPHASIS,MphasiS Ltd.,client discretionary-spend slowdown,demand cyclicality,Technology Services,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,MPHASIS,MphasiS Ltd.,wage inflation and attrition,labour risk,Technology Services,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,MRF,MRF Ltd.,auto demand slowdown,demand cyclicality,Automotive,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,MRF,MRF Ltd.,commodity and component inflation,raw material price risk,Automotive,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,MSUMI,Motherson Sumi Wiring India Ltd.,auto demand slowdown,demand cyclicality,Automotive,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,MSUMI,Motherson Sumi Wiring India Ltd.,commodity and component inflation,raw material price risk,Automotive,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,NATIONALUM,National Aluminium Company Ltd.,commodity price downturn,commodity cycle risk,Metals,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,NATIONALUM,National Aluminium Company Ltd.,energy and freight inflation,raw material price risk,Metals,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,NAVA,NAVA Ltd.,commodity price and supply volatility,commodity risk,Energy and Utilities,mixed,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,NAVA,NAVA Ltd.,tariff or policy change,regulatory risk,Energy and Utilities,mixed,medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,NBCC,NBCC (India) Ltd.,order deferral or execution delay,execution risk,Capital Goods,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,NBCC,NBCC (India) Ltd.,commodity price volatility,raw material price risk,Capital Goods,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,NCC,NCC Ltd.,order deferral or execution delay,execution risk,Capital Goods,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,NCC,NCC Ltd.,commodity price volatility,raw material price risk,Capital Goods,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_50_shariah,NESTLEIND,NESTLE INDIA LTD.,food commodity inflation,raw material price risk,all,negative,near_term,peer,Annual Report 2024-25 risk factors and business review,0.72
+nifty_50_shariah,NESTLEIND,NESTLE INDIA LTD.,food safety and regulatory compliance,regulatory risk,all,negative,near_to_medium_term,peer,Annual Report 2024-25 risk factors and business review,0.72
+nifty_500_shariah,NETWEB,Netweb Technologies India Ltd.,client discretionary-spend slowdown,demand cyclicality,Technology Services,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,NETWEB,Netweb Technologies India Ltd.,wage inflation and attrition,labour risk,Technology Services,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,NEULANDLAB,Neuland Laboratories Ltd.,regulatory compliance action,regulatory risk,all,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,NEULANDLAB,Neuland Laboratories Ltd.,pricing pressure or tender volatility,demand/pricing risk,all,mixed,medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,NSLNISP,NMDC Steel Ltd.,commodity price downturn,commodity cycle risk,Metals,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,NSLNISP,NMDC Steel Ltd.,energy and freight inflation,raw material price risk,Metals,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,NUVOCO,Nuvoco Vistas Corporation Ltd.,order deferral or execution delay,execution risk,Capital Goods,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,NUVOCO,Nuvoco Vistas Corporation Ltd.,commodity price volatility,raw material price risk,Capital Goods,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,OLECTRA,Olectra Greentech Ltd.,auto demand slowdown,demand cyclicality,Automotive,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,OLECTRA,Olectra Greentech Ltd.,commodity and component inflation,raw material price risk,Automotive,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_50_shariah,ONGC,Oil & Natural Gas Corporation,crude and gas price volatility,commodity cycle risk,Exploration and Production,mixed,near_term,peer,Annual Report 2024-25 risk factors and business review,0.72
+nifty_50_shariah,ONGC,Oil & Natural Gas Corporation,reserve replacement and project delays,execution risk,Exploration and Production,negative,long_term,peer,Annual Report 2024-25 risk factors and business review,0.72
+nifty_500_shariah,PAGEIND,Page Industries Ltd.,consumer demand slowdown,demand cyclicality,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,PAGEIND,Page Industries Ltd.,input-cost inflation,raw material price risk,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,PATANJALI,Patanjali Foods Ltd.,consumer demand slowdown,demand cyclicality,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,PATANJALI,Patanjali Foods Ltd.,input-cost inflation,raw material price risk,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,PERSISTENT,Persistent Systems Ltd.,client discretionary-spend slowdown,demand cyclicality,Technology Services,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,PERSISTENT,Persistent Systems Ltd.,wage inflation and attrition,labour risk,Technology Services,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,PETRONET,Petronet LNG Ltd.,commodity price and supply volatility,commodity risk,Energy and Utilities,mixed,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,PETRONET,Petronet LNG Ltd.,tariff or policy change,regulatory risk,Energy and Utilities,mixed,medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,PGEL,PG Electroplast Ltd.,consumer demand slowdown,demand cyclicality,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,PGEL,PG Electroplast Ltd.,input-cost inflation,raw material price risk,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,PIDILITIND,Pidilite Industries Ltd.,feedstock price volatility,raw material price risk,Chemicals,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,PIDILITIND,Pidilite Industries Ltd.,regulatory or environmental action,regulatory risk,Chemicals,negative,medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,POLYCAB,Polycab India Ltd.,order deferral or execution delay,execution risk,Capital Goods,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,POLYCAB,Polycab India Ltd.,commodity price volatility,raw material price risk,Capital Goods,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,POWERINDIA,Hitachi Energy India Ltd.,order deferral or execution delay,execution risk,Capital Goods,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,POWERINDIA,Hitachi Energy India Ltd.,commodity price volatility,raw material price risk,Capital Goods,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,RAILTEL,RailTel Corporation of India Ltd.,demand slowdown,demand cyclicality,Core Business,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,RAILTEL,RailTel Corporation of India Ltd.,input-cost inflation,raw material price risk,Core Business,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,REDINGTON,Redington Ltd.,demand slowdown,demand cyclicality,Core Business,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,REDINGTON,Redington Ltd.,input-cost inflation,raw material price risk,Core Business,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,RHIM,RHI Magnesita India Ltd.,order deferral or execution delay,execution risk,Capital Goods,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,RHIM,RHI Magnesita India Ltd.,commodity price volatility,raw material price risk,Capital Goods,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,RRKABEL,R R Kabel Ltd.,order deferral or execution delay,execution risk,Capital Goods,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,RRKABEL,R R Kabel Ltd.,commodity price volatility,raw material price risk,Capital Goods,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,RVNL,Rail Vikas Nigam Ltd.,order deferral or execution delay,execution risk,Capital Goods,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,RVNL,Rail Vikas Nigam Ltd.,commodity price volatility,raw material price risk,Capital Goods,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,SAGILITY,Sagility Ltd.,client discretionary-spend slowdown,demand cyclicality,Technology Services,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,SAGILITY,Sagility Ltd.,wage inflation and attrition,labour risk,Technology Services,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,SAIL,Steel Authority of India (SAIL) Ltd.,commodity price downturn,commodity cycle risk,Metals,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,SAIL,Steel Authority of India (SAIL) Ltd.,energy and freight inflation,raw material price risk,Metals,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,SAILIFE,Sai Life Science Ltd.,regulatory compliance action,regulatory risk,all,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,SAILIFE,Sai Life Science Ltd.,pricing pressure or tender volatility,demand/pricing risk,all,mixed,medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,SCHAEFFLER,Schaeffler India Ltd.,auto demand slowdown,demand cyclicality,Automotive,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,SCHAEFFLER,Schaeffler India Ltd.,commodity and component inflation,raw material price risk,Automotive,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,SCI,Shipping Corporation of India Ltd.,demand slowdown,demand cyclicality,Core Business,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,SCI,Shipping Corporation of India Ltd.,input-cost inflation,raw material price risk,Core Business,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,SHYAMMETL,Shyam Metalics and Energy Ltd.,order deferral or execution delay,execution risk,Capital Goods,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,SHYAMMETL,Shyam Metalics and Energy Ltd.,commodity price volatility,raw material price risk,Capital Goods,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,SOBHA,Sobha Ltd.,consumer demand slowdown,demand cyclicality,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,SOBHA,Sobha Ltd.,input-cost inflation,raw material price risk,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,SONATSOFTW,Sonata Software Ltd.,client discretionary-spend slowdown,demand cyclicality,Technology Services,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,SONATSOFTW,Sonata Software Ltd.,wage inflation and attrition,labour risk,Technology Services,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,SPLPETRO,Supreme Petrochem Ltd.,feedstock price volatility,raw material price risk,Chemicals,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,SPLPETRO,Supreme Petrochem Ltd.,regulatory or environmental action,regulatory risk,Chemicals,negative,medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,SRF,SRF Ltd.,feedstock price volatility,raw material price risk,Chemicals,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,SRF,SRF Ltd.,regulatory or environmental action,regulatory risk,Chemicals,negative,medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_50_shariah,SUNPHARMA,SUN PHARMACEUTICAL INDUSTRIES LTD.,US specialty execution risk,execution risk,US Formulations and Specialty,mixed,medium_term,peer,Annual Report 2024-25 risk factors and business review,0.72
+nifty_50_shariah,SUNPHARMA,SUN PHARMACEUTICAL INDUSTRIES LTD.,regulatory compliance risk,regulatory risk,all,negative,near_to_medium_term,peer,Annual Report 2024-25 risk factors and business review,0.72
+nifty_500_shariah,SUPREMEIND,Supreme Industries Ltd.,order deferral or execution delay,execution risk,Capital Goods,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,SUPREMEIND,Supreme Industries Ltd.,commodity price volatility,raw material price risk,Capital Goods,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,SUZLON,Suzlon Energy Ltd.,order deferral or execution delay,execution risk,Capital Goods,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,SUZLON,Suzlon Energy Ltd.,commodity price volatility,raw material price risk,Capital Goods,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,SWANCORP,Swan Corp Ltd.,feedstock price volatility,raw material price risk,Chemicals,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,SWANCORP,Swan Corp Ltd.,regulatory or environmental action,regulatory risk,Chemicals,negative,medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,SWIGGY,Swiggy Ltd.,consumer demand slowdown,demand cyclicality,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,SWIGGY,Swiggy Ltd.,input-cost inflation,raw material price risk,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,SYNGENE,Syngene International Ltd.,regulatory compliance action,regulatory risk,all,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,SYNGENE,Syngene International Ltd.,pricing pressure or tender volatility,demand/pricing risk,all,mixed,medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,SYRMA,Syrma SGS Technology Ltd.,client discretionary-spend slowdown,demand cyclicality,Technology Services,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,SYRMA,Syrma SGS Technology Ltd.,wage inflation and attrition,labour risk,Technology Services,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,TARIL,Transformers & Rectifiers (India) Ltd.,order deferral or execution delay,execution risk,Capital Goods,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,TARIL,Transformers & Rectifiers (India) Ltd.,commodity price volatility,raw material price risk,Capital Goods,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,TATACHEM,Tata Chemicals Ltd.,feedstock price volatility,raw material price risk,Chemicals,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,TATACHEM,Tata Chemicals Ltd.,regulatory or environmental action,regulatory risk,Chemicals,negative,medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_50_shariah,TATACONSUM,TATA CONSUMER PRODUCTS LTD,agri commodity inflation,raw material price risk,all,negative,near_term,peer,Annual Report 2024-25 risk factors and business review,0.72
+nifty_50_shariah,TATACONSUM,TATA CONSUMER PRODUCTS LTD,integration and brand-extension execution,execution risk,India Foods,mixed,medium_term,peer,Annual Report 2024-25 risk factors and business review,0.72
+nifty_500_shariah,TATATECH,Tata Technologies Ltd.,client discretionary-spend slowdown,demand cyclicality,Technology Services,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,TATATECH,Tata Technologies Ltd.,wage inflation and attrition,labour risk,Technology Services,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,TBOTEK,TBO Tek Ltd.,consumer demand slowdown,demand cyclicality,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,TBOTEK,TBO Tek Ltd.,input-cost inflation,raw material price risk,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_50_shariah,TCS,TATA CONSULTANCY SERVICES LTD.,enterprise tech-spend slowdown,demand cyclicality,all,negative,near_to_medium_term,peer,Annual Report 2024-25 risk factors and business review,0.72
+nifty_50_shariah,TCS,TATA CONSULTANCY SERVICES LTD.,currency and wage pressure,currency risk,all,mixed,near_term,peer,Annual Report 2024-25 risk factors and business review,0.72
+nifty_50_shariah,TECHM,TECH MAHINDRA LTD.,telecom client spending slowdown,demand cyclicality,Communications,negative,near_to_medium_term,peer,Annual Report 2024-25 risk factors and business review,0.72
+nifty_50_shariah,TECHM,TECH MAHINDRA LTD.,margin recovery execution,execution risk,all,mixed,medium_term,peer,Annual Report 2024-25 risk factors and business review,0.72
+nifty_500_shariah,TEGA,Tega Industries Ltd.,order deferral or execution delay,execution risk,Capital Goods,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,TEGA,Tega Industries Ltd.,commodity price volatility,raw material price risk,Capital Goods,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,TENNIND,Tenneco Clean Air India Ltd.,auto demand slowdown,demand cyclicality,Automotive,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,TENNIND,Tenneco Clean Air India Ltd.,commodity and component inflation,raw material price risk,Automotive,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,THERMAX,Thermax Ltd.,order deferral or execution delay,execution risk,Capital Goods,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,THERMAX,Thermax Ltd.,commodity price volatility,raw material price risk,Capital Goods,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,TIINDIA,Tube Investments of India Ltd.,auto demand slowdown,demand cyclicality,Automotive,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,TIINDIA,Tube Investments of India Ltd.,commodity and component inflation,raw material price risk,Automotive,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,TIMKEN,Timken India Ltd.,order deferral or execution delay,execution risk,Capital Goods,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,TIMKEN,Timken India Ltd.,commodity price volatility,raw material price risk,Capital Goods,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,TITAGARH,Titagarh Rail Systems Ltd.,order deferral or execution delay,execution risk,Capital Goods,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,TITAGARH,Titagarh Rail Systems Ltd.,commodity price volatility,raw material price risk,Capital Goods,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_50_shariah,TMPV,Tata Motors Passenger Vehicles Limited,auto demand slowdown,demand cyclicality,all,negative,near_to_medium_term,peer,Annual Report 2024-25 risk factors and business review,0.72
+nifty_50_shariah,TMPV,Tata Motors Passenger Vehicles Limited,supply-chain and commodity inflation,raw material price risk,all,negative,near_term,peer,Annual Report 2024-25 risk factors and business review,0.72
+nifty_50_shariah,TMPV,Tata Motors Passenger Vehicles Limited,post-demerger comparability,corporate_action,all,mixed,near_term,company,Annual Report 2024-25 risk factors and business review,0.74
+nifty_500_shariah,TORNTPHARM,Torrent Pharmaceuticals Ltd.,regulatory compliance action,regulatory risk,all,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,TORNTPHARM,Torrent Pharmaceuticals Ltd.,pricing pressure or tender volatility,demand/pricing risk,all,mixed,medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,TORNTPOWER,Torrent Power Ltd.,commodity price and supply volatility,commodity risk,Energy and Utilities,mixed,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,TORNTPOWER,Torrent Power Ltd.,tariff or policy change,regulatory risk,Energy and Utilities,mixed,medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_50_shariah,TRENT,TRENT LTD.,discretionary demand slowdown,demand cyclicality,all,negative,near_term,peer,Annual Report 2024-25 risk factors and business review,0.72
+nifty_50_shariah,TRENT,TRENT LTD.,store rollout execution,execution risk,Zudio and Westside,mixed,medium_term,peer,Annual Report 2024-25 risk factors and business review,0.72
+nifty_500_shariah,TRIDENT,Trident Ltd.,consumer demand slowdown,demand cyclicality,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,TRIDENT,Trident Ltd.,input-cost inflation,raw material price risk,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_50_shariah,ULTRACEMCO,ULTRATECH CEMENT LTD.,fuel and freight inflation,raw material price risk,Grey Cement,negative,near_term,peer,Annual Report 2024-25 risk factors and business review,0.72
+nifty_50_shariah,ULTRACEMCO,ULTRATECH CEMENT LTD.,regional price competition,commodity cycle risk,Grey Cement,negative,near_to_medium_term,peer,Annual Report 2024-25 risk factors and business review,0.72
+nifty_500_shariah,UNOMINDA,UNO Minda Ltd.,auto demand slowdown,demand cyclicality,Automotive,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,UNOMINDA,UNO Minda Ltd.,commodity and component inflation,raw material price risk,Automotive,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,USHAMART,Usha Martin Ltd.,order deferral or execution delay,execution risk,Capital Goods,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,USHAMART,Usha Martin Ltd.,commodity price volatility,raw material price risk,Capital Goods,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,VMM,Vishal Mega Mart Ltd.,consumer demand slowdown,demand cyclicality,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,VMM,Vishal Mega Mart Ltd.,input-cost inflation,raw material price risk,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,VOLTAS,Voltas Ltd.,consumer demand slowdown,demand cyclicality,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,VOLTAS,Voltas Ltd.,input-cost inflation,raw material price risk,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,VTL,Vardhman Textiles Ltd.,consumer demand slowdown,demand cyclicality,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,VTL,Vardhman Textiles Ltd.,input-cost inflation,raw material price risk,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,WELCORP,Welspun Corp Ltd.,order deferral or execution delay,execution risk,Capital Goods,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,WELCORP,Welspun Corp Ltd.,commodity price volatility,raw material price risk,Capital Goods,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,WELSPUNLIV,Welspun Living Ltd.,consumer demand slowdown,demand cyclicality,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,WELSPUNLIV,Welspun Living Ltd.,input-cost inflation,raw material price risk,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,WHIRLPOOL,Whirlpool of India Ltd.,consumer demand slowdown,demand cyclicality,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,WHIRLPOOL,Whirlpool of India Ltd.,input-cost inflation,raw material price risk,Consumer Products,negative,near_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,WOCKPHARMA,Wockhardt Ltd.,regulatory compliance action,regulatory risk,all,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,WOCKPHARMA,Wockhardt Ltd.,pricing pressure or tender volatility,demand/pricing risk,all,mixed,medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,ZYDUSLIFE,Zydus Lifesciences Ltd.,regulatory compliance action,regulatory risk,all,negative,near_to_medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
+nifty_500_shariah,ZYDUSLIFE,Zydus Lifesciences Ltd.,pricing pressure or tender volatility,demand/pricing risk,all,mixed,medium_term,peer,Annual-report source inventory and sector risk mapping,0.58
