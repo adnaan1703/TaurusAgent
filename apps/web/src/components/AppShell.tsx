@@ -5,6 +5,7 @@ import {
   History,
   LayoutDashboard,
   ListTree,
+  Network,
   RefreshCw,
   Scale,
   ShieldCheck,
@@ -22,6 +23,7 @@ const navItems = [
   { to: "/risk", label: "Risk", icon: ShieldCheck },
   { to: "/portfolio", label: "Portfolio", icon: Wallet },
   { to: "/shariah", label: "Shariah", icon: Scale },
+  { to: "/graph", label: "Graph", icon: Network },
 ];
 
 export function AppShell() {

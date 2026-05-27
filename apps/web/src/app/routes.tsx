@@ -3,6 +3,12 @@ import type { RouteObject } from "react-router-dom";
 import { AppShell } from "../components/AppShell";
 import { RouteError } from "../components/RouteError";
 import { DecisionTrailPage } from "../features/DecisionTrailPage";
+import {
+  GraphCompanyPage,
+  GraphOverviewPage,
+  GraphReviewPage,
+  GraphSignalsPage,
+} from "../features/GraphPages";
 import { HistoryPage } from "../features/HistoryPage";
 import { OverviewPage } from "../features/OverviewPage";
 import { PortfolioPage } from "../features/PortfolioPage";
@@ -24,6 +30,10 @@ export const routes: RouteObject[] = [
       { path: "risk", element: <RiskPage /> },
       { path: "portfolio", element: <PortfolioPage /> },
       { path: "shariah", element: <ShariahPage /> },
+      { path: "graph", element: <GraphOverviewPage /> },
+      { path: "graph/company/:symbol", element: <GraphCompanyPage /> },
+      { path: "graph/edges/review", element: <GraphReviewPage /> },
+      { path: "graph/signals", element: <GraphSignalsPage /> },
       { path: "history", element: <HistoryPage /> },
     ],
   },

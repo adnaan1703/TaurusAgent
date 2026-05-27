@@ -2,10 +2,11 @@
 
 ## Current State
 
-- Backend tests: `make test` -> `106 passed` after M20.3.
-- Frontend tests: `make test-ui` -> last known `21 passed`; not rerun during M20.3.
-- Compile check: `make lint` -> passed after M20.3.
-- Git worktree contains M20.3 implementation changes until committed.
+- Backend tests: `make test` -> `106 passed` after M20.4.
+- Frontend tests: `make test-ui` -> `25 passed` after M20.4.
+- Compile check: `make lint` -> passed after M20.4.
+- Frontend build: `make build-ui` -> passed after M20.4.
+- Git worktree contains M20.4 implementation changes until committed.
 - Docker Compose services are not currently running, but Docker volumes exist: `taurusagent_postgres_data`, `taurusagent_grafana_data`.
 - A local ignored SQLite file exists: `taurus.db`, containing `10` instruments and `2520` daily candles. This means not all local state is only in Docker.
 - Local `.env` exists and contains only Kite keys. It does not set `DATABASE_URL`, `TAURUS_MARKET_DATA_PROVIDER`, or analyst settings.
@@ -22,10 +23,11 @@ Taurus is a local, observable paper-trading simulator for Indian cash equities. 
 - Run bull/bear research debate, trader proposal, risk review, and final approval.
 - Simulate orders, fills, positions, cash, costs, and slippage through `PaperBroker`.
 - Track paper runs with audit artifacts.
-- Expose FastAPI endpoints and read-only React dashboard.
+- Expose FastAPI endpoints and React dashboard.
 - Provide replay, backup/restore, alerts, Prometheus metrics, and Grafana dashboards.
 - Sync HalalStock compliance data and generate a halal NSE universe YAML.
-- Import TaurusData graph CSVs and expose Postgres-backed graph API endpoints.
+- Import TaurusData graph CSVs, expose Postgres-backed graph API endpoints, and
+  browse/review graph data in the React dashboard.
 
 **Key files:**
 
@@ -223,6 +225,22 @@ Candidate edge review endpoints are local-dashboard oriented and require
 curl -X POST http://localhost:8000/graph/edges/{edge_key}/promote
 curl -X POST http://localhost:8000/graph/edges/{edge_key}/reject
 ```
+
+## React Graph Dashboard
+
+After importing graph data and starting the API/UI, open:
+
+```text
+http://localhost:5173/graph
+http://localhost:5173/graph/company/INFY
+http://localhost:5173/graph/edges/review
+http://localhost:5173/graph/signals
+```
+
+The review route can promote or reject graph candidate edges only when the API
+is started with `TAURUS_GRAPH_ENABLED=true`. This mutates graph edge status
+metadata only; it does not route orders or bypass the existing paper-trading
+risk/final-approval flow.
 
 ## Main Gaps Before It Is "Super Ready"
 

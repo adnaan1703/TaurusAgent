@@ -154,7 +154,10 @@ Run the React dashboard:
 make ui
 ```
 
-Open `http://localhost:5173`. The React app reads the local FastAPI aggregate `/ui/*` endpoints and remains read-only.
+Open `http://localhost:5173`. The React app reads the local FastAPI `/ui/*`
+and `/graph/*` endpoints. The run-loop views remain read-only; the graph edge
+review route can promote or reject graph candidate edges only when
+`TAURUS_GRAPH_ENABLED=true`.
 
 Run a full mock paper loop and open the React dashboard in one command:
 

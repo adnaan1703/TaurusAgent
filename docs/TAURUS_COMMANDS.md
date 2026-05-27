@@ -420,6 +420,39 @@ sed -n '1,320p' /Users/adnaan/.codex/rules/default.rules
 sed -n '1,320p' .codex/rules/default.rules
 ```
 
+## M20.4 Commands Used
+
+```bash
+git status --short
+sed -n '1,260p' docs/TAURUS_MILESTONE_TODO.md
+sed -n '1,260p' docs/TAURUS_GRAPH_INTELLIGENCE_PLAN.md
+rg --files
+sed -n '1,260p' apps/web/src/api/client.ts
+sed -n '1,260p' apps/web/src/api/types.ts
+sed -n '1,260p' apps/web/src/app/routes.tsx
+sed -n '1,260p' apps/web/src/components/AppShell.tsx
+sed -n '1,260p' apps/web/src/features/ShariahPage.tsx
+pnpm build
+pnpm test -- GraphPages
+make test-ui
+make build-ui
+make test
+make lint
+DATABASE_URL=sqlite:////private/tmp/taurus-m20-4-ui.db make migrate
+DATABASE_URL=sqlite:////private/tmp/taurus-m20-4-ui.db make import-taurus-graph DATA_DIR=configs/taurus_data
+DATABASE_URL=sqlite:////private/tmp/taurus-m20-4-ui.db TAURUS_GRAPH_ENABLED=true make api
+make ui
+'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' --headless=new --disable-gpu --hide-scrollbars --window-size=1440,1000 --virtual-time-budget=5000 --dump-dom http://127.0.0.1:5173/graph
+'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' --headless=new --disable-gpu --hide-scrollbars --window-size=1440,1000 --virtual-time-budget=5000 --dump-dom http://127.0.0.1:5173/graph/company/INFY
+'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' --headless=new --disable-gpu --hide-scrollbars --window-size=1440,1000 --virtual-time-budget=5000 --dump-dom http://127.0.0.1:5173/graph/edges/review
+'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' --headless=new --disable-gpu --hide-scrollbars --window-size=1440,1000 --virtual-time-budget=5000 --dump-dom http://127.0.0.1:5173/graph/signals
+lsof -iTCP:8000 -sTCP:LISTEN -n -P
+lsof -iTCP:5173 -sTCP:LISTEN -n -P
+kill 61419 61444 61436
+cat /Users/adnaan/.codex/rules/default.rules
+cat .codex/rules/default.rules
+```
+
 ## Current Make Targets
 
 ```bash

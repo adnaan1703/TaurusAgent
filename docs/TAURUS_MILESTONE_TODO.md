@@ -79,7 +79,7 @@ submilestone unless the user explicitly asks to proceed.
 | M20.1 | Done | Postgres graph settings, graph tables, metadata migration path, and idempotent graph repository upserts/read paths. |
 | M20.2 | Done | TaurusData CSV graph importer, CLI/Make target, idempotent active/candidate/evidence import from `configs/taurus_data/`. |
 | M20.3 | Done | FastAPI graph API vertical slice backed by Postgres, with local-dashboard edge review endpoints. |
-| M20.4 | Planned | React graph dashboard vertical slice. |
+| M20.4 | Done | React graph dashboard routes for overview, company graph, candidate review, and graph signals. |
 | M20.5 | Planned | Optional Neo4j projection/read model. |
 | M20.6 | Planned | Graph statistical validation engine. |
 | M20.7 | Planned | Deterministic `GraphAnalystAgent`. |
@@ -96,7 +96,7 @@ submilestone unless the user explicitly asks to proceed.
 - Optional mock/LM Studio/OpenAI LLM providers.
 - Bull/bear debate, trader proposal, risk review, and final approval.
 - Internal simulated paper execution through `PaperBroker`.
-- Read-only React dashboard at `http://localhost:5173`.
+- React dashboard at `http://localhost:5173`, including graph browsing and gated graph edge review.
 - Streamlit fallback dashboard.
 - Shariah compliance dashboard backed by imported HalalStock rows.
 - Replay, backup/restore, alerts, Prometheus metrics, and Grafana dashboards.
@@ -115,22 +115,25 @@ submilestone unless the user explicitly asks to proceed.
 - [ ] Add a real news/data provider if news or sentiment risk is enabled.
 - [ ] Add dashboard/API auth before using Taurus beyond a trusted local machine.
 - [ ] Verify real Telegram alert delivery with local-only credentials.
-- [ ] Start M20.4 only after a fresh explicit request.
+- [ ] Start M20.5 only after a fresh explicit request.
 
-## Latest Completion Summary - M20.3
+## Latest Completion Summary - M20.4
 
-- Assumptions made: M20.3 is backend API-only; React graph dashboard work
-  remains deferred to M20.4; Neo4j is absent and not required; read endpoints
-  expose Postgres graph data regardless of the graph feature flag, while
-  promote/reject review endpoints require `TAURUS_GRAPH_ENABLED=true`.
-- Mocks created: Synthetic graph API fixture rows in
-  `tests/unit/test_graph_api.py`.
-- Mocks used: The synthetic unit-test graph fixture; no external services.
-- Verification: `uv run pytest tests/unit/test_graph_api.py` passed (3);
-  `uv run pytest tests/unit/test_graph_repository.py tests/unit/test_graph_importer.py tests/unit/test_graph_api.py`
-  passed (8); `make test` passed (106); `make lint` passed; milestone cleanup
-  inspected `/Users/adnaan/.codex/rules/default.rules` and found no accidental
-  Taurus approvals after the user's marker.
+- Assumptions made: M20.4 is a React dashboard vertical slice backed by the
+  existing M20.3 FastAPI graph endpoints; Neo4j remains absent; graph edge
+  review is limited to graph metadata promotion/rejection and does not touch
+  paper trading, broker routing, or risk approval.
+- Mocks created: Synthetic graph API responses in
+  `apps/web/src/features/GraphPages.test.tsx`.
+- Mocks used: The synthetic Vitest graph responses; a local ignored SQLite
+  smoke database at `/private/tmp/taurus-m20-4-ui.db` populated from
+  `configs/taurus_data/`; no external services.
+- Verification: `make test-ui` passed (25); `make build-ui` passed;
+  `make test` passed (106); `make lint` passed; local headless Chrome rendered
+  `/graph`, `/graph/company/INFY`, `/graph/edges/review`, and `/graph/signals`
+  against the imported graph database; milestone cleanup inspected
+  `/Users/adnaan/.codex/rules/default.rules` and found no accidental Taurus
+  approvals after the user's marker.
 
 ## Deprecated Direction
 

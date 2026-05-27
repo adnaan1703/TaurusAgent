@@ -48,6 +48,7 @@ describe("AppShell", () => {
     expect(await screen.findByRole("heading", { name: "Paper Runs" })).toBeInTheDocument();
     expect(screen.getAllByText("Overview")[0]).toBeInTheDocument();
     expect(screen.getAllByText("Shariah")[0]).toBeInTheDocument();
+    expect(screen.getAllByText("Graph")[0]).toBeInTheDocument();
     expect(await screen.findAllByText("Live disabled")).toHaveLength(2);
     expect(screen.getByText("No run data")).toBeInTheDocument();
   });

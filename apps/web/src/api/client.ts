@@ -1,4 +1,12 @@
 import type {
+  GraphBullishCandidateListResponse,
+  GraphCompanySubgraphResponse,
+  GraphEdgeDetailResponse,
+  GraphEdgeListResponse,
+  GraphEdgeStatusFilter,
+  GraphOverviewResponse,
+  GraphReviewAction,
+  GraphSignalListResponse,
   UiDecisionTrailResponse,
   UiHistoryResponse,
   UiOverviewResponse,
@@ -92,4 +100,102 @@ export const taurusApi = {
     apiFetch<UiReplayResponse>(`/ui/replay/${decisionId}`),
   risk: () => apiFetch<UiRiskResponse>("/ui/risk"),
   portfolio: () => apiFetch<UiPortfolioResponse>("/ui/portfolio"),
+  graphOverview: () => apiFetch<GraphOverviewResponse>("/graph/overview"),
+  graphCompany: ({
+    symbol,
+    status = "all",
+    limit = 250,
+  }: {
+    symbol: string;
+    status?: GraphEdgeStatusFilter;
+    limit?: number;
+  }) => {
+    const params = new URLSearchParams({
+      status,
+      limit: String(limit),
+    });
+    return apiFetch<GraphCompanySubgraphResponse>(
+      `/graph/company/${encodeURIComponent(symbol)}?${params.toString()}`,
+    );
+  },
+  graphCandidateEdges: ({
+    edgeType,
+    limit = 100,
+  }: {
+    edgeType?: string;
+    limit?: number;
+  } = {}) => {
+    const params = new URLSearchParams({ limit: String(limit) });
+    if (edgeType) {
+      params.set("edge_type", edgeType);
+    }
+    return apiFetch<GraphEdgeListResponse>(`/graph/candidate-edges?${params.toString()}`);
+  },
+  graphEdgeDetail: (edgeKey: string) =>
+    apiFetch<GraphEdgeDetailResponse>(`/graph/edges/${encodeURIComponent(edgeKey)}`),
+  graphReviewEdge: ({
+    edgeKey,
+    action,
+    reviewedBy = "dashboard",
+    note = "",
+  }: {
+    edgeKey: string;
+    action: GraphReviewAction;
+    reviewedBy?: string;
+    note?: string;
+  }) =>
+    apiFetch<GraphEdgeDetailResponse>(
+      `/graph/edges/${encodeURIComponent(edgeKey)}/${action}`,
+      {
+        body: JSON.stringify({ reviewed_by: reviewedBy, note }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      },
+    ),
+  graphSignals: ({
+    symbol,
+    sourceAgent,
+    includeContributions = true,
+    limit = 100,
+  }: {
+    symbol?: string;
+    sourceAgent?: string;
+    includeContributions?: boolean;
+    limit?: number;
+  } = {}) => {
+    const params = new URLSearchParams({
+      include_contributions: String(includeContributions),
+      limit: String(limit),
+    });
+    if (symbol) {
+      params.set("symbol", symbol);
+    }
+    if (sourceAgent) {
+      params.set("source_agent", sourceAgent);
+    }
+    return apiFetch<GraphSignalListResponse>(`/graph/signals?${params.toString()}`);
+  },
+  graphBullishCandidates: ({
+    symbol,
+    minScore = 0.01,
+    includeContributions = true,
+    limit = 50,
+  }: {
+    symbol?: string;
+    minScore?: number;
+    includeContributions?: boolean;
+    limit?: number;
+  } = {}) => {
+    const params = new URLSearchParams({
+      min_score: String(minScore),
+      include_contributions: String(includeContributions),
+      limit: String(limit),
+    });
+    if (symbol) {
+      params.set("symbol", symbol);
+    }
+    return apiFetch<GraphBullishCandidateListResponse>(
+      `/graph/bullish-candidates?${params.toString()}`,
+    );
+  },
 };

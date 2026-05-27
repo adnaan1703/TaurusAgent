@@ -239,3 +239,154 @@ export type UiShariahResponse = {
   latest_import?: UiHalalStockLatestImport | null;
   halal_universe_export: UiHalalUniverseExport;
 };
+
+export type GraphDecimal = string | number;
+export type GraphEdgeStatusFilter = "all" | "active" | "candidate" | "rejected";
+export type GraphReviewAction = "promote" | "reject";
+
+export type GraphNode = {
+  id: number;
+  node_key: string;
+  node_type: string;
+  display_name: string;
+  symbol?: string | null;
+  isin?: string | null;
+  metadata: JsonObject;
+  created_at: string;
+  updated_at: string;
+};
+
+export type GraphEdge = {
+  id: number;
+  edge_key: string;
+  source_node_id: number;
+  source_node_key: string;
+  source_display_name: string;
+  target_node_id: number;
+  target_node_key: string;
+  target_display_name: string;
+  edge_type: string;
+  direction: string;
+  expected_sign: string;
+  strength?: GraphDecimal | null;
+  evidence_type: string;
+  confidence: GraphDecimal;
+  inferred: boolean;
+  mechanism: string;
+  tradability_relevance: string;
+  status: string;
+  valid_from?: string | null;
+  valid_to?: string | null;
+  source_file: string;
+  source_row_hash: string;
+  metadata: JsonObject;
+  created_at: string;
+  updated_at: string;
+};
+
+export type GraphEdgeEvidence = {
+  evidence_id: string;
+  edge_key: string;
+  claim_type: string;
+  claim_summary: string;
+  source_title: string;
+  source_type: string;
+  source_date?: string | null;
+  source_url_or_reference: string;
+  page_or_section: string;
+  verbatim_excerpt_short: string;
+  confidence: GraphDecimal;
+  source_file: string;
+  source_row_hash: string;
+  metadata: JsonObject;
+  created_at: string;
+  updated_at: string;
+};
+
+export type GraphEdgeStats = {
+  id: number;
+  edge_key: string;
+  window: string;
+  as_of_date: string;
+  sample_size: number;
+  raw_correlation?: GraphDecimal | null;
+  residual_correlation?: GraphDecimal | null;
+  lead_lag_score?: GraphDecimal | null;
+  stability_score?: GraphDecimal | null;
+  p_value?: GraphDecimal | null;
+  insufficient_data_reason: string;
+  model_version: string;
+  metadata: JsonObject;
+  created_at: string;
+  updated_at: string;
+};
+
+export type GraphSignalContribution = {
+  contribution_id: string;
+  signal_id: string;
+  edge_key?: string | null;
+  node_key?: string | null;
+  contribution_type: string;
+  direction: string;
+  score_contribution: GraphDecimal;
+  weight: GraphDecimal;
+  explanation: string;
+  metadata: JsonObject;
+  created_at: string;
+  updated_at: string;
+};
+
+export type GraphSignal = {
+  signal_id: string;
+  symbol: string;
+  as_of: string;
+  score: GraphDecimal;
+  confidence: GraphDecimal;
+  horizon: string;
+  explanation: string;
+  source_agent: string;
+  metadata: JsonObject;
+  contributions: GraphSignalContribution[];
+  created_at: string;
+  updated_at: string;
+};
+
+export type GraphOverviewResponse = {
+  graph_enabled: boolean;
+  graph_risk_enabled: boolean;
+  graph_auto_promote_edges: boolean;
+  neo4j_enabled: boolean;
+  generated_at: string;
+  counts: Record<string, number>;
+};
+
+export type GraphCompanySubgraphResponse = {
+  symbol: string;
+  center_node: GraphNode;
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+  counts: Record<string, number>;
+};
+
+export type GraphEdgeDetailResponse = {
+  edge: GraphEdge;
+  source_node: GraphNode;
+  target_node: GraphNode;
+  evidence: GraphEdgeEvidence[];
+  stats: GraphEdgeStats[];
+};
+
+export type GraphEdgeListResponse = {
+  total_returned: number;
+  edges: GraphEdge[];
+};
+
+export type GraphSignalListResponse = {
+  total_returned: number;
+  signals: GraphSignal[];
+};
+
+export type GraphBullishCandidateListResponse = {
+  total_returned: number;
+  candidates: GraphSignal[];
+};
