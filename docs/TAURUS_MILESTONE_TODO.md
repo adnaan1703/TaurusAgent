@@ -11,6 +11,7 @@ Last updated: 2026-05-27
 - `README.md`: project overview, setup, and primary workflow.
 - `docs/TAURUS_USAGE_GUIDE.md`: current operating guide and known gaps.
 - `docs/TAURUS_COMMANDS.md`: command reference and project-local approval notes.
+- `docs/TAURUS_GRAPH_INTELLIGENCE_PLAN.md`: repo-specific M20 graph intelligence plan.
 - `docs/stitch/paper-trade-event-monitor/`: preserved UI reference assets for future dashboard work.
 
 ## Safety Rules
@@ -61,6 +62,31 @@ global file. Do not copy unrelated global approvals.
 | M18 | Done | HalalStock compliance sync and halal NSE universe export. |
 | M19 | Done | Shariah dashboard and paper-run universe provenance. |
 
+## Planned Graph Intelligence Milestones
+
+`docs/TAURUS_DATA_INTEGRATION.md` is outside-source reference material only.
+Use `docs/TAURUS_GRAPH_INTELLIGENCE_PLAN.md` and this tracker as the active
+implementation source for M20 work.
+
+Treat M20 submilestones exactly like main milestones. After one M20 submilestone
+is complete, verified, cleaned up, and documented with its completion summary,
+stop and report what was achieved. Do not automatically begin the next M20
+submilestone unless the user explicitly asks to proceed.
+
+| Milestone | Status | Current Result |
+|---|---|---|
+| M20.0 | Done | Created repo-specific graph intelligence plan and M20 milestone tracker; no runtime behavior changes. |
+| M20.1 | Planned | Postgres graph foundation with safe disabled-by-default graph settings. |
+| M20.2 | Planned | TaurusData CSV graph importer for `configs/taurus_data/`. |
+| M20.3 | Planned | FastAPI graph API vertical slice backed by Postgres. |
+| M20.4 | Planned | React graph dashboard vertical slice. |
+| M20.5 | Planned | Optional Neo4j projection/read model. |
+| M20.6 | Planned | Graph statistical validation engine. |
+| M20.7 | Planned | Deterministic `GraphAnalystAgent`. |
+| M20.8 | Planned | Optional graph-aware risk checks. |
+| M20.9 | Planned | Graph observability metrics and dashboards. |
+| M20.10 | Planned | Graph-aware backtesting with look-ahead prevention. |
+
 ## Current Capabilities
 
 - Deterministic mock-data paper workflow.
@@ -89,6 +115,7 @@ global file. Do not copy unrelated global approvals.
 - [ ] Add a real news/data provider if news or sentiment risk is enabled.
 - [ ] Add dashboard/API auth before using Taurus beyond a trusted local machine.
 - [ ] Verify real Telegram alert delivery with local-only credentials.
+- [ ] Start M20.1 only after a fresh explicit request.
 
 ## Deprecated Direction
 

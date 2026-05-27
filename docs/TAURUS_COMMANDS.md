@@ -339,6 +339,25 @@ PY
 date '+%Y-%m-%d %H:%M %Z'
 ```
 
+## M20.0 Commands Used
+
+```bash
+git status --short
+sed -n '1,260p' docs/TAURUS_DATA_INTEGRATION.md
+sed -n '1,220p' docs/TAURUS_MILESTONE_TODO.md
+find packages/taurus_core -maxdepth 3 -type f | sort
+find apps -maxdepth 4 -type f | sort
+find scripts tests/unit configs infra -maxdepth 3 -type f | sort
+sed -n '1,280p' packages/taurus_core/config.py
+sed -n '1,220p' apps/api/main.py
+sed -n '1,180p' scripts/migrate.py
+sed -n '1,220p' apps/web/src/app/routes.tsx
+sed -n '1,220p' apps/web/src/api/client.ts
+sed -n '1,260p' /Users/adnaan/.codex/rules/default.rules
+make test
+make lint
+```
+
 ## Current Make Targets
 
 ```bash
