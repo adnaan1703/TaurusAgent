@@ -1,0 +1,1390 @@
+universe_name: nifty_500_shariah
+default_exchange: NSE
+default_segment: EQUITY
+symbols:
+- symbol: 3MINDIA
+  name: 3M India Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: 3MINDIA
+- symbol: ABFRL
+  name: Aditya Birla Fashion and Retail Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: ABFRL
+- symbol: ABLBL
+  name: Aditya Birla Lifestyle Brands Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: ABLBL
+- symbol: ACE
+  name: Action Construction Equipment Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: ACE
+- symbol: ACUTAAS
+  name: Acutaas Chemicals Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: ACUTAAS
+- symbol: AFCONS
+  name: Afcons Infrastructure Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: AFCONS
+- symbol: AJANTPHARM
+  name: Ajanta Pharma Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: AJANTPHARM
+- symbol: ALKEM
+  name: Alkem Laboratories Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: ALKEM
+- symbol: AMBER
+  name: Amber Enterprises India Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: AMBER
+- symbol: ANANTRAJ
+  name: Anant Raj Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: ANANTRAJ
+- symbol: APARINDS
+  name: Apar Industries Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: APARINDS
+- symbol: APLAPOLLO
+  name: APL Apollo Tubes Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: APLAPOLLO
+- symbol: APOLLOTYRE
+  name: Apollo Tyres Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: APOLLOTYRE
+- symbol: ARE&M
+  name: Amara Raja Energy & Mobility Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: ARE&M
+- symbol: ASIANPAINT
+  name: Asian Paints Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: ASIANPAINT
+- symbol: ASTERDM
+  name: Aster DM Healthcare Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: ASTERDM
+- symbol: ASTRAL
+  name: Astral Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: ASTRAL
+- symbol: ATGL
+  name: Adani Total Gas Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: ATGL
+- symbol: ATUL
+  name: Atul Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: ATUL
+- symbol: AUROPHARMA
+  name: Aurobindo Pharma Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: AUROPHARMA
+- symbol: BALKRISIND
+  name: Balkrishna Industries Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: BALKRISIND
+- symbol: BATAINDIA
+  name: Bata India Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: BATAINDIA
+- symbol: BAYERCROP
+  name: Bayer Cropscience Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: BAYERCROP
+- symbol: BBTC
+  name: The Bombay Burmah Trading Corporation Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: BBTC
+- symbol: BERGEPAINT
+  name: Berger Paints (India) Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: BERGEPAINT
+- symbol: BHEL
+  name: Bharat Heavy Electricals Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: BHEL
+- symbol: BIKAJI
+  name: Bikaji Foods International Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: BIKAJI
+- symbol: BLUEDART
+  name: Blue Dart Express Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: BLUEDART
+- symbol: BLUEJET
+  name: Blue Jet Healthcare Ltd
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: BLUEJET
+- symbol: BLUESTARCO
+  name: Blue Star Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: BLUESTARCO
+- symbol: BPCL
+  name: Bharat Petroleum Corporation Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: BPCL
+- symbol: BRITANNIA
+  name: Britannia Industries Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: BRITANNIA
+- symbol: BSOFT
+  name: Birlasoft Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: BSOFT
+- symbol: CARBORUNIV
+  name: Carborundum Universal Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: CARBORUNIV
+- symbol: CASTROLIND
+  name: Castrol India Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: CASTROLIND
+- symbol: CEATLTD
+  name: Ceat Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: CEATLTD
+- symbol: CEMPRO
+  name: Cemindia Projects Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: CEMPRO
+- symbol: CGPOWER
+  name: CG Power and Industrial Solutions Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: CGPOWER
+- symbol: CHAMBLFERT
+  name: Chambal Fertilisers & Chemicals Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: CHAMBLFERT
+- symbol: CHENNPETRO
+  name: Chennai Petroleum Corporation Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: CHENNPETRO
+- symbol: CIPLA
+  name: Cipla Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: CIPLA
+- symbol: COFORGE
+  name: Coforge Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: COFORGE
+- symbol: COHANCE
+  name: Cohance Lifesciences Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: COHANCE
+- symbol: COLPAL
+  name: Colgate-Palmolive (India) Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: COLPAL
+- symbol: CONCORDBIO
+  name: Concord Biotech Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: CONCORDBIO
+- symbol: COROMANDEL
+  name: Coromandel International Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: COROMANDEL
+- symbol: CPPLUS
+  name: Aditya Infotech Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: CPPLUS
+- symbol: CRISIL
+  name: Crisil Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: CRISIL
+- symbol: CROMPTON
+  name: Crompton Greaves Consumer Electricals Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: CROMPTON
+- symbol: CUMMINSIND
+  name: Cummins India Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: CUMMINSIND
+- symbol: CYIENT
+  name: Cyient Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: CYIENT
+- symbol: DALBHARAT
+  name: Dalmia Bharat Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: DALBHARAT
+- symbol: DEEPAKNTR
+  name: Deepak Nitrite Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: DEEPAKNTR
+- symbol: DIXON
+  name: Dixon Technologies (India) Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: DIXON
+- symbol: DMART
+  name: Avenue Supermarts Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: DMART
+- symbol: DOMS
+  name: DOMS Industries Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: DOMS
+- symbol: DRREDDY
+  name: Dr. Reddy's Laboratories Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: DRREDDY
+- symbol: ECLERX
+  name: eClerx Services Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: ECLERX
+- symbol: ELECON
+  name: Elecon Engineering Company Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: ELECON
+- symbol: ELGIEQUIP
+  name: Elgi Equipments Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: ELGIEQUIP
+- symbol: EMAMILTD
+  name: Emami Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: EMAMILTD
+- symbol: EMCURE
+  name: Emcure Pharmaceuticals Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: EMCURE
+- symbol: ENDURANCE
+  name: Endurance Technologies Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: ENDURANCE
+- symbol: ENRIN
+  name: Siemens Energy India Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: ENRIN
+- symbol: EXIDEIND
+  name: Exide Industries Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: EXIDEIND
+- symbol: FINCABLES
+  name: Finolex Cables Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: FINCABLES
+- symbol: FIRSTCRY
+  name: Brainbees Solutions Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: FIRSTCRY
+- symbol: FLUOROCHEM
+  name: Gujarat Fluorochemicals Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: FLUOROCHEM
+- symbol: FORCEMOT
+  name: Force Motors Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: FORCEMOT
+- symbol: FORTIS
+  name: Fortis Healthcare Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: FORTIS
+- symbol: FSL
+  name: Firstsource Solutions Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: FSL
+- symbol: GABRIEL
+  name: Gabriel India Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: GABRIEL
+- symbol: GAIL
+  name: GAIL (India) Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: GAIL
+- symbol: GALLANTT
+  name: Gallantt Ispat Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: GALLANTT
+- symbol: GILLETTE
+  name: Gillette India Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: GILLETTE
+- symbol: GLENMARK
+  name: Glenmark Pharmaceuticals Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: GLENMARK
+- symbol: GODREJCP
+  name: Godrej Consumer Products Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: GODREJCP
+- symbol: GPIL
+  name: Godawari Power & Ispat Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: GPIL
+- symbol: GRANULES
+  name: Granules India Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: GRANULES
+- symbol: GRAVITA
+  name: Gravita India Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: GRAVITA
+- symbol: GVT&D
+  name: GE Vernova T&D India Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: GVT&D
+- symbol: HAVELLS
+  name: Havells India Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: HAVELLS
+- symbol: HCLTECH
+  name: HCL Technologies Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: HCLTECH
+- symbol: HEG
+  name: HEG Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: HEG
+- symbol: HEROMOTOCO
+  name: Hero MotoCorp Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: HEROMOTOCO
+- symbol: HEXT
+  name: Hexaware Technologies Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: HEXT
+- symbol: HFCL
+  name: HFCL Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: HFCL
+- symbol: HINDALCO
+  name: Hindalco Industries Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: HINDALCO
+- symbol: HINDCOPPER
+  name: Hindustan Copper Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: HINDCOPPER
+- symbol: HINDUNILVR
+  name: Hindustan Unilever Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: HINDUNILVR
+- symbol: HSCL
+  name: Himadri Speciality Chemical Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: HSCL
+- symbol: HYUNDAI
+  name: Hyundai Motor India Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: HYUNDAI
+- symbol: IGL
+  name: Indraprastha Gas Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: IGL
+- symbol: INDUSTOWER
+  name: Indus Towers Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: INDUSTOWER
+- symbol: INFY
+  name: Infosys Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: INFY
+- symbol: INOXWIND
+  name: Inox Wind Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: INOXWIND
+- symbol: IPCALAB
+  name: Ipca Laboratories Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: IPCALAB
+- symbol: ITI
+  name: ITI Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: ITI
+- symbol: JBCHEPHARM
+  name: J B Chemicals & Pharmaceuticals Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: JBCHEPHARM
+- symbol: JINDALSAW
+  name: Jindal Saw Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: JINDALSAW
+- symbol: JINDALSTEL
+  name: Jindal Steel Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: JINDALSTEL
+- symbol: JSL
+  name: Jindal Stainless Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: JSL
+- symbol: JSWDULUX
+  name: JSW Dulux Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: JSWDULUX
+- symbol: JUBLINGREA
+  name: Jubilant Ingrevia Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: JUBLINGREA
+- symbol: JUBLPHARMA
+  name: Jubilant Pharmova Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: JUBLPHARMA
+- symbol: JWL
+  name: Jupiter Wagons Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: JWL
+- symbol: JYOTICNC
+  name: Jyoti CNC Automation Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: JYOTICNC
+- symbol: KAJARIACER
+  name: Kajaria Ceramics Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: KAJARIACER
+- symbol: KEC
+  name: KEC International Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: KEC
+- symbol: KEI
+  name: KEI Industries Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: KEI
+- symbol: KPIL
+  name: Kalpataru Projects International Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: KPIL
+- symbol: KPITTECH
+  name: KPIT Technologies Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: KPITTECH
+- symbol: LINDEINDIA
+  name: Linde India Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: LINDEINDIA
+- symbol: LLOYDSME
+  name: Lloyds Metals & Energy Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: LLOYDSME
+- symbol: LODHA
+  name: Lodha Developers Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: LODHA
+- symbol: LTFOODS
+  name: LT Foods Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: LTFOODS
+- symbol: LTM
+  name: LTM Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: LTM
+- symbol: LTTS
+  name: L&T Technology Services Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: LTTS
+- symbol: LUPIN
+  name: Lupin Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: LUPIN
+- symbol: MARICO
+  name: Marico Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: MARICO
+- symbol: MAXHEALTH
+  name: Max Healthcare Institute Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: MAXHEALTH
+- symbol: MEDANTA
+  name: Global Health Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: MEDANTA
+- symbol: MGL
+  name: Mahanagar Gas Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: MGL
+- symbol: MOTHERSON
+  name: Samvardhana Motherson International Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: MOTHERSON
+- symbol: MPHASIS
+  name: MphasiS Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: MPHASIS
+- symbol: MRF
+  name: MRF Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: MRF
+- symbol: MSUMI
+  name: Motherson Sumi Wiring India Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: MSUMI
+- symbol: NATIONALUM
+  name: National Aluminium Company Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: NATIONALUM
+- symbol: NAVA
+  name: NAVA Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: NAVA
+- symbol: NBCC
+  name: NBCC (India) Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: NBCC
+- symbol: NCC
+  name: NCC Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: NCC
+- symbol: NESTLEIND
+  name: Nestle India Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: NESTLEIND
+- symbol: NETWEB
+  name: Netweb Technologies India Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: NETWEB
+- symbol: NEULANDLAB
+  name: Neuland Laboratories Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: NEULANDLAB
+- symbol: NSLNISP
+  name: NMDC Steel Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: NSLNISP
+- symbol: NUVOCO
+  name: Nuvoco Vistas Corporation Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: NUVOCO
+- symbol: OLECTRA
+  name: Olectra Greentech Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: OLECTRA
+- symbol: ONGC
+  name: Oil And Natural Gas Corporation Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: ONGC
+- symbol: PAGEIND
+  name: Page Industries Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: PAGEIND
+- symbol: PATANJALI
+  name: Patanjali Foods Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: PATANJALI
+- symbol: PERSISTENT
+  name: Persistent Systems Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: PERSISTENT
+- symbol: PETRONET
+  name: Petronet LNG Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: PETRONET
+- symbol: PGEL
+  name: PG Electroplast Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: PGEL
+- symbol: PIDILITIND
+  name: Pidilite Industries Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: PIDILITIND
+- symbol: POLYCAB
+  name: Polycab India Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: POLYCAB
+- symbol: POWERINDIA
+  name: Hitachi Energy India Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: POWERINDIA
+- symbol: RAILTEL
+  name: RailTel Corporation of India Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: RAILTEL
+- symbol: REDINGTON
+  name: Redington Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: REDINGTON
+- symbol: RHIM
+  name: RHI Magnesita India Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: RHIM
+- symbol: RRKABEL
+  name: R R Kabel Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: RRKABEL
+- symbol: RVNL
+  name: Rail Vikas Nigam Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: RVNL
+- symbol: SAGILITY
+  name: Sagility Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: SAGILITY
+- symbol: SAIL
+  name: Steel Authority of India (SAIL) Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: SAIL
+- symbol: SAILIFE
+  name: Sai Life Science Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: SAILIFE
+- symbol: SCHAEFFLER
+  name: Schaeffler India Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: SCHAEFFLER
+- symbol: SCI
+  name: Shipping Corporation of India Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: SCI
+- symbol: SHYAMMETL
+  name: Shyam Metalics and Energy Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: SHYAMMETL
+- symbol: SOBHA
+  name: Sobha Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: SOBHA
+- symbol: SONATSOFTW
+  name: Sonata Software Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: SONATSOFTW
+- symbol: SPLPETRO
+  name: Supreme Petrochem Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: SPLPETRO
+- symbol: SRF
+  name: SRF Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: SRF
+- symbol: SUNPHARMA
+  name: Sun Pharmaceutical Industries Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: SUNPHARMA
+- symbol: SUPREMEIND
+  name: Supreme Industries Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: SUPREMEIND
+- symbol: SUZLON
+  name: Suzlon Energy Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: SUZLON
+- symbol: SWANCORP
+  name: Swan Corp Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: SWANCORP
+- symbol: SWIGGY
+  name: Swiggy Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: SWIGGY
+- symbol: SYNGENE
+  name: Syngene International Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: SYNGENE
+- symbol: SYRMA
+  name: Syrma SGS Technology Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: SYRMA
+- symbol: TARIL
+  name: Transformers & Rectifiers (India) Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: TARIL
+- symbol: TATACHEM
+  name: Tata Chemicals Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: TATACHEM
+- symbol: TATACONSUM
+  name: Tata Consumer Products Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: TATACONSUM
+- symbol: TATATECH
+  name: Tata Technologies Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: TATATECH
+- symbol: TBOTEK
+  name: TBO Tek Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: TBOTEK
+- symbol: TCS
+  name: Tata Consultancy Services Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: TCS
+- symbol: TECHM
+  name: Tech Mahindra Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: TECHM
+- symbol: TEGA
+  name: Tega Industries Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: TEGA
+- symbol: TENNIND
+  name: Tenneco Clean Air India Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: TENNIND
+- symbol: THERMAX
+  name: Thermax Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: THERMAX
+- symbol: TIINDIA
+  name: Tube Investments of India Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: TIINDIA
+- symbol: TIMKEN
+  name: Timken India Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: TIMKEN
+- symbol: TITAGARH
+  name: Titagarh Rail Systems Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: TITAGARH
+- symbol: TMPV
+  name: Tata Motors Passenger Vehicles Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: TMPV
+- symbol: TORNTPHARM
+  name: Torrent Pharmaceuticals Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: TORNTPHARM
+- symbol: TORNTPOWER
+  name: Torrent Power Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: TORNTPOWER
+- symbol: TRENT
+  name: Trent Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: TRENT
+- symbol: TRIDENT
+  name: Trident Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: TRIDENT
+- symbol: ULTRACEMCO
+  name: UltraTech Cement Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: ULTRACEMCO
+- symbol: UNOMINDA
+  name: UNO Minda Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: UNOMINDA
+- symbol: USHAMART
+  name: Usha Martin Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: USHAMART
+- symbol: VMM
+  name: Vishal Mega Mart Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: VMM
+- symbol: VOLTAS
+  name: Voltas Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: VOLTAS
+- symbol: VTL
+  name: Vardhman Textiles Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: VTL
+- symbol: WELCORP
+  name: Welspun Corp Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: WELCORP
+- symbol: WELSPUNLIV
+  name: Welspun Living Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: WELSPUNLIV
+- symbol: WHIRLPOOL
+  name: Whirlpool of India Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: WHIRLPOOL
+- symbol: WOCKPHARMA
+  name: Wockhardt Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: WOCKPHARMA
+- symbol: ZYDUSLIFE
+  name: Zydus Lifesciences Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: ZYDUSLIFE
+- symbol: ZYDUSWELL
+  name: Zydus Wellness Ltd.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: ZYDUSWELL
