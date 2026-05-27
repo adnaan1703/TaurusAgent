@@ -1373,6 +1373,19 @@ class GraphRepository:
         )
         return self.session.scalar(statement)
 
+    def get_node_by_id(self, node_id: int) -> GraphNodeModel | None:
+        return self.session.get(GraphNodeModel, node_id)
+
+    def list_nodes_by_ids(self, node_ids: set[int]) -> list[GraphNodeModel]:
+        if not node_ids:
+            return []
+        statement = (
+            select(GraphNodeModel)
+            .where(GraphNodeModel.id.in_(node_ids))
+            .order_by(GraphNodeModel.node_type, GraphNodeModel.node_key)
+        )
+        return list(self.session.scalars(statement))
+
     def list_nodes(
         self,
         *,
@@ -1471,6 +1484,43 @@ class GraphRepository:
             GraphEdgeModel.edge_key == _clean_graph_key(edge_key, "edge_key")
         )
         return self.session.scalar(statement)
+
+    def get_edge_by_id(self, edge_id: int) -> GraphEdgeModel | None:
+        return self.session.get(GraphEdgeModel, edge_id)
+
+    def update_edge_status(
+        self,
+        *,
+        edge_key: str,
+        status: str,
+        reviewed_by: str = "api",
+        review_note: str = "",
+        reviewed_at: datetime | None = None,
+    ) -> GraphEdgeModel:
+        normalized_status = status.strip().lower()
+        if normalized_status not in {"active", "candidate", "rejected"}:
+            raise ValueError("Graph edge status must be active, candidate, or rejected.")
+        model = self.get_edge_by_key(edge_key)
+        if model is None:
+            raise ValueError(f"Unknown graph edge_key: {edge_key}")
+
+        review = {
+            "status": normalized_status,
+            "reviewed_by": reviewed_by.strip() or "api",
+            "reviewed_at": (reviewed_at or _utc_now()).isoformat(),
+            "note": review_note,
+        }
+        metadata = dict(model.edge_metadata or {})
+        reviews_value = metadata.get("reviews")
+        reviews = list(reviews_value) if isinstance(reviews_value, list) else []
+        reviews.append(review)
+        metadata["latest_review"] = review
+        metadata["reviews"] = reviews[-20:]
+
+        model.status = normalized_status
+        model.edge_metadata = _json_safe(metadata)
+        self.session.flush()
+        return model
 
     def list_edges(
         self,
@@ -1736,6 +1786,28 @@ class GraphRepository:
             statement = statement.where(GraphSignalModel.symbol == symbol.upper())
         if source_agent is not None:
             statement = statement.where(GraphSignalModel.source_agent == source_agent)
+        if limit is not None:
+            statement = statement.limit(limit)
+        return list(self.session.scalars(statement))
+
+    def list_bullish_signals(
+        self,
+        *,
+        min_score: Decimal | int | float | str = Decimal("0"),
+        symbol: str | None = None,
+        limit: int | None = 100,
+    ) -> list[GraphSignalModel]:
+        statement = select(GraphSignalModel).where(
+            GraphSignalModel.score >= _decimal_or_value(min_score)
+        )
+        if symbol is not None:
+            statement = statement.where(GraphSignalModel.symbol == symbol.upper())
+        statement = statement.order_by(
+            GraphSignalModel.score.desc(),
+            GraphSignalModel.confidence.desc(),
+            GraphSignalModel.as_of.desc(),
+            GraphSignalModel.signal_id,
+        )
         if limit is not None:
             statement = statement.limit(limit)
         return list(self.session.scalars(statement))

@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from apps.api.routes_data import router as data_router
 from apps.api.routes_alerts import router as alerts_router
 from apps.api.routes_fundamentals import router as fundamentals_router
+from apps.api.routes_graph import router as graph_router
 from apps.api.routes_health import router as health_router
 from apps.api.routes_intelligence import router as intelligence_router
 from apps.api.routes_kite_auth import router as kite_auth_router
@@ -42,7 +43,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "http://127.0.0.1:5173",
         ],
         allow_credentials=False,
-        allow_methods=["GET", "OPTIONS"],
+        allow_methods=["GET", "POST", "OPTIONS"],
         allow_headers=["*"],
     )
     app.include_router(kite_auth_router)
@@ -50,6 +51,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(alerts_router)
     app.include_router(data_router)
     app.include_router(fundamentals_router)
+    app.include_router(graph_router)
     app.include_router(intelligence_router)
     app.include_router(research_router)
     app.include_router(replay_router)

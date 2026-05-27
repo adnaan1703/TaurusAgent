@@ -398,6 +398,28 @@ sed -n '1,320p' /Users/adnaan/.codex/rules/default.rules
 sed -n '1,320p' .codex/rules/default.rules
 ```
 
+## M20.3 Commands Used
+
+```bash
+git status --short
+sed -n '1,260p' docs/TAURUS_MILESTONE_TODO.md
+sed -n '1,260p' docs/TAURUS_GRAPH_INTELLIGENCE_PLAN.md
+rg --files
+sed -n '320,580p' packages/taurus_core/db/models.py
+sed -n '1330,1845p' packages/taurus_core/db/repositories.py
+sed -n '1,220p' apps/api/main.py
+sed -n '1,260p' apps/api/routes_data.py
+sed -n '1,260p' apps/api/routes_ui.py
+sed -n '1,240p' tests/unit/test_graph_repository.py
+sed -n '1,240p' tests/unit/test_graph_importer.py
+uv run pytest tests/unit/test_graph_api.py
+uv run pytest tests/unit/test_graph_repository.py tests/unit/test_graph_importer.py tests/unit/test_graph_api.py
+make test
+make lint
+sed -n '1,320p' /Users/adnaan/.codex/rules/default.rules
+sed -n '1,320p' .codex/rules/default.rules
+```
+
 ## Current Make Targets
 
 ```bash
@@ -529,6 +551,15 @@ curl http://localhost:8000/ui/runs/{run_id}/symbols/INFY/decision-trail
 curl http://localhost:8000/ui/replay/{decision_id}
 curl http://localhost:8000/ui/risk
 curl http://localhost:8000/ui/portfolio
+curl http://localhost:8000/graph/overview
+curl http://localhost:8000/graph/company/INFY
+curl http://localhost:8000/graph/candidate-edges
+curl http://localhost:8000/graph/signals
+curl http://localhost:8000/graph/bullish-candidates
+curl http://localhost:8000/graph/edges/{edge_key}
+curl http://localhost:8000/graph/edges/{edge_key}/evidence
+curl -X POST http://localhost:8000/graph/edges/{edge_key}/promote
+curl -X POST http://localhost:8000/graph/edges/{edge_key}/reject
 curl -X POST http://localhost:8000/alerts/test
 curl http://localhost:8000/replay/{decision_id}
 ```

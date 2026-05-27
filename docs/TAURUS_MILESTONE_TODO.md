@@ -78,7 +78,7 @@ submilestone unless the user explicitly asks to proceed.
 | M20.0 | Done | Created repo-specific graph intelligence plan and M20 milestone tracker; no runtime behavior changes. |
 | M20.1 | Done | Postgres graph settings, graph tables, metadata migration path, and idempotent graph repository upserts/read paths. |
 | M20.2 | Done | TaurusData CSV graph importer, CLI/Make target, idempotent active/candidate/evidence import from `configs/taurus_data/`. |
-| M20.3 | Planned | FastAPI graph API vertical slice backed by Postgres. |
+| M20.3 | Done | FastAPI graph API vertical slice backed by Postgres, with local-dashboard edge review endpoints. |
 | M20.4 | Planned | React graph dashboard vertical slice. |
 | M20.5 | Planned | Optional Neo4j projection/read model. |
 | M20.6 | Planned | Graph statistical validation engine. |
@@ -115,24 +115,22 @@ submilestone unless the user explicitly asks to proceed.
 - [ ] Add a real news/data provider if news or sentiment risk is enabled.
 - [ ] Add dashboard/API auth before using Taurus beyond a trusted local machine.
 - [ ] Verify real Telegram alert delivery with local-only credentials.
-- [ ] Start M20.3 only after a fresh explicit request.
+- [ ] Start M20.4 only after a fresh explicit request.
 
-## Latest Completion Summary - M20.2
+## Latest Completion Summary - M20.3
 
-- Assumptions made: M20.2 is backend/importer-only; all listed TaurusData CSVs
-  are treated as optional per run but imported when present; source evidence is
-  represented through company-to-source evidence edges because there is no
-  node-level evidence table yet. Neo4j, graph APIs, dashboard UI, graph analyst
-  behavior, graph risk behavior, and graph stats remain deferred.
-- Mocks created: Minimal synthetic TaurusData CSV fixture rows in
-  `tests/unit/test_graph_importer.py`.
-- Mocks used: The synthetic unit-test CSV fixture and the bundled
-  `configs/taurus_data/` sample files; no external services.
-- Verification: `uv run pytest tests/unit/test_graph_importer.py` passed (2),
-  focused graph tests passed (5), bundled sample import through
-  `DATABASE_URL=sqlite:////tmp/taurus-graph-m20-2.db make import-taurus-graph`
-  succeeded twice with stable graph counts, `make test` passed (103), and
-  `make lint` passed on 2026-05-27.
+- Assumptions made: M20.3 is backend API-only; React graph dashboard work
+  remains deferred to M20.4; Neo4j is absent and not required; read endpoints
+  expose Postgres graph data regardless of the graph feature flag, while
+  promote/reject review endpoints require `TAURUS_GRAPH_ENABLED=true`.
+- Mocks created: Synthetic graph API fixture rows in
+  `tests/unit/test_graph_api.py`.
+- Mocks used: The synthetic unit-test graph fixture; no external services.
+- Verification: `uv run pytest tests/unit/test_graph_api.py` passed (3);
+  `uv run pytest tests/unit/test_graph_repository.py tests/unit/test_graph_importer.py tests/unit/test_graph_api.py`
+  passed (8); `make test` passed (106); `make lint` passed; milestone cleanup
+  inspected `/Users/adnaan/.codex/rules/default.rules` and found no accidental
+  Taurus approvals after the user's marker.
 
 ## Deprecated Direction
 

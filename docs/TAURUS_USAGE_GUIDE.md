@@ -2,10 +2,10 @@
 
 ## Current State
 
-- Backend tests: `make test` -> `97 passed`.
-- Frontend tests: `make test-ui` -> `21 passed`.
-- Compile check: `make lint` -> passed.
-- Git worktree is clean.
+- Backend tests: `make test` -> `106 passed` after M20.3.
+- Frontend tests: `make test-ui` -> last known `21 passed`; not rerun during M20.3.
+- Compile check: `make lint` -> passed after M20.3.
+- Git worktree contains M20.3 implementation changes until committed.
 - Docker Compose services are not currently running, but Docker volumes exist: `taurusagent_postgres_data`, `taurusagent_grafana_data`.
 - A local ignored SQLite file exists: `taurus.db`, containing `10` instruments and `2520` daily candles. This means not all local state is only in Docker.
 - Local `.env` exists and contains only Kite keys. It does not set `DATABASE_URL`, `TAURUS_MARKET_DATA_PROVIDER`, or analyst settings.
@@ -25,6 +25,7 @@ Taurus is a local, observable paper-trading simulator for Indian cash equities. 
 - Expose FastAPI endpoints and read-only React dashboard.
 - Provide replay, backup/restore, alerts, Prometheus metrics, and Grafana dashboards.
 - Sync HalalStock compliance data and generate a halal NSE universe YAML.
+- Import TaurusData graph CSVs and expose Postgres-backed graph API endpoints.
 
 **Key files:**
 
@@ -62,6 +63,7 @@ Taurus is a local, observable paper-trading simulator for Indian cash equities. 
 - `make seed-mock`: seeds deterministic mock instruments/candles.
 - `make import-price-csv CSV=/path/file.csv`: imports user OHLCV CSV.
 - `make import-screener CSV=/path/file.csv`: imports Screener fundamentals.
+- `make import-taurus-graph DATA_DIR=configs/taurus_data`: imports TaurusData graph CSVs.
 - `make sync-halal-stocks`: fetches HalalStock data and exports halal NSE universe YAML.
 
 ### Kite
@@ -190,6 +192,37 @@ Your assumption is only partly true.
 - Redis has no persistent volume in `docker-compose.yml`.
 
 > Important nuance: `make` targets default to Postgres at `localhost:5432`, but direct `uv run ...` without `DATABASE_URL` uses the code default SQLite database `sqlite:///./taurus.db`.
+
+## Graph Intelligence API
+
+M20 graph APIs read from the Postgres/SQLAlchemy graph tables. Neo4j is not
+required for the current slice.
+
+Useful local endpoints after `make import-taurus-graph` and `make api`:
+
+```bash
+curl http://localhost:8000/graph/overview
+curl http://localhost:8000/graph/company/INFY
+curl http://localhost:8000/graph/candidate-edges
+curl http://localhost:8000/graph/signals
+curl http://localhost:8000/graph/bullish-candidates
+```
+
+Edge detail and evidence endpoints use the stable `edge_key` returned by graph
+responses:
+
+```bash
+curl http://localhost:8000/graph/edges/{edge_key}
+curl http://localhost:8000/graph/edges/{edge_key}/evidence
+```
+
+Candidate edge review endpoints are local-dashboard oriented and require
+`TAURUS_GRAPH_ENABLED=true`:
+
+```bash
+curl -X POST http://localhost:8000/graph/edges/{edge_key}/promote
+curl -X POST http://localhost:8000/graph/edges/{edge_key}/reject
+```
 
 ## Main Gaps Before It Is "Super Ready"
 
