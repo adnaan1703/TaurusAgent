@@ -9,10 +9,10 @@ from taurus_core.db.session import create_engine_from_url
 
 
 def run_migrations(settings: Settings | None = None) -> None:
-    """M1 uses SQLAlchemy metadata as the migration source of truth.
+    """Use SQLAlchemy metadata as the migration source of truth.
 
     This is intentionally small until schema history is needed. The command is
-    idempotent and creates missing M1 tables without dropping existing data.
+    idempotent and creates missing tables without dropping existing data.
     """
     settings = settings or get_settings()
     engine = create_engine_from_url(settings.database_url)

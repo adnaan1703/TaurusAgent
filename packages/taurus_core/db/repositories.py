@@ -24,6 +24,12 @@ from taurus_core.db.models import (
     FundamentalImportModel,
     FundamentalScoreModel,
     FundamentalSnapshotModel,
+    GraphEdgeEvidenceModel,
+    GraphEdgeModel,
+    GraphEdgeStatsModel,
+    GraphNodeModel,
+    GraphSignalContributionModel,
+    GraphSignalModel,
     HalalStockComplianceModel,
     HalalStockImportModel,
     InstrumentProviderMappingModel,
@@ -1325,6 +1331,514 @@ class ExecutionRepository:
         return self.session.scalar(statement.limit(1))
 
 
+class GraphRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def upsert_node(
+        self,
+        *,
+        node_key: str,
+        node_type: str,
+        display_name: str,
+        symbol: str | None = None,
+        isin: str | None = None,
+        metadata: dict[str, object] | None = None,
+    ) -> GraphNodeModel:
+        normalized_key = _clean_graph_key(node_key, "node_key")
+        normalized_symbol = symbol.upper() if symbol else None
+        model = self.get_node_by_key(normalized_key)
+        if model is None:
+            model = GraphNodeModel(
+                node_key=normalized_key,
+                node_type=node_type.strip().lower(),
+                display_name=display_name.strip(),
+                symbol=normalized_symbol,
+                isin=isin.strip().upper() if isin else None,
+                node_metadata=_json_safe(metadata or {}),
+            )
+            self.session.add(model)
+        else:
+            model.node_type = node_type.strip().lower()
+            model.display_name = display_name.strip()
+            model.symbol = normalized_symbol
+            model.isin = isin.strip().upper() if isin else None
+            model.node_metadata = _json_safe(metadata or {})
+        self.session.flush()
+        return model
+
+    def get_node_by_key(self, node_key: str) -> GraphNodeModel | None:
+        statement = select(GraphNodeModel).where(
+            GraphNodeModel.node_key == _clean_graph_key(node_key, "node_key")
+        )
+        return self.session.scalar(statement)
+
+    def list_nodes(
+        self,
+        *,
+        node_type: str | None = None,
+        symbol: str | None = None,
+        limit: int | None = 500,
+    ) -> list[GraphNodeModel]:
+        statement = select(GraphNodeModel).order_by(
+            GraphNodeModel.node_type,
+            GraphNodeModel.node_key,
+        )
+        if node_type is not None:
+            statement = statement.where(GraphNodeModel.node_type == node_type.strip().lower())
+        if symbol is not None:
+            statement = statement.where(GraphNodeModel.symbol == symbol.upper())
+        if limit is not None:
+            statement = statement.limit(limit)
+        return list(self.session.scalars(statement))
+
+    def upsert_edge(
+        self,
+        *,
+        edge_key: str,
+        source_node_key: str,
+        target_node_key: str,
+        edge_type: str,
+        direction: str = "directed",
+        expected_sign: str = "unknown",
+        strength: Decimal | int | float | str | None = None,
+        evidence_type: str = "",
+        confidence: Decimal | int | float | str = Decimal("0"),
+        inferred: bool = False,
+        mechanism: str = "",
+        tradability_relevance: str = "",
+        status: str = "candidate",
+        valid_from: date | None = None,
+        valid_to: date | None = None,
+        source_file: str = "",
+        source_row_hash: str = "",
+        metadata: dict[str, object] | None = None,
+    ) -> GraphEdgeModel:
+        source_node = self.get_node_by_key(source_node_key)
+        if source_node is None:
+            raise ValueError(f"Unknown graph source node_key: {source_node_key}")
+        target_node = self.get_node_by_key(target_node_key)
+        if target_node is None:
+            raise ValueError(f"Unknown graph target node_key: {target_node_key}")
+
+        normalized_key = _clean_graph_key(edge_key, "edge_key")
+        model = self.get_edge_by_key(normalized_key)
+        if model is None:
+            model = GraphEdgeModel(
+                edge_key=normalized_key,
+                source_node_id=source_node.id,
+                target_node_id=target_node.id,
+                edge_type=edge_type.strip().lower(),
+                direction=direction.strip().lower(),
+                expected_sign=expected_sign.strip().lower(),
+                strength=_decimal_or_none(strength),
+                evidence_type=evidence_type.strip().lower(),
+                confidence=_decimal_or_value(confidence),
+                inferred=inferred,
+                mechanism=mechanism,
+                tradability_relevance=tradability_relevance.strip().lower(),
+                status=status.strip().lower(),
+                valid_from=valid_from,
+                valid_to=valid_to,
+                source_file=source_file,
+                source_row_hash=source_row_hash,
+                edge_metadata=_json_safe(metadata or {}),
+            )
+            self.session.add(model)
+        else:
+            model.source_node_id = source_node.id
+            model.target_node_id = target_node.id
+            model.edge_type = edge_type.strip().lower()
+            model.direction = direction.strip().lower()
+            model.expected_sign = expected_sign.strip().lower()
+            model.strength = _decimal_or_none(strength)
+            model.evidence_type = evidence_type.strip().lower()
+            model.confidence = _decimal_or_value(confidence)
+            model.inferred = inferred
+            model.mechanism = mechanism
+            model.tradability_relevance = tradability_relevance.strip().lower()
+            model.status = status.strip().lower()
+            model.valid_from = valid_from
+            model.valid_to = valid_to
+            model.source_file = source_file
+            model.source_row_hash = source_row_hash
+            model.edge_metadata = _json_safe(metadata or {})
+        self.session.flush()
+        return model
+
+    def get_edge_by_key(self, edge_key: str) -> GraphEdgeModel | None:
+        statement = select(GraphEdgeModel).where(
+            GraphEdgeModel.edge_key == _clean_graph_key(edge_key, "edge_key")
+        )
+        return self.session.scalar(statement)
+
+    def list_edges(
+        self,
+        *,
+        source_node_key: str | None = None,
+        target_node_key: str | None = None,
+        edge_type: str | None = None,
+        status: str | None = None,
+        limit: int | None = 500,
+    ) -> list[GraphEdgeModel]:
+        statement = select(GraphEdgeModel).order_by(GraphEdgeModel.edge_key)
+        if source_node_key is not None:
+            source_node = self.get_node_by_key(source_node_key)
+            if source_node is None:
+                return []
+            statement = statement.where(GraphEdgeModel.source_node_id == source_node.id)
+        if target_node_key is not None:
+            target_node = self.get_node_by_key(target_node_key)
+            if target_node is None:
+                return []
+            statement = statement.where(GraphEdgeModel.target_node_id == target_node.id)
+        if edge_type is not None:
+            statement = statement.where(GraphEdgeModel.edge_type == edge_type.strip().lower())
+        if status is not None:
+            statement = statement.where(GraphEdgeModel.status == status.strip().lower())
+        if limit is not None:
+            statement = statement.limit(limit)
+        return list(self.session.scalars(statement))
+
+    def list_edges_for_node(
+        self,
+        *,
+        node_key: str,
+        status: str | None = None,
+        limit: int | None = 500,
+    ) -> list[GraphEdgeModel]:
+        node = self.get_node_by_key(node_key)
+        if node is None:
+            return []
+        statement = (
+            select(GraphEdgeModel)
+            .where(
+                or_(
+                    GraphEdgeModel.source_node_id == node.id,
+                    GraphEdgeModel.target_node_id == node.id,
+                )
+            )
+            .order_by(GraphEdgeModel.edge_key)
+        )
+        if status is not None:
+            statement = statement.where(GraphEdgeModel.status == status.strip().lower())
+        if limit is not None:
+            statement = statement.limit(limit)
+        return list(self.session.scalars(statement))
+
+    def upsert_edge_evidence(
+        self,
+        *,
+        edge_key: str,
+        evidence_id: str,
+        claim_type: str = "",
+        claim_summary: str = "",
+        source_title: str = "",
+        source_type: str = "",
+        source_date: date | None = None,
+        source_url_or_reference: str = "",
+        page_or_section: str = "",
+        verbatim_excerpt_short: str = "",
+        confidence: Decimal | int | float | str = Decimal("0"),
+        source_file: str = "",
+        source_row_hash: str = "",
+        metadata: dict[str, object] | None = None,
+    ) -> GraphEdgeEvidenceModel:
+        edge = self.get_edge_by_key(edge_key)
+        if edge is None:
+            raise ValueError(f"Unknown graph edge_key: {edge_key}")
+
+        normalized_evidence_id = _clean_graph_key(evidence_id, "evidence_id")
+        model = self.session.get(GraphEdgeEvidenceModel, normalized_evidence_id)
+        if model is None:
+            model = GraphEdgeEvidenceModel(
+                evidence_id=normalized_evidence_id,
+                edge_id=edge.id,
+                claim_type=claim_type.strip().lower(),
+                claim_summary=claim_summary,
+                source_title=source_title,
+                source_type=source_type.strip().lower(),
+                source_date=source_date,
+                source_url_or_reference=source_url_or_reference,
+                page_or_section=page_or_section,
+                verbatim_excerpt_short=verbatim_excerpt_short,
+                confidence=_decimal_or_value(confidence),
+                source_file=source_file,
+                source_row_hash=source_row_hash,
+                evidence_metadata=_json_safe(metadata or {}),
+            )
+            self.session.add(model)
+        else:
+            model.edge_id = edge.id
+            model.claim_type = claim_type.strip().lower()
+            model.claim_summary = claim_summary
+            model.source_title = source_title
+            model.source_type = source_type.strip().lower()
+            model.source_date = source_date
+            model.source_url_or_reference = source_url_or_reference
+            model.page_or_section = page_or_section
+            model.verbatim_excerpt_short = verbatim_excerpt_short
+            model.confidence = _decimal_or_value(confidence)
+            model.source_file = source_file
+            model.source_row_hash = source_row_hash
+            model.evidence_metadata = _json_safe(metadata or {})
+        self.session.flush()
+        return model
+
+    def list_edge_evidence(
+        self,
+        *,
+        edge_key: str,
+        limit: int | None = 500,
+    ) -> list[GraphEdgeEvidenceModel]:
+        edge = self.get_edge_by_key(edge_key)
+        if edge is None:
+            return []
+        statement = (
+            select(GraphEdgeEvidenceModel)
+            .where(GraphEdgeEvidenceModel.edge_id == edge.id)
+            .order_by(GraphEdgeEvidenceModel.evidence_id)
+        )
+        if limit is not None:
+            statement = statement.limit(limit)
+        return list(self.session.scalars(statement))
+
+    def upsert_edge_stats(
+        self,
+        *,
+        edge_key: str,
+        window: str,
+        as_of_date: date,
+        sample_size: int = 0,
+        raw_correlation: Decimal | int | float | str | None = None,
+        residual_correlation: Decimal | int | float | str | None = None,
+        lead_lag_score: Decimal | int | float | str | None = None,
+        stability_score: Decimal | int | float | str | None = None,
+        p_value: Decimal | int | float | str | None = None,
+        insufficient_data_reason: str = "",
+        model_version: str = "graph_stats_v1",
+        metadata: dict[str, object] | None = None,
+    ) -> GraphEdgeStatsModel:
+        edge = self.get_edge_by_key(edge_key)
+        if edge is None:
+            raise ValueError(f"Unknown graph edge_key: {edge_key}")
+
+        normalized_window = _clean_graph_key(window, "window")
+        statement = select(GraphEdgeStatsModel).where(
+            GraphEdgeStatsModel.edge_id == edge.id,
+            GraphEdgeStatsModel.stat_window == normalized_window,
+            GraphEdgeStatsModel.as_of_date == as_of_date,
+            GraphEdgeStatsModel.model_version == model_version,
+        )
+        model = self.session.scalar(statement)
+        if model is None:
+            model = GraphEdgeStatsModel(
+                edge_id=edge.id,
+                stat_window=normalized_window,
+                as_of_date=as_of_date,
+                sample_size=sample_size,
+                raw_correlation=_decimal_or_none(raw_correlation),
+                residual_correlation=_decimal_or_none(residual_correlation),
+                lead_lag_score=_decimal_or_none(lead_lag_score),
+                stability_score=_decimal_or_none(stability_score),
+                p_value=_decimal_or_none(p_value),
+                insufficient_data_reason=insufficient_data_reason,
+                model_version=model_version,
+                stats_metadata=_json_safe(metadata or {}),
+            )
+            self.session.add(model)
+        else:
+            model.sample_size = sample_size
+            model.raw_correlation = _decimal_or_none(raw_correlation)
+            model.residual_correlation = _decimal_or_none(residual_correlation)
+            model.lead_lag_score = _decimal_or_none(lead_lag_score)
+            model.stability_score = _decimal_or_none(stability_score)
+            model.p_value = _decimal_or_none(p_value)
+            model.insufficient_data_reason = insufficient_data_reason
+            model.stats_metadata = _json_safe(metadata or {})
+        self.session.flush()
+        return model
+
+    def list_edge_stats(
+        self,
+        *,
+        edge_key: str | None = None,
+        as_of_date: date | None = None,
+        limit: int | None = 500,
+    ) -> list[GraphEdgeStatsModel]:
+        statement = select(GraphEdgeStatsModel).order_by(
+            GraphEdgeStatsModel.as_of_date.desc(),
+            GraphEdgeStatsModel.id,
+        )
+        if edge_key is not None:
+            edge = self.get_edge_by_key(edge_key)
+            if edge is None:
+                return []
+            statement = statement.where(GraphEdgeStatsModel.edge_id == edge.id)
+        if as_of_date is not None:
+            statement = statement.where(GraphEdgeStatsModel.as_of_date == as_of_date)
+        if limit is not None:
+            statement = statement.limit(limit)
+        return list(self.session.scalars(statement))
+
+    def upsert_signal(
+        self,
+        *,
+        signal_id: str,
+        symbol: str,
+        as_of: datetime,
+        score: Decimal | int | float | str,
+        confidence: Decimal | int | float | str,
+        horizon: str,
+        explanation: str,
+        source_agent: str = "GraphAnalystAgent",
+        metadata: dict[str, object] | None = None,
+    ) -> GraphSignalModel:
+        normalized_signal_id = _clean_graph_key(signal_id, "signal_id")
+        model = self.session.get(GraphSignalModel, normalized_signal_id)
+        if model is None:
+            model = GraphSignalModel(
+                signal_id=normalized_signal_id,
+                symbol=symbol.upper(),
+                as_of=as_of,
+                score=_decimal_or_value(score),
+                confidence=_decimal_or_value(confidence),
+                horizon=horizon.strip().lower(),
+                explanation=explanation,
+                source_agent=source_agent,
+                signal_metadata=_json_safe(metadata or {}),
+            )
+            self.session.add(model)
+        else:
+            model.symbol = symbol.upper()
+            model.as_of = as_of
+            model.score = _decimal_or_value(score)
+            model.confidence = _decimal_or_value(confidence)
+            model.horizon = horizon.strip().lower()
+            model.explanation = explanation
+            model.source_agent = source_agent
+            model.signal_metadata = _json_safe(metadata or {})
+        self.session.flush()
+        return model
+
+    def list_signals(
+        self,
+        *,
+        symbol: str | None = None,
+        source_agent: str | None = None,
+        limit: int | None = 500,
+    ) -> list[GraphSignalModel]:
+        statement = select(GraphSignalModel).order_by(
+            GraphSignalModel.as_of.desc(),
+            GraphSignalModel.signal_id,
+        )
+        if symbol is not None:
+            statement = statement.where(GraphSignalModel.symbol == symbol.upper())
+        if source_agent is not None:
+            statement = statement.where(GraphSignalModel.source_agent == source_agent)
+        if limit is not None:
+            statement = statement.limit(limit)
+        return list(self.session.scalars(statement))
+
+    def upsert_signal_contribution(
+        self,
+        *,
+        contribution_id: str,
+        signal_id: str,
+        contribution_type: str,
+        score_contribution: Decimal | int | float | str,
+        edge_key: str | None = None,
+        node_key: str | None = None,
+        direction: str = "",
+        weight: Decimal | int | float | str = Decimal("1"),
+        explanation: str = "",
+        metadata: dict[str, object] | None = None,
+    ) -> GraphSignalContributionModel:
+        signal = self.session.get(GraphSignalModel, _clean_graph_key(signal_id, "signal_id"))
+        if signal is None:
+            raise ValueError(f"Unknown graph signal_id: {signal_id}")
+        edge = self.get_edge_by_key(edge_key) if edge_key is not None else None
+        if edge_key is not None and edge is None:
+            raise ValueError(f"Unknown graph edge_key: {edge_key}")
+        node = self.get_node_by_key(node_key) if node_key is not None else None
+        if node_key is not None and node is None:
+            raise ValueError(f"Unknown graph node_key: {node_key}")
+        if edge is None and node is None:
+            raise ValueError("A graph signal contribution requires edge_key or node_key.")
+
+        normalized_contribution_id = _clean_graph_key(contribution_id, "contribution_id")
+        model = self.session.get(GraphSignalContributionModel, normalized_contribution_id)
+        if model is None:
+            model = GraphSignalContributionModel(
+                contribution_id=normalized_contribution_id,
+                signal_id=signal.signal_id,
+                edge_id=edge.id if edge is not None else None,
+                node_id=node.id if node is not None else None,
+                contribution_type=contribution_type.strip().lower(),
+                direction=direction.strip().lower(),
+                score_contribution=_decimal_or_value(score_contribution),
+                weight=_decimal_or_value(weight),
+                explanation=explanation,
+                contribution_metadata=_json_safe(metadata or {}),
+            )
+            self.session.add(model)
+        else:
+            model.signal_id = signal.signal_id
+            model.edge_id = edge.id if edge is not None else None
+            model.node_id = node.id if node is not None else None
+            model.contribution_type = contribution_type.strip().lower()
+            model.direction = direction.strip().lower()
+            model.score_contribution = _decimal_or_value(score_contribution)
+            model.weight = _decimal_or_value(weight)
+            model.explanation = explanation
+            model.contribution_metadata = _json_safe(metadata or {})
+        self.session.flush()
+        return model
+
+    def list_signal_contributions(
+        self,
+        *,
+        signal_id: str,
+        limit: int | None = 500,
+    ) -> list[GraphSignalContributionModel]:
+        statement = (
+            select(GraphSignalContributionModel)
+            .where(
+                GraphSignalContributionModel.signal_id
+                == _clean_graph_key(signal_id, "signal_id")
+            )
+            .order_by(GraphSignalContributionModel.contribution_id)
+        )
+        if limit is not None:
+            statement = statement.limit(limit)
+        return list(self.session.scalars(statement))
+
+    def overview_counts(self) -> dict[str, int]:
+        return {
+            "nodes": self._count(GraphNodeModel),
+            "edges": self._count(GraphEdgeModel),
+            "active_edges": self._count_edges_by_status("active"),
+            "candidate_edges": self._count_edges_by_status("candidate"),
+            "edge_evidence": self._count(GraphEdgeEvidenceModel),
+            "edge_stats": self._count(GraphEdgeStatsModel),
+            "signals": self._count(GraphSignalModel),
+            "signal_contributions": self._count(GraphSignalContributionModel),
+        }
+
+    def _count(self, model: type[Any]) -> int:
+        return int(self.session.scalar(select(func.count()).select_from(model)) or 0)
+
+    def _count_edges_by_status(self, status: str) -> int:
+        return int(
+            self.session.scalar(
+                select(func.count())
+                .select_from(GraphEdgeModel)
+                .where(GraphEdgeModel.status == status)
+            )
+            or 0
+        )
+
+
 class AuditLogRepository:
     def __init__(self, session: Session) -> None:
         self.session = session
@@ -1426,6 +1940,25 @@ def _delete_paper_artifacts_for_run_symbol(
 
 def _utc_now() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def _clean_graph_key(value: str, field_name: str) -> str:
+    cleaned = value.strip()
+    if not cleaned:
+        raise ValueError(f"{field_name} must not be empty.")
+    return cleaned
+
+
+def _decimal_or_none(value: Decimal | int | float | str | None) -> Decimal | None:
+    if value is None:
+        return None
+    return _decimal_or_value(value)
+
+
+def _decimal_or_value(value: Decimal | int | float | str) -> Decimal:
+    if isinstance(value, Decimal):
+        return value
+    return Decimal(str(value))
 
 
 def _snapshot_to_model(snapshot: MarketPriceSnapshot) -> MarketPriceSnapshotModel:

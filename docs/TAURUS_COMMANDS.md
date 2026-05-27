@@ -358,6 +358,25 @@ make test
 make lint
 ```
 
+## M20.1 Commands Used
+
+```bash
+git status --short
+sed -n '1,240p' docs/TAURUS_MILESTONE_TODO.md
+sed -n '1,260p' docs/TAURUS_GRAPH_INTELLIGENCE_PLAN.md
+rg --files
+sed -n '1,260p' packages/taurus_core/config.py
+sed -n '1,1320p' packages/taurus_core/db/models.py
+sed -n '1,1800p' packages/taurus_core/db/repositories.py
+sed -n '1,220p' scripts/migrate.py
+sed -n '1,220p' tests/unit/test_config.py
+uv run pytest tests/unit/test_config.py tests/unit/test_graph_repository.py
+make test
+make lint
+sed -n '1,260p' /Users/adnaan/.codex/rules/default.rules
+sed -n '1,260p' .codex/rules/default.rules
+```
+
 ## Current Make Targets
 
 ```bash

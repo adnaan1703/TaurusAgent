@@ -14,6 +14,9 @@ def test_default_settings_are_safe() -> None:
     assert settings.live_trading_enabled is False
     assert settings.broker_provider == "paper"
     assert settings.database_url == "sqlite:///./taurus.db"
+    assert settings.taurus_graph_enabled is False
+    assert settings.taurus_graph_risk_enabled is False
+    assert settings.taurus_graph_auto_promote_edges is False
     assert settings.taurus_mock_seed == 42
     assert settings.taurus_mock_candle_count == 252
     assert settings.taurus_market_data_provider == "mock"
@@ -53,6 +56,18 @@ def test_kite_market_data_provider_is_allowed(monkeypatch: pytest.MonkeyPatch) -
     monkeypatch.setenv("TAURUS_MARKET_DATA_PROVIDER", "kite")
 
     assert Settings().taurus_market_data_provider == "kite"
+
+
+def test_graph_flags_can_be_enabled_explicitly(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("TAURUS_GRAPH_ENABLED", "true")
+    monkeypatch.setenv("TAURUS_GRAPH_RISK_ENABLED", "true")
+    monkeypatch.setenv("TAURUS_GRAPH_AUTO_PROMOTE_EDGES", "true")
+
+    settings = Settings()
+
+    assert settings.taurus_graph_enabled is True
+    assert settings.taurus_graph_risk_enabled is True
+    assert settings.taurus_graph_auto_promote_edges is True
 
 
 def test_unknown_enabled_analyst_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:

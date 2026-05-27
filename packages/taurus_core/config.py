@@ -35,6 +35,18 @@ class Settings(BaseSettings):
         default="sqlite:///./taurus.db",
         validation_alias="DATABASE_URL",
     )
+    taurus_graph_enabled: bool = Field(
+        default=False,
+        validation_alias="TAURUS_GRAPH_ENABLED",
+    )
+    taurus_graph_risk_enabled: bool = Field(
+        default=False,
+        validation_alias="TAURUS_GRAPH_RISK_ENABLED",
+    )
+    taurus_graph_auto_promote_edges: bool = Field(
+        default=False,
+        validation_alias="TAURUS_GRAPH_AUTO_PROMOTE_EDGES",
+    )
 
     taurus_universe: str = Field(default="NIFTY_100", validation_alias="TAURUS_UNIVERSE")
     taurus_timeframe: str = Field(default="1d", validation_alias="TAURUS_TIMEFRAME")

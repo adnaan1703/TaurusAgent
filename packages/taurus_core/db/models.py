@@ -331,6 +331,242 @@ class AuditLogModel(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
 
 
+class GraphNodeModel(Base):
+    __tablename__ = "graph_nodes"
+    __table_args__ = (
+        UniqueConstraint("node_key", name="uq_graph_nodes_node_key"),
+        Index("ix_graph_nodes_type_symbol", "node_type", "symbol"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    node_key: Mapped[str] = mapped_column(String(128), nullable=False)
+    node_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    display_name: Mapped[str] = mapped_column(Text, nullable=False)
+    symbol: Mapped[str | None] = mapped_column(
+        String(32),
+        ForeignKey("instruments.symbol", ondelete="SET NULL"),
+        nullable=True,
+    )
+    isin: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    node_metadata: Mapped[dict[str, object]] = mapped_column(
+        "metadata",
+        JSON,
+        nullable=False,
+        default=dict,
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc_now,
+        onupdate=utc_now,
+    )
+
+
+class GraphEdgeModel(Base):
+    __tablename__ = "graph_edges"
+    __table_args__ = (
+        UniqueConstraint("edge_key", name="uq_graph_edges_edge_key"),
+        Index("ix_graph_edges_source_target", "source_node_id", "target_node_id"),
+        Index("ix_graph_edges_type_status", "edge_type", "status"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    edge_key: Mapped[str] = mapped_column(String(160), nullable=False)
+    source_node_id: Mapped[int] = mapped_column(
+        ForeignKey("graph_nodes.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    target_node_id: Mapped[int] = mapped_column(
+        ForeignKey("graph_nodes.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    edge_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    direction: Mapped[str] = mapped_column(String(32), nullable=False, default="directed")
+    expected_sign: Mapped[str] = mapped_column(String(16), nullable=False, default="unknown")
+    strength: Mapped[Decimal | None] = mapped_column(Numeric(8, 4), nullable=True)
+    evidence_type: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    confidence: Mapped[Decimal] = mapped_column(Numeric(8, 4), nullable=False, default=Decimal("0"))
+    inferred: Mapped[bool] = mapped_column(nullable=False, default=False)
+    mechanism: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    tradability_relevance: Mapped[str] = mapped_column(String(32), nullable=False, default="")
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="candidate")
+    valid_from: Mapped[date | None] = mapped_column(Date, nullable=True)
+    valid_to: Mapped[date | None] = mapped_column(Date, nullable=True)
+    source_file: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    source_row_hash: Mapped[str] = mapped_column(String(128), nullable=False, default="")
+    edge_metadata: Mapped[dict[str, object]] = mapped_column(
+        "metadata",
+        JSON,
+        nullable=False,
+        default=dict,
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc_now,
+        onupdate=utc_now,
+    )
+
+
+class GraphEdgeEvidenceModel(Base):
+    __tablename__ = "graph_edge_evidence"
+    __table_args__ = (
+        Index("ix_graph_edge_evidence_edge", "edge_id"),
+        Index("ix_graph_edge_evidence_claim_type", "claim_type"),
+    )
+
+    evidence_id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    edge_id: Mapped[int] = mapped_column(
+        ForeignKey("graph_edges.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    claim_type: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    claim_summary: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    source_title: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    source_type: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    source_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    source_url_or_reference: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    page_or_section: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    verbatim_excerpt_short: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    confidence: Mapped[Decimal] = mapped_column(Numeric(8, 4), nullable=False, default=Decimal("0"))
+    source_file: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    source_row_hash: Mapped[str] = mapped_column(String(128), nullable=False, default="")
+    evidence_metadata: Mapped[dict[str, object]] = mapped_column(
+        "metadata",
+        JSON,
+        nullable=False,
+        default=dict,
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc_now,
+        onupdate=utc_now,
+    )
+
+
+class GraphEdgeStatsModel(Base):
+    __tablename__ = "graph_edge_stats"
+    __table_args__ = (
+        UniqueConstraint(
+            "edge_id",
+            "stat_window",
+            "as_of_date",
+            "model_version",
+            name="uq_graph_edge_stats_edge_window_as_of_model",
+        ),
+        Index("ix_graph_edge_stats_as_of", "as_of_date"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    edge_id: Mapped[int] = mapped_column(
+        ForeignKey("graph_edges.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    stat_window: Mapped[str] = mapped_column(String(32), nullable=False)
+    as_of_date: Mapped[date] = mapped_column(Date, nullable=False)
+    sample_size: Mapped[int] = mapped_column(nullable=False, default=0)
+    raw_correlation: Mapped[Decimal | None] = mapped_column(Numeric(12, 8), nullable=True)
+    residual_correlation: Mapped[Decimal | None] = mapped_column(Numeric(12, 8), nullable=True)
+    lead_lag_score: Mapped[Decimal | None] = mapped_column(Numeric(12, 8), nullable=True)
+    stability_score: Mapped[Decimal | None] = mapped_column(Numeric(12, 8), nullable=True)
+    p_value: Mapped[Decimal | None] = mapped_column(Numeric(12, 8), nullable=True)
+    insufficient_data_reason: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    model_version: Mapped[str] = mapped_column(String(128), nullable=False, default="graph_stats_v1")
+    stats_metadata: Mapped[dict[str, object]] = mapped_column(
+        "metadata",
+        JSON,
+        nullable=False,
+        default=dict,
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc_now,
+        onupdate=utc_now,
+    )
+
+
+class GraphSignalModel(Base):
+    __tablename__ = "graph_signals"
+    __table_args__ = (
+        Index("ix_graph_signals_symbol_as_of", "symbol", "as_of"),
+        Index("ix_graph_signals_source_agent", "source_agent"),
+    )
+
+    signal_id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    symbol: Mapped[str] = mapped_column(
+        String(32),
+        ForeignKey("instruments.symbol", ondelete="CASCADE"),
+        nullable=False,
+    )
+    as_of: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    score: Mapped[Decimal] = mapped_column(Numeric(8, 4), nullable=False)
+    confidence: Mapped[Decimal] = mapped_column(Numeric(8, 4), nullable=False)
+    horizon: Mapped[str] = mapped_column(String(32), nullable=False, default="")
+    explanation: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    source_agent: Mapped[str] = mapped_column(String(128), nullable=False, default="GraphAnalystAgent")
+    signal_metadata: Mapped[dict[str, object]] = mapped_column(
+        "metadata",
+        JSON,
+        nullable=False,
+        default=dict,
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc_now,
+        onupdate=utc_now,
+    )
+
+
+class GraphSignalContributionModel(Base):
+    __tablename__ = "graph_signal_contributions"
+    __table_args__ = (
+        Index("ix_graph_signal_contributions_signal", "signal_id"),
+        Index("ix_graph_signal_contributions_edge", "edge_id"),
+        Index("ix_graph_signal_contributions_node", "node_id"),
+    )
+
+    contribution_id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    signal_id: Mapped[str] = mapped_column(
+        String(128),
+        ForeignKey("graph_signals.signal_id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    edge_id: Mapped[int | None] = mapped_column(
+        ForeignKey("graph_edges.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    node_id: Mapped[int | None] = mapped_column(
+        ForeignKey("graph_nodes.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    contribution_type: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    direction: Mapped[str] = mapped_column(String(16), nullable=False, default="")
+    score_contribution: Mapped[Decimal] = mapped_column(Numeric(8, 4), nullable=False)
+    weight: Mapped[Decimal] = mapped_column(Numeric(8, 4), nullable=False, default=Decimal("1"))
+    explanation: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    contribution_metadata: Mapped[dict[str, object]] = mapped_column(
+        "metadata",
+        JSON,
+        nullable=False,
+        default=dict,
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc_now,
+        onupdate=utc_now,
+    )
+
+
 class RawDocumentModel(Base):
     __tablename__ = "raw_documents"
     __table_args__ = (

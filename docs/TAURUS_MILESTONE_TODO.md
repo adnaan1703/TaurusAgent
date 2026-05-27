@@ -76,7 +76,7 @@ submilestone unless the user explicitly asks to proceed.
 | Milestone | Status | Current Result |
 |---|---|---|
 | M20.0 | Done | Created repo-specific graph intelligence plan and M20 milestone tracker; no runtime behavior changes. |
-| M20.1 | Planned | Postgres graph foundation with safe disabled-by-default graph settings. |
+| M20.1 | Done | Postgres graph settings, graph tables, metadata migration path, and idempotent graph repository upserts/read paths. |
 | M20.2 | Planned | TaurusData CSV graph importer for `configs/taurus_data/`. |
 | M20.3 | Planned | FastAPI graph API vertical slice backed by Postgres. |
 | M20.4 | Planned | React graph dashboard vertical slice. |
@@ -115,7 +115,17 @@ submilestone unless the user explicitly asks to proceed.
 - [ ] Add a real news/data provider if news or sentiment risk is enabled.
 - [ ] Add dashboard/API auth before using Taurus beyond a trusted local machine.
 - [ ] Verify real Telegram alert delivery with local-only credentials.
-- [ ] Start M20.1 only after a fresh explicit request.
+- [ ] Start M20.2 only after a fresh explicit request.
+
+## Latest Completion Summary - M20.1
+
+- Assumptions made: M20.1 is backend-only; Neo4j, graph APIs, importer scripts,
+  dashboard UI, graph analyst behavior, and graph risk behavior remain deferred
+  to later M20 submilestones.
+- Mocks created: None.
+- Mocks used: None.
+- Verification: focused graph/config tests passed (13), `make test` passed
+  (101), and `make lint` passed on 2026-05-27.
 
 ## Deprecated Direction
 
