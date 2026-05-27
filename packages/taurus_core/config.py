@@ -47,6 +47,26 @@ class Settings(BaseSettings):
         default=False,
         validation_alias="TAURUS_GRAPH_AUTO_PROMOTE_EDGES",
     )
+    taurus_neo4j_enabled: bool = Field(
+        default=False,
+        validation_alias="TAURUS_NEO4J_ENABLED",
+    )
+    taurus_neo4j_uri: str = Field(
+        default="bolt://localhost:7687",
+        validation_alias="TAURUS_NEO4J_URI",
+    )
+    taurus_neo4j_user: str = Field(
+        default="neo4j",
+        validation_alias="TAURUS_NEO4J_USER",
+    )
+    taurus_neo4j_password: str = Field(
+        default="taurus-neo4j-local",
+        validation_alias="TAURUS_NEO4J_PASSWORD",
+    )
+    taurus_neo4j_database: str = Field(
+        default="neo4j",
+        validation_alias="TAURUS_NEO4J_DATABASE",
+    )
 
     taurus_universe: str = Field(default="NIFTY_100", validation_alias="TAURUS_UNIVERSE")
     taurus_timeframe: str = Field(default="1d", validation_alias="TAURUS_TIMEFRAME")
@@ -203,10 +223,12 @@ class Settings(BaseSettings):
             "kite_api_key",
             "kite_api_secret",
             "kite_access_token",
+            "taurus_neo4j_password",
         ):
             if redacted.get(key):
                 redacted[key] = "***REDACTED***"
         redacted["database_url"] = _redact_url_password(self.database_url)
+        redacted["taurus_neo4j_uri"] = _redact_url_password(self.taurus_neo4j_uri)
         return redacted
 
 

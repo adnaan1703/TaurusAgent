@@ -2,11 +2,11 @@
 
 ## Current State
 
-- Backend tests: `make test` -> `106 passed` after M20.4.
-- Frontend tests: `make test-ui` -> `25 passed` after M20.4.
-- Compile check: `make lint` -> passed after M20.4.
-- Frontend build: `make build-ui` -> passed after M20.4.
-- Git worktree contains M20.4 implementation changes until committed.
+- Backend tests: `make test` -> `108 passed, 1 skipped` after M20.5.
+- Frontend tests: not rerun in M20.5; latest `make test-ui` was `25 passed` after M20.4.
+- Compile check: `make lint` -> passed after M20.5.
+- Frontend build: not rerun in M20.5; latest `make build-ui` passed after M20.4.
+- Git worktree contains M20.5 implementation changes until committed.
 - Docker Compose services are not currently running, but Docker volumes exist: `taurusagent_postgres_data`, `taurusagent_grafana_data`.
 - A local ignored SQLite file exists: `taurus.db`, containing `10` instruments and `2520` daily candles. This means not all local state is only in Docker.
 - Local `.env` exists and contains only Kite keys. It does not set `DATABASE_URL`, `TAURUS_MARKET_DATA_PROVIDER`, or analyst settings.
@@ -28,6 +28,8 @@ Taurus is a local, observable paper-trading simulator for Indian cash equities. 
 - Sync HalalStock compliance data and generate a halal NSE universe YAML.
 - Import TaurusData graph CSVs, expose Postgres-backed graph API endpoints, and
   browse/review graph data in the React dashboard.
+- Optionally rebuild a disposable Neo4j read-model projection from Postgres
+  graph tables.
 
 **Key files:**
 
@@ -54,6 +56,7 @@ Taurus is a local, observable paper-trading simulator for Indian cash equities. 
 ### Local Stack
 
 - `make dev-up`: starts API, Postgres, Redis, Prometheus, and Grafana.
+  Neo4j is excluded by default and uses the explicit Compose `neo4j` profile.
 - `make dev-down`: stops stack.
 - `make api`: runs FastAPI locally on port `8000`.
 - `make ui`: runs React dashboard on port `5173`.
@@ -66,6 +69,8 @@ Taurus is a local, observable paper-trading simulator for Indian cash equities. 
 - `make import-price-csv CSV=/path/file.csv`: imports user OHLCV CSV.
 - `make import-screener CSV=/path/file.csv`: imports Screener fundamentals.
 - `make import-taurus-graph DATA_DIR=configs/taurus_data`: imports TaurusData graph CSVs.
+- `make project-neo4j-graph`: rebuilds the optional Neo4j graph projection
+  when `TAURUS_NEO4J_ENABLED=true`; otherwise exits with a skipped summary.
 - `make sync-halal-stocks`: fetches HalalStock data and exports halal NSE universe YAML.
 
 ### Kite
@@ -198,7 +203,7 @@ Your assumption is only partly true.
 ## Graph Intelligence API
 
 M20 graph APIs read from the Postgres/SQLAlchemy graph tables. Neo4j is not
-required for the current slice.
+required for the current API/dashboard slice.
 
 Useful local endpoints after `make import-taurus-graph` and `make api`:
 
@@ -241,6 +246,29 @@ The review route can promote or reject graph candidate edges only when the API
 is started with `TAURUS_GRAPH_ENABLED=true`. This mutates graph edge status
 metadata only; it does not route orders or bypass the existing paper-trading
 risk/final-approval flow.
+
+## Optional Neo4j Projection
+
+Neo4j is a disposable read model. It is disabled by default, excluded from
+`make dev-up`, and can always be rebuilt from Postgres graph tables. Taurus
+does not write Neo4j data back into Postgres.
+
+Start only the optional service:
+
+```bash
+docker compose --profile neo4j up -d neo4j
+```
+
+Prepare source data and rebuild the projection:
+
+```bash
+make migrate
+make import-taurus-graph DATA_DIR=configs/taurus_data
+TAURUS_NEO4J_ENABLED=true make project-neo4j-graph
+```
+
+Running `make project-neo4j-graph` without `TAURUS_NEO4J_ENABLED=true` is a
+safe no-op that prints a skipped JSON summary.
 
 ## Main Gaps Before It Is "Super Ready"
 

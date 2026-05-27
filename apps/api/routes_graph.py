@@ -189,6 +189,7 @@ def graph_overview(request: Request, session: Session = Depends(get_db_session))
         graph_enabled=settings.taurus_graph_enabled,
         graph_risk_enabled=settings.taurus_graph_risk_enabled,
         graph_auto_promote_edges=settings.taurus_graph_auto_promote_edges,
+        neo4j_enabled=settings.taurus_neo4j_enabled,
         generated_at=datetime.now(timezone.utc),
         counts=GraphRepository(session).overview_counts(),
     )

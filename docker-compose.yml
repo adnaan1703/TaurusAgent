@@ -36,6 +36,18 @@ services:
     ports:
       - "6379:6379"
 
+  neo4j:
+    image: neo4j:5-community
+    profiles:
+      - neo4j
+    environment:
+      NEO4J_AUTH: neo4j/taurus-neo4j-local
+      NEO4J_server_memory_heap_initial__size: 512m
+      NEO4J_server_memory_heap_max__size: 512m
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+
   prometheus:
     image: prom/prometheus:latest
     command:

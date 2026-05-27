@@ -159,6 +159,15 @@ and `/graph/*` endpoints. The run-loop views remain read-only; the graph edge
 review route can promote or reject graph candidate edges only when
 `TAURUS_GRAPH_ENABLED=true`.
 
+Neo4j is optional and disabled by default. To rebuild the disposable read-model
+projection from Postgres graph tables, start the Compose profile and enable the
+projection command explicitly:
+
+```bash
+docker compose --profile neo4j up -d neo4j
+TAURUS_NEO4J_ENABLED=true make project-neo4j-graph
+```
+
 Run a full mock paper loop and open the React dashboard in one command:
 
 ```bash
@@ -184,3 +193,4 @@ Usage, one-loop observation guidance, known limitations, and operational notes a
 - Grafana: `http://localhost:3000`
 - Postgres: `localhost:5432`
 - Redis: `localhost:6379`
+- Neo4j, optional profile only: browser `http://localhost:7474`, Bolt `localhost:7687`

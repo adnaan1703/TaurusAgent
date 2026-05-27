@@ -17,6 +17,11 @@ def test_default_settings_are_safe() -> None:
     assert settings.taurus_graph_enabled is False
     assert settings.taurus_graph_risk_enabled is False
     assert settings.taurus_graph_auto_promote_edges is False
+    assert settings.taurus_neo4j_enabled is False
+    assert settings.taurus_neo4j_uri == "bolt://localhost:7687"
+    assert settings.taurus_neo4j_user == "neo4j"
+    assert settings.taurus_neo4j_password == "taurus-neo4j-local"
+    assert settings.taurus_neo4j_database == "neo4j"
     assert settings.taurus_mock_seed == 42
     assert settings.taurus_mock_candle_count == 252
     assert settings.taurus_market_data_provider == "mock"
@@ -62,12 +67,14 @@ def test_graph_flags_can_be_enabled_explicitly(monkeypatch: pytest.MonkeyPatch) 
     monkeypatch.setenv("TAURUS_GRAPH_ENABLED", "true")
     monkeypatch.setenv("TAURUS_GRAPH_RISK_ENABLED", "true")
     monkeypatch.setenv("TAURUS_GRAPH_AUTO_PROMOTE_EDGES", "true")
+    monkeypatch.setenv("TAURUS_NEO4J_ENABLED", "true")
 
     settings = Settings()
 
     assert settings.taurus_graph_enabled is True
     assert settings.taurus_graph_risk_enabled is True
     assert settings.taurus_graph_auto_promote_edges is True
+    assert settings.taurus_neo4j_enabled is True
 
 
 def test_unknown_enabled_analyst_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -89,12 +96,14 @@ def test_secret_values_are_redacted(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("KITE_API_KEY", "kite-key")
     monkeypatch.setenv("KITE_API_SECRET", "kite-secret")
     monkeypatch.setenv("KITE_ACCESS_TOKEN", "kite-token")
+    monkeypatch.setenv("TAURUS_NEO4J_PASSWORD", "neo4j-secret")
 
     safe = Settings().safe_dict()
     assert safe["openai_api_key"] == "***REDACTED***"
     assert safe["kite_api_key"] == "***REDACTED***"
     assert safe["kite_api_secret"] == "***REDACTED***"
     assert safe["kite_access_token"] == "***REDACTED***"
+    assert safe["taurus_neo4j_password"] == "***REDACTED***"
 
 
 def test_database_url_password_is_redacted() -> None:

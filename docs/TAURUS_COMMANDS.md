@@ -453,6 +453,27 @@ cat /Users/adnaan/.codex/rules/default.rules
 cat .codex/rules/default.rules
 ```
 
+## M20.5 Commands Used
+
+```bash
+git status --short
+rg --files
+sed -n '1,260p' docs/TAURUS_MILESTONE_TODO.md
+sed -n '1,260p' docs/TAURUS_GRAPH_INTELLIGENCE_PLAN.md
+sed -n '1,240p' pyproject.toml
+sed -n '1,240p' docker-compose.yml
+sed -n '1,220p' .env.example
+uv add 'neo4j>=6,<7'
+uv run pytest tests/unit/test_config.py tests/unit/test_graph_api.py tests/unit/test_neo4j_projection.py
+DATABASE_URL=sqlite:////private/tmp/taurus-m20-5-disabled.db make project-neo4j-graph
+make test
+make lint
+docker compose --profile neo4j config --services
+docker compose config --services
+sed -n '1,360p' /Users/adnaan/.codex/rules/default.rules
+sed -n '1,360p' .codex/rules/default.rules
+```
+
 ## Current Make Targets
 
 ```bash
@@ -472,6 +493,7 @@ make import-mock-news
 make import-screener CSV=/path/to/screener.csv
 make import-price-csv CSV=mock/market_data/prices_sample.csv
 make import-taurus-graph DATA_DIR=configs/taurus_data
+make project-neo4j-graph
 make sync-halal-stocks
 make kite-login-url
 make kite-exchange-token REQUEST_TOKEN=<request_token_from_redirect_url>

@@ -4,7 +4,7 @@ This file is the current project tracker for future agent work. Historical
 milestone implementation prompts and completed implementation plans were removed
 from active docs to avoid stale context.
 
-Last updated: 2026-05-27
+Last updated: 2026-05-28
 
 ## Active Source Of Truth
 
@@ -80,7 +80,7 @@ submilestone unless the user explicitly asks to proceed.
 | M20.2 | Done | TaurusData CSV graph importer, CLI/Make target, idempotent active/candidate/evidence import from `configs/taurus_data/`. |
 | M20.3 | Done | FastAPI graph API vertical slice backed by Postgres, with local-dashboard edge review endpoints. |
 | M20.4 | Done | React graph dashboard routes for overview, company graph, candidate review, and graph signals. |
-| M20.5 | Planned | Optional Neo4j projection/read model. |
+| M20.5 | Done | Optional Neo4j projection/read model, disabled by default and rebuildable from Postgres. |
 | M20.6 | Planned | Graph statistical validation engine. |
 | M20.7 | Planned | Deterministic `GraphAnalystAgent`. |
 | M20.8 | Planned | Optional graph-aware risk checks. |
@@ -98,6 +98,7 @@ submilestone unless the user explicitly asks to proceed.
 - Internal simulated paper execution through `PaperBroker`.
 - React dashboard at `http://localhost:5173`, including graph browsing and gated graph edge review.
 - Streamlit fallback dashboard.
+- Optional disposable Neo4j projection read model rebuilt one-way from Postgres graph tables.
 - Shariah compliance dashboard backed by imported HalalStock rows.
 - Replay, backup/restore, alerts, Prometheus metrics, and Grafana dashboards.
 
@@ -115,23 +116,26 @@ submilestone unless the user explicitly asks to proceed.
 - [ ] Add a real news/data provider if news or sentiment risk is enabled.
 - [ ] Add dashboard/API auth before using Taurus beyond a trusted local machine.
 - [ ] Verify real Telegram alert delivery with local-only credentials.
-- [ ] Start M20.5 only after a fresh explicit request.
+- [ ] Start M20.6 only after a fresh explicit request.
 
-## Latest Completion Summary - M20.4
+## Latest Completion Summary - M20.5
 
-- Assumptions made: M20.4 is a React dashboard vertical slice backed by the
-  existing M20.3 FastAPI graph endpoints; Neo4j remains absent; graph edge
-  review is limited to graph metadata promotion/rejection and does not touch
-  paper trading, broker routing, or risk approval.
-- Mocks created: Synthetic graph API responses in
-  `apps/web/src/features/GraphPages.test.tsx`.
-- Mocks used: The synthetic Vitest graph responses; a local ignored SQLite
-  smoke database at `/private/tmp/taurus-m20-4-ui.db` populated from
-  `configs/taurus_data/`; no external services.
-- Verification: `make test-ui` passed (25); `make build-ui` passed;
-  `make test` passed (106); `make lint` passed; local headless Chrome rendered
-  `/graph`, `/graph/company/INFY`, `/graph/edges/review`, and `/graph/signals`
-  against the imported graph database; milestone cleanup inspected
+- Assumptions made: Neo4j is an optional derived read model only; Postgres
+  graph tables remain the source of truth; the Compose Neo4j service is opt-in
+  through the `neo4j` profile and disposable; projection runs only when
+  `TAURUS_NEO4J_ENABLED=true`.
+- Mocks created: `_FakeNeo4jDriver` in
+  `tests/unit/test_neo4j_projection.py` to verify deterministic projection
+  keys and idempotent rebuild behavior without a live Neo4j service.
+- Mocks used: The fake Neo4j driver; a local ignored SQLite database at
+  `/private/tmp/taurus-m20-5-disabled.db` for the disabled projection smoke
+  check; no live Neo4j service was required.
+- Verification: `uv run pytest tests/unit/test_config.py tests/unit/test_graph_api.py tests/unit/test_neo4j_projection.py`
+  passed (15 passed, 1 skipped); `DATABASE_URL=sqlite:////private/tmp/taurus-m20-5-disabled.db make project-neo4j-graph`
+  exited cleanly with `TAURUS_NEO4J_ENABLED=false`; `make test` passed
+  (108 passed, 1 skipped); `make lint` passed; `docker compose config
+  --services` excluded Neo4j by default; `docker compose --profile neo4j config
+  --services` included Neo4j; milestone cleanup inspected
   `/Users/adnaan/.codex/rules/default.rules` and found no accidental Taurus
   approvals after the user's marker.
 
