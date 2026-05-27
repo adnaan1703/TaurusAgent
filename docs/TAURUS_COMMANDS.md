@@ -438,13 +438,6 @@ make alert-test-telegram
 make taurus-smoke
 ```
 
-Post-MVP Upstox commands are deferred and tracked in `docs/UPSTOX_INTEGRATION_PLAN.md`:
-
-```bash
-make broker-sandbox-smoke
-make live-readiness-check
-```
-
 ## API Smoke Checks
 
 ```bash

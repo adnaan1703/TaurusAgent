@@ -1,10 +1,10 @@
 # Paper Trade Event Monitor Stitch References
 
-Status: M16.1 reference assets downloaded.
+Status: Preserved future UI reference assets.
 
 Fetched: 2026-05-21 17:00 IST
 
-This folder supports M16.1 of `docs/TAURUS_REACT_DASHBOARD_PLAN.md`.
+This folder preserves Stitch-generated visual references for future Taurus UI work.
 
 ## Source Project
 
@@ -34,7 +34,7 @@ This folder supports M16.1 of `docs/TAURUS_REACT_DASHBOARD_PLAN.md`.
 
 ## Visual Tokens
 
-Derived from Deep Space Observability and the Taurus React dashboard plan:
+Derived from Deep Space Observability and the historical Taurus React dashboard planning work:
 
 | Token | Value |
 |---|---|
@@ -57,7 +57,7 @@ Derived from Deep Space Observability and the Taurus React dashboard plan:
 | Typography | Inter for UI; monospace for IDs and raw JSON |
 | Base spacing | `4px`; page gutter `1.5rem` |
 
-M16.3 should convert these into Tailwind/CSS tokens rather than copying static Stitch styles.
+Future UI work should convert these into Tailwind/CSS tokens rather than copying static Stitch styles.
 
 ## Route Mapping
 
@@ -75,4 +75,4 @@ M16.3 should convert these into Tailwind/CSS tokens rather than copying static S
 
 These assets are references only. Do not directly port the generated Stitch HTML into production React code. Use the screenshots and HTML to understand layout, spacing, information hierarchy, and visual direction, then build clean components in `apps/web`.
 
-M16 v1 remains read-only. Any Stitch mock action that implies mutation or run control, such as a "Run Agent" control, is non-functional/deferred and must not be implemented as a Taurus API action in v1.
+The current React dashboard remains read-only. Any Stitch mock action that implies mutation or run control, such as a "Run Agent" control, is non-functional reference material and must not be implemented as a Taurus API action without a new explicit milestone.

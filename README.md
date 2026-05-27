@@ -4,7 +4,7 @@ Taurus is an observable, paper-trading-first algo trading MVP for Indian cash eq
 
 The paper-trading MVP is complete, and the React run-loop observability dashboard is the primary local UI. Taurus can run the local mock-data flow end to end: market data seeding, news/events, backtests, analyst reports, bull/bear debate, trader proposal, risk review, final approval, PaperBroker execution, scheduled paper loop, replay, backup, API, React dashboard, Streamlit fallback dashboard, Prometheus metrics, and Grafana dashboards.
 
-Broker sandbox and live broker integration are intentionally deferred. See `docs/UPSTOX_INTEGRATION_PLAN.md` for the post-MVP broker path.
+Broker order routing is not part of the current roadmap. Taurus remains a local paper simulator unless a future milestone explicitly changes that direction.
 Kite Connect support is data-only: it can sync instruments, import historical
 daily candles, and store latest OHLC/LTP snapshots, but all execution still
 routes through `PaperBroker`.
@@ -170,7 +170,7 @@ Run the Streamlit fallback dashboard:
 make dashboard
 ```
 
-Usage and one-loop observation guidance is documented in `docs/TAURUS_USAGE_GUIDE.md`. Release assumptions and known limitations are documented in `docs/TAURUS_MVP_RELEASE.md`. Operational commands and recovery steps are documented in `docs/TAURUS_OPERATIONS_RUNBOOK.md`.
+Usage, one-loop observation guidance, known limitations, and operational notes are documented in `docs/TAURUS_USAGE_GUIDE.md`.
 
 ## Local Services
 

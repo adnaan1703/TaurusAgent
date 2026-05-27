@@ -36,7 +36,7 @@ def test_live_trading_cannot_be_enabled(monkeypatch: pytest.MonkeyPatch) -> None
 
 
 def test_non_paper_broker_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("BROKER_PROVIDER", "upstox")
+    monkeypatch.setenv("BROKER_PROVIDER", "live")
 
     with pytest.raises(ValidationError, match="paper broker provider"):
         Settings()

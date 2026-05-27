@@ -35,7 +35,7 @@ Taurus is a local, observable paper-trading simulator for Indian cash equities. 
 - `packages/taurus_core/data/providers/kite_market_data.py`
 - `docs/TAURUS_USAGE_GUIDE.md`
 
-**Important limitation:** This is not connected to a real broker paper account. It is a local paper simulator. Kite is data-only. Upstox/live broker order routing is still deferred.
+**Important limitation:** This is not connected to a real broker paper account. It is a local paper simulator. Kite is data-only. Broker order routing is not part of the current roadmap.
 
 ## Main Commands
 
@@ -202,7 +202,7 @@ Your assumption is only partly true.
 7. Add a real news/data provider if news/sentiment risk is enabled.
 8. Validate real Screener CSV if fundamentals will be used.
 9. Add dashboard/API auth before using beyond a trusted local machine.
-10. Implement broker sandbox adapter only after explicit approval; Upstox/Kite execution is still deferred.
+10. Implement broker order routing only after an explicit approved milestone; Kite execution is not implemented.
 
 ## Bottom Line
 

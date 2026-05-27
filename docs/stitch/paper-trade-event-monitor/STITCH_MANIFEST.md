@@ -171,4 +171,4 @@ These were present in the Stitch project but were not part of the requested scre
 | Taurus Risk Engine | `7ec1a5ef2d464596ae02656ed9eb2567` |
 | Taurus Portfolio & Account | `b0f541d3f6fd4ef5aed643bd9cf3e257` |
 | Taurus Screen List and IA | `fd0ec11386d54d27b4b10c13ba1c6953` |
-| TAURUS_UI_DESIGN_BRIEF.md | `16568500018022921690` |
+| Historical Taurus UI design brief | `16568500018022921690` |

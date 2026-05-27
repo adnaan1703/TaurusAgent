@@ -160,9 +160,6 @@ class Settings(BaseSettings):
     kite_api_secret: str = Field(default="", validation_alias="KITE_API_SECRET")
     kite_access_token: str = Field(default="", validation_alias="KITE_ACCESS_TOKEN")
     taurus_kite_exchange: str = Field(default="NSE", validation_alias="TAURUS_KITE_EXCHANGE")
-    upstox_client_id: str = Field(default="", validation_alias="UPSTOX_CLIENT_ID")
-    upstox_client_secret: str = Field(default="", validation_alias="UPSTOX_CLIENT_SECRET")
-    upstox_redirect_uri: str = Field(default="", validation_alias="UPSTOX_REDIRECT_URI")
 
     @model_validator(mode="after")
     def enforce_trading_safety(self) -> Settings:
@@ -194,9 +191,6 @@ class Settings(BaseSettings):
             "kite_api_key",
             "kite_api_secret",
             "kite_access_token",
-            "upstox_client_id",
-            "upstox_client_secret",
-            "upstox_redirect_uri",
         ):
             if redacted.get(key):
                 redacted[key] = "***REDACTED***"
