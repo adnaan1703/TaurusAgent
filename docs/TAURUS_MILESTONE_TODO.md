@@ -77,7 +77,7 @@ submilestone unless the user explicitly asks to proceed.
 |---|---|---|
 | M20.0 | Done | Created repo-specific graph intelligence plan and M20 milestone tracker; no runtime behavior changes. |
 | M20.1 | Done | Postgres graph settings, graph tables, metadata migration path, and idempotent graph repository upserts/read paths. |
-| M20.2 | Planned | TaurusData CSV graph importer for `configs/taurus_data/`. |
+| M20.2 | Done | TaurusData CSV graph importer, CLI/Make target, idempotent active/candidate/evidence import from `configs/taurus_data/`. |
 | M20.3 | Planned | FastAPI graph API vertical slice backed by Postgres. |
 | M20.4 | Planned | React graph dashboard vertical slice. |
 | M20.5 | Planned | Optional Neo4j projection/read model. |
@@ -115,17 +115,24 @@ submilestone unless the user explicitly asks to proceed.
 - [ ] Add a real news/data provider if news or sentiment risk is enabled.
 - [ ] Add dashboard/API auth before using Taurus beyond a trusted local machine.
 - [ ] Verify real Telegram alert delivery with local-only credentials.
-- [ ] Start M20.2 only after a fresh explicit request.
+- [ ] Start M20.3 only after a fresh explicit request.
 
-## Latest Completion Summary - M20.1
+## Latest Completion Summary - M20.2
 
-- Assumptions made: M20.1 is backend-only; Neo4j, graph APIs, importer scripts,
-  dashboard UI, graph analyst behavior, and graph risk behavior remain deferred
-  to later M20 submilestones.
-- Mocks created: None.
-- Mocks used: None.
-- Verification: focused graph/config tests passed (13), `make test` passed
-  (101), and `make lint` passed on 2026-05-27.
+- Assumptions made: M20.2 is backend/importer-only; all listed TaurusData CSVs
+  are treated as optional per run but imported when present; source evidence is
+  represented through company-to-source evidence edges because there is no
+  node-level evidence table yet. Neo4j, graph APIs, dashboard UI, graph analyst
+  behavior, graph risk behavior, and graph stats remain deferred.
+- Mocks created: Minimal synthetic TaurusData CSV fixture rows in
+  `tests/unit/test_graph_importer.py`.
+- Mocks used: The synthetic unit-test CSV fixture and the bundled
+  `configs/taurus_data/` sample files; no external services.
+- Verification: `uv run pytest tests/unit/test_graph_importer.py` passed (2),
+  focused graph tests passed (5), bundled sample import through
+  `DATABASE_URL=sqlite:////tmp/taurus-graph-m20-2.db make import-taurus-graph`
+  succeeded twice with stable graph counts, `make test` passed (103), and
+  `make lint` passed on 2026-05-27.
 
 ## Deprecated Direction
 

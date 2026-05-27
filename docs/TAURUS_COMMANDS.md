@@ -377,6 +377,27 @@ sed -n '1,260p' /Users/adnaan/.codex/rules/default.rules
 sed -n '1,260p' .codex/rules/default.rules
 ```
 
+## M20.2 Commands Used
+
+```bash
+git status --short
+sed -n '1,260p' docs/TAURUS_MILESTONE_TODO.md
+sed -n '1,300p' docs/TAURUS_GRAPH_INTELLIGENCE_PLAN.md
+rg --files
+sed -n '1334,1845p' packages/taurus_core/db/repositories.py
+head -n 1 configs/taurus_data/company_edges.csv
+head -n 1 configs/taurus_data/edge_candidates.csv
+head -n 1 configs/taurus_data/source_evidence.csv
+uv run pytest tests/unit/test_graph_importer.py
+DATABASE_URL=sqlite:////tmp/taurus-graph-m20-2.db make import-taurus-graph
+DATABASE_URL=sqlite:////tmp/taurus-graph-m20-2.db make import-taurus-graph
+uv run pytest tests/unit/test_graph_repository.py tests/unit/test_graph_importer.py
+make test
+make lint
+sed -n '1,320p' /Users/adnaan/.codex/rules/default.rules
+sed -n '1,320p' .codex/rules/default.rules
+```
+
 ## Current Make Targets
 
 ```bash
@@ -395,6 +416,7 @@ make backtest-real-data
 make import-mock-news
 make import-screener CSV=/path/to/screener.csv
 make import-price-csv CSV=mock/market_data/prices_sample.csv
+make import-taurus-graph DATA_DIR=configs/taurus_data
 make sync-halal-stocks
 make kite-login-url
 make kite-exchange-token REQUEST_TOKEN=<request_token_from_redirect_url>
