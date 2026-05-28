@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from decimal import Decimal
+
 import pytest
 from pydantic import ValidationError
 
@@ -17,6 +19,13 @@ def test_default_settings_are_safe() -> None:
     assert settings.taurus_graph_enabled is False
     assert settings.taurus_graph_risk_enabled is False
     assert settings.taurus_graph_auto_promote_edges is False
+    assert settings.graph_stats_windows == (60, 120, 252)
+    assert settings.taurus_graph_min_edge_sample_size == 30
+    assert settings.taurus_graph_min_edge_confidence == Decimal("0.65")
+    assert settings.taurus_graph_min_residual_corr == Decimal("0.35")
+    assert settings.taurus_graph_min_lead_lag_score == Decimal("0.35")
+    assert settings.taurus_graph_min_stability_score == Decimal("0.50")
+    assert settings.taurus_graph_lead_lag_max_days == 5
     assert settings.taurus_neo4j_enabled is False
     assert settings.taurus_neo4j_uri == "bolt://localhost:7687"
     assert settings.taurus_neo4j_user == "neo4j"
@@ -75,6 +84,13 @@ def test_graph_flags_can_be_enabled_explicitly(monkeypatch: pytest.MonkeyPatch) 
     assert settings.taurus_graph_risk_enabled is True
     assert settings.taurus_graph_auto_promote_edges is True
     assert settings.taurus_neo4j_enabled is True
+
+
+def test_graph_stats_windows_are_validated(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("TAURUS_GRAPH_STATS_WINDOWS", "20,not-a-window")
+
+    with pytest.raises(ValidationError, match="GRAPH_STATS_WINDOWS"):
+        Settings()
 
 
 def test_unknown_enabled_analyst_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:

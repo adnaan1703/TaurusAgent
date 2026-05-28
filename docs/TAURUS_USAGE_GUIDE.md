@@ -2,11 +2,11 @@
 
 ## Current State
 
-- Backend tests: `make test` -> `108 passed, 1 skipped` after M20.5.
-- Frontend tests: not rerun in M20.5; latest `make test-ui` was `25 passed` after M20.4.
-- Compile check: `make lint` -> passed after M20.5.
-- Frontend build: not rerun in M20.5; latest `make build-ui` passed after M20.4.
-- Git worktree contains M20.5 implementation changes until committed.
+- Backend tests: `make test` -> `112 passed, 1 skipped` after M20.6.
+- Frontend tests: not rerun in M20.6; latest `make test-ui` was `25 passed` after M20.4.
+- Compile check: `make lint` -> passed after M20.6.
+- Frontend build: not rerun in M20.6; latest `make build-ui` passed after M20.4.
+- Git worktree contains M20.6 implementation changes until committed.
 - Docker Compose services are not currently running, but Docker volumes exist: `taurusagent_postgres_data`, `taurusagent_grafana_data`.
 - A local ignored SQLite file exists: `taurus.db`, containing `10` instruments and `2520` daily candles. This means not all local state is only in Docker.
 - Local `.env` exists and contains only Kite keys. It does not set `DATABASE_URL`, `TAURUS_MARKET_DATA_PROVIDER`, or analyst settings.
@@ -30,6 +30,9 @@ Taurus is a local, observable paper-trading simulator for Indian cash equities. 
   browse/review graph data in the React dashboard.
 - Optionally rebuild a disposable Neo4j read-model projection from Postgres
   graph tables.
+- Compute graph edge validation statistics from daily candle data and persist
+  raw correlation, market-residual correlation, lead-lag score, stability score,
+  sample size, and insufficient-data reasons.
 
 **Key files:**
 
@@ -69,6 +72,9 @@ Taurus is a local, observable paper-trading simulator for Indian cash equities. 
 - `make import-price-csv CSV=/path/file.csv`: imports user OHLCV CSV.
 - `make import-screener CSV=/path/file.csv`: imports Screener fundamentals.
 - `make import-taurus-graph DATA_DIR=configs/taurus_data`: imports TaurusData graph CSVs.
+- `make compute-graph-stats AS_OF=YYYY-MM-DD`: computes graph edge statistics
+  from existing daily candles. `AS_OF` is optional and defaults to the latest
+  candle date.
 - `make project-neo4j-graph`: rebuilds the optional Neo4j graph projection
   when `TAURUS_NEO4J_ENABLED=true`; otherwise exits with a skipped summary.
 - `make sync-halal-stocks`: fetches HalalStock data and exports halal NSE universe YAML.
@@ -269,6 +275,25 @@ TAURUS_NEO4J_ENABLED=true make project-neo4j-graph
 
 Running `make project-neo4j-graph` without `TAURUS_NEO4J_ENABLED=true` is a
 safe no-op that prints a skipped JSON summary.
+
+## Graph Statistical Validation
+
+Graph stats use Postgres graph edges and existing `daily_candles`. The job
+computes close-to-close return correlations across configured windows, using an
+equal-weight market proxy from available daily candle returns for residual
+correlation.
+
+```bash
+make migrate
+make seed-mock
+make import-taurus-graph DATA_DIR=configs/taurus_data
+make compute-graph-stats AS_OF=2024-12-17
+```
+
+Default windows are controlled by `TAURUS_GRAPH_STATS_WINDOWS=60,120,252`.
+Candidate auto-promotion remains disabled by default through
+`TAURUS_GRAPH_AUTO_PROMOTE_EDGES=false`; enabling it only updates graph edge
+review status metadata and still does not route orders.
 
 ## Main Gaps Before It Is "Super Ready"
 

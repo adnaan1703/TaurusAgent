@@ -474,6 +474,28 @@ sed -n '1,360p' /Users/adnaan/.codex/rules/default.rules
 sed -n '1,360p' .codex/rules/default.rules
 ```
 
+## M20.6 Commands Used
+
+```bash
+git status --short
+rg --files
+sed -n '1,260p' docs/TAURUS_MILESTONE_TODO.md
+sed -n '1,260p' docs/TAURUS_GRAPH_INTELLIGENCE_PLAN.md
+sed -n '845,940p' docs/TAURUS_DATA_INTEGRATION.md
+sed -n '320,560p' packages/taurus_core/db/models.py
+sed -n '1334,1765p' packages/taurus_core/db/repositories.py
+uv run pytest tests/unit/test_config.py tests/unit/test_graph_stats.py
+uv run pytest tests/unit/test_graph_repository.py tests/unit/test_graph_importer.py tests/unit/test_graph_api.py tests/unit/test_neo4j_projection.py tests/unit/test_graph_stats.py tests/unit/test_config.py
+DATABASE_URL=sqlite:////private/tmp/taurus-m20-6-stats.db make migrate
+DATABASE_URL=sqlite:////private/tmp/taurus-m20-6-stats.db make seed-mock
+DATABASE_URL=sqlite:////private/tmp/taurus-m20-6-stats.db make import-taurus-graph DATA_DIR=configs/taurus_data
+DATABASE_URL=sqlite:////private/tmp/taurus-m20-6-stats.db make compute-graph-stats AS_OF=2024-12-17
+make test
+make lint
+sed -n '1,360p' /Users/adnaan/.codex/rules/default.rules
+sed -n '1,360p' .codex/rules/default.rules
+```
+
 ## Current Make Targets
 
 ```bash
@@ -493,6 +515,7 @@ make import-mock-news
 make import-screener CSV=/path/to/screener.csv
 make import-price-csv CSV=mock/market_data/prices_sample.csv
 make import-taurus-graph DATA_DIR=configs/taurus_data
+make compute-graph-stats AS_OF=YYYY-MM-DD
 make project-neo4j-graph
 make sync-halal-stocks
 make kite-login-url
@@ -554,7 +577,10 @@ make dashboard
 make import-screener CSV=/path/to/screener.csv
 make import-price-csv CSV=/path/to/prices.csv
 make import-price-csv DIR=/path/to/price_csvs
+make import-taurus-graph DATA_DIR=configs/taurus_data
 make sync-halal-stocks
+make compute-graph-stats AS_OF=YYYY-MM-DD
+make project-neo4j-graph
 make kite-login-url
 make kite-exchange-token REQUEST_TOKEN=<request_token_from_redirect_url>
 make kite-sync-instruments

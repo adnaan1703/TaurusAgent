@@ -81,7 +81,7 @@ submilestone unless the user explicitly asks to proceed.
 | M20.3 | Done | FastAPI graph API vertical slice backed by Postgres, with local-dashboard edge review endpoints. |
 | M20.4 | Done | React graph dashboard routes for overview, company graph, candidate review, and graph signals. |
 | M20.5 | Done | Optional Neo4j projection/read model, disabled by default and rebuildable from Postgres. |
-| M20.6 | Planned | Graph statistical validation engine. |
+| M20.6 | Done | Graph statistical validation engine persisted to Postgres edge stats. |
 | M20.7 | Planned | Deterministic `GraphAnalystAgent`. |
 | M20.8 | Planned | Optional graph-aware risk checks. |
 | M20.9 | Planned | Graph observability metrics and dashboards. |
@@ -99,6 +99,9 @@ submilestone unless the user explicitly asks to proceed.
 - React dashboard at `http://localhost:5173`, including graph browsing and gated graph edge review.
 - Streamlit fallback dashboard.
 - Optional disposable Neo4j projection read model rebuilt one-way from Postgres graph tables.
+- Graph edge statistical validation from daily candle data with persisted raw
+  correlation, market-residual correlation, lead-lag score, stability score,
+  sample size, and insufficient-data reasons.
 - Shariah compliance dashboard backed by imported HalalStock rows.
 - Replay, backup/restore, alerts, Prometheus metrics, and Grafana dashboards.
 
@@ -116,28 +119,34 @@ submilestone unless the user explicitly asks to proceed.
 - [ ] Add a real news/data provider if news or sentiment risk is enabled.
 - [ ] Add dashboard/API auth before using Taurus beyond a trusted local machine.
 - [ ] Verify real Telegram alert delivery with local-only credentials.
-- [ ] Start M20.6 only after a fresh explicit request.
+- [ ] Start M20.7 only after a fresh explicit request.
 
-## Latest Completion Summary - M20.5
+## Latest Completion Summary - M20.6
 
-- Assumptions made: Neo4j is an optional derived read model only; Postgres
-  graph tables remain the source of truth; the Compose Neo4j service is opt-in
-  through the `neo4j` profile and disposable; projection runs only when
-  `TAURUS_NEO4J_ENABLED=true`.
-- Mocks created: `_FakeNeo4jDriver` in
-  `tests/unit/test_neo4j_projection.py` to verify deterministic projection
-  keys and idempotent rebuild behavior without a live Neo4j service.
-- Mocks used: The fake Neo4j driver; a local ignored SQLite database at
-  `/private/tmp/taurus-m20-5-disabled.db` for the disabled projection smoke
-  check; no live Neo4j service was required.
-- Verification: `uv run pytest tests/unit/test_config.py tests/unit/test_graph_api.py tests/unit/test_neo4j_projection.py`
-  passed (15 passed, 1 skipped); `DATABASE_URL=sqlite:////private/tmp/taurus-m20-5-disabled.db make project-neo4j-graph`
-  exited cleanly with `TAURUS_NEO4J_ENABLED=false`; `make test` passed
-  (108 passed, 1 skipped); `make lint` passed; `docker compose config
-  --services` excluded Neo4j by default; `docker compose --profile neo4j config
-  --services` included Neo4j; milestone cleanup inspected
-  `/Users/adnaan/.codex/rules/default.rules` and found no accidental Taurus
-  approvals after the user's marker.
+- Assumptions made: Graph stats use close-to-close daily returns for graph
+  source and target company symbols; non-company edges or edges missing candle
+  coverage persist an insufficient-data reason instead of crashing; residual
+  correlation uses an equal-weight market proxy built from available daily
+  candle returns because Taurus does not yet import sector index return series;
+  automatic candidate promotion remains disabled by default and, when enabled,
+  only updates graph edge review status metadata.
+- Mocks created: Synthetic `AAA`, `BBB`, and `MKT` instruments and daily candle
+  fixtures in `tests/unit/test_graph_stats.py` to prove raw correlation,
+  residual correlation, stability scoring, insufficient-data handling, and
+  explicit auto-promotion behavior.
+- Mocks used: The synthetic graph stats fixture; deterministic mock market data
+  from `make seed-mock`; a local ignored SQLite smoke database at
+  `/private/tmp/taurus-m20-6-stats.db`; no live broker, Kite, Neo4j, or external
+  data service was required.
+- Verification: `uv run pytest tests/unit/test_config.py tests/unit/test_graph_stats.py`
+  passed (14 passed); graph-focused suite
+  `uv run pytest tests/unit/test_graph_repository.py tests/unit/test_graph_importer.py tests/unit/test_graph_api.py tests/unit/test_neo4j_projection.py tests/unit/test_graph_stats.py tests/unit/test_config.py`
+  passed (24 passed, 1 skipped); `DATABASE_URL=sqlite:////private/tmp/taurus-m20-6-stats.db make compute-graph-stats AS_OF=2024-12-17`
+  returned `edges_seen=20576`, `stats_upserted=61728`, and no promoted edges;
+  `make test` passed (112 passed, 1 skipped); `make lint` passed; milestone
+  cleanup inspected `/Users/adnaan/.codex/rules/default.rules` and found no
+  accidental Taurus approvals after the user's marker. The project-local
+  `.codex/rules/default.rules` now includes `make compute-graph-stats`.
 
 ## Deprecated Direction
 

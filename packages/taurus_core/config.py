@@ -47,6 +47,44 @@ class Settings(BaseSettings):
         default=False,
         validation_alias="TAURUS_GRAPH_AUTO_PROMOTE_EDGES",
     )
+    taurus_graph_stats_windows: str = Field(
+        default="60,120,252",
+        validation_alias="TAURUS_GRAPH_STATS_WINDOWS",
+    )
+    taurus_graph_min_edge_sample_size: int = Field(
+        default=30,
+        ge=2,
+        validation_alias="TAURUS_GRAPH_MIN_EDGE_SAMPLE_SIZE",
+    )
+    taurus_graph_min_edge_confidence: Decimal = Field(
+        default=Decimal("0.65"),
+        ge=Decimal("0"),
+        le=Decimal("1"),
+        validation_alias="TAURUS_GRAPH_MIN_EDGE_CONFIDENCE",
+    )
+    taurus_graph_min_residual_corr: Decimal = Field(
+        default=Decimal("0.35"),
+        ge=Decimal("0"),
+        le=Decimal("1"),
+        validation_alias="TAURUS_GRAPH_MIN_RESIDUAL_CORR",
+    )
+    taurus_graph_min_lead_lag_score: Decimal = Field(
+        default=Decimal("0.35"),
+        ge=Decimal("0"),
+        le=Decimal("1"),
+        validation_alias="TAURUS_GRAPH_MIN_LEAD_LAG_SCORE",
+    )
+    taurus_graph_min_stability_score: Decimal = Field(
+        default=Decimal("0.50"),
+        ge=Decimal("0"),
+        le=Decimal("1"),
+        validation_alias="TAURUS_GRAPH_MIN_STABILITY_SCORE",
+    )
+    taurus_graph_lead_lag_max_days: int = Field(
+        default=5,
+        ge=1,
+        validation_alias="TAURUS_GRAPH_LEAD_LAG_MAX_DAYS",
+    )
     taurus_neo4j_enabled: bool = Field(
         default=False,
         validation_alias="TAURUS_NEO4J_ENABLED",
@@ -208,11 +246,16 @@ class Settings(BaseSettings):
         if self.taurus_alert_provider not in {"mock", "telegram", "disabled"}:
             raise ValueError("Unsupported Taurus alert provider.")
         parse_enabled_analysts(self.taurus_enabled_analysts)
+        _parse_graph_stats_windows(self.taurus_graph_stats_windows)
         return self
 
     @property
     def enabled_analyst_keys(self) -> tuple[str, ...]:
         return parse_enabled_analysts(self.taurus_enabled_analysts)
+
+    @property
+    def graph_stats_windows(self) -> tuple[int, ...]:
+        return _parse_graph_stats_windows(self.taurus_graph_stats_windows)
 
     def safe_dict(self) -> dict[str, Any]:
         redacted = self.model_dump()
@@ -249,6 +292,24 @@ def _redact_url_password(value: str) -> str:
             parsed.fragment,
         )
     )
+
+
+def _parse_graph_stats_windows(value: str) -> tuple[int, ...]:
+    windows: list[int] = []
+    for raw_item in value.split(","):
+        item = raw_item.strip()
+        if not item:
+            continue
+        try:
+            window = int(item)
+        except ValueError as exc:
+            raise ValueError("TAURUS_GRAPH_STATS_WINDOWS must contain positive integers.") from exc
+        if window <= 0:
+            raise ValueError("TAURUS_GRAPH_STATS_WINDOWS must contain positive integers.")
+        windows.append(window)
+    if not windows:
+        raise ValueError("TAURUS_GRAPH_STATS_WINDOWS must contain at least one window.")
+    return tuple(windows)
 
 
 @lru_cache(maxsize=1)

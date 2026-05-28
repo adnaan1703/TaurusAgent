@@ -168,6 +168,16 @@ docker compose --profile neo4j up -d neo4j
 TAURUS_NEO4J_ENABLED=true make project-neo4j-graph
 ```
 
+Compute graph edge validation stats from existing daily candles:
+
+```bash
+make import-taurus-graph DATA_DIR=configs/taurus_data
+make compute-graph-stats AS_OF=2024-12-17
+```
+
+Automatic graph candidate promotion remains disabled by default with
+`TAURUS_GRAPH_AUTO_PROMOTE_EDGES=false`.
+
 Run a full mock paper loop and open the React dashboard in one command:
 
 ```bash
