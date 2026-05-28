@@ -35,6 +35,7 @@ const STATUS_MAP: Record<string, StatusConfig> = {
 
   complete: { label: "Complete", tone: "success", icon: CheckCircle2 },
   running: { label: "Running", tone: "info", icon: Clock3 },
+  warn: { label: "Warn", tone: "caution", icon: AlertTriangle },
   blocked: { label: "Blocked", tone: "failure", icon: Ban },
   rejected: { label: "Rejected", tone: "failure", icon: XCircle },
   failed: { label: "Failed", tone: "failure", icon: XCircle },

@@ -521,6 +521,28 @@ sed -n '/# END MY CUSTOM ADDITION/,$p' /Users/adnaan/.codex/rules/default.rules
 sed -n '1,220p' .codex/rules/default.rules
 ```
 
+## M20.8 Commands Used
+
+```bash
+git status --short
+rg -n "M20\.8|Graph-Aware Risk|graph concentration|risk" docs/TAURUS_MILESTONE_TODO.md docs/TAURUS_GRAPH_INTELLIGENCE_PLAN.md
+rg --files apps packages tests docs | rg "risk|graph|TAURUS_MILESTONE_TODO|TAURUS_COMMANDS|GRAPH_INTELLIGENCE"
+sed -n '1,260p' packages/taurus_core/risk/engine.py
+sed -n '1,260p' packages/taurus_core/risk/schemas.py
+sed -n '1,260p' tests/unit/test_risk_approval.py
+sed -n '1,260p' packages/taurus_core/graph/stats.py
+sed -n '1,260p' packages/taurus_core/config.py
+sed -n '320,560p' packages/taurus_core/db/models.py
+sed -n '1340,1740p' packages/taurus_core/db/repositories.py
+uv run pytest tests/unit/test_graph_risk.py tests/unit/test_config.py tests/unit/test_risk_approval.py
+uv run pytest tests/unit/test_graph_repository.py tests/unit/test_graph_importer.py tests/unit/test_graph_api.py tests/unit/test_neo4j_projection.py tests/unit/test_graph_stats.py tests/unit/test_graph_analyst.py tests/unit/test_graph_risk.py tests/unit/test_config.py
+make test
+make lint
+sed -n '1,360p' /Users/adnaan/.codex/rules/default.rules
+sed -n '/# END MY CUSTOM ADDITION/,$p' /Users/adnaan/.codex/rules/default.rules
+sed -n '1,260p' .codex/rules/default.rules
+```
+
 ## Current Make Targets
 
 ```bash

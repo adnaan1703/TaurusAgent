@@ -26,6 +26,13 @@ def test_default_settings_are_safe() -> None:
     assert settings.taurus_graph_min_lead_lag_score == Decimal("0.35")
     assert settings.taurus_graph_min_stability_score == Decimal("0.50")
     assert settings.taurus_graph_lead_lag_max_days == 5
+    assert settings.taurus_graph_max_basic_industry_exposure_pct == Decimal("25.0")
+    assert settings.taurus_graph_max_product_group_exposure_pct == Decimal("30.0")
+    assert settings.taurus_graph_max_customer_industry_exposure_pct == Decimal("30.0")
+    assert settings.taurus_graph_max_dependency_exposure_pct == Decimal("30.0")
+    assert settings.taurus_graph_max_risk_category_exposure_pct == Decimal("25.0")
+    assert settings.taurus_graph_max_correlated_cluster_exposure_pct == Decimal("35.0")
+    assert settings.taurus_graph_concentration_warning_fraction == Decimal("0.80")
     assert settings.taurus_neo4j_enabled is False
     assert settings.taurus_neo4j_uri == "bolt://localhost:7687"
     assert settings.taurus_neo4j_user == "neo4j"

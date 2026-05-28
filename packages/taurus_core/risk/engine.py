@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import datetime, timezone
 from decimal import Decimal
 
@@ -9,6 +10,7 @@ from taurus_core.config import Settings, get_settings
 from taurus_core.db.repositories import IntelligenceRepository, InstrumentRepository
 from taurus_core.intelligence.event_scoring import EVENT_SENTIMENT
 from taurus_core.research.schemas import TraderProposal
+from taurus_core.risk.graph_concentration import evaluate_graph_concentration
 from taurus_core.risk.schemas import (
     HardRuleResult,
     RiskReviewStatus,
@@ -42,6 +44,8 @@ class RiskEngine:
         *,
         kill_switch_enabled: bool | None = None,
         current_open_positions: int = 0,
+        current_position_exposures_pct_nav: Mapping[str, Decimal | int | float | str]
+        | None = None,
         daily_loss_pct: Decimal = Decimal("0"),
     ) -> None:
         self.session = session
@@ -52,6 +56,7 @@ class RiskEngine:
             else kill_switch_enabled
         )
         self.current_open_positions = current_open_positions
+        self.current_position_exposures_pct_nav = current_position_exposures_pct_nav or {}
         self.daily_loss_pct = daily_loss_pct
 
     def evaluate(
@@ -217,6 +222,15 @@ class RiskEngine:
                     details="Trader action requests a paper long entry only after final approval.",
                 )
             )
+            if approved_position > 0:
+                approved_position, graph_results = evaluate_graph_concentration(
+                    self.session,
+                    settings=self.settings,
+                    symbol=symbol,
+                    approved_position_pct_nav=approved_position,
+                    current_position_exposures_pct_nav=self.current_position_exposures_pct_nav,
+                )
+                results.extend(graph_results)
 
         hard_statuses = [result.status for result in results]
         if "blocked" in hard_statuses:

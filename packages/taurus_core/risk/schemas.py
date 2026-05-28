@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from taurus_core.intelligence.documents import stable_id
 from taurus_core.research.schemas import TraderAction
 
-RiskRuleStatus = Literal["passed", "reduced", "rejected", "blocked"]
+RiskRuleStatus = Literal["passed", "warn", "reduced", "rejected", "blocked"]
 RiskRecommendation = Literal["allow", "reduce", "reject", "block"]
 RiskReviewStatus = Literal["APPROVED", "APPROVED_WITH_REDUCTION", "REJECTED", "BLOCKED"]
 FinalDecisionStatus = Literal["APPROVED_FOR_PAPER", "REJECTED", "BLOCKED"]

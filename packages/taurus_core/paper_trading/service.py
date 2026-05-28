@@ -3,6 +3,7 @@ from __future__ import annotations
 import time
 from collections.abc import Iterable
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -200,15 +201,19 @@ class PaperRunService:
             proposal = TraderAgent(session).run(symbol=symbol, run_id=run_id, debate=debate)
 
         with self.session_factory() as session:
+            execution_repo = ExecutionRepository(session)
             open_positions = [
-                position
-                for position in ExecutionRepository(session).list_positions()
-                if position.quantity > 0
+                position for position in execution_repo.list_positions() if position.quantity > 0
             ]
+            account = execution_repo.latest_account()
             review = RiskReviewService(
                 session,
                 self.settings,
                 current_open_positions=len(open_positions),
+                current_position_exposures_pct_nav=_position_exposures_pct_nav(
+                    positions=open_positions,
+                    equity_inr=account.equity_inr if account is not None else None,
+                ),
             ).run(symbol=symbol, run_id=run_id, proposal=proposal)
 
         with self.session_factory() as session:
@@ -488,6 +493,21 @@ def _status_for(succeeded_symbols: list[str], failed_symbols: list[str]) -> str:
     if succeeded_symbols:
         return "COMPLETED"
     return "RUNNING"
+
+
+def _position_exposures_pct_nav(
+    *,
+    positions,
+    equity_inr: Decimal | None,
+) -> dict[str, Decimal]:
+    if equity_inr is None or equity_inr <= 0:
+        return {}
+    return {
+        position.symbol.upper(): ((position.market_value_inr / equity_inr) * Decimal("100"))
+        .quantize(Decimal("0.0001"))
+        for position in positions
+        if position.market_value_inr > 0
+    }
 
 
 def _daily_candle_history(session: Session, symbol: str) -> list[DailyCandle]:

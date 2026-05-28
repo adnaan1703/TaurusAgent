@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from decimal import Decimal
 
 from sqlalchemy.orm import Session
@@ -33,12 +34,15 @@ class RiskReviewService:
         *,
         kill_switch_enabled: bool | None = None,
         current_open_positions: int = 0,
+        current_position_exposures_pct_nav: Mapping[str, Decimal | int | float | str]
+        | None = None,
         daily_loss_pct: Decimal = Decimal("0"),
     ) -> None:
         self.session = session
         self.settings = settings or get_settings()
         self.kill_switch_enabled = kill_switch_enabled
         self.current_open_positions = current_open_positions
+        self.current_position_exposures_pct_nav = current_position_exposures_pct_nav or {}
         self.daily_loss_pct = daily_loss_pct
         self.risky_agent = RiskyRiskAgent()
         self.neutral_agent = NeutralRiskAgent()
@@ -77,6 +81,7 @@ class RiskReviewService:
             self.settings,
             kill_switch_enabled=self.kill_switch_enabled,
             current_open_positions=self.current_open_positions,
+            current_position_exposures_pct_nav=self.current_position_exposures_pct_nav,
             daily_loss_pct=self.daily_loss_pct,
         ).evaluate(
             proposal=proposal,

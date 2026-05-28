@@ -85,6 +85,48 @@ class Settings(BaseSettings):
         ge=1,
         validation_alias="TAURUS_GRAPH_LEAD_LAG_MAX_DAYS",
     )
+    taurus_graph_max_basic_industry_exposure_pct: Decimal = Field(
+        default=Decimal("25.0"),
+        ge=Decimal("0"),
+        le=Decimal("100"),
+        validation_alias="TAURUS_GRAPH_MAX_BASIC_INDUSTRY_EXPOSURE_PCT",
+    )
+    taurus_graph_max_product_group_exposure_pct: Decimal = Field(
+        default=Decimal("30.0"),
+        ge=Decimal("0"),
+        le=Decimal("100"),
+        validation_alias="TAURUS_GRAPH_MAX_PRODUCT_GROUP_EXPOSURE_PCT",
+    )
+    taurus_graph_max_customer_industry_exposure_pct: Decimal = Field(
+        default=Decimal("30.0"),
+        ge=Decimal("0"),
+        le=Decimal("100"),
+        validation_alias="TAURUS_GRAPH_MAX_CUSTOMER_INDUSTRY_EXPOSURE_PCT",
+    )
+    taurus_graph_max_dependency_exposure_pct: Decimal = Field(
+        default=Decimal("30.0"),
+        ge=Decimal("0"),
+        le=Decimal("100"),
+        validation_alias="TAURUS_GRAPH_MAX_DEPENDENCY_EXPOSURE_PCT",
+    )
+    taurus_graph_max_risk_category_exposure_pct: Decimal = Field(
+        default=Decimal("25.0"),
+        ge=Decimal("0"),
+        le=Decimal("100"),
+        validation_alias="TAURUS_GRAPH_MAX_RISK_CATEGORY_EXPOSURE_PCT",
+    )
+    taurus_graph_max_correlated_cluster_exposure_pct: Decimal = Field(
+        default=Decimal("35.0"),
+        ge=Decimal("0"),
+        le=Decimal("100"),
+        validation_alias="TAURUS_GRAPH_MAX_CORRELATED_CLUSTER_EXPOSURE_PCT",
+    )
+    taurus_graph_concentration_warning_fraction: Decimal = Field(
+        default=Decimal("0.80"),
+        ge=Decimal("0"),
+        le=Decimal("1"),
+        validation_alias="TAURUS_GRAPH_CONCENTRATION_WARNING_FRACTION",
+    )
     taurus_neo4j_enabled: bool = Field(
         default=False,
         validation_alias="TAURUS_NEO4J_ENABLED",

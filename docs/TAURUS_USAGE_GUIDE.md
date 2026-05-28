@@ -295,6 +295,28 @@ Candidate auto-promotion remains disabled by default through
 `TAURUS_GRAPH_AUTO_PROMOTE_EDGES=false`; enabling it only updates graph edge
 review status metadata and still does not route orders.
 
+## Optional Graph Risk Checks
+
+Graph-aware concentration checks remain disabled by default through
+`TAURUS_GRAPH_RISK_ENABLED=false`. When enabled, the risk engine adds hard-rule
+results for basic industry, product group, customer industry,
+raw material/dependency, risk category, and statistically validated correlated
+graph clusters. A graph concentration can warn, reduce the approved paper size,
+or reject the proposed long entry; it still cannot route orders or bypass final
+approval.
+
+The default maximum exposures are controlled by:
+
+```bash
+TAURUS_GRAPH_MAX_BASIC_INDUSTRY_EXPOSURE_PCT=25.0
+TAURUS_GRAPH_MAX_PRODUCT_GROUP_EXPOSURE_PCT=30.0
+TAURUS_GRAPH_MAX_CUSTOMER_INDUSTRY_EXPOSURE_PCT=30.0
+TAURUS_GRAPH_MAX_DEPENDENCY_EXPOSURE_PCT=30.0
+TAURUS_GRAPH_MAX_RISK_CATEGORY_EXPOSURE_PCT=25.0
+TAURUS_GRAPH_MAX_CORRELATED_CLUSTER_EXPOSURE_PCT=35.0
+TAURUS_GRAPH_CONCENTRATION_WARNING_FRACTION=0.80
+```
+
 ## Main Gaps Before It Is "Super Ready"
 
 1. Remove mock news from real paper runs, or add a real/no-news mode. Right now mock news can affect risk even with technical-only analysts.
