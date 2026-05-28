@@ -21,6 +21,7 @@ class BacktestConfig:
     cost_bps: Decimal = Decimal("10")
     slippage_bps: Decimal = Decimal("5")
     timeframe: str = "1d"
+    graph_enabled: bool = False
 
     def __post_init__(self) -> None:
         if self.initial_capital_inr <= 0:
@@ -37,6 +38,8 @@ class BacktestConfig:
             raise ValueError("cost_bps cannot be negative")
         if self.slippage_bps < 0:
             raise ValueError("slippage_bps cannot be negative")
+        if self.strategy_type == "graph_aware_score" and not self.graph_enabled:
+            object.__setattr__(self, "graph_enabled", True)
 
 
 @dataclass(frozen=True, slots=True)
@@ -44,7 +47,7 @@ class BacktestResult:
     run_id: str
     start_date: date
     end_date: date
-    metrics: dict[str, float]
+    metrics: dict[str, object]
     feature_value_count: int
     signal_count: int
     order_count: int

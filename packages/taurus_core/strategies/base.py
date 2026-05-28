@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
 from typing import Protocol
@@ -13,13 +13,17 @@ class SignalExplanation:
     feature_snapshot_id: str
     reasons: list[str]
     invalidation_rules: list[str]
+    metadata: dict[str, object] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, object]:
-        return {
+        payload = {
             "feature_snapshot_id": self.feature_snapshot_id,
             "reasons": self.reasons,
             "invalidation_rules": self.invalidation_rules,
         }
+        if self.metadata:
+            payload["metadata"] = dict(self.metadata)
+        return payload
 
 
 @dataclass(frozen=True, slots=True)

@@ -1,0 +1,14 @@
+strategy_name: graph_aware_score_v1
+strategy_type: graph_aware_score
+target_positions: 3
+lookback_days: 60
+rebalance_every_days: 21
+parameters:
+  fast_window: 10
+  slow_window: 30
+  technical_weight: 1.0
+  graph_weight: 0.35
+  min_combined_score: -0.10
+  min_return_20d: -1
+  min_graph_confidence: 0
+  require_graph_signal: false

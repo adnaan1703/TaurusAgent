@@ -39,6 +39,10 @@ def run_mock_backtest(settings: Settings | None = None) -> BacktestResult:
         lookback_days=strategy_config.lookback_days,
         rebalance_every_days=strategy_config.rebalance_every_days,
         timeframe=settings.taurus_timeframe,
+        graph_enabled=(
+            strategy_config.strategy_type == "graph_aware_score"
+            or bool(strategy_config.parameters.get("graph_enabled", False))
+        ),
     )
     with session_factory() as session:
         return BacktestEngine(session, config).run()

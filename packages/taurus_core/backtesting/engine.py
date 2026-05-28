@@ -10,6 +10,12 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from taurus_core.backtesting.context import BacktestConfig, BacktestResult
+from taurus_core.backtesting.graph import (
+    GraphBacktestSignal,
+    GraphBacktestSignalLoader,
+    GraphBacktestTrade,
+    summarize_graph_performance,
+)
 from taurus_core.backtesting.metrics import calculate_backtest_metrics
 from taurus_core.db.models import (
     AuditLogModel,
@@ -42,6 +48,14 @@ class PositionState:
 class TradePnl:
     symbol: str
     pnl_inr: Decimal
+
+
+@dataclass(frozen=True, slots=True)
+class OpenGraphTrade:
+    symbol: str
+    entry_date: date
+    entry_price_inr: Decimal
+    signal: GraphBacktestSignal
 
 
 class BacktestEngine:
@@ -91,9 +105,13 @@ class BacktestEngine:
         feature_service = TechnicalFeatureService.from_strategy_parameters(
             dict(self.config.strategy_parameters)
         )
+        graph_loader = GraphBacktestSignalLoader(self.session) if self._graph_enabled() else None
         cash = self.config.initial_capital_inr
         positions: dict[str, PositionState] = {}
         closed_pnl: list[TradePnl] = []
+        open_graph_trades: dict[str, OpenGraphTrade] = {}
+        closed_graph_trades: list[GraphBacktestTrade] = []
+        graph_signal_count = 0
         equity_values: list[Decimal] = [self.config.initial_capital_inr]
         feature_values: list[FeatureValueModel] = []
         signals: list[BacktestSignalModel] = []
@@ -133,11 +151,28 @@ class BacktestEngine:
                 current_symbols = {
                     symbol for symbol, position in positions.items() if position.quantity > 0
                 }
-                targets, generated_signals = strategy.select_targets(
-                    trade_date=trade_date,
-                    features_by_symbol=features_by_symbol,
-                    current_positions=current_symbols,
-                )
+                graph_signals_by_symbol: dict[str, GraphBacktestSignal] = {}
+                if graph_loader is not None:
+                    graph_signals_by_symbol = graph_loader.load_by_as_of_date(
+                        as_of_date=trade_date,
+                        symbols=symbols,
+                    )
+                    graph_signal_count += len(graph_signals_by_symbol)
+
+                select_with_graph = getattr(strategy, "select_targets_with_graph", None)
+                if callable(select_with_graph):
+                    targets, generated_signals = select_with_graph(
+                        trade_date=trade_date,
+                        features_by_symbol=features_by_symbol,
+                        current_positions=current_symbols,
+                        graph_signals_by_symbol=graph_signals_by_symbol,
+                    )
+                else:
+                    targets, generated_signals = strategy.select_targets(
+                        trade_date=trade_date,
+                        features_by_symbol=features_by_symbol,
+                        current_positions=current_symbols,
+                    )
                 signals.extend(_signal_model(run_id, signal) for signal in generated_signals)
                 cash, new_orders, new_fills, new_closed_pnl = self._rebalance(
                     run_id=run_id,
@@ -151,6 +186,12 @@ class BacktestEngine:
                 orders.extend(new_orders)
                 fills.extend(new_fills)
                 closed_pnl.extend(new_closed_pnl)
+                self._record_graph_trades(
+                    fills=new_fills,
+                    graph_signals_by_symbol=graph_signals_by_symbol,
+                    open_graph_trades=open_graph_trades,
+                    closed_graph_trades=closed_graph_trades,
+                )
 
             holdings_value = sum(
                 _money(position.quantity * candles_today[symbol].close)
@@ -179,6 +220,10 @@ class BacktestEngine:
             winning_pnl=winning_pnl,
             losing_pnl=losing_pnl,
         )
+        if graph_loader is not None:
+            metrics.update(summarize_graph_performance(closed_graph_trades))
+            metrics["graph_signal_count"] = graph_signal_count
+            metrics["graph_open_trade_count"] = len(open_graph_trades)
         final_equity = equity_points[-1].total_equity_inr
         final_candles = {
             symbol: candles_by_date[symbol][end_date]
@@ -214,6 +259,8 @@ class BacktestEngine:
                     "fills": len(fills),
                     "positions": len(position_models),
                     "equity_points": len(equity_points),
+                    "graph_signals_loaded": graph_signal_count,
+                    "graph_trades_closed": len(closed_graph_trades),
                 },
                 note="Backtest run completed.",
             ),
@@ -244,6 +291,50 @@ class BacktestEngine:
             equity_point_count=len(equity_points),
             audit_row_count=len(audit_rows),
         )
+
+    def _graph_enabled(self) -> bool:
+        return self.config.graph_enabled
+
+    def _record_graph_trades(
+        self,
+        *,
+        fills: list[BacktestFillModel],
+        graph_signals_by_symbol: dict[str, GraphBacktestSignal],
+        open_graph_trades: dict[str, OpenGraphTrade],
+        closed_graph_trades: list[GraphBacktestTrade],
+    ) -> None:
+        for fill in fills:
+            if fill.side == "SELL":
+                open_trade = open_graph_trades.pop(fill.symbol, None)
+                if open_trade is None or open_trade.entry_price_inr <= 0:
+                    continue
+                closed_graph_trades.append(
+                    GraphBacktestTrade(
+                        symbol=fill.symbol,
+                        entry_date=open_trade.entry_date,
+                        exit_date=fill.trade_date,
+                        return_pct=(
+                            (fill.fill_price_inr / open_trade.entry_price_inr) - Decimal("1")
+                        ).quantize(Decimal("0.00000001")),
+                        signal_score=open_trade.signal.score,
+                        signal_confidence=open_trade.signal.confidence,
+                        edge_types=open_trade.signal.edge_types,
+                        edge_keys=open_trade.signal.edge_keys,
+                    )
+                )
+                continue
+
+            if fill.side != "BUY":
+                continue
+            graph_signal = graph_signals_by_symbol.get(fill.symbol)
+            if graph_signal is None or not graph_signal.contributions:
+                continue
+            open_graph_trades[fill.symbol] = OpenGraphTrade(
+                symbol=fill.symbol,
+                entry_date=fill.trade_date,
+                entry_price_inr=fill.fill_price_inr,
+                signal=graph_signal,
+            )
 
     def _load_candles(self) -> dict[str, list[DailyCandle]]:
         instruments = InstrumentRepository(self.session).list(active_only=True)
@@ -469,6 +560,7 @@ class BacktestEngine:
             "cost_bps": str(self.config.cost_bps),
             "slippage_bps": str(self.config.slippage_bps),
             "timeframe": self.config.timeframe,
+            "graph_enabled": self.config.graph_enabled,
             "strategy_type": self.config.strategy_type,
             "strategy_config_path": self.config.strategy_config_path,
             "strategy_parameters": _json_safe(dict(self.config.strategy_parameters)),

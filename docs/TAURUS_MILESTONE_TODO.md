@@ -85,7 +85,7 @@ submilestone unless the user explicitly asks to proceed.
 | M20.7 | Done | Deterministic `GraphAnalystAgent` registered behind the optional `graph` analyst key, with persisted graph signals and contributions. |
 | M20.8 | Done | Optional graph-aware risk checks with warn/reduce/reject concentration decisions. |
 | M20.9 | Done | Graph Prometheus metrics, graph failure counters, and Grafana graph observability panels. |
-| M20.10 | Planned | Graph-aware backtesting with look-ahead prevention. |
+| M20.10 | Done | Graph-aware backtesting with point-in-time graph signals, graph-aware strategy scoring, and edge-type performance summaries. |
 
 ## Current Capabilities
 
@@ -111,6 +111,9 @@ submilestone unless the user explicitly asks to proceed.
 - Graph observability exposes Prometheus metrics for graph inventory, imports,
   projections, stats, signals, and graph failures, with Grafana panels in the
   existing trading dashboard.
+- Graph-aware backtesting loads point-in-time graph signals by backtest date,
+  excludes future graph edges, evidence, and stats, combines technical and graph
+  scores, and summarizes graph performance by edge type.
 - Shariah compliance dashboard backed by imported HalalStock rows.
 - Replay, backup/restore, alerts, Prometheus metrics, and Grafana dashboards.
 
@@ -128,31 +131,33 @@ submilestone unless the user explicitly asks to proceed.
 - [ ] Add a real news/data provider if news or sentiment risk is enabled.
 - [ ] Add dashboard/API auth before using Taurus beyond a trusted local machine.
 - [ ] Verify real Telegram alert delivery with local-only credentials.
-- [ ] Start M20.10 only after a fresh explicit request.
 
-## Latest Completion Summary - M20.9
+## Latest Completion Summary - M20.10
 
-- Assumptions made: Database-backed graph gauges are refreshed from `/metrics`
-  as current point-in-time counts; graph import, projection, stats, and graph
-  analyst failure counters describe in-process job attempts; Neo4j remains an
-  optional disposable projection and stays disabled by default; graph panels fit
-  the existing `taurus-trading.json` dashboard rather than requiring a new
-  dashboard file.
-- Mocks created: Synthetic `AAA`/`BBB` graph observability fixture in
-  `tests/unit/test_graph_observability.py`, including active and candidate
-  edges, evidence, validated and insufficient stats, a graph signal, and a
-  graph signal contribution.
-- Mocks used: Existing `MockLLMProvider`; a monkeypatched `GraphAnalystAgent`
-  failure path; synthetic SQLite graph fixtures; no live broker, Kite, Neo4j,
-  Grafana, Prometheus server, or external data service was required.
-- Verification: `uv run pytest tests/unit/test_graph_observability.py` passed
-  (2 passed); graph-focused suite
-  `uv run pytest tests/unit/test_graph_repository.py tests/unit/test_graph_importer.py tests/unit/test_graph_api.py tests/unit/test_neo4j_projection.py tests/unit/test_graph_stats.py tests/unit/test_graph_analyst.py tests/unit/test_graph_risk.py tests/unit/test_graph_observability.py`
-  passed (27 passed, 1 skipped); `uv run pytest tests/unit/test_dashboard_observability.py tests/unit/test_health.py`
-  passed (5 passed); `make test` passed (127 passed, 1 skipped); `make lint`
-  passed; milestone cleanup inspected `/Users/adnaan/.codex/rules/default.rules`
-  and found no accidental Taurus approvals after the user's marker, so no
-  global-rule cleanup or project-local approval changes were required.
+- Assumptions made: Graph backtesting uses existing graph edge `valid_from` and
+  `valid_to`, evidence `source_date`, and edge-stat `as_of_date` as the
+  point-in-time availability controls; relationship edges without attached
+  evidence remain usable because the current importer does not attach evidence
+  rows to every relationship edge, but they receive a lower evidence weight;
+  graph performance summarizes closed graph-attributed trades, while open
+  graph-attributed positions are reported separately.
+- Mocks created: Synthetic `AAA`/`BBB` graph backtesting fixtures in
+  `tests/unit/test_graph_backtesting.py`, including dated active company edges,
+  evidence, past and future edge stats, graph-aware strategy snapshots, and
+  deterministic candles for a closed graph-attributed trade.
+- Mocks used: Synthetic SQLite graph and backtest fixtures only; no live broker,
+  Kite, LLM, Neo4j, external market data service, Grafana, or Prometheus server
+  was required.
+- Verification: `uv run pytest tests/unit/test_graph_backtesting.py` passed
+  (4 passed); existing backtest/CSV suite
+  `uv run pytest tests/unit/test_backtest_engine.py tests/unit/test_csv_market_data.py`
+  passed (7 passed); graph-focused suite
+  `uv run pytest tests/unit/test_graph_repository.py tests/unit/test_graph_importer.py tests/unit/test_graph_api.py tests/unit/test_neo4j_projection.py tests/unit/test_graph_stats.py tests/unit/test_graph_analyst.py tests/unit/test_graph_risk.py tests/unit/test_graph_observability.py tests/unit/test_graph_backtesting.py`
+  passed (31 passed, 1 skipped); `make test` passed (131 passed, 1 skipped);
+  `make lint` passed; `git diff --check` passed; milestone cleanup inspected
+  `/Users/adnaan/.codex/rules/default.rules` and found no accidental Taurus
+  approvals after the user's marker, so no global-rule cleanup or project-local
+  approval changes were required.
 
 ## Deprecated Direction
 

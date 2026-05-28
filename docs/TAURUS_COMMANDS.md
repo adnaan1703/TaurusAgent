@@ -566,6 +566,40 @@ sed -n '1,240p' /Users/adnaan/.codex/rules/default.rules
 sed -n '1,240p' .codex/rules/default.rules
 ```
 
+## M20.10 Commands Used
+
+```bash
+git status --short
+sed -n '1,260p' docs/TAURUS_MILESTONE_TODO.md
+sed -n '1,260p' docs/TAURUS_GRAPH_INTELLIGENCE_PLAN.md
+rg --files | rg 'backtest|strategy|graph|test'
+sed -n '1,620p' packages/taurus_core/backtesting/engine.py
+sed -n '1,220p' packages/taurus_core/backtesting/context.py
+sed -n '1,260p' packages/taurus_core/backtesting/metrics.py
+sed -n '1,320p' tests/unit/test_backtest_engine.py
+sed -n '1,320p' packages/taurus_core/strategies/base.py
+sed -n '1,320p' packages/taurus_core/strategies/factory.py
+sed -n '1,320p' packages/taurus_core/strategies/blended_score.py
+sed -n '1,320p' packages/taurus_core/strategies/moving_average_crossover.py
+sed -n '1334,1908p' packages/taurus_core/db/repositories.py
+sed -n '1,360p' packages/taurus_core/agents/graph_analyst.py
+sed -n '1,360p' packages/taurus_core/graph/importer.py
+head -n 5 configs/taurus_data/company_edges.csv
+head -n 5 configs/taurus_data/source_evidence.csv
+head -n 5 configs/taurus_data/edge_candidates.csv
+uv run pytest tests/unit/test_graph_backtesting.py
+uv run pytest tests/unit/test_backtest_engine.py tests/unit/test_csv_market_data.py
+uv run pytest tests/unit/test_graph_repository.py tests/unit/test_graph_analyst.py tests/unit/test_graph_risk.py tests/unit/test_graph_stats.py
+uv run pytest tests/unit/test_graph_repository.py tests/unit/test_graph_importer.py tests/unit/test_graph_api.py tests/unit/test_neo4j_projection.py tests/unit/test_graph_stats.py tests/unit/test_graph_analyst.py tests/unit/test_graph_risk.py tests/unit/test_graph_observability.py tests/unit/test_graph_backtesting.py
+uv run pytest tests/unit/test_graph_backtesting.py tests/unit/test_backtest_engine.py
+make test
+make lint
+git diff --check
+sed -n '/# END MY CUSTOM ADDITION/,$p' /Users/adnaan/.codex/rules/default.rules
+sed -n '1,260p' .codex/rules/default.rules
+sed -n '1,260p' /Users/adnaan/.codex/rules/default.rules
+```
+
 ## Current Make Targets
 
 ```bash
