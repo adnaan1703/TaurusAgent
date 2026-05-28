@@ -16,6 +16,10 @@ from taurus_core.db.models import GraphEdgeModel, GraphNodeModel
 from taurus_core.db.repositories import GraphRepository, InstrumentRepository
 from taurus_core.domain.instruments import Instrument
 from taurus_core.intelligence.documents import stable_id
+from taurus_core.observability.metrics import (
+    record_graph_import_summary,
+    record_graph_job_failure,
+)
 
 TAURUS_GRAPH_CSV_FILES: tuple[str, ...] = (
     "company_industry_classifications.csv",
@@ -78,7 +82,13 @@ def import_taurus_graph_csvs(
     data_dir: str | Path = "configs/taurus_data",
 ) -> TaurusGraphImportSummary:
     importer = _TaurusGraphCSVImporter(session=session, data_dir=Path(data_dir).expanduser())
-    return importer.import_all()
+    try:
+        summary = importer.import_all()
+    except Exception as exc:
+        record_graph_job_failure(job="import", error_type=exc.__class__.__name__)
+        raise
+    record_graph_import_summary(summary)
+    return summary
 
 
 class _TaurusGraphCSVImporter:

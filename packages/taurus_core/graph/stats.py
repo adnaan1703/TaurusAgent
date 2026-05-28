@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from taurus_core.config import Settings, get_settings
 from taurus_core.db.models import DailyCandleModel, GraphEdgeModel, GraphNodeModel
 from taurus_core.db.repositories import GraphRepository
+from taurus_core.observability.metrics import record_graph_stats_summary
 
 GRAPH_STATS_MODEL_VERSION = "graph_stats_v1"
 
@@ -195,7 +196,7 @@ def compute_graph_edge_stats(
         warnings.append("No daily candle returns found for graph statistics.")
 
     session.commit()
-    return GraphStatsSummary(
+    summary = GraphStatsSummary(
         as_of_date=resolved_as_of_date,
         windows=resolved_windows,
         model_version=model_version,
@@ -206,6 +207,8 @@ def compute_graph_edge_stats(
         warnings=tuple(warnings),
         results=tuple(results),
     )
+    record_graph_stats_summary(summary)
+    return summary
 
 
 def _compute_window_stats(

@@ -13,6 +13,10 @@ from sqlalchemy.orm import Session
 from taurus_core.config import Settings, get_settings
 from taurus_core.db.models import GraphEdgeModel, GraphNodeModel
 from taurus_core.db.repositories import GraphRepository
+from taurus_core.observability.metrics import (
+    record_graph_job_failure,
+    record_graph_projection_summary,
+)
 
 
 class Neo4jDriver(Protocol):
@@ -75,7 +79,7 @@ def rebuild_neo4j_projection(
     settings = settings or get_settings()
     started_at = _utc_now()
     if not settings.taurus_neo4j_enabled:
-        return Neo4jProjectionSummary(
+        summary = Neo4jProjectionSummary(
             enabled=False,
             skipped_reason="TAURUS_NEO4J_ENABLED is false",
             neo4j_uri=_redact_url_password(settings.taurus_neo4j_uri),
@@ -86,18 +90,25 @@ def rebuild_neo4j_projection(
             started_at=started_at,
             finished_at=_utc_now(),
         )
+        record_graph_projection_summary(summary)
+        return summary
 
     driver_was_created = driver is None
     driver = driver or build_neo4j_driver(settings)
     try:
         if verify_connectivity:
             driver.verify_connectivity()
-        return Neo4jProjectionRebuilder(
+        summary = Neo4jProjectionRebuilder(
             session=session,
             driver=driver,
             database=settings.taurus_neo4j_database,
             uri=_redact_url_password(settings.taurus_neo4j_uri),
         ).rebuild(started_at=started_at)
+        record_graph_projection_summary(summary)
+        return summary
+    except Exception as exc:
+        record_graph_job_failure(job="projection", error_type=exc.__class__.__name__)
+        raise
     finally:
         if driver_was_created:
             driver.close()

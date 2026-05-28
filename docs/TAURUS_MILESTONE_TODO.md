@@ -84,7 +84,7 @@ submilestone unless the user explicitly asks to proceed.
 | M20.6 | Done | Graph statistical validation engine persisted to Postgres edge stats. |
 | M20.7 | Done | Deterministic `GraphAnalystAgent` registered behind the optional `graph` analyst key, with persisted graph signals and contributions. |
 | M20.8 | Done | Optional graph-aware risk checks with warn/reduce/reject concentration decisions. |
-| M20.9 | Planned | Graph observability metrics and dashboards. |
+| M20.9 | Done | Graph Prometheus metrics, graph failure counters, and Grafana graph observability panels. |
 | M20.10 | Planned | Graph-aware backtesting with look-ahead prevention. |
 
 ## Current Capabilities
@@ -108,6 +108,9 @@ submilestone unless the user explicitly asks to proceed.
 - Optional graph-aware risk checks, disabled by default through
   `TAURUS_GRAPH_RISK_ENABLED=false`, can warn, reduce, or reject proposed paper
   long entries based on graph concentration limits.
+- Graph observability exposes Prometheus metrics for graph inventory, imports,
+  projections, stats, signals, and graph failures, with Grafana panels in the
+  existing trading dashboard.
 - Shariah compliance dashboard backed by imported HalalStock rows.
 - Replay, backup/restore, alerts, Prometheus metrics, and Grafana dashboards.
 
@@ -125,32 +128,31 @@ submilestone unless the user explicitly asks to proceed.
 - [ ] Add a real news/data provider if news or sentiment risk is enabled.
 - [ ] Add dashboard/API auth before using Taurus beyond a trusted local machine.
 - [ ] Verify real Telegram alert delivery with local-only credentials.
-- [ ] Start M20.9 only after a fresh explicit request.
+- [ ] Start M20.10 only after a fresh explicit request.
 
-## Latest Completion Summary - M20.8
+## Latest Completion Summary - M20.9
 
-- Assumptions made: Graph-aware risk checks remain disabled unless
-  `TAURUS_GRAPH_RISK_ENABLED=true`; concentration limits are percentages of
-  current paper NAV exposure; existing paper positions are converted to NAV
-  exposure from the latest paper account equity when available; static graph
-  concentration uses active graph metadata edges, while correlated graph cluster
-  concentration uses active or candidate company edges only when persisted edge
-  stats pass the existing graph correlation thresholds; warning hard-rule
-  results do not change the overall risk review status.
-- Mocks created: Synthetic `AAA` and `BBB` graph risk fixtures in
-  `tests/unit/test_graph_risk.py` covering shared basic industry, product group,
-  customer industry, dependency, risk category, and correlated edge stats.
-- Mocks used: Synthetic in-test graph fixtures and synthetic current-position
-  NAV exposure maps; existing mock paper workflow data in the full test suite;
-  no live broker, Kite, Neo4j, or external data service was required.
-- Verification: `uv run pytest tests/unit/test_graph_risk.py tests/unit/test_config.py tests/unit/test_risk_approval.py`
-  passed (25 passed); graph-focused suite
-  `uv run pytest tests/unit/test_graph_repository.py tests/unit/test_graph_importer.py tests/unit/test_graph_api.py tests/unit/test_neo4j_projection.py tests/unit/test_graph_stats.py tests/unit/test_graph_analyst.py tests/unit/test_graph_risk.py tests/unit/test_config.py`
-  passed (37 passed, 1 skipped); `make test` passed (125 passed, 1 skipped);
-  `make lint` passed; milestone cleanup inspected
-  `/Users/adnaan/.codex/rules/default.rules` and found no accidental Taurus
-  approvals after the user's marker, so no global-rule cleanup or project-local
-  approval changes were required.
+- Assumptions made: Database-backed graph gauges are refreshed from `/metrics`
+  as current point-in-time counts; graph import, projection, stats, and graph
+  analyst failure counters describe in-process job attempts; Neo4j remains an
+  optional disposable projection and stays disabled by default; graph panels fit
+  the existing `taurus-trading.json` dashboard rather than requiring a new
+  dashboard file.
+- Mocks created: Synthetic `AAA`/`BBB` graph observability fixture in
+  `tests/unit/test_graph_observability.py`, including active and candidate
+  edges, evidence, validated and insufficient stats, a graph signal, and a
+  graph signal contribution.
+- Mocks used: Existing `MockLLMProvider`; a monkeypatched `GraphAnalystAgent`
+  failure path; synthetic SQLite graph fixtures; no live broker, Kite, Neo4j,
+  Grafana, Prometheus server, or external data service was required.
+- Verification: `uv run pytest tests/unit/test_graph_observability.py` passed
+  (2 passed); graph-focused suite
+  `uv run pytest tests/unit/test_graph_repository.py tests/unit/test_graph_importer.py tests/unit/test_graph_api.py tests/unit/test_neo4j_projection.py tests/unit/test_graph_stats.py tests/unit/test_graph_analyst.py tests/unit/test_graph_risk.py tests/unit/test_graph_observability.py`
+  passed (27 passed, 1 skipped); `uv run pytest tests/unit/test_dashboard_observability.py tests/unit/test_health.py`
+  passed (5 passed); `make test` passed (127 passed, 1 skipped); `make lint`
+  passed; milestone cleanup inspected `/Users/adnaan/.codex/rules/default.rules`
+  and found no accidental Taurus approvals after the user's marker, so no
+  global-rule cleanup or project-local approval changes were required.
 
 ## Deprecated Direction
 

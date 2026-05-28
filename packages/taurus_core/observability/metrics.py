@@ -19,6 +19,12 @@ from taurus_core.db.models import (
     FinalDecisionModel,
     FundamentalImportModel,
     FundamentalScoreModel,
+    GraphEdgeEvidenceModel,
+    GraphEdgeModel,
+    GraphEdgeStatsModel,
+    GraphNodeModel,
+    GraphSignalContributionModel,
+    GraphSignalModel,
     InstrumentModel,
     PaperAccountModel,
     PaperFillModel,
@@ -137,6 +143,102 @@ PAPER_POSITION_VALUE = Gauge(
     ["run_id", "symbol"],
 )
 
+GRAPH_NODES = Gauge(
+    "taurus_graph_nodes_total",
+    "Current graph node count by node type.",
+    ["node_type"],
+)
+
+GRAPH_EDGES = Gauge(
+    "taurus_graph_edges_total",
+    "Current graph edge count by status and edge type.",
+    ["status", "edge_type"],
+)
+
+GRAPH_CANDIDATES = Gauge(
+    "taurus_graph_candidates_total",
+    "Current graph candidate edge count by edge type.",
+    ["edge_type"],
+)
+
+GRAPH_EDGE_EVIDENCE = Gauge(
+    "taurus_graph_edge_evidence_total",
+    "Current graph edge evidence count by claim type and source type.",
+    ["claim_type", "source_type"],
+)
+
+GRAPH_EDGE_STATS = Gauge(
+    "taurus_graph_edge_stats_total",
+    "Current graph edge statistics count by model, window, and result.",
+    ["model_version", "window", "result"],
+)
+
+GRAPH_SIGNALS = Gauge(
+    "taurus_graph_signals_total",
+    "Current graph signal count by source agent, symbol, horizon, and direction.",
+    ["source_agent", "symbol", "horizon", "direction"],
+)
+
+GRAPH_SIGNAL_CONTRIBUTIONS = Gauge(
+    "taurus_graph_signal_contributions_total",
+    "Current graph signal contribution count by contribution type and direction.",
+    ["contribution_type", "direction"],
+)
+
+GRAPH_IMPORTS = Counter(
+    "taurus_graph_imports_total",
+    "TaurusData graph CSV import attempts.",
+    ["outcome"],
+)
+
+GRAPH_IMPORT_ROWS = Counter(
+    "taurus_graph_import_rows_total",
+    "Rows seen and imported by TaurusData graph CSV import jobs.",
+    ["source_file", "result"],
+)
+
+GRAPH_IMPORT_UPSERTS = Counter(
+    "taurus_graph_import_upserts_total",
+    "Graph artifacts upserted by TaurusData graph CSV import jobs.",
+    ["artifact", "status"],
+)
+
+GRAPH_PROJECTIONS = Counter(
+    "taurus_graph_projections_total",
+    "Graph projection job attempts.",
+    ["outcome", "enabled"],
+)
+
+GRAPH_PROJECTION_ITEMS = Counter(
+    "taurus_graph_projection_items_total",
+    "Graph projection items written to derived read models.",
+    ["artifact"],
+)
+
+GRAPH_STATS_RUNS = Counter(
+    "taurus_graph_stats_runs_total",
+    "Graph statistics job attempts.",
+    ["outcome", "model_version"],
+)
+
+GRAPH_STATS_RESULTS = Counter(
+    "taurus_graph_stats_results_total",
+    "Graph statistics job result rows.",
+    ["result", "model_version"],
+)
+
+GRAPH_JOB_FAILURES = Counter(
+    "taurus_graph_job_failures_total",
+    "Graph import, projection, and statistics job failures.",
+    ["job", "error_type"],
+)
+
+GRAPH_AGENT_FAILURES = Counter(
+    "taurus_graph_agent_failures_total",
+    "Graph analyst failures before a report could be produced.",
+    ["agent_name", "symbol", "error_type"],
+)
+
 
 def configure_runtime_metrics(settings: Settings) -> None:
     APP_INFO.labels(
@@ -196,6 +298,74 @@ def record_agent_run(
     ).observe(duration_seconds)
 
 
+def record_graph_agent_failure(
+    *,
+    agent_name: str,
+    symbol: str,
+    error_type: str,
+) -> None:
+    GRAPH_AGENT_FAILURES.labels(
+        agent_name=agent_name,
+        symbol=symbol.upper(),
+        error_type=error_type,
+    ).inc()
+
+
+def record_graph_import_summary(summary: Any) -> None:
+    GRAPH_IMPORTS.labels(outcome="success").inc()
+    for source_file, rows_seen in summary.rows_seen.items():
+        rows_imported = int(summary.rows_imported.get(source_file, 0))
+        GRAPH_IMPORT_ROWS.labels(source_file=source_file, result="seen").inc(int(rows_seen))
+        GRAPH_IMPORT_ROWS.labels(source_file=source_file, result="imported").inc(rows_imported)
+        GRAPH_IMPORT_ROWS.labels(
+            source_file=source_file,
+            result="skipped",
+        ).inc(max(0, int(rows_seen) - rows_imported))
+    GRAPH_IMPORT_UPSERTS.labels(artifact="node", status="all").inc(summary.nodes_upserted)
+    GRAPH_IMPORT_UPSERTS.labels(artifact="edge", status="all").inc(summary.edges_upserted)
+    GRAPH_IMPORT_UPSERTS.labels(
+        artifact="edge",
+        status="active",
+    ).inc(summary.active_edges_upserted)
+    GRAPH_IMPORT_UPSERTS.labels(
+        artifact="edge",
+        status="candidate",
+    ).inc(summary.candidate_edges_upserted)
+    GRAPH_IMPORT_UPSERTS.labels(artifact="evidence", status="all").inc(summary.evidence_upserted)
+
+
+def record_graph_projection_summary(summary: Any) -> None:
+    outcome = "success" if summary.enabled else "skipped"
+    GRAPH_PROJECTIONS.labels(outcome=outcome, enabled=str(bool(summary.enabled)).lower()).inc()
+    if summary.enabled:
+        GRAPH_PROJECTION_ITEMS.labels(artifact="node").inc(summary.nodes_projected)
+        GRAPH_PROJECTION_ITEMS.labels(artifact="edge").inc(summary.edges_projected)
+
+
+def record_graph_stats_summary(summary: Any) -> None:
+    GRAPH_STATS_RUNS.labels(outcome="success", model_version=summary.model_version).inc()
+    validated = max(0, summary.stats_upserted - summary.insufficient_stats)
+    GRAPH_STATS_RESULTS.labels(result="validated", model_version=summary.model_version).inc(
+        validated
+    )
+    GRAPH_STATS_RESULTS.labels(result="insufficient", model_version=summary.model_version).inc(
+        summary.insufficient_stats
+    )
+    GRAPH_STATS_RESULTS.labels(result="promoted", model_version=summary.model_version).inc(
+        len(summary.promoted_edges)
+    )
+
+
+def record_graph_job_failure(*, job: str, error_type: str) -> None:
+    GRAPH_JOB_FAILURES.labels(job=job, error_type=error_type).inc()
+    if job == "import":
+        GRAPH_IMPORTS.labels(outcome="failure").inc()
+    elif job == "projection":
+        GRAPH_PROJECTIONS.labels(outcome="failure", enabled="unknown").inc()
+    elif job == "stats":
+        GRAPH_STATS_RUNS.labels(outcome="failure", model_version="unknown").inc()
+
+
 def refresh_database_metrics(session: Session) -> bool:
     now = datetime.now(timezone.utc)
     try:
@@ -207,6 +377,7 @@ def refresh_database_metrics(session: Session) -> bool:
         _refresh_agent_metrics(session, now=now)
         _refresh_trading_metrics(session, now=now)
         _refresh_paper_metrics(session)
+        _refresh_graph_metrics(session)
     except SQLAlchemyError:
         OBSERVABILITY_DB_AVAILABLE.set(0)
         return False
@@ -242,6 +413,12 @@ def _refresh_table_counts(session: Session) -> None:
         "paper_accounts": PaperAccountModel,
         "paper_runs": PaperRunModel,
         "backtest_runs": BacktestRunModel,
+        "graph_nodes": GraphNodeModel,
+        "graph_edges": GraphEdgeModel,
+        "graph_edge_evidence": GraphEdgeEvidenceModel,
+        "graph_edge_stats": GraphEdgeStatsModel,
+        "graph_signals": GraphSignalModel,
+        "graph_signal_contributions": GraphSignalContributionModel,
     }
     for table, model in models.items():
         count = int(session.scalar(select(func.count()).select_from(model)) or 0)
@@ -455,6 +632,114 @@ def _refresh_paper_metrics(session: Session) -> None:
         ).set(float(position.market_value_inr))
 
 
+def _refresh_graph_metrics(session: Session) -> None:
+    node_statement = (
+        select(GraphNodeModel.node_type, func.count())
+        .group_by(GraphNodeModel.node_type)
+        .order_by(GraphNodeModel.node_type)
+    )
+    for node_type, count in session.execute(node_statement):
+        GRAPH_NODES.labels(node_type=node_type).set(int(count))
+
+    edge_statement = (
+        select(GraphEdgeModel.status, GraphEdgeModel.edge_type, func.count())
+        .group_by(GraphEdgeModel.status, GraphEdgeModel.edge_type)
+        .order_by(GraphEdgeModel.status, GraphEdgeModel.edge_type)
+    )
+    for status, edge_type, count in session.execute(edge_statement):
+        GRAPH_EDGES.labels(status=status, edge_type=edge_type).set(int(count))
+        if status == "candidate":
+            GRAPH_CANDIDATES.labels(edge_type=edge_type).set(int(count))
+
+    evidence_statement = (
+        select(
+            GraphEdgeEvidenceModel.claim_type,
+            GraphEdgeEvidenceModel.source_type,
+            func.count(),
+        )
+        .group_by(GraphEdgeEvidenceModel.claim_type, GraphEdgeEvidenceModel.source_type)
+        .order_by(GraphEdgeEvidenceModel.claim_type, GraphEdgeEvidenceModel.source_type)
+    )
+    for claim_type, source_type, count in session.execute(evidence_statement):
+        GRAPH_EDGE_EVIDENCE.labels(
+            claim_type=claim_type,
+            source_type=source_type,
+        ).set(int(count))
+
+    stats_statement = (
+        select(
+            GraphEdgeStatsModel.model_version,
+            GraphEdgeStatsModel.stat_window,
+            GraphEdgeStatsModel.insufficient_data_reason,
+            func.count(),
+        )
+        .group_by(
+            GraphEdgeStatsModel.model_version,
+            GraphEdgeStatsModel.stat_window,
+            GraphEdgeStatsModel.insufficient_data_reason,
+        )
+        .order_by(
+            GraphEdgeStatsModel.model_version,
+            GraphEdgeStatsModel.stat_window,
+            GraphEdgeStatsModel.insufficient_data_reason,
+        )
+    )
+    stats_counts: dict[tuple[str, str, str], int] = {}
+    for model_version, stat_window, insufficient_reason, count in session.execute(stats_statement):
+        result = "insufficient" if insufficient_reason else "validated"
+        key = (model_version, stat_window, result)
+        stats_counts[key] = stats_counts.get(key, 0) + int(count)
+    for (model_version, stat_window, result), count in sorted(stats_counts.items()):
+        GRAPH_EDGE_STATS.labels(
+            model_version=model_version,
+            window=stat_window,
+            result=result,
+        ).set(count)
+
+    signal_statement = select(
+        GraphSignalModel.source_agent,
+        GraphSignalModel.symbol,
+        GraphSignalModel.horizon,
+        GraphSignalModel.score,
+    ).order_by(
+        GraphSignalModel.source_agent,
+        GraphSignalModel.symbol,
+        GraphSignalModel.horizon,
+    )
+    signal_counts: dict[tuple[str, str, str, str], int] = {}
+    for source_agent, symbol, horizon, score in session.execute(signal_statement):
+        key = (source_agent, symbol, horizon, _score_direction(score))
+        signal_counts[key] = signal_counts.get(key, 0) + 1
+    for (source_agent, symbol, horizon, direction), count in sorted(signal_counts.items()):
+        GRAPH_SIGNALS.labels(
+            source_agent=source_agent,
+            symbol=symbol,
+            horizon=horizon,
+            direction=direction,
+        ).set(count)
+
+    contribution_statement = (
+        select(
+            GraphSignalContributionModel.contribution_type,
+            GraphSignalContributionModel.direction,
+            func.count(),
+        )
+        .group_by(
+            GraphSignalContributionModel.contribution_type,
+            GraphSignalContributionModel.direction,
+        )
+        .order_by(
+            GraphSignalContributionModel.contribution_type,
+            GraphSignalContributionModel.direction,
+        )
+    )
+    for contribution_type, direction, count in session.execute(contribution_statement):
+        GRAPH_SIGNAL_CONTRIBUTIONS.labels(
+            contribution_type=contribution_type,
+            direction=direction,
+        ).set(int(count))
+
+
 def _set_status_counts(
     session: Session,
     *,
@@ -531,8 +816,23 @@ def _clear_database_gauges() -> None:
         TRADING_ARTIFACTS,
         PAPER_ACCOUNT_EQUITY,
         PAPER_POSITION_VALUE,
+        GRAPH_NODES,
+        GRAPH_EDGES,
+        GRAPH_CANDIDATES,
+        GRAPH_EDGE_EVIDENCE,
+        GRAPH_EDGE_STATS,
+        GRAPH_SIGNALS,
+        GRAPH_SIGNAL_CONTRIBUTIONS,
     ):
         metric.clear()
+
+
+def _score_direction(value: Any) -> str:
+    if value > 0:
+        return "bullish"
+    if value < 0:
+        return "bearish"
+    return "neutral"
 
 
 def _as_utc_datetime(value: date | datetime) -> datetime:

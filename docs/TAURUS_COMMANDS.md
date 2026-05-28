@@ -543,6 +543,29 @@ sed -n '/# END MY CUSTOM ADDITION/,$p' /Users/adnaan/.codex/rules/default.rules
 sed -n '1,260p' .codex/rules/default.rules
 ```
 
+## M20.9 Commands Used
+
+```bash
+git status --short
+rg --files
+sed -n '1,260p' docs/TAURUS_MILESTONE_TODO.md
+sed -n '1,260p' docs/TAURUS_GRAPH_INTELLIGENCE_PLAN.md
+sed -n '1,620p' packages/taurus_core/observability/metrics.py
+sed -n '1,320p' packages/taurus_core/graph/importer.py
+sed -n '1,320p' packages/taurus_core/graph/neo4j_projection.py
+sed -n '1,320p' packages/taurus_core/graph/stats.py
+sed -n '1,320p' packages/taurus_core/agents/runner.py
+sed -n '1,340p' tests/unit/test_graph_analyst.py
+jq '.panels[] | {id,title,type,gridPos,expr:(.targets[0].expr // null)}' infra/grafana/dashboards/taurus-trading.json
+uv run pytest tests/unit/test_graph_observability.py
+uv run pytest tests/unit/test_graph_repository.py tests/unit/test_graph_importer.py tests/unit/test_graph_api.py tests/unit/test_neo4j_projection.py tests/unit/test_graph_stats.py tests/unit/test_graph_analyst.py tests/unit/test_graph_risk.py tests/unit/test_graph_observability.py
+uv run pytest tests/unit/test_dashboard_observability.py tests/unit/test_health.py
+make test
+make lint
+sed -n '1,240p' /Users/adnaan/.codex/rules/default.rules
+sed -n '1,240p' .codex/rules/default.rules
+```
+
 ## Current Make Targets
 
 ```bash

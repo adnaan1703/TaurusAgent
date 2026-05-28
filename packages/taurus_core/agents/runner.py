@@ -19,7 +19,7 @@ from taurus_core.agents.technical_analyst import TechnicalAnalystAgent
 from taurus_core.db.repositories import AnalystReportRepository, InstrumentRepository
 from taurus_core.llm.base import LLMProvider
 from taurus_core.logging import get_logger
-from taurus_core.observability.metrics import record_agent_run
+from taurus_core.observability.metrics import record_agent_run, record_graph_agent_failure
 from taurus_core.observability.tracing import bound_trace_context
 
 DEFAULT_ANALYST_RUN_ID = "analyst-mock-latest"
@@ -52,7 +52,16 @@ def run_analyst_suite(
     reports: list[AnalystReport] = []
     for agent in agents:
         started_at = time.perf_counter()
-        report = agent.run(symbol=symbol, run_id=run_id)
+        try:
+            report = agent.run(symbol=symbol, run_id=run_id)
+        except Exception as exc:
+            if isinstance(agent, GraphAnalystAgent):
+                record_graph_agent_failure(
+                    agent_name=agent.agent_name,
+                    symbol=symbol,
+                    error_type=exc.__class__.__name__,
+                )
+            raise
         duration_seconds = time.perf_counter() - started_at
         record_agent_run(
             agent_name=agent.agent_name,

@@ -9,6 +9,7 @@ from taurus_core.config import Settings, get_settings
 from taurus_core.db.session import build_session_factory
 from taurus_core.graph.stats import GraphStatsSummary, compute_graph_edge_stats
 from taurus_core.logging import configure_logging
+from taurus_core.observability.metrics import record_graph_job_failure
 
 
 def run_compute_edge_stats(
@@ -20,11 +21,15 @@ def run_compute_edge_stats(
     run_migrations(settings)
     session_factory = build_session_factory(settings)
     with session_factory() as session:
-        return compute_graph_edge_stats(
-            session,
-            settings=settings,
-            as_of_date=as_of_date,
-        )
+        try:
+            return compute_graph_edge_stats(
+                session,
+                settings=settings,
+                as_of_date=as_of_date,
+            )
+        except Exception as exc:
+            record_graph_job_failure(job="stats", error_type=exc.__class__.__name__)
+            raise
 
 
 def _parse_args() -> argparse.Namespace:
