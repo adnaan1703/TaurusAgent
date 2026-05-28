@@ -86,6 +86,12 @@ def test_graph_flags_can_be_enabled_explicitly(monkeypatch: pytest.MonkeyPatch) 
     assert settings.taurus_neo4j_enabled is True
 
 
+def test_graph_analyst_key_can_be_enabled_explicitly(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("TAURUS_ENABLED_ANALYSTS", "technical,graph")
+
+    assert Settings().enabled_analyst_keys == ("technical", "graph")
+
+
 def test_graph_stats_windows_are_validated(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("TAURUS_GRAPH_STATS_WINDOWS", "20,not-a-window")
 

@@ -59,7 +59,7 @@ def test_dashboard_queries_and_metrics_expose_m8_panels(tmp_path: Path) -> None:
     assert snapshot["latest_final_decision"]["status"] == "APPROVED_FOR_PAPER"
     assert snapshot["latest_order"]["status"] == "FILLED"
     assert equity
-    assert len(reports) == 4
+    assert len(reports) == 5
     assert debates[0]["consensus"]
     assert proposals[0]["action"] == "BUY"
     assert reviews[0]["status"] == "APPROVED"

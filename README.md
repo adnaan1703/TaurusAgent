@@ -122,8 +122,9 @@ when `TAURUS_MARKET_DATA_PROVIDER=kite`. Use `make paper-loop-kite` to run that
 Kite-backed universe without overriding it through `SYMBOLS`.
 
 Analysts are enabled with `TAURUS_ENABLED_ANALYSTS`. The default is
-`technical`; add `news`, `sentiment`, and `fundamentals` explicitly when you
-want those reports.
+`technical`; add `news`, `sentiment`, `fundamentals`, and `graph` explicitly
+when you want those reports. The graph analyst is deterministic and remains
+disabled unless the roster includes `graph`.
 
 Verify the API:
 

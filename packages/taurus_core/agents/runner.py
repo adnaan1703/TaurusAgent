@@ -6,6 +6,7 @@ from collections.abc import Sequence
 from sqlalchemy.orm import Session
 
 from taurus_core.agents.fundamentals_analyst import FundamentalsAnalystAgent
+from taurus_core.agents.graph_analyst import GraphAnalystAgent
 from taurus_core.agents.news_analyst import NewsAnalystAgent
 from taurus_core.agents.roster import (
     DEFAULT_ENABLED_ANALYSTS,
@@ -28,6 +29,7 @@ ANALYST_REGISTRY = {
     "news": NewsAnalystAgent,
     "sentiment": SentimentAnalystAgent,
     "fundamentals": FundamentalsAnalystAgent,
+    "graph": GraphAnalystAgent,
 }
 
 

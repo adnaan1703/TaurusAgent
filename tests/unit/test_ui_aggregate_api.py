@@ -55,7 +55,7 @@ def test_ui_aggregate_endpoints_return_completed_run_trail(tmp_path: Path) -> No
     assert detail_payload["symbols"][0]["order_status"] == "FILLED"
     assert detail_payload["symbols"][0]["analyst_roster"] == {
         "enabled": ["technical"],
-        "skipped": ["news", "sentiment", "fundamentals"],
+        "skipped": ["news", "sentiment", "fundamentals", "graph"],
         "report_count": 1,
         "min_required": 1,
         "status": "enough_reports",

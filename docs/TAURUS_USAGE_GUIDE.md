@@ -181,7 +181,7 @@ With `TAURUS_ENABLED_ANALYSTS=technical`:
 - It still calls the configured LLM provider. Default/make target is mock LLM.
 - Mock news is still imported into the DB.
 - Risk engine still checks severe events in the DB, so mock news can still influence risk blocks if matching active instruments.
-- News, sentiment, and fundamentals analyst reports are skipped.
+- News, sentiment, fundamentals, and graph analyst reports are skipped.
 
 So: technical-only does reduce the analyst roster, but it does not fully eliminate mocks.
 

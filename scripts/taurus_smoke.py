@@ -85,6 +85,7 @@ def run_taurus_smoke(
         backup=backup,
         api=api,
         counts=counts,
+        expected_report_count=len(settings.enabled_analyst_keys),
     )
 
     return {
@@ -201,6 +202,7 @@ def _assert_outputs(
     backup: dict[str, str],
     api: dict[str, object],
     counts: dict[str, int],
+    expected_report_count: int,
 ) -> None:
     if seed["instrument_count"] < 10 or seed["candle_count"] < 2520:
         raise AssertionError("Mock seed did not produce the expected instrument/candle coverage.")
@@ -208,8 +210,10 @@ def _assert_outputs(
         raise AssertionError("Mock news import did not produce events.")
     if not backtest_run_id.startswith("bt-"):
         raise AssertionError("Backtest did not produce a Taurus run_id.")
-    if len(reports) != 4:
-        raise AssertionError("Analyst suite must produce four reports.")
+    if len(reports) != expected_report_count:
+        raise AssertionError(
+            f"Analyst suite produced {len(reports)} report(s), expected {expected_report_count}."
+        )
     if debate["symbol"] != symbol or not debate["bull_thesis"] or not debate["bear_thesis"]:
         raise AssertionError("Debate output is incomplete.")
     if proposal["is_order"] is not False or proposal["requires_risk_approval"] is not True:

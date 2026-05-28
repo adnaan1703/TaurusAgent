@@ -496,6 +496,31 @@ sed -n '1,360p' /Users/adnaan/.codex/rules/default.rules
 sed -n '1,360p' .codex/rules/default.rules
 ```
 
+## M20.7 Commands Used
+
+```bash
+git status --short
+rg --files
+sed -n '1,260p' docs/TAURUS_MILESTONE_TODO.md
+sed -n '1,260p' docs/TAURUS_GRAPH_INTELLIGENCE_PLAN.md
+sed -n '990,1070p' docs/TAURUS_DATA_INTEGRATION.md
+sed -n '1,260p' packages/taurus_core/agents/schemas.py
+sed -n '1,260p' packages/taurus_core/agents/technical_analyst.py
+sed -n '1,260p' packages/taurus_core/agents/roster.py
+sed -n '1,320p' packages/taurus_core/agents/runner.py
+sed -n '340,620p' packages/taurus_core/db/models.py
+sed -n '1334,1908p' packages/taurus_core/db/repositories.py
+uv run pytest tests/unit/test_config.py tests/unit/test_graph_analyst.py tests/unit/test_analyst_agents.py
+uv run pytest tests/unit/test_graph_analyst.py tests/unit/test_analyst_agents.py
+uv run pytest tests/unit/test_paper_runs.py tests/unit/test_ui_aggregate_api.py tests/unit/test_dashboard_observability.py tests/unit/test_alerts_replay_backup.py tests/unit/test_taurus_smoke.py
+uv run pytest tests/unit/test_graph_repository.py tests/unit/test_graph_importer.py tests/unit/test_graph_api.py tests/unit/test_neo4j_projection.py tests/unit/test_graph_stats.py tests/unit/test_graph_analyst.py tests/unit/test_config.py
+make test
+make lint
+sed -n '1,260p' /Users/adnaan/.codex/rules/default.rules
+sed -n '/# END MY CUSTOM ADDITION/,$p' /Users/adnaan/.codex/rules/default.rules
+sed -n '1,220p' .codex/rules/default.rules
+```
+
 ## Current Make Targets
 
 ```bash
@@ -549,11 +574,12 @@ make lint
 Optional analyst roster:
 
 ```bash
-TAURUS_ENABLED_ANALYSTS=technical,news,sentiment make run-analysts-mock SYMBOL=INFY
+TAURUS_ENABLED_ANALYSTS=technical,news,sentiment,fundamentals,graph make run-analysts-mock SYMBOL=INFY
 TAURUS_ENABLED_ANALYSTS=technical make paper-once-mock SYMBOL=INFY
 ```
 
-Default roster is `technical`.
+Default roster is `technical`; the deterministic graph analyst runs only when
+`TAURUS_ENABLED_ANALYSTS` includes `graph`.
 
 ## Expected Project Commands By Milestone
 

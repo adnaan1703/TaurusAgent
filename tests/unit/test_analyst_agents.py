@@ -22,7 +22,7 @@ from taurus_core.llm.mock_provider import MockLLMProvider
 FULL_ANALYST_ROSTER = ANALYST_KEYS
 
 
-def test_analyst_suite_stores_four_reports_without_creating_orders(tmp_path: Path) -> None:
+def test_analyst_suite_stores_full_roster_without_creating_orders(tmp_path: Path) -> None:
     settings = _settings_for_temp_db(tmp_path)
     session_factory = _prepare_intelligence_db(settings)
 
@@ -44,11 +44,12 @@ def test_analyst_suite_stores_four_reports_without_creating_orders(tmp_path: Pat
         "NewsAnalystAgent",
         "SentimentAnalystAgent",
         "FundamentalsAnalystAgent",
+        "GraphAnalystAgent",
     }
     assert all(report.symbol == "INFY" for report in reports)
     assert all(report.key_points for report in reports)
     assert all(report.risks for report in reports)
-    assert report_count == 4
+    assert report_count == 5
     assert order_count == 0
 
 
@@ -65,9 +66,12 @@ def test_analyst_suite_falls_back_when_llm_provider_fails(tmp_path: Path) -> Non
             enabled_analysts=FULL_ANALYST_ROSTER,
         )
 
-    assert len(reports) == 4
-    assert all(report.model_version.endswith("+llm_fallback") for report in reports)
-    assert all("LLM provider fallback used" in " ".join(report.risks) for report in reports)
+    assert len(reports) == 5
+    llm_reports = [report for report in reports if report.agent_name != "GraphAnalystAgent"]
+    graph_reports = [report for report in reports if report.agent_name == "GraphAnalystAgent"]
+    assert all(report.model_version.endswith("+llm_fallback") for report in llm_reports)
+    assert all("LLM provider fallback used" in " ".join(report.risks) for report in llm_reports)
+    assert graph_reports[0].model_version == "graph_rule_v1"
 
 
 def test_analyst_suite_can_skip_fundamentals(tmp_path: Path) -> None:
@@ -131,12 +135,13 @@ def test_intelligence_api_returns_events_and_agent_reports(tmp_path: Path) -> No
     assert len(events) >= 1
     assert events[0]["symbol"] == "INFY"
     assert events[0]["event_score"] is not None
-    assert len(reports) == 4
+    assert len(reports) == 5
     assert {report["agent_name"] for report in reports} == {
         "TechnicalAnalystAgent",
         "NewsAnalystAgent",
         "SentimentAnalystAgent",
         "FundamentalsAnalystAgent",
+        "GraphAnalystAgent",
     }
 
 

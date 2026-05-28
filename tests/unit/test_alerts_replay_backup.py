@@ -40,7 +40,7 @@ def test_mock_alerts_are_stored_and_replay_api_reconstructs_decision_path(
     replay = replay_response.json()
     assert replay["decision_id"] == decision_id
     assert replay["symbol"] == "INFY"
-    assert _stage_count(replay, "analyst_reports") == 4
+    assert _stage_count(replay, "analyst_reports") == 5
     assert _stage_count(replay, "risk_review") == 1
     assert _stage_count(replay, "final_decision") == 1
     assert _stage_count(replay, "paper_order") == 1

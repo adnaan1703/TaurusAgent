@@ -82,7 +82,7 @@ submilestone unless the user explicitly asks to proceed.
 | M20.4 | Done | React graph dashboard routes for overview, company graph, candidate review, and graph signals. |
 | M20.5 | Done | Optional Neo4j projection/read model, disabled by default and rebuildable from Postgres. |
 | M20.6 | Done | Graph statistical validation engine persisted to Postgres edge stats. |
-| M20.7 | Planned | Deterministic `GraphAnalystAgent`. |
+| M20.7 | Done | Deterministic `GraphAnalystAgent` registered behind the optional `graph` analyst key, with persisted graph signals and contributions. |
 | M20.8 | Planned | Optional graph-aware risk checks. |
 | M20.9 | Planned | Graph observability metrics and dashboards. |
 | M20.10 | Planned | Graph-aware backtesting with look-ahead prevention. |
@@ -102,6 +102,9 @@ submilestone unless the user explicitly asks to proceed.
 - Graph edge statistical validation from daily candle data with persisted raw
   correlation, market-residual correlation, lead-lag score, stability score,
   sample size, and insufficient-data reasons.
+- Optional deterministic `GraphAnalystAgent`, disabled by default and enabled
+  only through `TAURUS_ENABLED_ANALYSTS=...,graph`, stores graph signals and
+  per-edge contributions without bypassing the debate/risk/final approval path.
 - Shariah compliance dashboard backed by imported HalalStock rows.
 - Replay, backup/restore, alerts, Prometheus metrics, and Grafana dashboards.
 
@@ -119,34 +122,38 @@ submilestone unless the user explicitly asks to proceed.
 - [ ] Add a real news/data provider if news or sentiment risk is enabled.
 - [ ] Add dashboard/API auth before using Taurus beyond a trusted local machine.
 - [ ] Verify real Telegram alert delivery with local-only credentials.
-- [ ] Start M20.7 only after a fresh explicit request.
+- [ ] Start M20.8 only after a fresh explicit request.
 
-## Latest Completion Summary - M20.6
+## Latest Completion Summary - M20.7
 
-- Assumptions made: Graph stats use close-to-close daily returns for graph
-  source and target company symbols; non-company edges or edges missing candle
-  coverage persist an insufficient-data reason instead of crashing; residual
-  correlation uses an equal-weight market proxy built from available daily
-  candle returns because Taurus does not yet import sector index return series;
-  automatic candidate promotion remains disabled by default and, when enabled,
-  only updates graph edge review status metadata.
-- Mocks created: Synthetic `AAA`, `BBB`, and `MKT` instruments and daily candle
-  fixtures in `tests/unit/test_graph_stats.py` to prove raw correlation,
-  residual correlation, stability scoring, insufficient-data handling, and
-  explicit auto-promotion behavior.
-- Mocks used: The synthetic graph stats fixture; deterministic mock market data
-  from `make seed-mock`; a local ignored SQLite smoke database at
-  `/private/tmp/taurus-m20-6-stats.db`; no live broker, Kite, Neo4j, or external
-  data service was required.
-- Verification: `uv run pytest tests/unit/test_config.py tests/unit/test_graph_stats.py`
-  passed (14 passed); graph-focused suite
-  `uv run pytest tests/unit/test_graph_repository.py tests/unit/test_graph_importer.py tests/unit/test_graph_api.py tests/unit/test_neo4j_projection.py tests/unit/test_graph_stats.py tests/unit/test_config.py`
-  passed (24 passed, 1 skipped); `DATABASE_URL=sqlite:////private/tmp/taurus-m20-6-stats.db make compute-graph-stats AS_OF=2024-12-17`
-  returned `edges_seen=20576`, `stats_upserted=61728`, and no promoted edges;
-  `make test` passed (112 passed, 1 skipped); `make lint` passed; milestone
-  cleanup inspected `/Users/adnaan/.codex/rules/default.rules` and found no
-  accidental Taurus approvals after the user's marker. The project-local
-  `.codex/rules/default.rules` now includes `make compute-graph-stats`.
+- Assumptions made: The graph analyst scores active and candidate company-to-company
+  graph edges only when the edge has sufficient persisted edge stats and the
+  related company has daily candles for 20-day momentum; directed edges influence
+  only their target company; `positive` and `negative` expected signs define
+  same-direction and inverse related-momentum effects, while mixed or unknown
+  signs fall back to the latest stat correlation; neutral graph signals are
+  still stored when no validated graph evidence exists; the graph analyst does
+  not call the LLM provider, so graph scores and contributions remain
+  deterministic.
+- Mocks created: Synthetic `AAA` and `BBB` graph fixtures in
+  `tests/unit/test_graph_analyst.py` for bullish peer momentum and bearish
+  negative dependency cases; constant-return synthetic daily candles for related
+  momentum; a `FailingLLMProvider` test double proving graph output is not
+  overridden by LLM failure.
+- Mocks used: `MockLLMProvider` for analyst workflow tests; deterministic mock
+  market data, mock news, mock alerts, and the internal `PaperBroker` simulator
+  through existing paper-run and smoke tests; no live broker, Kite, Neo4j, or
+  external data service was required.
+- Verification: `uv run pytest tests/unit/test_config.py tests/unit/test_graph_analyst.py tests/unit/test_analyst_agents.py`
+  passed (21 passed); paper/dashboard/replay smoke-focused suite
+  `uv run pytest tests/unit/test_paper_runs.py tests/unit/test_ui_aggregate_api.py tests/unit/test_dashboard_observability.py tests/unit/test_alerts_replay_backup.py tests/unit/test_taurus_smoke.py`
+  passed (20 passed); graph-focused suite
+  `uv run pytest tests/unit/test_graph_repository.py tests/unit/test_graph_importer.py tests/unit/test_graph_api.py tests/unit/test_neo4j_projection.py tests/unit/test_graph_stats.py tests/unit/test_graph_analyst.py tests/unit/test_config.py`
+  passed (29 passed, 1 skipped); `make test` passed (117 passed, 1 skipped);
+  `make lint` passed; milestone cleanup inspected
+  `/Users/adnaan/.codex/rules/default.rules` and found no accidental Taurus
+  approvals after the user's marker, so no global-rule cleanup or project-local
+  approval changes were required.
 
 ## Deprecated Direction
 

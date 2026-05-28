@@ -35,7 +35,7 @@ def test_paper_run_service_executes_full_chain_and_api_returns_runs(tmp_path: Pa
     assert run.artifacts["symbols"]["INFY"]["order_status"] == "FILLED"
     assert run.artifacts["symbols"]["INFY"]["analyst_roster"] == {
         "enabled": ["technical"],
-        "skipped": ["news", "sentiment", "fundamentals"],
+        "skipped": ["news", "sentiment", "fundamentals", "graph"],
         "report_count": 1,
         "min_required": 1,
         "status": "enough_reports",
@@ -100,7 +100,7 @@ def test_paper_run_succeeds_without_fundamentals(tmp_path: Path) -> None:
     assert run.status == "COMPLETED"
     assert roster == {
         "enabled": ["technical", "news", "sentiment"],
-        "skipped": ["fundamentals"],
+        "skipped": ["fundamentals", "graph"],
         "report_count": 3,
         "min_required": 1,
         "status": "enough_reports",
@@ -130,7 +130,7 @@ def test_paper_run_succeeds_with_technical_only_roster(tmp_path: Path) -> None:
     assert run.succeeded_symbols == ["INFY"]
     assert roster == {
         "enabled": ["technical"],
-        "skipped": ["news", "sentiment", "fundamentals"],
+        "skipped": ["news", "sentiment", "fundamentals", "graph"],
         "report_count": 1,
         "min_required": 1,
         "status": "enough_reports",
