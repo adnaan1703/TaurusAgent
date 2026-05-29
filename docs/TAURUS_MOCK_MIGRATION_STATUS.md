@@ -165,3 +165,13 @@ TAURUS_ENABLED_ANALYSTS=technical make paper-loop-kite
 ```
 
 That still uses mock LLM and mock news today, so it is not yet fully mock-free.
+
+**The target workflow should become:**
+
+Analysts produce evidence
+Bull/Bear/Manager produce research view
+TraderAgent produces entry/hold/reduce/exit proposal
+RiskEngine applies hard gates
+PortfolioManagerAgent gives final approval
+PaperBroker executes simulated BUY/SELL
+Position monitor checks stop-loss/take-profit between runs
