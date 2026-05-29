@@ -160,6 +160,9 @@ Do not run `make seed-mock` for a real-data paper DB unless you intentionally wa
 
 Yes.
 
+For the maintained component-by-component tracker, see
+`docs/TAURUS_MOCK_MIGRATION_STATUS.md`.
+
 **Runtime mocks/defaults still present:**
 
 - Market data defaults to `mock` unless Kite/CSV is explicitly selected.

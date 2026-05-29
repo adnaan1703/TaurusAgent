@@ -47,6 +47,7 @@ def test_graph_tables_compile_with_postgres_dialect() -> None:
     )
 
     assert "CREATE TABLE graph_nodes" in ddl
+    assert "tradability_relevance TEXT" in ddl
     assert "CREATE TABLE graph_signal_contributions" in ddl
 
 

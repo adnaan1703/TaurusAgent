@@ -19,6 +19,7 @@ def run_migrations(settings: Settings | None = None) -> None:
     Base.metadata.create_all(bind=engine)
     _add_missing_backtest_signal_columns(engine)
     _add_missing_daily_candle_columns(engine)
+    _widen_graph_edge_columns(engine)
 
 
 def _add_missing_backtest_signal_columns(engine: Engine) -> None:
@@ -91,6 +92,32 @@ def _add_missing_daily_candle_columns(engine: Engine) -> None:
                         "WHERE data_available_time IS NULL"
                     )
                 )
+
+
+def _widen_graph_edge_columns(engine: Engine) -> None:
+    if engine.dialect.name != "postgresql":
+        return
+
+    inspector = inspect(engine)
+    if "graph_edges" not in inspector.get_table_names():
+        return
+
+    columns = {
+        column["name"]: column
+        for column in inspector.get_columns("graph_edges")
+    }
+    tradability_relevance = columns.get("tradability_relevance")
+    if tradability_relevance is None:
+        return
+
+    column_type = str(tradability_relevance["type"]).lower()
+    if column_type == "text":
+        return
+
+    with engine.begin() as connection:
+        connection.execute(
+            text("ALTER TABLE graph_edges ALTER COLUMN tradability_relevance TYPE TEXT")
+        )
 
 
 if __name__ == "__main__":

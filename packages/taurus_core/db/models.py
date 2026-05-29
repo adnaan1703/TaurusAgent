@@ -389,7 +389,7 @@ class GraphEdgeModel(Base):
     confidence: Mapped[Decimal] = mapped_column(Numeric(8, 4), nullable=False, default=Decimal("0"))
     inferred: Mapped[bool] = mapped_column(nullable=False, default=False)
     mechanism: Mapped[str] = mapped_column(Text, nullable=False, default="")
-    tradability_relevance: Mapped[str] = mapped_column(String(32), nullable=False, default="")
+    tradability_relevance: Mapped[str] = mapped_column(Text, nullable=False, default="")
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="candidate")
     valid_from: Mapped[date | None] = mapped_column(Date, nullable=True)
     valid_to: Mapped[date | None] = mapped_column(Date, nullable=True)
