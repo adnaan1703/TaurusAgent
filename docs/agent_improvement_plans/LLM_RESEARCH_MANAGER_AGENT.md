@@ -2,6 +2,10 @@
 
 Last reviewed: 2026-05-30
 
+Execution order: 7 of 10. Run this after the real LLM provider migration and
+after both `LLM_BULL_RESEARCHER_AGENT.md` and
+`LLM_BEAR_RESEARCHER_AGENT.md`.
+
 ## Summary
 
 Migrate `ResearchManagerAgent` from a fully deterministic consensus summarizer
@@ -18,8 +22,8 @@ the TradingAgents paper uses facilitator-controlled natural-language debate.
 
 - `ResearchDebateService` constructs `ResearchManagerAgent` with an
   `LLMProvider` from `build_llm_provider(settings)`.
-- If the broader real-provider migration is not already complete, set the
-  forward default provider path to:
+- The broader real-provider migration must already be complete. Default provider
+  path:
   - `TAURUS_LLM_PROVIDER=lmstudio`
   - `TAURUS_LLM_BASE_URL=http://localhost:1234/v1`
   - `TAURUS_LLM_MODEL` optional, falling back to `local-model`
@@ -40,8 +44,12 @@ the TradingAgents paper uses facilitator-controlled natural-language debate.
 - Keep `run(...)` as the public entrypoint:
   - validate reports and rounds as today;
   - build deterministic baseline with `_run_rules`;
-  - if `llm_provider` is present, call the LLM path;
-  - on LLM failure, record the failure and return the deterministic baseline.
+  - call the LLM path with the provider supplied by the service;
+  - on missing provider in runtime wiring, fail fast with a clear configuration
+    error;
+  - on LLM failure, record the failure. For production debate workflows, fail
+    the workflow instead of silently returning a rules-only summary. Tests may
+    assert rule fallback behavior through explicit helper calls.
 
 ### LLM Contract
 
@@ -54,10 +62,13 @@ the TradingAgents paper uses facilitator-controlled natural-language debate.
   - `model_version: str`
 - Add `complete_research_manager_summary(...) -> LLMResearchManagerOutput` to
   the provider layer if no shared research completion API already exists.
-- Implement the method for LM Studio/OpenAI-compatible providers with strict
-  JSON-only prompting and temperature `0`.
-- Update the mock/test provider path only as needed for local tests and current
-  mock-mode compatibility.
+- Implement the method for all real runtime providers:
+  - `LMStudioProvider`
+  - `OpenAIProvider`
+  - `GeminiProvider`
+- Use strict JSON-only prompting and temperature `0`.
+- Use test-local fake providers for unit tests. Do not reintroduce or depend on
+  a runtime mock LLM provider.
 
 ### Prompt And Guardrails
 
@@ -82,8 +93,29 @@ the TradingAgents paper uses facilitator-controlled natural-language debate.
   - clamp and quantize final values exactly like the existing rule output.
 - Prefer LLM `summary` and `unresolved_uncertainties` when valid; fall back to
   rule text if the LLM returns empty, repetitive, or non-evidence-bound text.
-- Preserve the existing mock-data warning behavior when any analyst report risk
-  mentions mock-mode inputs.
+- Preserve data-quality warnings when any analyst report risk mentions legacy
+  mock-mode inputs or incomplete real-data coverage.
+
+### ResearchManagerAgent System Prompt
+
+```text
+You are Taurus ResearchManagerAgent, the debate facilitator and synthesis agent
+for a local paper-trading research workflow. Your job is to synthesize analyst
+reports plus bull and bear theses into one evidence-bound consensus summary.
+
+Hard rules:
+- Synthesize research only. Do not place trades, size positions, route orders,
+  or override deterministic risk controls.
+- Use only supplied analyst reports, bull thesis, bear thesis, source IDs,
+  scores, confidence, risks, and the deterministic baseline.
+- Preserve material disagreement and unresolved uncertainty instead of forcing
+  false consensus.
+- Do not invent facts, source IDs, prices, filings, news, broker actions, or
+  order instructions.
+- Taurus recomputes the final consensus label from the final score; your label
+  must be consistent with the evidence.
+- Return valid JSON matching the requested schema and no prose outside JSON.
+```
 
 ### Debate Rounds
 
@@ -100,24 +132,43 @@ the TradingAgents paper uses facilitator-controlled natural-language debate.
 
 - Reuse `taurus_llm_failures_total` for provider errors and schema failures.
 - Include provider/model information in logs for successful manager synthesis.
-- Set debate-level `model_version` to distinguish LLM and fallback output, for
+- Set debate-level `model_version` to distinguish the real provider used, for
   example:
   - `research_debate_llm_one_shot_v1:lmstudio:<model>`
-  - `research_debate_rules_v1+llm_fallback`
+  - `research_debate_llm_one_shot_v1:openai:<model>`
+  - `research_debate_llm_one_shot_v1:gemini:<model>`
+
+### API And React Dashboard
+
+- Existing `DebateReport`, `/debates`, dashboard, and `TraderAgent` consumers
+  should remain schema-compatible.
+- Debate and Decision Trail surfaces should render:
+  - manager summary
+  - unresolved uncertainties
+  - consensus label
+  - consensus score and confidence
+  - debate `model_version`
+- No new dashboard page is required.
 
 ## Test Plan
 
 - Unit test successful LLM manager synthesis with a fake provider.
-- Unit test provider failure returns the exact deterministic manager fallback.
-- Unit test invalid LLM schema returns deterministic fallback.
+- Unit test runtime missing-provider wiring raises a clear configuration error.
+- Unit test provider failure records the LLM failure metric and raises a clear
+  workflow error.
+- Unit test invalid LLM schema records the LLM failure metric and raises a clear
+  workflow error.
+- Unit test deterministic `_run_rules` still returns the exact baseline for
+  guardrail comparison and isolated rule tests.
 - Unit test LLM score cannot move the rule consensus by more than `0.1000`.
 - Unit test final `consensus_label` is recomputed from final score, not trusted
   from inconsistent LLM output.
-- Unit test mock-mode uncertainty is preserved when analyst report risks mention
-  mock inputs.
+- Unit test data-quality uncertainty is preserved when analyst report risks
+  mention legacy mock inputs or incomplete real-data coverage.
 - Integration test `ResearchDebateService` passes a provider into
   `ResearchManagerAgent` and still returns a valid `/debates` payload.
 - Regression test `TraderAgent` can consume the LLM-backed debate unchanged.
+- React dashboard regression for existing Debate and Decision Trail surfaces.
 - Run:
   - `make test`
   - `make lint`
@@ -127,8 +178,7 @@ the TradingAgents paper uses facilitator-controlled natural-language debate.
 - LM Studio is the intended default LLM provider for local paper workflows.
 - The first implementation is one-shot manager synthesis, not multi-round
   moderated dialogue.
-- Deterministic consensus scoring remains the safety anchor and fallback.
+- Deterministic consensus scoring remains the safety anchor for clamping and
+  tests, but production debate should use a real provider.
 - Mocks created: test-only fake LLM provider outputs.
-- Mocks used: existing mock/test provider only for local tests and fallback
-  verification.
-
+- Mocks used: test-only fake LLM provider outputs only.

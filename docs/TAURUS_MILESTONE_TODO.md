@@ -1,31 +1,92 @@
 # Taurus Milestone TODO
 
-This file is the current project tracker for future agent work. Historical
-milestone implementation prompts and completed implementation plans were removed
-from active docs to avoid stale context.
+Last updated: 2026-05-30
 
-Last updated: 2026-05-28
+This is the active tracker for Taurus milestone work. Keep it concise. Detailed
+implementation instructions belong in the linked plan docs.
 
-## Active Source Of Truth
+## Active Sources
 
-- `README.md`: project overview, setup, and primary workflow.
-- `docs/TAURUS_USAGE_GUIDE.md`: current operating guide and known gaps.
-- `docs/TAURUS_COMMANDS.md`: command reference and project-local approval notes.
-- `docs/TAURUS_GRAPH_INTELLIGENCE_PLAN.md`: repo-specific M20 graph intelligence plan.
-- `docs/stitch/paper-trade-event-monitor/`: preserved UI reference assets for future dashboard work.
+- `docs/TAURUS_MOCK_MIGRATION_STATUS.md`: current mock/runtime status.
+- `docs/agent_improvement_plans/`: selected functional-MVP migration plans.
+- `docs/agent_improvement_plans/LLM_AGENT_SYSTEM_PROMPTS_BACKLOG.md`: deferred
+  system prompts for existing LLM-backed analysts not in the selected sequence.
+- `docs/TAURUS_USAGE_GUIDE.md`: operator workflow.
+- `docs/TAURUS_COMMANDS.md`: command reference and project-local approvals.
+- `docs/TAURUS_GRAPH_INTELLIGENCE_PLAN.md`: completed M20 graph reference.
+- `docs/stitch/paper-trade-event-monitor/`: React dashboard visual reference
+  assets.
 
-## Safety Rules
+## Standing Safety Rules
 
 - Taurus remains paper-trading-first.
-- `LIVE_TRADING_ENABLED=false` must remain the default.
-- `BROKER_PROVIDER=paper` must remain the default.
-- Kite support is data-only; execution still routes through `PaperBroker`.
-- Do not add real broker order routing without a new explicit approved milestone.
-- Do not commit API keys, broker credentials, Telegram tokens, Kite tokens, or user CSV exports.
+- `LIVE_TRADING_ENABLED=false` remains the default.
+- `BROKER_PROVIDER=paper` remains the default.
+- Kite support is data-only; execution continues through `PaperBroker`.
+- Do not add live broker order routing without a new explicit approved
+  milestone.
+- Do not commit API keys, broker credentials, Telegram tokens, Kite tokens, or
+  user CSV exports.
+- Runtime LLM-backed components must use `build_llm_provider(settings)` and the
+  default provider must be LM Studio unless an explicit hosted provider is
+  configured.
+- Any plan that changes API payloads or decision artifacts must include matching
+  React dashboard updates in the same milestone.
+
+## Completed Baseline
+
+| Scope | Status | Result |
+|---|---|---|
+| M0-M13 | Done | Core FastAPI, database, backtesting, analyst reports, debate, trader proposal, risk, final approval, paper broker, alerts, replay, backup/restore, and paper-trading MVP. |
+| M16 | Done | React run-loop observability dashboard became the primary local UI. |
+| M17 | Done | Zerodha Kite market-data provider, data-only. |
+| M18-M19 | Done | HalalStock compliance sync, halal NSE universe export, Shariah dashboard, and paper-run universe provenance. |
+| M20.0-M20.10 | Done | Graph intelligence foundation, importer, API, React views, optional Neo4j projection, graph stats, graph analyst, graph risk, graph metrics, and graph-aware backtesting. |
+
+## Current Baseline Before MVP Migrations
+
+- Runtime is still paper-only with simulated broker execution.
+- Default market data, LLM, and alerts are still mock-backed until the selected
+  migration sequence changes them.
+- Technical analyst is the only default analyst.
+- Graph analyst, graph risk, and Neo4j remain opt-in.
+- React dashboard is the primary UI; Streamlit is fallback only.
+- `docs/TAURUS_MOCK_MIGRATION_STATUS.md` is the detailed status reference.
+
+## Functional MVP Migration Sequence
+
+Execute these migrations in order. Each row is intended to be run separately
+with fresh context. After one migration is implemented, verified, cleaned up,
+and documented with its completion summary, stop and report the result. Do not
+start the next migration unless the user explicitly asks.
+
+| Order | Milestone | Status | Plan | Purpose |
+|---:|---|---|---|---|
+| 1 | M21 | Planned | `docs/agent_improvement_plans/DOCKER_ONLY_DATABASE_MIGRATION.md` | Make Docker Postgres canonical and remove SQLite runtime/test paths. |
+| 2 | M22 | Planned | `docs/agent_improvement_plans/REAL_LLM_PROVIDER_MIGRATION.md` | Remove runtime mock LLM and default real provider to LM Studio, with OpenAI/Gemini opt-ins. |
+| 3 | M23 | Planned | `docs/agent_improvement_plans/KITE_ONLY_MARKET_DATA_MIGRATION.md` | Remove runtime market-data mocks/CSV provider paths and make Kite the only runtime market-data provider. |
+| 4 | M24 | Planned | `docs/agent_improvement_plans/GRAPH_ENABLED_REAL_DATA_PAPER_LOOP.md` | Enable graph analyst, graph-aware strategy, and graph risk for the Kite real-data paper path. |
+| 5 | M25 | Planned | `docs/agent_improvement_plans/LLM_BULL_RESEARCHER_AGENT.md` | Add LLM-backed bullish research with deterministic guardrails and dedicated prompt. |
+| 6 | M26 | Planned | `docs/agent_improvement_plans/LLM_BEAR_RESEARCHER_AGENT.md` | Add LLM-backed bearish research with deterministic guardrails and dedicated prompt. |
+| 7 | M27 | Planned | `docs/agent_improvement_plans/LLM_RESEARCH_MANAGER_AGENT.md` | Add LLM-backed debate synthesis and consensus management with dedicated prompt. |
+| 8 | M28 | Planned | `docs/agent_improvement_plans/PHASE_1_POSITION_AWARE_TRADER_AGENT.md` | Add cross-run portfolio continuity and after-close BUY/HOLD/REDUCE/EXIT lifecycle proposals. |
+| 9 | M29 | Planned | `docs/agent_improvement_plans/LLM_PORTFOLIO_MANAGER_AGENT.md` | Add LLM explanations to deterministic final approval/rejection/no-action decisions. |
+| 10 | M30 | Planned | `docs/agent_improvement_plans/PHASE_2_MARKET_HOURS_POSITION_MONITOR.md` | Add market-hours stop-loss/take-profit monitoring for paper positions. |
+
+## Deferred Work
+
+- Real news provider and production-grade news/sentiment analysts.
+- Fundamentals production hardening after real Screener CSV validation.
+- Optional LLM-backed risk persona agents. `RiskEngine` must remain
+  deterministic.
+- Broker-calibrated charges, slippage, and fill assumptions.
+- Telegram alert verification with local credentials.
+- Dashboard/API auth before use beyond a trusted local machine.
+- Live broker order routing. This remains out of scope.
 
 ## Completion Reporting
 
-Every completed milestone task summary must explicitly list:
+Every completed milestone summary must explicitly list:
 
 - Assumptions made
 - Mocks created
@@ -39,135 +100,10 @@ approvals. Move Taurus-specific approved prefixes into `.codex/rules/default.rul
 if missing, document them in `docs/TAURUS_COMMANDS.md`, and remove them from the
 global file. Do not copy unrelated global approvals.
 
-## Completed Milestones
-
-| Milestone | Status | Current Result |
-|---|---|---|
-| M0 | Done | Project scaffold, FastAPI health/readiness/metrics, config, logging, tests, Docker Compose. |
-| M1 | Done | Database foundation, deterministic mock instruments/candles, data APIs. |
-| M2 | Done | Backtesting skeleton with metrics, orders, fills, positions, and reports. |
-| M3 | Done | Technical indicators, feature store, and configurable strategies. |
-| M4 | Done | News/sentiment/LLM foundation and analyst reports. |
-| M5 | Done | Bull/bear debate, research manager summary, and trader proposal. |
-| M6 | Done | Risk committee, deterministic risk engine, and final approval. |
-| M7 | Done | Internal `PaperBroker` simulator with orders, fills, account, and positions. |
-| M8 | Done | Streamlit/Grafana observability v1. Streamlit remains fallback only. |
-| M9 | Done | Screener fundamentals import path and scoring. |
-| M10 | Done | Market data provider abstraction and CSV import path. |
-| M11 | Done | Continuous local paper loop. |
-| M12 | Done | Alerts, replay, backup/restore, and hardening. |
-| M13 | Done | Paper-trading MVP release. |
-| M16 | Done | React run-loop observability dashboard, now primary local UI. |
-| M17 | Done | Zerodha Kite market data provider, data-only. |
-| M18 | Done | HalalStock compliance sync and halal NSE universe export. |
-| M19 | Done | Shariah dashboard and paper-run universe provenance. |
-
-## Planned Graph Intelligence Milestones
-
-`docs/TAURUS_DATA_INTEGRATION.md` is outside-source reference material only.
-Use `docs/TAURUS_GRAPH_INTELLIGENCE_PLAN.md` and this tracker as the active
-implementation source for M20 work.
-
-Treat M20 submilestones exactly like main milestones. After one M20 submilestone
-is complete, verified, cleaned up, and documented with its completion summary,
-stop and report what was achieved. Do not automatically begin the next M20
-submilestone unless the user explicitly asks to proceed.
-
-| Milestone | Status | Current Result |
-|---|---|---|
-| M20.0 | Done | Created repo-specific graph intelligence plan and M20 milestone tracker; no runtime behavior changes. |
-| M20.1 | Done | Postgres graph settings, graph tables, metadata migration path, and idempotent graph repository upserts/read paths. |
-| M20.2 | Done | TaurusData CSV graph importer, CLI/Make target, idempotent active/candidate/evidence import from `configs/taurus_data/`. |
-| M20.3 | Done | FastAPI graph API vertical slice backed by Postgres, with local-dashboard edge review endpoints. |
-| M20.4 | Done | React graph dashboard routes for overview, company graph, candidate review, and graph signals. |
-| M20.5 | Done | Optional Neo4j projection/read model, disabled by default and rebuildable from Postgres. |
-| M20.6 | Done | Graph statistical validation engine persisted to Postgres edge stats. |
-| M20.7 | Done | Deterministic `GraphAnalystAgent` registered behind the optional `graph` analyst key, with persisted graph signals and contributions. |
-| M20.8 | Done | Optional graph-aware risk checks with warn/reduce/reject concentration decisions. |
-| M20.9 | Done | Graph Prometheus metrics, graph failure counters, and Grafana graph observability panels. |
-| M20.10 | Done | Graph-aware backtesting with point-in-time graph signals, graph-aware strategy scoring, and edge-type performance summaries. |
-
-## Current Capabilities
-
-- Deterministic mock-data paper workflow.
-- CSV-backed market data import.
-- Kite-backed historical daily candle import and latest quote snapshot persistence.
-- Technical analyst default flow.
-- Optional mock/LM Studio/OpenAI LLM providers.
-- Bull/bear debate, trader proposal, risk review, and final approval.
-- Internal simulated paper execution through `PaperBroker`.
-- React dashboard at `http://localhost:5173`, including graph browsing and gated graph edge review.
-- Streamlit fallback dashboard.
-- Optional disposable Neo4j projection read model rebuilt one-way from Postgres graph tables.
-- Graph edge statistical validation from daily candle data with persisted raw
-  correlation, market-residual correlation, lead-lag score, stability score,
-  sample size, and insufficient-data reasons.
-- Optional deterministic `GraphAnalystAgent`, disabled by default and enabled
-  only through `TAURUS_ENABLED_ANALYSTS=...,graph`, stores graph signals and
-  per-edge contributions without bypassing the debate/risk/final approval path.
-- Optional graph-aware risk checks, disabled by default through
-  `TAURUS_GRAPH_RISK_ENABLED=false`, can warn, reduce, or reject proposed paper
-  long entries based on graph concentration limits.
-- Graph observability exposes Prometheus metrics for graph inventory, imports,
-  projections, stats, signals, and graph failures, with Grafana panels in the
-  existing trading dashboard.
-- Graph-aware backtesting loads point-in-time graph signals by backtest date,
-  excludes future graph edges, evidence, and stats, combines technical and graph
-  scores, and summarizes graph performance by edge type.
-- Shariah compliance dashboard backed by imported HalalStock rows.
-- Replay, backup/restore, alerts, Prometheus metrics, and Grafana dashboards.
-
-## Active Follow-Ups
-
-- [ ] Validate a real Screener CSV export when available.
-- [ ] Confirm imported Screener rows map cleanly to Taurus instruments.
-- [ ] Decide whether fundamentals scoring needs adjustment for the real Screener export format.
-- [ ] Remove mock-news contamination from real-data paper runs, or add an explicit no-news mode.
-- [ ] Add a rule-only technical analyst path that avoids mock LLM usage when desired.
-- [ ] Add true portfolio continuity across paper runs.
-- [ ] Avoid mixed mock/Kite data in the same database, or make provider-scoped universe handling explicit.
-- [ ] Make Kite-backed backtesting first-class.
-- [ ] Replace placeholder paper cost/slippage/fill assumptions with broker-calibrated assumptions.
-- [ ] Add a real news/data provider if news or sentiment risk is enabled.
-- [ ] Add dashboard/API auth before using Taurus beyond a trusted local machine.
-- [ ] Verify real Telegram alert delivery with local-only credentials.
-
-## Latest Completion Summary - M20.10
-
-- Assumptions made: Graph backtesting uses existing graph edge `valid_from` and
-  `valid_to`, evidence `source_date`, and edge-stat `as_of_date` as the
-  point-in-time availability controls; relationship edges without attached
-  evidence remain usable because the current importer does not attach evidence
-  rows to every relationship edge, but they receive a lower evidence weight;
-  graph performance summarizes closed graph-attributed trades, while open
-  graph-attributed positions are reported separately.
-- Mocks created: Synthetic `AAA`/`BBB` graph backtesting fixtures in
-  `tests/unit/test_graph_backtesting.py`, including dated active company edges,
-  evidence, past and future edge stats, graph-aware strategy snapshots, and
-  deterministic candles for a closed graph-attributed trade.
-- Mocks used: Synthetic SQLite graph and backtest fixtures only; no live broker,
-  Kite, LLM, Neo4j, external market data service, Grafana, or Prometheus server
-  was required.
-- Verification: `uv run pytest tests/unit/test_graph_backtesting.py` passed
-  (4 passed); existing backtest/CSV suite
-  `uv run pytest tests/unit/test_backtest_engine.py tests/unit/test_csv_market_data.py`
-  passed (7 passed); graph-focused suite
-  `uv run pytest tests/unit/test_graph_repository.py tests/unit/test_graph_importer.py tests/unit/test_graph_api.py tests/unit/test_neo4j_projection.py tests/unit/test_graph_stats.py tests/unit/test_graph_analyst.py tests/unit/test_graph_risk.py tests/unit/test_graph_observability.py tests/unit/test_graph_backtesting.py`
-  passed (31 passed, 1 skipped); `make test` passed (131 passed, 1 skipped);
-  `make lint` passed; `git diff --check` passed; milestone cleanup inspected
-  `/Users/adnaan/.codex/rules/default.rules` and found no accidental Taurus
-  approvals after the user's marker, so no global-rule cleanup or project-local
-  approval changes were required.
-
-## Deprecated Direction
-
-Previous broker sandbox and production-readiness plans have been removed. Taurus
-does not currently track broker order routing as a planned milestone.
-
 ## Maintenance Rules
 
-- Update this file when a new milestone starts, completes, or is intentionally deferred.
-- Keep this tracker concise; avoid pasting full implementation prompts.
-- Put detailed user-facing operation steps in `docs/TAURUS_USAGE_GUIDE.md`.
-- Put command history or approval notes in `docs/TAURUS_COMMANDS.md`.
-- Keep future UI visual references under `docs/stitch/paper-trade-event-monitor/`.
+- Update this file when a migration starts, completes, or is intentionally
+  deferred.
+- Keep detailed implementation text in the linked migration plan, not here.
+- Keep command changes in `docs/TAURUS_COMMANDS.md`.
+- Keep operator workflow changes in `docs/TAURUS_USAGE_GUIDE.md`.

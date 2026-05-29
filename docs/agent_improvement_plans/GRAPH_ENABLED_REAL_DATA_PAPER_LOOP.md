@@ -2,6 +2,11 @@
 
 Last reviewed: 2026-05-30
 
+Execution order: 4 of 10. Run this after Docker/Postgres, real LLM provider,
+and Kite-only market data migrations. It assumes the real-data paper command
+uses Kite candles/quotes and that the technical analyst can use the default LM
+Studio provider.
+
 ## Summary
 
 Make Taurus graph intelligence part of the mainstream real-data paper-trading
@@ -57,8 +62,8 @@ should be created for:
 - graph concentration risk
 - graph readiness checks
 
-Tests may use deterministic database fixtures, temporary SQLite databases, or
-test-only fakes, but they must not add runtime graph mocks.
+Tests may use deterministic Docker Postgres test databases or test-only fakes,
+but they must not add runtime graph mocks or temporary SQLite databases.
 
 Existing non-graph mocks in Taurus are outside this plan. In particular, the
 current paper loop still has separate mock concerns such as mock LLM defaults,
@@ -139,6 +144,19 @@ Bring the paper loop in line with the graph-aware backtest pattern.
 - Use statistically validated graph stats for correlated cluster exposure.
 - Continue returning normal `HardRuleResult` rows so the dashboard and audit
   trail can explain any warn, reduce, reject, or block decision.
+
+### API And React Dashboard
+
+- Extend existing dashboard graph, overview, decision trail, and risk surfaces.
+- Overview/run history should show whether a run used the graph-enabled
+  real-data profile, graph signal count, graph-selected symbols, and graph risk
+  enabled status.
+- Decision Trail should show which symbols were selected by graph-aware target
+  selection versus explicit/manual selection or open-position inclusion.
+- Risk views should show graph concentration hard-rule rows with the same
+  status vocabulary used by other risk checks.
+- Graph pages should keep candidate-edge review separate from active graph
+  evidence that can influence paper decisions.
 
 ## Reliability And Prediction Quality
 

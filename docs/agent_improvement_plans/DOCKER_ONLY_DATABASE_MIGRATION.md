@@ -2,6 +2,10 @@
 
 Last inspected: 2026-05-30
 
+Execution order: 1 of 10. Run this before market-data, LLM-agent, graph paper,
+or position lifecycle migrations so later plans can assume Docker Postgres is
+the only runtime and test database.
+
 ## Goal
 
 Remove local SQLite from Taurus completely. Going forward, development, runtime,
@@ -139,6 +143,16 @@ the canonical Docker Postgres volume.
 - Update `docs/TAURUS_COMMANDS.md` with Docker/Postgres commands and remove
   active SQLite examples.
 
+### 5a. API And React Dashboard Impact
+
+- No new dashboard feature is required for this migration.
+- Verify the existing React dashboard, API health checks, run history, portfolio,
+  graph, and Shariah views load from Docker Postgres-backed API responses.
+- If the dashboard or API exposes environment/status text, remove active SQLite
+  references and label Postgres as the canonical store.
+- Document any changed local startup order in `docs/TAURUS_COMMANDS.md` and
+  `docs/TAURUS_USAGE_GUIDE.md`.
+
 ### 6. Verify Docker Data Before Cleanup
 
 Run these checks before deleting any local SQLite file:
@@ -220,3 +234,4 @@ clearly obsolete historical notes, if any are intentionally retained.
   source artifacts until a separate schema/import milestone is created.
 - SQLite files should be deleted directly after verification, not archived.
 - Neo4j remains disposable unless a future milestone adds a named Neo4j volume.
+- Later migration plans should not add SQLite-compatible runtime paths back.

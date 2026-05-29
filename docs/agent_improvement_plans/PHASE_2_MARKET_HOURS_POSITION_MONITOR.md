@@ -2,6 +2,10 @@
 
 Last reviewed: 2026-05-30
 
+Execution order: 10 of 10. Run this after Phase 1 position-aware TraderAgent
+and portfolio continuity are complete. It also assumes Kite-only market data and
+real LLM provider migrations are complete.
+
 ## Summary
 
 Add a market-hours position monitor that checks open paper positions against
@@ -39,8 +43,10 @@ quote update -> SL/TP trigger -> TraderProposal -> RiskReview -> FinalDecision -
 
 - Reuse existing market data provider abstractions where possible.
 - For Kite, use latest quote/LTP snapshot retrieval.
-- For mock mode, provide deterministic quote snapshots so tests can trigger
-  stop-loss and take-profit without external services.
+- For tests, use test-local fake Kite quote clients or repository fixtures so
+  stop-loss and take-profit scenarios can be exercised without external
+  services.
+- Do not add a runtime mock quote provider or mock market-data mode.
 - Persist latest quote snapshots before evaluating triggers so every monitor
   decision has auditable input data.
 - If quote retrieval fails, log/audit the failure and skip that symbol for that
@@ -77,6 +83,9 @@ quote update -> SL/TP trigger -> TraderProposal -> RiskReview -> FinalDecision -
 
 - The monitor should call the same TraderAgent/RiskReview/PortfolioManager flow
   used by paper runs.
+- When the monitor invokes `TraderAgent`, it must use the runtime provider built
+  by `build_llm_provider(settings)`, which defaults to LM Studio after the real
+  LLM provider migration.
 - For hard stop-loss triggers, `TraderAgent` must force `EXIT` and LLM can only
   explain.
 - For take-profit triggers, deterministic floor is `REDUCE`; LLM may recommend
@@ -132,7 +141,7 @@ quote update -> SL/TP trigger -> TraderProposal -> RiskReview -> FinalDecision -
   - repeated quote breaches do not create duplicate trigger proposals for the
     same session
 - Provider tests:
-  - mock quote provider can force stop-loss and take-profit scenarios
+  - test-local fake quote client can force stop-loss and take-profit scenarios
   - Kite provider failures are handled without mutating position state
 - Decision flow:
   - monitor-generated `EXIT` passes through risk/final approval and PaperBroker
@@ -146,10 +155,12 @@ quote update -> SL/TP trigger -> TraderProposal -> RiskReview -> FinalDecision -
 
 ## Acceptance Criteria
 
-- Running `make position-monitor` can detect a mock stop-loss breach and create
-  an auditable `EXIT` paper decision.
-- Running `make position-monitor` can detect a mock take-profit breach and create
-  an auditable `REDUCE` paper decision.
+- Running `make position-monitor` can detect a stop-loss breach from a Kite
+  quote or test-local fake quote client and create an auditable `EXIT` paper
+  decision.
+- Running `make position-monitor` can detect a take-profit breach from a Kite
+  quote or test-local fake quote client and create an auditable `REDUCE` paper
+  decision.
 - Kite quote failures do not crash the monitor.
 - Duplicate trigger protection prevents repeated proposals for the same symbol
   and threshold in one market session.
@@ -165,3 +176,4 @@ quote update -> SL/TP trigger -> TraderProposal -> RiskReview -> FinalDecision -
 - No broker-native OCO order is added.
 - The first market-hours implementation may use polling; true streaming can be
   added later if needed.
+- Runtime mock market-data and mock quote providers remain out of scope.

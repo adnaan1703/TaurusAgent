@@ -97,9 +97,9 @@ Analyst agents = can call LLM provider
 Debate / trader / risk / portfolio agents = currently rule-based consumers of analyst outputs
 ```
 
-If Taurus should support true LLM-backed debate, trader proposal, or risk
-committee reasoning, that requires a separate migration task. It is not present
-in the current implementation.
+The selected functional-MVP sequence now tracks separate migrations for
+LLM-backed debate, trader proposal, and final-decision explanation in
+`docs/TAURUS_MILESTONE_TODO.md`. Risk persona LLM support remains deferred.
 
 The minimum high-value LLM migration target is:
 
@@ -108,6 +108,7 @@ BullResearcherAgent
 BearResearcherAgent
 ResearchManagerAgent
 TraderAgent
+PortfolioManagerAgent explanation
 ```
 
 The advisory risk personas can be upgraded after that. `RiskEngine`,
@@ -115,7 +116,9 @@ The advisory risk personas can be upgraded after that. `RiskEngine`,
 
 ## Mock Migration Checklist
 
-- [ ] Switch market data defaults or run path from `mock` to `kite` or `csv` for
+- [ ] Complete the ordered functional-MVP sequence in
+      `docs/TAURUS_MILESTONE_TODO.md`.
+- [ ] Switch market data defaults and runtime path from `mock` to `kite` for
       real-data paper runs.
 - [ ] Prevent mixed mock/Kite data in the same database, or make provider-scoped
       universe handling explicit.
@@ -125,11 +128,12 @@ The advisory risk personas can be upgraded after that. `RiskEngine`,
       real-data workflow.
 - [ ] Add a rule-only technical analyst path that does not call the mock LLM
       provider when no LLM is desired.
-- [ ] Configure and test `TAURUS_LLM_PROVIDER=lmstudio` or `openai` if LLM-backed
-      analyst reports should be real model outputs.
-- [ ] Add optional LLM-backed debate, trader proposal, and risk committee agents
-      if the intended architecture requires those workflows to call an LLM
-      directly.
+- [ ] Configure and test `TAURUS_LLM_PROVIDER=lmstudio`, with `openai` and
+      `gemini` as explicit hosted-provider opt-ins.
+- [ ] Add LLM-backed Bull/Bear/ResearchManager debate and position-aware
+      `TraderAgent` proposals with LM Studio as the default runtime provider.
+- [ ] Add optional LLM explanation to `PortfolioManagerAgent`; deterministic
+      final approval gates remain authoritative.
 - [ ] Validate real Screener CSV exports and confirm they map cleanly to Taurus
       instruments before enabling fundamentals in production-like paper runs.
 - [ ] Review and calibrate paper brokerage, charges, slippage, and fill
@@ -158,13 +162,10 @@ graph risk disabled
 Neo4j disabled
 ```
 
-The first practical migration target is a technical-only real-data paper run:
-
-```bash
-TAURUS_ENABLED_ANALYSTS=technical make paper-loop-kite
-```
-
-That still uses mock LLM and mock news today, so it is not yet fully mock-free.
+The selected migration path is now tracked as M21-M30 in
+`docs/TAURUS_MILESTONE_TODO.md`. The first implementation step is Docker
+Postgres-only persistence, followed by the real LLM provider migration, then
+Kite-only market data.
 
 **The target workflow should become:**
 

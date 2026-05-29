@@ -2,6 +2,10 @@
 
 Last reviewed: 2026-05-30
 
+Execution order: 9 of 10. Run this after Phase 1 position-aware TraderAgent so
+the final-decision explanation prompt can include lifecycle actions, position
+context, and no-action statuses.
+
 ## Summary
 
 Add optional LLM-assisted explanations to `PortfolioManagerAgent` while keeping
@@ -9,16 +13,19 @@ deterministic final approval gates authoritative. The LLM may only enrich
 `FinalDecision.reason`; it must not change status, action, approved quantity,
 approved exposure, order flags, broker routing, IDs, or persistence behavior.
 
-The implementation should wire the agent to the default Taurus LLM provider
-factory so it will use LM Studio when the future real-provider migration flips
-the global default. This plan does not require changing the global LLM default
-from `mock` to `lmstudio`.
+The real LLM provider migration must already be complete. The implementation
+should wire the agent to the default Taurus LLM provider factory, so local
+runtime explanations use LM Studio unless a hosted provider is explicitly
+configured.
 
 ## Target State
 
 - `PortfolioManagerAgent` accepts an optional `LLMProvider`.
-- If no provider is supplied and LLM explanation is enabled, the agent builds
-  one with `build_llm_provider(settings)`.
+- If no provider is supplied and LLM explanation is enabled, production services
+  build one with `build_llm_provider(settings)`.
+- Constructor-level optionality is allowed for tests and for explicit
+  `enable_llm_explanation=false` operation only. Runtime LLM explanation mode
+  must not run without a real provider.
 - Deterministic approval/rejection logic runs first and remains the source of
   truth.
 - The LLM can explain the final approval, rejection, or block only after the
@@ -59,7 +66,8 @@ from `mock` to `lmstudio`.
 - Implement the method for:
   - `LMStudioProvider`
   - `OpenAIProvider`
-  - existing `MockLLMProvider`, only for current mock-mode compatibility
+  - `GeminiProvider`, if the Gemini provider was added by the real LLM
+    migration
 - Use a strict JSON-only prompt with temperature `0`.
 - Provide a compact context pack:
   - symbol, run ID, proposal ID, risk check ID
@@ -71,6 +79,29 @@ from `mock` to `lmstudio`.
   - safety config flags relevant to paper approval
 - Prompt guardrail: the model must explain the deterministic decision and must
   not recommend a different action, quantity, exposure, or broker outcome.
+- Tests should use test-local fake providers. Do not add or depend on a runtime
+  mock LLM provider.
+
+### PortfolioManagerAgent System Prompt
+
+```text
+You are Taurus PortfolioManagerAgent, the final paper-trading approval explainer.
+The deterministic Taurus approval logic has already fixed the final status,
+action, quantity, exposure, order flag, and broker-routing flag. Your only job
+is to explain that fixed decision clearly.
+
+Hard rules:
+- Do not change or suggest changing final action, status, quantity, exposure,
+  order flags, broker routing, portfolio IDs, run IDs, or trace IDs.
+- Do not recommend live trading, real broker order placement, leverage, shorts,
+  options, or futures.
+- Explain the deterministic decision using only supplied proposal, risk review,
+  hard-rule, persona, and safety-config context.
+- If the final decision is HOLD, NO_TRADE, or NO_ACTION, make clear that no paper
+  order is expected.
+- Do not invent facts, prices, positions, source IDs, or external news.
+- Return valid JSON matching the requested schema and no prose outside JSON.
+```
 
 ### Fallback And Observability
 
@@ -85,6 +116,18 @@ from `mock` to `lmstudio`.
   - mark `model_version` with a bounded suffix such as
     `portfolio_manager_rules_v1+llm_explainer`.
 - If explanation is disabled, do not build or call a provider.
+
+### API And React Dashboard
+
+- No database or API response-shape change is expected because the explanation
+  is exposed through existing `FinalDecision.reason` and `model_version`.
+- React dashboard updates:
+  - show LLM-enriched final-decision reasons without layout overflow;
+  - preserve deterministic status/action/quantity fields as the primary visual
+    facts;
+  - show model/version text where the existing decision detail view already
+    renders model metadata;
+  - clearly distinguish `NO_ACTION` final decisions from missing paper orders.
 
 ## Test Plan
 
@@ -106,14 +149,11 @@ from `mock` to `lmstudio`.
 
 ## Assumptions And Defaults
 
-- Factory-only default is used: `PortfolioManagerAgent` uses
-  `build_llm_provider(settings)` but this plan does not flip
-  `Settings.taurus_llm_provider` from `mock` to `lmstudio`.
-- LM Studio is still the intended future default provider for local paper
-  workflows.
+- Factory default is used: `PortfolioManagerAgent` uses
+  `build_llm_provider(settings)`, which defaults to LM Studio after the real LLM
+  provider migration.
 - Explanation is exposed through `FinalDecision.reason` only.
 - No DB migration is required because final-decision payloads already persist
   `reason` and `model_version`.
 - Mocks created: test-only fake LLM providers for success/failure assertions.
-- Mocks used: existing `MockLLMProvider` remains for current mock-mode
-  compatibility until the separate real-provider migration removes it.
+- Mocks used: test-only fake LLM providers only.

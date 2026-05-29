@@ -2,6 +2,11 @@
 
 Last reviewed: 2026-05-30
 
+Execution order: 8 of 10. Run this after Docker/Postgres, real LLM provider,
+Kite-only market data, graph-enabled real-data paper, and the Bull/Bear/Manager
+LLM debate migrations. It depends on real provider wiring and should use LM
+Studio through `build_llm_provider(settings)` by default.
+
 ## Summary
 
 Promote `TraderAgent` from a new-entry proposal generator into an after-close
@@ -22,7 +27,15 @@ Core behavior:
 
 ### TraderAgent
 
-- Change `TraderAgent` to accept `settings` and `llm_provider`.
+- Change `TraderAgent` to accept `settings` and an injectable
+  `llm_provider`.
+- Production services must always provide a provider by calling
+  `build_llm_provider(settings)`. With the migration sequence in this folder,
+  that means LM Studio by default unless `TAURUS_LLM_PROVIDER` explicitly
+  selects OpenAI or Gemini.
+- Constructor-level optionality is allowed only for unit tests and isolated
+  rule-helper tests. Runtime paper flows must not run a position-aware
+  `TraderAgent` without a real LLM provider.
 - Load current portfolio context before proposing:
   - portfolio id
   - latest account equity
@@ -80,13 +93,41 @@ Core behavior:
   - `model_version`
 - Add `complete_trader_proposal(...)` to the `LLMProvider` protocol.
 - Implement trader completion in:
-  - `MockLLMProvider`
   - `LMStudioProvider`
   - `OpenAIProvider`
+  - `GeminiProvider`, if the Gemini provider was added by the real LLM
+    migration
 - Use temperature `0` for OpenAI-compatible trader output.
 - The LLM output is advisory. `TraderAgent` must validate and clamp action,
   target exposure, and risk text against deterministic guardrails before
   storing the proposal.
+- Tests should use test-local fake LLM providers. Do not add or depend on a
+  runtime mock LLM provider.
+
+### TraderAgent System Prompt
+
+Use a dedicated system prompt for `TraderAgent` instead of sharing analyst or
+research prompts:
+
+```text
+You are Taurus TraderAgent, a paper-trading lifecycle proposal agent for a
+long-only portfolio. You convert validated research consensus and current paper
+portfolio context into one structured proposal for BUY, HOLD, REDUCE, EXIT, or
+NO_TRADE.
+
+Hard rules:
+- You are advisory. Taurus deterministic guardrails decide the allowed action
+  envelope, final sizing, risk approval, and broker routing.
+- Never recommend live trading, real broker order placement, leverage, shorts,
+  options, futures, or intraday speculation.
+- Use only the evidence in the provided context. Do not invent prices, fills,
+  positions, source IDs, research claims, or news.
+- Respect the supplied lifecycle trigger, evaluation mode, current position,
+  target exposure bounds, stop-loss, take-profit, and allowed actions.
+- If stop-loss is breached, explain EXIT only.
+- If take-profit is breached, recommend REDUCE or stricter EXIT only.
+- Return valid JSON matching the requested schema and no prose outside JSON.
+```
 
 ### Portfolio Continuity
 
@@ -97,7 +138,8 @@ Core behavior:
   - `PaperFill`
   - `PaperPosition`
   - corresponding SQLAlchemy models
-- Add migrations for Postgres and SQLite-compatible local migration flow.
+- Add migrations for Docker Postgres only. Do not add SQLite-compatible runtime
+  or test migration paths back after the Docker-only migration.
 - Update `ExecutionRepository` with:
   - latest account by `portfolio_id`
   - latest open positions by `portfolio_id`
@@ -166,6 +208,8 @@ Core behavior:
   - final order versus no-action status
 - For `HOLD` and `NO_TRADE`, show "No paper order expected" instead of treating
   missing paper orders as suspicious.
+- Add filters or badges for `after_close` lifecycle decisions so they are
+  distinguishable from market-hours monitor decisions added in Phase 2.
 
 ## Test Plan
 
@@ -214,3 +258,4 @@ Core behavior:
   orders.
 - Phase 1 uses latest available after-close data only.
 - Market-hours quote monitoring is intentionally deferred to Phase 2.
+- Test-only fake LLM providers are allowed; runtime mock LLM providers are not.

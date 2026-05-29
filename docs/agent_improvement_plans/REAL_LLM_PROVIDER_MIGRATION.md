@@ -2,6 +2,12 @@
 
 Last reviewed: 2026-05-30
 
+Execution order: 2 of 10. Run this after
+`DOCKER_ONLY_DATABASE_MIGRATION.md` and before any plan that adds LLM support to
+Bull/Bear/Manager/Trader/Portfolio agents. Later LLM-agent migrations should
+assume `build_llm_provider(settings)` returns a real provider and defaults to
+LM Studio.
+
 ## Summary
 
 Remove Taurus's runtime mock LLM provider and make the LLM roster real-provider
@@ -31,6 +37,10 @@ news, alert, fundamentals, broker, or paper-execution mocks.
   report.
 - LLM provider failures are surfaced clearly. Do not silently label
   deterministic fallback output as if it came from an LLM provider.
+- Runtime services that need an LLM must build or receive a provider from
+  `build_llm_provider(settings)`. Optional constructor injection is allowed for
+  tests, but production wiring must provide the default LM Studio-backed
+  provider unless a hosted provider is explicitly configured.
 
 ## ChatGPT Subscription And OpenAI OAuth Decision
 
@@ -209,6 +219,19 @@ For a real-provider-only LLM migration, change this behavior:
 - Update its description if fallback behavior is removed. It should track real
   provider failures, not "failures that used deterministic fallback output."
 
+### API And React Dashboard
+
+- Expose the configured LLM provider and model version through an existing
+  status/health/config endpoint or a narrow new read-only endpoint.
+- Update the React dashboard overview/status surfaces to show:
+  - LLM provider name
+  - model name/version when known
+  - last LLM failure count or degraded status if exposed by the API
+- Do not create a separate LLM page for this migration.
+- Dashboard labels must not mention `mock` as an active LLM provider after this
+  migration. Historical records with `mock-llm-v1` may still appear as old run
+  artifacts.
+
 ### Documentation
 
 Update these docs after implementation:
@@ -296,6 +319,9 @@ Required documentation changes:
 - This plan does not add live trading or broker order routing.
 - This plan does not use ChatGPT subscription sessions, browser automation, or
   OAuth to avoid API billing.
+- Dedicated system prompts for LLM agents should live with each agent migration
+  plan. Existing analyst prompts that are not otherwise migrated are tracked in
+  `docs/agent_improvement_plans/LLM_AGENT_SYSTEM_PROMPTS_BACKLOG.md`.
 
 ## Completion Summary Template
 

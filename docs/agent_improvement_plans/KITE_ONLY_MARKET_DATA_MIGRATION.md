@@ -2,6 +2,10 @@
 
 Last updated: 2026-05-30
 
+Execution order: 3 of 10. Run this after the Docker/Postgres and real LLM
+provider migrations. It prepares the real-data paper path that graph and
+position lifecycle plans will build on.
+
 ## Summary
 
 Remove market-data mocks from Taurus runtime completely and make Zerodha Kite the
@@ -122,7 +126,15 @@ migrate LLM, news, alert, analyst, risk, broker, or paper-execution mocks.
 
 - API data routes can continue reading persisted instruments, candles, and quote
   snapshots; no API contract change is required.
-- UI labels should show provider `kite` from persisted paper-run summaries.
+- API responses that expose provider metadata should consistently report
+  provider `kite` for new runs/imports.
+- React dashboard updates:
+  - show provider `kite` from persisted paper-run summaries;
+  - show Kite quote/candle freshness where the API already exposes timestamps;
+  - remove active UI copy that suggests mock or CSV market-data providers are
+    selectable runtime choices;
+  - show the clear preflight error when old `mock_market_data` rows block a Kite
+    run, instead of rendering it as a generic run failure.
 - Update documentation to remove mock market data as a current capability:
   - `README.md`
   - `docs/TAURUS_USAGE_GUIDE.md`
