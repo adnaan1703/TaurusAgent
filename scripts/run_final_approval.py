@@ -9,6 +9,7 @@ from taurus_core.agents.runner import DEFAULT_ANALYST_RUN_ID
 from taurus_core.config import Settings, get_settings
 from taurus_core.db.repositories import RiskRepository
 from taurus_core.db.session import build_session_factory
+from taurus_core.llm import build_llm_provider
 from taurus_core.logging import configure_logging
 from taurus_core.risk.schemas import RiskReview
 
@@ -18,15 +19,22 @@ def run_mock_final_approval(
     symbol: str,
     settings: Settings | None = None,
     run_id: str = DEFAULT_ANALYST_RUN_ID,
+    enable_llm_explanation: bool = True,
 ) -> dict[str, object]:
     settings = settings or get_settings()
     run_mock_risk_review(symbol=symbol, settings=settings, run_id=run_id)
+    llm_provider = build_llm_provider(settings) if enable_llm_explanation else None
     session_factory = build_session_factory(settings)
     with session_factory() as session:
         review_model = RiskRepository(session).latest_risk_review(symbol=symbol, run_id=run_id)
         if review_model is None:
             raise ValueError(f"No risk review found for {symbol} run_id={run_id}.")
-        decision = PortfolioManagerAgent(session, settings).run(
+        decision = PortfolioManagerAgent(
+            session,
+            settings,
+            llm_provider=llm_provider,
+            enable_llm_explanation=enable_llm_explanation,
+        ).run(
             symbol=symbol,
             run_id=run_id,
             risk_review=RiskReview.model_validate(review_model.payload),

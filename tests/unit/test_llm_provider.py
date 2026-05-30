@@ -10,10 +10,12 @@ from taurus_core.llm import GeminiProvider, LMStudioProvider, OpenAIProvider, bu
 from taurus_core.llm.base import (
     LLMBearThesisOutput,
     LLMBullThesisOutput,
+    LLMFinalDecisionExplanation,
     LLMProviderError,
     LLMResearchManagerOutput,
     parse_bear_thesis_output,
     parse_bull_thesis_output,
+    parse_final_decision_explanation_output,
     parse_llm_output,
     parse_research_manager_output,
 )
@@ -177,6 +179,36 @@ def test_lmstudio_research_manager_request_uses_dedicated_prompt(
     assert output.model_version == "lmstudio:local-model"
 
 
+def test_lmstudio_final_decision_explanation_uses_dedicated_prompt(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    seen: dict[str, object] = {}
+
+    def fake_urlopen(request, timeout: int):
+        seen["payload"] = json.loads(request.data.decode("utf-8"))
+        return _Response(
+            _chat_response(
+                "lmstudio:local-model",
+                payload=_final_explanation_payload("lmstudio:local-model"),
+            )
+        )
+
+    monkeypatch.setattr("taurus_core.llm.lmstudio_provider.urlopen", fake_urlopen)
+    provider = LMStudioProvider()
+
+    output = provider.complete_final_decision_explanation(
+        agent_name="PortfolioManagerAgent",
+        symbol="infy",
+        context={"deterministic_decision": {"status": "APPROVED_FOR_PAPER"}},
+    )
+
+    payload = seen["payload"]
+    assert "Taurus PortfolioManagerAgent" in payload["messages"][0]["content"]
+    assert payload["response_format"] == {"type": "json_object"}
+    assert '"deterministic_decision":' in payload["messages"][1]["content"]
+    assert output.model_version == "lmstudio:local-model"
+
+
 def test_openai_request_shape_uses_bearer_auth_and_json_schema(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -293,6 +325,38 @@ def test_openai_research_manager_request_uses_strict_json_schema(
     payload = seen["payload"]
     assert payload["response_format"]["type"] == "json_schema"
     assert payload["response_format"]["json_schema"]["name"] == "LLMResearchManagerOutput"
+    assert output.model_version == "openai:gpt-5-mini"
+
+
+def test_openai_final_decision_explanation_uses_strict_json_schema(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    seen: dict[str, object] = {}
+
+    def fake_urlopen(request, timeout: int):
+        seen["payload"] = json.loads(request.data.decode("utf-8"))
+        return _Response(
+            _chat_response(
+                "openai:gpt-5-mini",
+                payload=_final_explanation_payload("openai:gpt-5-mini"),
+            )
+        )
+
+    monkeypatch.setattr("taurus_core.llm.lmstudio_provider.urlopen", fake_urlopen)
+    provider = OpenAIProvider(api_key="sk-test")
+
+    output = provider.complete_final_decision_explanation(
+        agent_name="PortfolioManagerAgent",
+        symbol="INFY",
+        context={"deterministic_decision": {"status": "NO_ACTION"}},
+    )
+
+    payload = seen["payload"]
+    assert payload["response_format"]["type"] == "json_schema"
+    assert (
+        payload["response_format"]["json_schema"]["name"]
+        == "LLMFinalDecisionExplanation"
+    )
     assert output.model_version == "openai:gpt-5-mini"
 
 
@@ -454,6 +518,52 @@ def test_gemini_research_manager_request_uses_dedicated_schema(
     assert output.model_version == "gemini:gemini-2.5-flash"
 
 
+def test_gemini_final_decision_explanation_uses_dedicated_schema(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    seen: dict[str, object] = {}
+
+    def fake_urlopen(request, timeout: int):
+        seen["payload"] = json.loads(request.data.decode("utf-8"))
+        return _Response(
+            {
+                "candidates": [
+                    {
+                        "content": {
+                            "parts": [
+                                {
+                                    "text": json.dumps(
+                                        _final_explanation_payload(
+                                            "gemini:gemini-2.5-flash"
+                                        )
+                                    )
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        )
+
+    monkeypatch.setattr("taurus_core.llm.gemini_provider.urlopen", fake_urlopen)
+    provider = GeminiProvider(api_key="gemini-test")
+
+    output = provider.complete_final_decision_explanation(
+        agent_name="PortfolioManagerAgent",
+        symbol="infy",
+        context={"deterministic_decision": {"status": "BLOCKED"}},
+    )
+
+    payload = seen["payload"]
+    assert "Taurus PortfolioManagerAgent" in payload["systemInstruction"]["parts"][0]["text"]
+    assert payload["generationConfig"]["responseJsonSchema"]["required"] == [
+        "reason",
+        "model_version",
+    ]
+    assert '"symbol": "INFY"' in payload["contents"][0]["parts"][0]["text"]
+    assert output.model_version == "gemini:gemini-2.5-flash"
+
+
 def test_llm_output_parser_rejects_invalid_schema() -> None:
     with pytest.raises(LLMProviderError):
         parse_llm_output(
@@ -484,6 +594,14 @@ def test_research_manager_parser_rejects_invalid_schema() -> None:
         parse_research_manager_output(
             '{"consensus_label": "bullish", "consensus_score": 2, '
             '"confidence": 0.5, "summary": "x", "unresolved_uncertainties": ["y"]}',
+            fallback_model_version="bad",
+        )
+
+
+def test_final_decision_explanation_parser_rejects_invalid_schema() -> None:
+    with pytest.raises(LLMProviderError):
+        parse_final_decision_explanation_output(
+            '{"reason": "", "model_version": "bad"}',
             fallback_model_version="bad",
         )
 
@@ -557,5 +675,12 @@ def _manager_payload(model_version: str) -> dict[str, object]:
         confidence="0.75",
         summary="TechnicalAnalystAgent: src-1 keeps the manager consensus evidence-bound.",
         unresolved_uncertainties=["NewsAnalystAgent: src-1 remains an unresolved uncertainty."],
+        model_version=model_version,
+    ).model_dump(mode="json")
+
+
+def _final_explanation_payload(model_version: str) -> dict[str, object]:
+    return LLMFinalDecisionExplanation(
+        reason="Deterministic final approval remains paper-only and risk-gated.",
         model_version=model_version,
     ).model_dump(mode="json")

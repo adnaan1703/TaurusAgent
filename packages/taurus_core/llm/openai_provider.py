@@ -5,6 +5,7 @@ from taurus_core.config import DEFAULT_OPENAI_BASE_URL, DEFAULT_OPENAI_MODEL
 from taurus_core.llm.base import (
     LLMBearThesisOutput,
     LLMBullThesisOutput,
+    LLMFinalDecisionExplanation,
     LLMProviderError,
     LLMResearchManagerOutput,
     LLMTraderOutput,
@@ -13,10 +14,12 @@ from taurus_core.llm.lmstudio_provider import (
     _openai_compatible_bear_thesis_completion,
     _openai_compatible_bull_thesis_completion,
     _openai_compatible_completion,
+    _openai_compatible_final_decision_explanation_completion,
     _openai_compatible_research_manager_completion,
     _openai_compatible_trader_completion,
     openai_bear_thesis_json_schema_response_format,
     openai_bull_thesis_json_schema_response_format,
+    openai_final_decision_explanation_json_schema_response_format,
     openai_json_schema_response_format,
     openai_research_manager_json_schema_response_format,
     openai_trader_json_schema_response_format,
@@ -146,5 +149,25 @@ class OpenAIProvider:
             context=context,
             timeout_seconds=self.timeout_seconds,
             response_format=openai_trader_json_schema_response_format(),
+            provider_name="OpenAI",
+        )
+
+    def complete_final_decision_explanation(
+        self,
+        *,
+        agent_name: str,
+        symbol: str,
+        context: dict[str, object],
+    ) -> LLMFinalDecisionExplanation:
+        return _openai_compatible_final_decision_explanation_completion(
+            base_url=self.base_url,
+            api_key=self.api_key,
+            model=self.model,
+            model_version=self.model_version,
+            agent_name=agent_name,
+            symbol=symbol,
+            context=context,
+            timeout_seconds=self.timeout_seconds,
+            response_format=openai_final_decision_explanation_json_schema_response_format(),
             provider_name="OpenAI",
         )

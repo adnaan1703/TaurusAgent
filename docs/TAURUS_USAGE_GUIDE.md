@@ -207,8 +207,8 @@ For the maintained component-by-component tracker, see
 
 - Market data defaults to `kite`; runtime `mock`, `csv`, and placeholder `external` providers are rejected.
 - LLM defaults to the real local `lmstudio` provider; LM Studio must be running
-  before LLM-backed analyst, research-debate, and trader-proposal workflows
-  unless `openai` or `gemini` is explicitly configured.
+  before LLM-backed analyst, research-debate, trader-proposal, final-approval,
+  and paper-run workflows unless `openai` or `gemini` is explicitly configured.
 - `PaperRunService` imports `MockNewsProvider` on every paper run, even with technical-only analysts.
 - Alerts default to `MockAlertAdapter`.
 - `/alerts/test` always uses mock alert delivery.
@@ -229,6 +229,9 @@ With `TAURUS_ENABLED_ANALYSTS=technical`:
   `BearResearcherAgent`, `ResearchManagerAgent`, and `TraderAgent` also call
   the configured real LLM provider and clamp their output to deterministic
   scoring and lifecycle guardrails.
+- `PortfolioManagerAgent` may call the configured real LLM provider only after
+  deterministic final approval fields are fixed, and only to enrich
+  `FinalDecision.reason` plus bounded model metadata.
 - OpenAI uses API billing through `OPENAI_API_KEY`; ChatGPT subscriptions are
   not supported for Taurus backend inference.
 - Mock news is still imported into the DB.
@@ -392,6 +395,7 @@ TAURUS_GRAPH_CONCENTRATION_WARNING_FRACTION=0.80
 Taurus is usable today for local, observable, real-Kite-data paper simulation
 with graph intelligence on the canonical `paper-loop-kite` path when LM Studio
 or an explicit hosted LLM provider is configured and graph import/stats
-readiness passes. It is not yet clean of mocks, and it is not broker-level paper
-trading. The biggest remaining mock contamination is mock news imported into
-risk context.
+readiness passes. Final approval remains deterministic, with optional LLM
+explanations flowing through existing final-decision reason/model metadata. It
+is not yet clean of mocks, and it is not broker-level paper trading. The biggest
+remaining mock contamination is mock news imported into risk context.

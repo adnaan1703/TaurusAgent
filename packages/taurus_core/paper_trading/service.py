@@ -238,7 +238,11 @@ class PaperRunService:
             ).run(symbol=symbol, run_id=run_id, proposal=proposal)
 
         with self.session_factory() as session:
-            decision = PortfolioManagerAgent(session, self.settings).run(
+            decision = PortfolioManagerAgent(
+                session,
+                self.settings,
+                llm_provider=llm_provider,
+            ).run(
                 symbol=symbol,
                 run_id=run_id,
                 risk_review=review,

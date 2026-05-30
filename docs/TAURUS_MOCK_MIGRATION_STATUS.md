@@ -74,13 +74,15 @@ providers may still be used inside unit tests.
 These are "agents" in code structure. Debate synthesis and trader proposals now
 use the configured real LLM provider with deterministic guardrails; risk, final
 approval, and paper execution remain rule-based consumers of stored artifacts.
+Final approval may now call the configured real LLM provider only to explain the
+already-fixed deterministic outcome.
 
 | Workflow | Agents/services | Requires LLM provider? | Current mock exposure |
 |---|---|---:|---|
 | Debate | `BullResearcherAgent`, `BearResearcherAgent`, `ResearchManagerAgent` | Yes | Bull, bear, and manager synthesis use the configured real LLM provider with deterministic score/confidence guardrails. |
 | Trader proposal | `TraderAgent` | Yes | Uses the configured real LLM provider for after-close lifecycle reasoning, then deterministic guardrails validate action, target exposure, and summaries. |
 | Risk review | `RiskyRiskAgent`, `NeutralRiskAgent`, `SafeRiskAgent`, `RiskEngine` | No | Can be influenced by mock news/events in the DB. |
-| Final approval | `PortfolioManagerAgent` | No | Consumes risk review; no direct LLM use. |
+| Final approval | `PortfolioManagerAgent` | Optional | Uses the configured real LLM provider only to enrich `FinalDecision.reason` and bounded model metadata after deterministic status/action/sizing/routing fields are fixed. |
 | Paper execution | `ExecutionRouter`, `PaperBroker` | No | Simulated fills/costs/slippage only. |
 
 ## LLM Usage By Agent
@@ -98,14 +100,14 @@ approval, and paper execution remain rule-based consumers of stored artifacts.
 | `TraderAgent` | Builds position-aware lifecycle proposals with deterministic guardrails around advisory LLM output | Yes | MUST | High | Completed in M28; convert research consensus plus paper portfolio context into after-close BUY/HOLD/NO_TRADE/REDUCE/EXIT proposals. |
 | `RiskyRiskAgent` / `NeutralRiskAgent` / `SafeRiskAgent` | Risk persona rules | No | Optional | Medium | Provide advisory committee-style risk reasoning; hard risk rules remain authoritative. |
 | `RiskEngine` | Hard risk rules | No | Never | N/A | Keep deterministic: kill switch, caps, stale data, severe event block, graph concentration gates. |
-| `PortfolioManagerAgent` | Final approval rules | No | Optional | Low | Explain final approval/rejection; deterministic approval gates remain authoritative. |
+| `PortfolioManagerAgent` | Final approval rules plus optional LLM explanation | Optional | Optional | Low | Completed in M29; explain final approval/rejection/no-action while deterministic approval gates remain authoritative. |
 | `ExecutionRouter` / `PaperBroker` | Order routing and paper execution | No | Never | N/A | Keep deterministic and auditable. |
 
 Current distinction:
 
 ```text
-Analyst, debate, and trader proposal agents = can call LLM provider
-Risk / portfolio / execution agents = rule-based consumers of stored outputs
+Analyst, debate, trader proposal, and final explanation agents = can call LLM provider
+Risk engine / execution agents = rule-based consumers of stored outputs
 ```
 
 The selected functional-MVP sequence now tracks separate migrations for
@@ -149,7 +151,7 @@ The advisory risk personas can be upgraded after that. `RiskEngine`,
       the default runtime provider and deterministic score/confidence guardrails.
 - [x] Add position-aware `TraderAgent` proposals with LM Studio as the default
       runtime provider.
-- [ ] Add optional LLM explanation to `PortfolioManagerAgent`; deterministic
+- [x] Add optional LLM explanation to `PortfolioManagerAgent`; deterministic
       final approval gates remain authoritative.
 - [ ] Validate real Screener CSV exports and confirm they map cleanly to Taurus
       instruments before enabling fundamentals in production-like paper runs.

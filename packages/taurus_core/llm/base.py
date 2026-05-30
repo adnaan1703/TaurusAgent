@@ -137,6 +137,16 @@ TRADER_OUTPUT_JSON_SCHEMA: dict[str, object] = {
     "additionalProperties": False,
 }
 
+FINAL_DECISION_EXPLANATION_JSON_SCHEMA: dict[str, object] = {
+    "type": "object",
+    "properties": {
+        "reason": {"type": "string", "minLength": 1, "maxLength": 900},
+        "model_version": {"type": "string", "minLength": 1, "maxLength": 160},
+    },
+    "required": ["reason", "model_version"],
+    "additionalProperties": False,
+}
+
 
 class LLMBullThesisOutput(BaseModel):
     model_config = ConfigDict(frozen=True)
@@ -232,6 +242,22 @@ class LLMTraderOutput(BaseModel):
             raise ValueError("at least one non-empty item is required")
         return cleaned
 
+
+class LLMFinalDecisionExplanation(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    reason: str = Field(min_length=1, max_length=900)
+    model_version: str = Field(min_length=1, max_length=160)
+
+    @field_validator("reason", "model_version")
+    @classmethod
+    def clean_text(cls, value: str) -> str:
+        cleaned = " ".join(value.split())
+        if not cleaned:
+            raise ValueError("text field must not be empty")
+        return cleaned
+
+
 def analyst_output_system_prompt() -> str:
     return (
         "Return JSON only. The JSON must conform to LLMAnalystOutput: score number -1..1, "
@@ -321,6 +347,26 @@ def trader_system_prompt() -> str:
     )
 
 
+def portfolio_manager_system_prompt() -> str:
+    return (
+        "You are Taurus PortfolioManagerAgent, the final paper-trading approval explainer.\n"
+        "The deterministic Taurus approval logic has already fixed the final status,\n"
+        "action, quantity, exposure, order flag, and broker-routing flag. Your only job\n"
+        "is to explain that fixed decision clearly.\n\n"
+        "Hard rules:\n"
+        "- Do not change or suggest changing final action, status, quantity, exposure,\n"
+        "  order flags, broker routing, portfolio IDs, run IDs, or trace IDs.\n"
+        "- Do not recommend live trading, real broker order placement, leverage, shorts,\n"
+        "  options, or futures.\n"
+        "- Explain the deterministic decision using only supplied proposal, risk review,\n"
+        "  hard-rule, persona, and safety-config context.\n"
+        "- If the final decision is HOLD, NO_TRADE, or NO_ACTION, make clear that no paper\n"
+        "  order is expected.\n"
+        "- Do not invent facts, prices, positions, source IDs, or external news.\n"
+        "- Return valid JSON matching the requested schema and no prose outside JSON."
+    )
+
+
 class LLMProvider(Protocol):
     @property
     def model_version(self) -> str:
@@ -371,6 +417,15 @@ class LLMProvider(Protocol):
         symbol: str,
         context: dict[str, object],
     ) -> LLMTraderOutput:
+        ...
+
+    def complete_final_decision_explanation(
+        self,
+        *,
+        agent_name: str,
+        symbol: str,
+        context: dict[str, object],
+    ) -> LLMFinalDecisionExplanation:
         ...
 
 
@@ -453,3 +508,22 @@ def parse_trader_output(
         return LLMTraderOutput.model_validate(payload)
     except ValidationError as exc:
         raise LLMProviderError("LLM trader response failed schema validation") from exc
+
+
+def parse_final_decision_explanation_output(
+    raw_content: str,
+    *,
+    fallback_model_version: str,
+) -> LLMFinalDecisionExplanation:
+    try:
+        payload = json.loads(raw_content)
+    except json.JSONDecodeError as exc:
+        raise LLMProviderError("LLM final-decision explanation response was not valid JSON") from exc
+    if isinstance(payload, dict) and "model_version" not in payload:
+        payload["model_version"] = fallback_model_version
+    try:
+        return LLMFinalDecisionExplanation.model_validate(payload)
+    except ValidationError as exc:
+        raise LLMProviderError(
+            "LLM final-decision explanation response failed schema validation"
+        ) from exc

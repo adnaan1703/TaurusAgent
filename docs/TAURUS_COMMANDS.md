@@ -365,6 +365,29 @@ The graph readiness preflight fails before paper execution if company nodes,
 active edges, latest edge stats, usable active-edge graph signals, or graph risk
 limits are missing.
 
+## M29 Commands Used
+
+```bash
+uv run pytest tests/unit/test_risk_approval.py tests/unit/test_llm_provider.py tests/unit/test_paper_broker.py
+uv run pytest tests/unit/test_paper_runs.py tests/unit/test_ui_aggregate_api.py tests/unit/test_dashboard_observability.py
+make test
+make lint
+rg -n "MockLLMProvider|mock LLM|mock_llm|LLM mock" packages apps scripts
+git diff --check
+sed -n '/# END MY CUSTOM ADDITION/,$p' /Users/adnaan/.codex/rules/default.rules
+sed -n '1,260p' .codex/rules/default.rules
+```
+
+`PortfolioManagerAgent` now accepts an optional real LLM provider and can enrich
+`FinalDecision.reason` after deterministic final approval fields are fixed. The
+LLM explanation path is allowed to update only the stored reason and bounded
+model metadata; status, final action, approved quantity, exposure, order flags,
+broker routing, IDs, and persistence behavior remain rule-owned.
+
+Production paper-run and final-approval script paths build the configured real
+provider with `build_llm_provider(settings)` when explanation is enabled. Tests
+use test-only fake providers; runtime mock LLM providers remain unsupported.
+
 ## M28 Commands Used
 
 ```bash
@@ -782,10 +805,11 @@ OpenAI usage requires OpenAI API billing through `OPENAI_API_KEY`; Taurus does
 not use ChatGPT subscriptions, browser sessions, cookies, or OAuth workarounds
 for backend inference.
 
-`make debate-mock`, `make trader-proposal-mock`, and the paper-run commands now
-also require the configured real LLM provider because `BullResearcherAgent`,
-`BearResearcherAgent`, and `ResearchManagerAgent` build debate output with
-provider output clamped to deterministic guardrails.
+`make debate-mock`, `make trader-proposal-mock`, `make final-approval-mock`,
+and the paper-run commands now also require the configured real LLM provider
+because `BullResearcherAgent`, `BearResearcherAgent`, `ResearchManagerAgent`,
+`TraderAgent`, and the final-decision explanation path use provider output
+clamped to deterministic guardrails.
 
 ## Expected Project Commands By Milestone
 

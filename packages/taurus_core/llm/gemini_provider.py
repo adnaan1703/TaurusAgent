@@ -11,20 +11,24 @@ from taurus_core.llm.base import (
     ANALYST_OUTPUT_JSON_SCHEMA,
     BEAR_THESIS_OUTPUT_JSON_SCHEMA,
     BULL_THESIS_OUTPUT_JSON_SCHEMA,
+    FINAL_DECISION_EXPLANATION_JSON_SCHEMA,
     RESEARCH_MANAGER_OUTPUT_JSON_SCHEMA,
     TRADER_OUTPUT_JSON_SCHEMA,
     LLMBearThesisOutput,
     LLMBullThesisOutput,
+    LLMFinalDecisionExplanation,
     LLMResearchManagerOutput,
     LLMTraderOutput,
     LLMProviderError,
     analyst_output_system_prompt,
     bear_thesis_system_prompt,
     bull_thesis_system_prompt,
+    portfolio_manager_system_prompt,
     research_manager_system_prompt,
     trader_system_prompt,
     parse_bear_thesis_output,
     parse_bull_thesis_output,
+    parse_final_decision_explanation_output,
     parse_llm_output,
     parse_research_manager_output,
     parse_trader_output,
@@ -385,3 +389,69 @@ class GeminiProvider:
         except (KeyError, IndexError, TypeError) as exc:
             raise LLMProviderError("Gemini response did not include generated JSON text") from exc
         return parse_trader_output(str(content), fallback_model_version=self.model_version)
+
+    def complete_final_decision_explanation(
+        self,
+        *,
+        agent_name: str,
+        symbol: str,
+        context: dict[str, object],
+    ) -> LLMFinalDecisionExplanation:
+        payload = {
+            "systemInstruction": {
+                "parts": [{"text": portfolio_manager_system_prompt()}],
+            },
+            "contents": [
+                {
+                    "role": "user",
+                    "parts": [
+                        {
+                            "text": json.dumps(
+                                {
+                                    "agent_name": agent_name,
+                                    "symbol": symbol.upper(),
+                                    "context": context,
+                                    "output_schema": {
+                                        "reason": (
+                                            "concise explanation string, anchored to "
+                                            "deterministic_reason"
+                                        ),
+                                        "model_version": "provider/model identifier string",
+                                    },
+                                },
+                                sort_keys=True,
+                                default=str,
+                            )
+                        }
+                    ],
+                }
+            ],
+            "generationConfig": {
+                "temperature": 0,
+                "responseMimeType": "application/json",
+                "responseJsonSchema": FINAL_DECISION_EXPLANATION_JSON_SCHEMA,
+            },
+        }
+        request = Request(
+            f"{self.base_url}/models/{quote(self.model, safe='')}:generateContent",
+            data=json.dumps(payload).encode("utf-8"),
+            headers={
+                "Content-Type": "application/json",
+                "x-goog-api-key": self.api_key,
+            },
+            method="POST",
+        )
+        try:
+            with urlopen(request, timeout=self.timeout_seconds) as response:
+                response_payload = json.loads(response.read().decode("utf-8"))
+        except (HTTPError, URLError, TimeoutError, json.JSONDecodeError) as exc:
+            raise LLMProviderError("Gemini request failed") from exc
+
+        try:
+            content = response_payload["candidates"][0]["content"]["parts"][0]["text"]
+        except (KeyError, IndexError, TypeError) as exc:
+            raise LLMProviderError("Gemini response did not include generated JSON text") from exc
+        return parse_final_decision_explanation_output(
+            str(content),
+            fallback_model_version=self.model_version,
+        )

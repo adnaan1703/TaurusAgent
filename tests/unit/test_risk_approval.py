@@ -16,6 +16,7 @@ from taurus_core.agents.trader_agent import TraderAgent
 from taurus_core.config import Settings
 from taurus_core.db.models import BacktestOrderModel, FinalDecisionModel, RiskReviewModel
 from taurus_core.db.repositories import IntelligenceRepository, ResearchRepository
+from taurus_core.llm.base import LLMProviderError
 from taurus_core.db.session import build_session_factory
 from taurus_core.intelligence.documents import NewsEvent, RawDocument, document_checksum, stable_id
 from taurus_core.intelligence.mock_news_provider import MockNewsProvider
@@ -144,7 +145,11 @@ def test_portfolio_manager_stores_final_paper_decision_and_api_returns_m6_artifa
     with session_factory() as session:
         review = RiskReviewService(session, settings).run(symbol="INFY", proposal=proposal)
     with session_factory() as session:
-        decision = PortfolioManagerAgent(session, settings).run(
+        decision = PortfolioManagerAgent(
+            session,
+            settings,
+            llm_provider=FakeLLMProvider(),
+        ).run(
             symbol="INFY",
             risk_review=review,
         )
@@ -162,12 +167,15 @@ def test_portfolio_manager_stores_final_paper_decision_and_api_returns_m6_artifa
     assert decision.approved_quantity > 0
     assert decision.is_order is False
     assert decision.can_send_to_broker is True
+    assert "Test-only explanation confirms APPROVED_FOR_PAPER" in decision.reason
+    assert decision.model_version == "portfolio_manager_lifecycle_rules_v1+llm_explainer"
     assert decision_count == 1
     assert order_count == 0
     assert risk_response.status_code == 200
     assert final_response.status_code == 200
     assert risk_response.json()[0]["risk_check_id"] == review.risk_check_id
     assert final_response.json()[0]["final_decision_id"] == decision.final_decision_id
+    assert "Test-only explanation confirms APPROVED_FOR_PAPER" in final_response.json()[0]["reason"]
 
 
 def test_hold_proposal_becomes_no_action_final_decision(tmp_path: Path) -> None:
@@ -190,7 +198,11 @@ def test_hold_proposal_becomes_no_action_final_decision(tmp_path: Path) -> None:
     with session_factory() as session:
         review = RiskReviewService(session, settings).run(symbol="INFY", proposal=proposal)
     with session_factory() as session:
-        decision = PortfolioManagerAgent(session, settings).run(
+        decision = PortfolioManagerAgent(
+            session,
+            settings,
+            enable_llm_explanation=False,
+        ).run(
             symbol="INFY",
             risk_review=review,
         )
@@ -200,6 +212,115 @@ def test_hold_proposal_becomes_no_action_final_decision(tmp_path: Path) -> None:
     assert decision.final_action == "HOLD"
     assert decision.approved_quantity == 0
     assert decision.can_send_to_broker is False
+
+
+def test_portfolio_manager_falls_back_to_deterministic_reason_on_llm_failure(
+    tmp_path: Path,
+) -> None:
+    settings = _settings_for_temp_db(tmp_path)
+    session_factory = _prepare_approval_db(settings)
+    proposal = _build_trader_proposal(session_factory)
+    with session_factory() as session:
+        review = RiskReviewService(session, settings).run(symbol="INFY", proposal=proposal)
+    with session_factory() as session:
+        decision = PortfolioManagerAgent(
+            session,
+            settings,
+            llm_provider=_FailingFinalDecisionLLMProvider(),
+        ).run(symbol="INFY", risk_review=review)
+
+    deterministic_reason = (
+        "Approved BUY for PaperBroker execution after stored risk review and "
+        "paper-safe configuration checks."
+    )
+    assert decision.status == "APPROVED_FOR_PAPER"
+    assert decision.reason == deterministic_reason
+    assert decision.model_version == "portfolio_manager_lifecycle_rules_v1"
+    with session_factory() as session:
+        stored = session.scalars(select(FinalDecisionModel)).one()
+    assert stored.payload["reason"] == deterministic_reason
+
+
+def test_portfolio_manager_disabled_explanation_does_not_call_provider(
+    tmp_path: Path,
+) -> None:
+    settings = _settings_for_temp_db(tmp_path)
+    session_factory = _prepare_approval_db(settings)
+    proposal = _build_trader_proposal(session_factory)
+    with session_factory() as session:
+        review = RiskReviewService(session, settings).run(symbol="INFY", proposal=proposal)
+    provider = _ExplodingFinalDecisionLLMProvider()
+
+    with session_factory() as session:
+        decision = PortfolioManagerAgent(
+            session,
+            settings,
+            llm_provider=provider,
+            enable_llm_explanation=False,
+        ).run(symbol="INFY", risk_review=review)
+
+    assert decision.status == "APPROVED_FOR_PAPER"
+    assert "LLM explainer" not in decision.reason
+    assert provider.called is False
+
+
+def test_portfolio_manager_llm_explains_blocked_without_changing_status(
+    tmp_path: Path,
+) -> None:
+    settings = _settings_for_temp_db(tmp_path)
+    session_factory = _prepare_approval_db(settings)
+    proposal = _build_trader_proposal(session_factory)
+
+    with session_factory() as session:
+        _insert_severe_negative_event(session, proposal)
+        review = RiskReviewService(session, settings).run(symbol="INFY", proposal=proposal)
+    with session_factory() as session:
+        decision = PortfolioManagerAgent(
+            session,
+            settings,
+            llm_provider=FakeLLMProvider(),
+        ).run(symbol="INFY", risk_review=review)
+
+    assert review.status == "BLOCKED"
+    assert decision.status == "BLOCKED"
+    assert decision.final_action == "NO_TRADE"
+    assert decision.approved_quantity == 0
+    assert decision.can_send_to_broker is False
+    assert "Test-only explanation confirms BLOCKED" in decision.reason
+
+
+def test_portfolio_manager_llm_explains_rejected_without_changing_status(
+    tmp_path: Path,
+) -> None:
+    settings = _settings_for_temp_db(tmp_path)
+    session_factory = _prepare_approval_db(settings)
+    proposal = _build_trader_proposal(session_factory).model_copy(
+        update={
+            "action": "BUY",
+            "requested_position_pct_nav": Decimal("2.0000"),
+            "current_position_quantity": 10,
+            "current_position_pct_nav": Decimal("2.0000"),
+            "target_position_pct_nav": Decimal("2.0000"),
+        }
+    )
+    with session_factory() as session:
+        ResearchRepository(session).replace_trader_proposal_for_run_symbol(proposal)
+        session.commit()
+    with session_factory() as session:
+        review = RiskReviewService(session, settings).run(symbol="INFY", proposal=proposal)
+    with session_factory() as session:
+        decision = PortfolioManagerAgent(
+            session,
+            settings,
+            llm_provider=FakeLLMProvider(),
+        ).run(symbol="INFY", risk_review=review)
+
+    assert review.status == "REJECTED"
+    assert decision.status == "REJECTED"
+    assert decision.final_action == "NO_TRADE"
+    assert decision.approved_quantity == 0
+    assert decision.can_send_to_broker is False
+    assert "Test-only explanation confirms REJECTED" in decision.reason
 
 
 def test_severe_negative_event_does_not_block_exit(tmp_path: Path) -> None:
@@ -316,3 +437,30 @@ def _risk_check_id(proposal: TraderProposal) -> str:
 
 def _settings_for_temp_db(tmp_path: Path) -> Settings:
     return Settings()
+
+
+class _FailingFinalDecisionLLMProvider(FakeLLMProvider):
+    def complete_final_decision_explanation(
+        self,
+        *,
+        agent_name: str,
+        symbol: str,
+        context: dict[str, object],
+    ):
+        raise LLMProviderError("provider unavailable")
+
+
+class _ExplodingFinalDecisionLLMProvider(FakeLLMProvider):
+    def __init__(self) -> None:
+        super().__init__()
+        self.called = False
+
+    def complete_final_decision_explanation(
+        self,
+        *,
+        agent_name: str,
+        symbol: str,
+        context: dict[str, object],
+    ):
+        self.called = True
+        raise AssertionError("LLM provider should not be called")

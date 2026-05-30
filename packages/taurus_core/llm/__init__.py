@@ -9,7 +9,12 @@ from taurus_core.config import (
     SUPPORTED_LLM_PROVIDERS,
     Settings,
 )
-from taurus_core.llm.base import LLMProvider, LLMProviderError, LLMTraderOutput
+from taurus_core.llm.base import (
+    LLMFinalDecisionExplanation,
+    LLMProvider,
+    LLMProviderError,
+    LLMTraderOutput,
+)
 from taurus_core.llm.gemini_provider import GeminiProvider
 from taurus_core.llm.lmstudio_provider import LMStudioProvider
 from taurus_core.llm.openai_provider import OpenAIProvider
@@ -17,6 +22,7 @@ from taurus_core.llm.openai_provider import OpenAIProvider
 __all__ = [
     "LLMProvider",
     "LLMProviderError",
+    "LLMFinalDecisionExplanation",
     "LLMTraderOutput",
     "LMStudioProvider",
     "OpenAIProvider",

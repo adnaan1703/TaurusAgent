@@ -157,3 +157,41 @@ Hard rules:
   `reason` and `model_version`.
 - Mocks created: test-only fake LLM providers for success/failure assertions.
 - Mocks used: test-only fake LLM providers only.
+
+## M29 Completion Summary
+
+Status: Completed 2026-05-30.
+
+Implemented:
+
+- Added `LLMFinalDecisionExplanation`, a dedicated PortfolioManagerAgent system
+  prompt, parser, provider protocol method, and LM Studio/OpenAI/Gemini provider
+  implementations.
+- Refactored `PortfolioManagerAgent` so deterministic final-decision fields are
+  built before any LLM call, then optional LLM output can enrich only
+  `FinalDecision.reason` and the bounded `+llm_explainer` model-version suffix.
+- Wired production paper-run and final-approval script paths to use
+  `build_llm_provider(settings)` when final-decision explanation is enabled.
+- Added fallback behavior that records `PortfolioManagerAgent` LLM failures and
+  persists the deterministic decision unchanged.
+- Added tests for successful explanations, provider failure fallback, disabled
+  explanations, blocked/rejected preservation, and provider request/schema
+  handling.
+
+Assumptions made:
+
+- Final-decision explanations should flow through existing `reason` and
+  `model_version` fields only; no DB/API/React response-shape changes were
+  needed.
+- The runtime default explanation mode should reuse the same configured real
+  LLM provider as analyst/debate/trader workflows.
+
+Mocks created:
+
+- Test-only final-decision fake/failing/exploding provider variants in unit
+  tests.
+
+Mocks used:
+
+- Existing `tests.llm_fakes.FakeLLMProvider` plus test-only unit-test provider
+  variants. No runtime LLM mock provider was added.

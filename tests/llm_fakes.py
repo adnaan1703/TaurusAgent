@@ -6,6 +6,7 @@ from taurus_core.agents.schemas import LLMAnalystOutput, stance_from_score
 from taurus_core.llm.base import (
     LLMBearThesisOutput,
     LLMBullThesisOutput,
+    LLMFinalDecisionExplanation,
     LLMResearchManagerOutput,
     LLMTraderOutput,
 )
@@ -177,6 +178,30 @@ class FakeLLMProvider:
             position_management_summary=str(
                 fallback.get("position_management_summary")
                 or f"{agent_name}: fake lifecycle summary for {symbol.upper()}."
+            ),
+            model_version=self.model_version,
+        )
+
+    def complete_final_decision_explanation(
+        self,
+        *,
+        agent_name: str,
+        symbol: str,
+        context: dict[str, object],
+    ) -> LLMFinalDecisionExplanation:
+        decision = context.get("deterministic_decision")
+        if not isinstance(decision, dict):
+            decision = {}
+        final_action = str(decision.get("final_action") or "NO_TRADE")
+        status = str(decision.get("status") or "NO_ACTION")
+        deterministic_reason = str(
+            decision.get("deterministic_reason")
+            or f"{agent_name}: deterministic final decision for {symbol.upper()}."
+        )
+        return LLMFinalDecisionExplanation(
+            reason=(
+                f"{deterministic_reason} Test-only explanation confirms {status} "
+                f"for {final_action} on {symbol.upper()}."
             ),
             model_version=self.model_version,
         )

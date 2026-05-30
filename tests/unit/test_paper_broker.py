@@ -47,6 +47,10 @@ def fake_llm_provider(monkeypatch: pytest.MonkeyPatch) -> None:
         "scripts.run_trader_proposal.build_llm_provider",
         lambda settings: FakeLLMProvider(),
     )
+    monkeypatch.setattr(
+        "scripts.run_final_approval.build_llm_provider",
+        lambda settings: FakeLLMProvider(),
+    )
 
 
 def test_paper_broker_executes_approved_decision_and_api_returns_artifacts(
@@ -169,7 +173,11 @@ def test_event_risk_blocked_final_decision_does_not_create_paper_order(
         _insert_severe_negative_event(session, proposal)
         review = RiskReviewService(session, settings).run(symbol="INFY", proposal=proposal)
     with session_factory() as session:
-        decision = PortfolioManagerAgent(session, settings).run(symbol="INFY", risk_review=review)
+        decision = PortfolioManagerAgent(
+            session,
+            settings,
+            enable_llm_explanation=False,
+        ).run(symbol="INFY", risk_review=review)
     with session_factory() as session:
         order = ExecutionRouter(session, settings).route_decision(decision)
         order_count = session.scalar(select(func.count()).select_from(PaperOrderModel))
@@ -212,7 +220,11 @@ def test_paper_broker_exits_position_opened_in_prior_run(tmp_path: Path) -> None
             proposal=proposal,
         )
     with session_factory() as session:
-        decision = PortfolioManagerAgent(session, settings).run(
+        decision = PortfolioManagerAgent(
+            session,
+            settings,
+            enable_llm_explanation=False,
+        ).run(
             symbol="INFY",
             run_id="exit-run",
             risk_review=review,
