@@ -159,3 +159,26 @@ Hard rules:
   but production debate should use a real provider.
 - Mocks created: test-only fake LLM provider outputs.
 - Mocks used: test-only fake LLM provider outputs only.
+
+## M25 Completion Summary
+
+Completed on 2026-05-30.
+
+- `BullResearcherAgent` now receives an injected provider, keeps `_run_rules`
+  as the deterministic baseline, builds compact analyst evidence packs, and
+  requires provider-backed JSON bull thesis output for runtime `run(...)`.
+- Runtime debate wiring builds/passes the configured real provider through
+  `build_llm_provider(settings)` and marks debate reports as
+  `research_debate_llm_one_shot_v1:<provider>:<model>`.
+- LM Studio, OpenAI, and Gemini providers now implement `complete_bull_thesis`
+  with a dedicated strict JSON schema and the BullResearcherAgent system prompt.
+- LLM score and confidence can move the deterministic baseline by at most
+  `0.1000`; Taurus still owns uppercase symbols and sorted source report IDs.
+- Provider, missing-provider, and schema failures increment
+  `taurus_llm_failures_total` and fail clearly rather than returning silent
+  rules-only runtime output.
+- Assumptions made: LM Studio remains the default local real provider; M25 is a
+  one-shot bull thesis migration; BearResearcherAgent and ResearchManagerAgent
+  remain rules-only for M26/M27.
+- Mocks created: Test-only fake bull thesis provider outputs.
+- Mocks used: Test-only fake LLM provider outputs only.

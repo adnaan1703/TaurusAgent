@@ -9,11 +9,13 @@ from taurus_core.agents.bull_researcher import BullResearcherAgent
 from taurus_core.agents.research_manager import ResearchManagerAgent
 from taurus_core.agents.runner import DEFAULT_ANALYST_RUN_ID
 from taurus_core.agents.schemas import AnalystReport
+from taurus_core.config import Settings, get_settings
 from taurus_core.db.repositories import (
     AnalystReportRepository,
     InstrumentRepository,
     ResearchRepository,
 )
+from taurus_core.llm import LLMProvider, build_llm_provider
 from taurus_core.logging import get_logger
 from taurus_core.observability.tracing import bound_trace_context
 from taurus_core.research.schemas import (
@@ -26,11 +28,20 @@ DEFAULT_DEBATE_ROUNDS = 2
 
 
 class ResearchDebateService:
-    model_version = "research_debate_rules_v1"
+    model_version_prefix = "research_debate_llm_one_shot_v1"
 
-    def __init__(self, session: Session) -> None:
+    def __init__(
+        self,
+        session: Session,
+        *,
+        settings: Settings | None = None,
+        llm_provider: LLMProvider | None = None,
+    ) -> None:
         self.session = session
-        self.bull_researcher = BullResearcherAgent()
+        self.settings = settings or get_settings()
+        self.llm_provider = llm_provider or build_llm_provider(self.settings)
+        self.model_version = f"{self.model_version_prefix}:{self.llm_provider.model_version}"
+        self.bull_researcher = BullResearcherAgent(llm_provider=self.llm_provider)
         self.bear_researcher = BearResearcherAgent()
         self.research_manager = ResearchManagerAgent()
 

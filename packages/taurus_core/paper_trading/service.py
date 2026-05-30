@@ -189,17 +189,22 @@ class PaperRunService:
             self.logger.info("paper_run.symbol.started", symbol=symbol)
 
         enabled_analysts = self.settings.enabled_analyst_keys
+        llm_provider = build_llm_provider(self.settings)
         with self.session_factory() as session:
             reports = run_analyst_suite(
                 session,
                 symbol=symbol,
                 run_id=run_id,
-                llm_provider=build_llm_provider(self.settings),
+                llm_provider=llm_provider,
                 enabled_analysts=enabled_analysts,
             )
 
         with self.session_factory() as session:
-            debate = ResearchDebateService(session).run(
+            debate = ResearchDebateService(
+                session,
+                settings=self.settings,
+                llm_provider=llm_provider,
+            ).run(
                 symbol=symbol,
                 run_id=run_id,
                 rounds_requested=self.rounds_requested,

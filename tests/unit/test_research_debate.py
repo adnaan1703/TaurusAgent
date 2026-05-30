@@ -30,9 +30,15 @@ def test_research_debate_is_deterministic_and_does_not_create_orders(tmp_path: P
         )
 
     with session_factory() as session:
-        first = ResearchDebateService(session).run(symbol="INFY", rounds_requested=2)
+        first = ResearchDebateService(session, llm_provider=FakeLLMProvider()).run(
+            symbol="INFY",
+            rounds_requested=2,
+        )
     with session_factory() as session:
-        second = ResearchDebateService(session).run(symbol="INFY", rounds_requested=2)
+        second = ResearchDebateService(session, llm_provider=FakeLLMProvider()).run(
+            symbol="INFY",
+            rounds_requested=2,
+        )
 
     with session_factory() as session:
         debate_count = session.scalar(select(func.count()).select_from(DebateReportModel))
@@ -41,6 +47,7 @@ def test_research_debate_is_deterministic_and_does_not_create_orders(tmp_path: P
     assert first.model_dump(mode="json") == second.model_dump(mode="json")
     assert first.bull_thesis.key_points
     assert first.bear_thesis.key_points
+    assert first.model_version == "research_debate_llm_one_shot_v1:test-fake-llm-v1"
     assert len(first.rounds) == 2
     assert first.manager_summary.summary
     assert first.manager_summary.consensus_label in {
@@ -65,7 +72,10 @@ def test_research_api_returns_debates(tmp_path: Path) -> None:
             run_id=DEFAULT_ANALYST_RUN_ID,
         )
     with session_factory() as session:
-        debate = ResearchDebateService(session).run(symbol="INFY", rounds_requested=2)
+        debate = ResearchDebateService(session, llm_provider=FakeLLMProvider()).run(
+            symbol="INFY",
+            rounds_requested=2,
+        )
 
     client = TestClient(create_app(settings))
     list_response = client.get("/debates?symbol=INFY")

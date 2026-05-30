@@ -27,17 +27,22 @@ def run_mock_research_debate(
     session_factory = build_session_factory(settings)
     _prepare_mock_inputs(session_factory, settings)
 
+    llm_provider = build_llm_provider(settings)
     with session_factory() as session:
         run_analyst_suite(
             session,
             symbol=symbol,
             run_id=run_id,
-            llm_provider=build_llm_provider(settings),
+            llm_provider=llm_provider,
             enabled_analysts=settings.enabled_analyst_keys,
         )
 
     with session_factory() as session:
-        debate = ResearchDebateService(session).run(
+        debate = ResearchDebateService(
+            session,
+            settings=settings,
+            llm_provider=llm_provider,
+        ).run(
             symbol=symbol,
             run_id=run_id,
             rounds_requested=rounds_requested,

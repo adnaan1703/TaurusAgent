@@ -30,7 +30,10 @@ def test_trader_proposal_is_structured_deterministic_and_not_an_order(tmp_path: 
             run_id=DEFAULT_ANALYST_RUN_ID,
         )
     with session_factory() as session:
-        debate = ResearchDebateService(session).run(symbol="INFY", rounds_requested=2)
+        debate = ResearchDebateService(session, llm_provider=FakeLLMProvider()).run(
+            symbol="INFY",
+            rounds_requested=2,
+        )
 
     with session_factory() as session:
         first = TraderAgent(session).run(symbol="INFY", debate=debate)
@@ -66,7 +69,10 @@ def test_research_api_returns_trader_proposals(tmp_path: Path) -> None:
             run_id=DEFAULT_ANALYST_RUN_ID,
         )
     with session_factory() as session:
-        debate = ResearchDebateService(session).run(symbol="INFY", rounds_requested=2)
+        debate = ResearchDebateService(session, llm_provider=FakeLLMProvider()).run(
+            symbol="INFY",
+            rounds_requested=2,
+        )
     with session_factory() as session:
         proposal = TraderAgent(session).run(symbol="INFY", debate=debate)
 

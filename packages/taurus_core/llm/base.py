@@ -3,7 +3,9 @@ from __future__ import annotations
 import json
 from typing import Protocol
 
-from pydantic import ValidationError
+from decimal import Decimal
+
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 from taurus_core.agents.schemas import LLMAnalystOutput
 
@@ -35,6 +37,43 @@ ANALYST_OUTPUT_JSON_SCHEMA: dict[str, object] = {
     "additionalProperties": False,
 }
 
+BULL_THESIS_OUTPUT_JSON_SCHEMA: dict[str, object] = {
+    "type": "object",
+    "properties": {
+        "score": {"type": "number", "minimum": -1, "maximum": 1},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "key_points": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+        "conditions": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+        "model_version": {"type": "string"},
+    },
+    "required": [
+        "score",
+        "confidence",
+        "key_points",
+        "conditions",
+        "model_version",
+    ],
+    "additionalProperties": False,
+}
+
+
+class LLMBullThesisOutput(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    score: Decimal = Field(ge=Decimal("-1"), le=Decimal("1"))
+    confidence: Decimal = Field(ge=Decimal("0"), le=Decimal("1"))
+    key_points: list[str] = Field(min_length=1)
+    conditions: list[str] = Field(min_length=1)
+    model_version: str
+
+    @field_validator("key_points", "conditions")
+    @classmethod
+    def remove_empty_items(cls, value: list[str]) -> list[str]:
+        cleaned = [item.strip() for item in value if item.strip()]
+        if not cleaned:
+            raise ValueError("at least one non-empty item is required")
+        return cleaned
+
 
 def analyst_output_system_prompt() -> str:
     return (
@@ -42,6 +81,25 @@ def analyst_output_system_prompt() -> str:
         "confidence number 0..1, stance bullish|bearish|neutral, horizon intraday|short|medium|long, "
         "key_points string array, risks string array, and model_version string. Do not include prose "
         "outside the JSON object."
+    )
+
+
+def bull_thesis_system_prompt() -> str:
+    return (
+        "You are Taurus BullResearcherAgent, the bullish research voice in a local\n"
+        "paper-trading decision workflow. Your job is to build the strongest evidence-led\n"
+        "bull case for the symbol from the supplied analyst reports.\n\n"
+        "Hard rules:\n"
+        "- Use only provided analyst evidence, scores, risks, source IDs, and report IDs.\n"
+        "- Address material negative evidence directly; do not ignore risks to make the\n"
+        "  bull case stronger.\n"
+        "- Do not invent facts, prices, filings, news, source IDs, broker actions, or\n"
+        "  order instructions.\n"
+        "- Do not decide trades or position sizes. TraderAgent and deterministic risk\n"
+        "  gates handle that later.\n"
+        "- Keep score and confidence within the requested schema ranges and grounded in\n"
+        "  the evidence.\n"
+        "- Return valid JSON matching the requested schema and no prose outside JSON."
     )
 
 
@@ -59,6 +117,16 @@ class LLMProvider(Protocol):
     ) -> LLMAnalystOutput:
         ...
 
+    def complete_bull_thesis(
+        self,
+        *,
+        agent_name: str,
+        symbol: str,
+        baseline: dict[str, object],
+        evidence_pack: list[dict[str, object]],
+    ) -> LLMBullThesisOutput:
+        ...
+
 
 def parse_llm_output(raw_content: str, *, fallback_model_version: str) -> LLMAnalystOutput:
     try:
@@ -71,3 +139,20 @@ def parse_llm_output(raw_content: str, *, fallback_model_version: str) -> LLMAna
         return LLMAnalystOutput.model_validate(payload)
     except ValidationError as exc:
         raise LLMProviderError("LLM response failed AnalystOutput schema validation") from exc
+
+
+def parse_bull_thesis_output(
+    raw_content: str,
+    *,
+    fallback_model_version: str,
+) -> LLMBullThesisOutput:
+    try:
+        payload = json.loads(raw_content)
+    except json.JSONDecodeError as exc:
+        raise LLMProviderError("LLM bull thesis response was not valid JSON") from exc
+    if isinstance(payload, dict) and "model_version" not in payload:
+        payload["model_version"] = fallback_model_version
+    try:
+        return LLMBullThesisOutput.model_validate(payload)
+    except ValidationError as exc:
+        raise LLMProviderError("LLM bull thesis response failed schema validation") from exc
