@@ -65,7 +65,7 @@ start the next migration unless the user explicitly asks.
 | 1 | M21 | Done | `docs/agent_improvement_plans/DOCKER_ONLY_DATABASE_MIGRATION.md` | Made Docker Postgres canonical and removed SQLite runtime/test paths. |
 | 2 | M22 | Done | `docs/agent_improvement_plans/REAL_LLM_PROVIDER_MIGRATION.md` | Removed runtime mock LLM and defaulted the real provider to LM Studio, with OpenAI/Gemini opt-ins. |
 | 3 | M23 | Done | `docs/agent_improvement_plans/KITE_ONLY_MARKET_DATA_MIGRATION.md` | Removed runtime market-data mocks/CSV provider paths and made Kite the only runtime market-data provider. |
-| 4 | M24 | Planned | `docs/agent_improvement_plans/GRAPH_ENABLED_REAL_DATA_PAPER_LOOP.md` | Enable graph analyst, graph-aware strategy, and graph risk for the Kite real-data paper path. |
+| 4 | M24 | Done | `docs/agent_improvement_plans/GRAPH_ENABLED_REAL_DATA_PAPER_LOOP.md` | Enabled graph analyst, graph-aware strategy, and graph risk for the Kite real-data paper path. |
 | 5 | M25 | Planned | `docs/agent_improvement_plans/LLM_BULL_RESEARCHER_AGENT.md` | Add LLM-backed bullish research with deterministic guardrails and dedicated prompt. |
 | 6 | M26 | Planned | `docs/agent_improvement_plans/LLM_BEAR_RESEARCHER_AGENT.md` | Add LLM-backed bearish research with deterministic guardrails and dedicated prompt. |
 | 7 | M27 | Planned | `docs/agent_improvement_plans/LLM_RESEARCH_MANAGER_AGENT.md` | Add LLM-backed debate synthesis and consensus management with dedicated prompt. |

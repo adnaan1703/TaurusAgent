@@ -308,9 +308,11 @@ def _correlated_cluster_groups(
         return ()
 
     related_edges: list[tuple[str, GraphEdgeModel, GraphEdgeStatsModel, Decimal]] = []
-    for edge in graph_repo.list_edges_for_node(node_key=center_node.node_key, limit=250):
-        if edge.status not in {"active", "candidate"}:
-            continue
+    for edge in graph_repo.list_edges_for_node(
+        node_key=center_node.node_key,
+        status="active",
+        limit=250,
+    ):
         related_node_id = (
             edge.target_node_id
             if edge.source_node_id == center_node.id

@@ -120,6 +120,36 @@ def test_graph_analyst_explains_bearish_negative_dependency_signal(tmp_path: Pat
     assert contributions[0].contribution_metadata["expected_sign"] == "negative"
 
 
+def test_graph_analyst_ignores_candidate_edges_by_default(tmp_path: Path) -> None:
+    settings = _settings_for_temp_db(tmp_path)
+    run_migrations(settings)
+    _seed_graph_fixture(
+        settings,
+        edge_key="peer:AAA:BBB",
+        expected_sign="positive",
+        status="candidate",
+    )
+
+    session_factory = build_session_factory(settings)
+    with session_factory() as session:
+        report = run_analyst_suite(
+            session,
+            symbol="AAA",
+            run_id="graph-candidate-ignored",
+            llm_provider=FakeLLMProvider(),
+            enabled_analysts=("graph",),
+        )[0]
+
+    with session_factory() as session:
+        contribution_count = session.scalar(
+            select(func.count()).select_from(GraphSignalContributionModel)
+        )
+
+    assert report.stance == "neutral"
+    assert report.score == Decimal("0.0000")
+    assert contribution_count == 0
+
+
 def test_graph_analyst_does_not_let_llm_failure_override_deterministic_output(
     tmp_path: Path,
 ) -> None:
@@ -178,6 +208,7 @@ def _seed_graph_fixture(
     direction: str = "bidirectional",
     source_symbol: str = "AAA",
     target_symbol: str = "BBB",
+    status: str = "active",
 ) -> None:
     session_factory = build_session_factory(settings)
     with session_factory() as session:
@@ -205,7 +236,7 @@ def _seed_graph_fixture(
             evidence_type="synthetic",
             mechanism="Synthetic graph analyst fixture.",
             tradability_relevance="signal",
-            status="active",
+            status=status,
         )
         graph_repo.upsert_edge_stats(
             edge_key=edge_key,

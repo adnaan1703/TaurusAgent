@@ -226,3 +226,37 @@ make lint
 - Candidate graph edges remain review-only until promoted.
 - Neo4j is not required for mainstream graph paper trading; Postgres graph
   tables remain the source of truth.
+
+## M24 Completion Summary
+
+Completed on 2026-05-30.
+
+- `make paper-loop-kite` now enables the technical and graph analyst roster,
+  graph readiness, graph risk, and `configs/strategies/graph_aware_score_v1.yaml`
+  for the Kite real-data paper profile.
+- Graph readiness fails fast before paper execution when graph company nodes,
+  active edges, latest edge stats, usable active-edge graph signals, or graph
+  risk limits are missing.
+- Paper target selection now loads active-edge graph signals, calls
+  `select_targets_with_graph` when available, narrows market-universe execution
+  to graph-aware targets plus open positions, and records graph selection
+  metadata in run artifacts.
+- Graph analyst, graph-aware strategy loading, and graph concentration risk now
+  ignore candidate edges by default; candidate edges remain review-only.
+- Overview/run payloads expose graph-enabled profile metadata for the React
+  dashboard.
+
+Assumptions made:
+
+- Kite real-data paper enablement is scoped to `make paper-loop-kite`; generic
+  manual paper commands keep their configured environment.
+- Existing Postgres graph tables remain the source of truth; Neo4j is not
+  required for the paper loop.
+
+Mocks created:
+
+- None.
+
+Mocks used:
+
+- Existing test-only fake LLM and fake Kite market-data fixtures in unit tests.

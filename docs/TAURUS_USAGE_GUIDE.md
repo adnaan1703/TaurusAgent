@@ -2,10 +2,10 @@
 
 ## Current State
 
-- Backend tests: `uv run pytest` -> `139 passed, 1 skipped` during M23.
-- Frontend tests: `make test-ui` -> `25 passed` during M23.
-- Compile check: `make lint` -> passed during M23.
-- Frontend build: not rerun in M20.6; latest `make build-ui` passed after M20.4.
+- Backend tests: `make test` -> `142 passed, 1 skipped` during M24.
+- Frontend tests: `make test-ui` -> `25 passed` during M24.
+- Compile check: `make lint` -> passed during M24.
+- Frontend build: `make build-ui` -> passed during M24.
 - Docker Postgres is the canonical Taurus database. Runtime, scripts, and tests
   reject SQLite database URLs.
 - Docker Compose volumes exist for canonical Postgres data:
@@ -36,6 +36,10 @@ Taurus is a local, observable paper-trading simulator for Indian cash equities. 
 - Compute graph edge validation statistics from daily candle data and persist
   raw correlation, market-residual correlation, lead-lag score, stability score,
   sample size, and insufficient-data reasons.
+- Run the canonical Kite paper loop with technical plus graph analysts,
+  graph-aware target selection, graph readiness preflight, and graph
+  concentration risk. Candidate edges remain review-only and do not influence
+  paper decisions until promoted to active.
 
 **Key files:**
 
@@ -91,7 +95,10 @@ Taurus is a local, observable paper-trading simulator for Indian cash equities. 
 
 ### Paper Workflow
 
-- `make paper-loop-kite`: Kite-backed data import plus local `PaperBroker` simulation.
+- `make paper-loop-kite`: Kite-backed data import plus graph-enabled local
+  `PaperBroker` simulation. This target sets `TAURUS_ENABLED_ANALYSTS=technical,graph`,
+  `TAURUS_GRAPH_ENABLED=true`, `TAURUS_GRAPH_RISK_ENABLED=true`, and
+  `STRATEGY=configs/strategies/graph_aware_score_v1.yaml`.
 - `make paper-loop-start PAPER_LOOP_ITERATIONS=5`: repeated local loop.
 - `make paper-loop-dashboard`: Kite-backed run plus React dashboard.
 - `make taurus-smoke`: full MVP smoke test using existing Kite-imported market data and remaining non-market mocks.
@@ -141,13 +148,25 @@ make import-kite-candles
 make kite-ltp-smoke
 ```
 
-5. **Run one technical-only paper loop:**
+5. **Prepare graph data for the real-data paper profile:**
 
 ```bash
-TAURUS_ENABLED_ANALYSTS=technical make paper-loop-kite
+make import-taurus-graph
+make compute-graph-stats
 ```
 
-6. **Observe:**
+Graph readiness checks require company nodes, active edges, latest edge stats,
+usable validated graph signals, and valid graph risk limits. If any are missing,
+`make paper-loop-kite` fails before the analyst/debate/trader/risk/final/PaperBroker
+pipeline and points back to the import/stat commands.
+
+6. **Run one graph-enabled Kite paper loop:**
+
+```bash
+make paper-loop-kite
+```
+
+7. **Observe:**
 
 ```bash
 make ui
@@ -156,6 +175,20 @@ make ui
 Open `http://localhost:5173`.
 
 Do not mix old mock-market-data rows with Kite runs. Kite imports and Kite-backed paper loops fail fast if `daily_candles.source = "mock_market_data"` or old mock-backed paper-run summaries are present.
+
+For an explicit technical-only manual run, use the generic loop target instead
+of the canonical graph-enabled Kite profile:
+
+```bash
+TAURUS_ENABLED_ANALYSTS=technical SYMBOLS=INFY make paper-loop-start
+```
+
+For an explicit graph-enabled Kite subset, keep the canonical target and pass
+symbols on the make command line:
+
+```bash
+make paper-loop-kite SYMBOLS=INFY,TCS
+```
 
 ## Mocks Still Used
 
@@ -309,9 +342,10 @@ review status metadata and still does not route orders.
 
 ## Optional Graph Risk Checks
 
-Graph-aware concentration checks remain disabled by default through
-`TAURUS_GRAPH_RISK_ENABLED=false`. When enabled, the risk engine adds hard-rule
-results for basic industry, product group, customer industry,
+Graph-aware concentration checks remain disabled by config default through
+`TAURUS_GRAPH_RISK_ENABLED=false`, but the canonical `make paper-loop-kite`
+target enables them for the real-data Kite paper path after readiness passes.
+When enabled, the risk engine adds hard-rule results for basic industry, product group, customer industry,
 raw material/dependency, risk category, and statistically validated correlated
 graph clusters. A graph concentration can warn, reduce the approved paper size,
 or reject the proposed long entry; it still cannot route orders or bypass final
@@ -331,7 +365,7 @@ TAURUS_GRAPH_CONCENTRATION_WARNING_FRACTION=0.80
 
 ## Main Gaps Before It Is "Super Ready"
 
-1. Remove mock news from real paper runs, or add a real/no-news mode. Right now mock news can affect risk even with technical-only analysts.
+1. Remove mock news from real paper runs, or add a real/no-news mode. Right now mock news can affect risk even with technical/graph paper runs.
 2. Add a rule-only technical analyst path if no LLM should be required for
    technical-only paper runs. Runtime mock LLM has been removed.
 3. Add true portfolio continuity across paper runs. Current paper account state is run-scoped; it does not behave like one persistent paper account across days.
@@ -345,8 +379,9 @@ TAURUS_GRAPH_CONCENTRATION_WARNING_FRACTION=0.80
 
 ## Bottom Line
 
-Taurus is green and usable today for local, observable, real-Kite-data paper
-simulation with technical-only analysis when LM Studio or an explicit hosted LLM
-provider is configured. It is not yet clean of mocks, and it is not broker-level
-paper trading. For your current technical-only setup, the biggest remaining mock
-contamination is mock news imported into risk context.
+Taurus is usable today for local, observable, real-Kite-data paper simulation
+with graph intelligence on the canonical `paper-loop-kite` path when LM Studio
+or an explicit hosted LLM provider is configured and graph import/stats
+readiness passes. It is not yet clean of mocks, and it is not broker-level paper
+trading. The biggest remaining mock contamination is mock news imported into
+risk context.

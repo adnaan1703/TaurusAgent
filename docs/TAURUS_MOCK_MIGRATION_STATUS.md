@@ -22,6 +22,16 @@ TAURUS_GRAPH_RISK_ENABLED=false
 TAURUS_NEO4J_ENABLED=false
 ```
 
+The canonical `make paper-loop-kite` real-data profile now overrides the graph
+defaults for that command only:
+
+```text
+TAURUS_ENABLED_ANALYSTS=technical,graph
+TAURUS_GRAPH_ENABLED=true
+TAURUS_GRAPH_RISK_ENABLED=true
+STRATEGY=configs/strategies/graph_aware_score_v1.yaml
+```
+
 ## Mocked Components
 
 | Component | Current state | Has agent? | Requires LLM provider? | Migration required |
@@ -33,8 +43,8 @@ TAURUS_NEO4J_ENABLED=false
 | LLM provider | `lmstudio` default; `openai`/`gemini` opt-in | Used by analyst agents | Yes | Keep LM Studio running locally or configure hosted API keys/models. |
 | Alerts | `mock` | No | No | Use `telegram`; verify delivery with local credentials. |
 | Fundamentals | Mock unless Screener CSV imported | `FundamentalsAnalystAgent` | Yes, if enabled | Import and validate real Screener CSV exports. |
-| Graph analyst | Disabled | `GraphAnalystAgent` | No | Enable via `TAURUS_ENABLED_ANALYSTS=...,graph` after graph data/stats are imported. |
-| Graph risk | Disabled | No separate analyst | No | Enable `TAURUS_GRAPH_RISK_ENABLED=true` after concentration limits are reviewed. |
+| Graph analyst | Enabled for `make paper-loop-kite`; disabled by config default elsewhere | `GraphAnalystAgent` | No | Keep readiness checks and active-edge-only evidence for graph-enabled paper runs. |
+| Graph risk | Enabled for `make paper-loop-kite`; disabled by config default elsewhere | No separate analyst | No | Keep graph concentration in deterministic `RiskEngine` BUY hard-rule results. |
 | Neo4j | Disabled | No | No | Optional only; rebuild projection from Postgres if needed. |
 | Paper fills/costs/slippage | Simulated | No | No | Replace placeholder bps/fill assumptions with broker-calibrated assumptions. |
 
@@ -46,7 +56,7 @@ TAURUS_NEO4J_ENABLED=false
 | `news` | `NewsAnalystAgent` | No | Yes | Depends on stored news/events; currently mock news unless a real provider is added. |
 | `sentiment` | `SentimentAnalystAgent` | No | Yes | Depends on stored sentiment from events; currently mock event source. |
 | `fundamentals` | `FundamentalsAnalystAgent` | No | Yes | Uses real imported Screener scores when present; otherwise mock fallback. |
-| `graph` | `GraphAnalystAgent` | No | No | Deterministic graph rules; no LLM override. |
+| `graph` | `GraphAnalystAgent` | Yes on `make paper-loop-kite`; no by config default | No | Deterministic graph rules; no LLM override; active edges only. |
 
 Current enabled analyst roster:
 
@@ -141,9 +151,10 @@ The advisory risk personas can be upgraded after that. `RiskEngine`,
 - [ ] Add true portfolio continuity across paper runs.
 - [ ] Verify Telegram alerts with local-only credentials before relying on alert
       delivery.
-- [ ] Enable graph analyst only after graph data, graph stats, and desired
-      analyst roster behavior are validated.
-- [ ] Enable graph-aware risk only after concentration thresholds are reviewed.
+- [x] Enable graph analyst for the Kite real-data paper path after graph
+      readiness validates reviewed active edges and latest stats.
+- [x] Enable graph-aware risk for the Kite real-data paper path through
+      deterministic `RiskEngine` BUY hard-rule structures.
 
 ## Bottom Line
 
@@ -156,16 +167,16 @@ paper broker simulator
 Kite market data
 real LLM provider defaulting to LM Studio
 mock alerts
-technical analyst only
-graph disabled
-graph risk disabled
+technical analyst by config default; technical plus graph on paper-loop-kite
+graph disabled by config default; enabled on paper-loop-kite after preflight
+graph risk disabled by config default; enabled on paper-loop-kite after preflight
 Neo4j disabled
 ```
 
 The selected migration path is now tracked as M21-M30 in
 `docs/TAURUS_MILESTONE_TODO.md`. Docker Postgres-only persistence, real LLM
-providers, and Kite-only runtime market data are complete. The next migration in
-the selected path is graph-enabled real-data paper loops.
+providers, Kite-only runtime market data, and graph-enabled Kite paper loops are
+complete. The next migration in the selected path is the LLM bull researcher.
 
 **The target workflow should become:**
 

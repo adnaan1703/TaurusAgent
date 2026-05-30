@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import date
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
@@ -15,11 +17,14 @@ from taurus_core.db.models import (
     AuditLogModel,
     PaperOrderModel,
     PaperRunModel,
+    RiskReviewModel,
 )
+from taurus_core.db.repositories import GraphRepository, InstrumentRepository
 from taurus_core.db.session import build_session_factory
+from taurus_core.domain.instruments import Instrument
 from taurus_core.paper_trading.service import PaperRunService
 from tests.llm_fakes import FakeLLMProvider
-from tests.market_data_fixtures import FakeKiteMarketDataProvider
+from tests.market_data_fixtures import FakeKiteMarketDataProvider, TEST_INSTRUMENTS
 
 
 @pytest.fixture(autouse=True)
@@ -152,6 +157,71 @@ def test_paper_run_succeeds_with_technical_only_roster(tmp_path: Path) -> None:
     }
 
 
+def test_graph_enabled_kite_paper_run_uses_graph_roster_strategy_and_risk(
+    tmp_path: Path,
+) -> None:
+    settings = _settings_for_temp_db(
+        tmp_path,
+        enabled_analysts="technical,graph",
+        graph_enabled=True,
+        graph_risk_enabled=True,
+    )
+    _seed_paper_graph_fixture(settings)
+
+    run = PaperRunService(settings).run_once(
+        symbols=["INFY"],
+        strategy_config_path="configs/strategies/graph_aware_score_v1.yaml",
+    )
+    strategy = run.artifacts["strategy"]
+    roster = run.artifacts["symbols"]["INFY"]["analyst_roster"]
+
+    assert run.status == "COMPLETED"
+    assert strategy["graph_enabled_profile"] is True
+    assert strategy["graph_risk_enabled"] is True
+    assert strategy["graph_signal_count"] >= 1
+    assert "INFY" in strategy["symbols_with_graph_signals"]
+    assert strategy["graph_strategy_config_path"] == "configs/strategies/graph_aware_score_v1.yaml"
+    assert strategy["select_targets_with_graph_called"] is True
+    assert strategy["symbol_selection"]["INFY"]["selection_source"] == "explicit_symbol"
+    assert strategy["symbol_selection"]["INFY"]["has_graph_signal"] is True
+    assert roster["enabled"] == ["technical", "graph"]
+
+    session_factory = build_session_factory(settings)
+    with session_factory() as session:
+        agent_names = {
+            row.agent_name
+            for row in session.scalars(select(AnalystReportModel))
+        }
+        risk_review = session.scalars(select(RiskReviewModel)).first()
+
+    assert "GraphAnalystAgent" in agent_names
+    assert risk_review is not None
+    hard_rules = {row["rule"] for row in risk_review.hard_rule_results}
+    assert "graph_correlated_cluster_concentration" in hard_rules
+
+
+def test_graph_enabled_kite_paper_run_fails_fast_without_graph_nodes(
+    tmp_path: Path,
+) -> None:
+    settings = _settings_for_temp_db(
+        tmp_path,
+        enabled_analysts="technical,graph",
+        graph_enabled=True,
+        graph_risk_enabled=True,
+    )
+
+    run = PaperRunService(settings).run_once(
+        symbols=["INFY"],
+        strategy_config_path="configs/strategies/graph_aware_score_v1.yaml",
+    )
+
+    assert run.status == "FAILED"
+    assert run.errors[0].stage == "data_update"
+    assert run.errors[0].error_type == "GraphReadinessError"
+    assert "make import-taurus-graph" in run.errors[0].message
+    assert run.artifacts == {}
+
+
 def test_paper_loop_records_manual_symbol_universe_provenance(
     tmp_path: Path,
     monkeypatch,
@@ -184,8 +254,63 @@ def _settings_for_temp_db(
     tmp_path: Path,
     *,
     enabled_analysts: str = "technical",
+    graph_enabled: bool = False,
+    graph_risk_enabled: bool = False,
 ) -> Settings:
     return Settings(
         taurus_paper_partial_fill_threshold=1,
         taurus_enabled_analysts=enabled_analysts,
+        taurus_graph_enabled=graph_enabled,
+        taurus_graph_risk_enabled=graph_risk_enabled,
     )
+
+
+def _seed_paper_graph_fixture(settings: Settings) -> None:
+    latest_candle_date = FakeKiteMarketDataProvider().get_daily_candles("INFY")[-1].trade_date
+    session_factory = build_session_factory(settings)
+    with session_factory() as session:
+        instrument_repo = InstrumentRepository(session)
+        for instrument in TEST_INSTRUMENTS:
+            instrument_repo.upsert(Instrument(symbol=instrument.symbol, name=instrument.name))
+        graph_repo = GraphRepository(session)
+        for symbol in ("INFY", "RELIANCE"):
+            graph_repo.upsert_node(
+                node_key=f"company:{symbol}",
+                node_type="company",
+                display_name=f"{symbol} Limited",
+                symbol=symbol,
+            )
+        graph_repo.upsert_edge(
+            edge_key="peer:INFY:RELIANCE",
+            source_node_key="company:INFY",
+            target_node_key="company:RELIANCE",
+            edge_type="peer_momentum",
+            direction="bidirectional",
+            expected_sign="positive",
+            strength=Decimal("0.8500"),
+            confidence=Decimal("0.9000"),
+            evidence_type="operator_reviewed",
+            mechanism="Reviewed real-data paper graph relation.",
+            tradability_relevance="signal",
+            status="active",
+            valid_from=date(2024, 1, 1),
+        )
+        graph_repo.upsert_edge_evidence(
+            edge_key="peer:INFY:RELIANCE",
+            evidence_id="evidence:peer:INFY:RELIANCE",
+            claim_type="peer_mapping",
+            claim_summary="Reviewed test fixture for paper graph path.",
+            source_date=date(2024, 1, 1),
+            confidence=Decimal("0.9000"),
+        )
+        graph_repo.upsert_edge_stats(
+            edge_key="peer:INFY:RELIANCE",
+            window="60d",
+            as_of_date=latest_candle_date,
+            sample_size=60,
+            raw_correlation=Decimal("0.8200"),
+            residual_correlation=Decimal("0.7600"),
+            lead_lag_score=Decimal("0.4200"),
+            stability_score=Decimal("0.9000"),
+        )
+        session.commit()

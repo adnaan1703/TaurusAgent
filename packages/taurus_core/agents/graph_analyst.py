@@ -141,10 +141,12 @@ class GraphAnalystAgent(BaseAnalystAgent):
             return []
 
         contributions: list[_GraphContribution] = []
-        edges = graph_repo.list_edges_for_node(node_key=center_node.node_key, limit=250)
+        edges = graph_repo.list_edges_for_node(
+            node_key=center_node.node_key,
+            status="active",
+            limit=250,
+        )
         for edge in edges:
-            if edge.status not in {"active", "candidate"}:
-                continue
             related_node = self._related_node(graph_repo, center_node, edge)
             if related_node is None or not related_node.symbol:
                 continue
@@ -399,8 +401,6 @@ class GraphAnalystAgent(BaseAnalystAgent):
             risks.append(
                 "Graph edge evidence is absent or not statistically validated for this symbol."
             )
-        elif any(item.edge.status == "candidate" for item in contributions):
-            risks.append("At least one graph contribution came from a candidate edge awaiting review.")
         return risks
 
 

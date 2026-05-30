@@ -53,7 +53,11 @@ export function OverviewPage() {
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <MetricCard
               label="Latest run"
-              supportingText={overviewQuery.data.latest_run?.run_id ?? "No run"}
+              supportingText={
+                overviewQuery.data.latest_run?.graph_enabled_profile
+                  ? `Graph profile; ${overviewQuery.data.latest_run.graph_signal_count ?? 0} signal(s)`
+                  : overviewQuery.data.latest_run?.run_id ?? "No run"
+              }
               value={
                 overviewQuery.data.latest_run ? (
                   <StatusBadge status={overviewQuery.data.latest_run.status} />
@@ -134,6 +138,11 @@ export function OverviewPage() {
                     key: "universe",
                     header: "Universe",
                     render: (run) => <RunUniverseSummary universe={run.universe} />,
+                  },
+                  {
+                    key: "graph",
+                    header: "Graph",
+                    render: (run) => <GraphProfileSummary run={run} />,
                   },
                   {
                     key: "decisions",
@@ -243,6 +252,21 @@ function StatusCounts({ counts }: { counts: Record<string, number> }) {
           <span className="text-xs text-taurus-muted">{count}</span>
         </span>
       ))}
+    </div>
+  );
+}
+
+function GraphProfileSummary({ run }: { run: UiRunSummary }) {
+  if (!run.graph_enabled_profile) {
+    return <span className="text-taurus-muted">Off</span>;
+  }
+
+  return (
+    <div className="space-y-1 text-xs">
+      <p className="text-taurus-text">
+        {run.graph_signal_count ?? 0} signal(s), {run.graph_selected_symbols.length} selected
+      </p>
+      <p className="text-taurus-muted">{run.graph_risk_enabled ? "Risk on" : "Risk off"}</p>
     </div>
   );
 }

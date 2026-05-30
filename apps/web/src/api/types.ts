@@ -68,6 +68,10 @@ export type UiRunSummary = {
   universe?: UiRunUniverse | null;
   final_status_counts: Record<string, number>;
   order_status_counts: Record<string, number>;
+  graph_enabled_profile: boolean;
+  graph_risk_enabled: boolean;
+  graph_signal_count?: number | null;
+  graph_selected_symbols: string[];
 };
 
 export type UiStageSummary = {

@@ -6,6 +6,8 @@ COMPOSE ?= docker compose
 DATABASE_URL ?= postgresql+psycopg://taurus:taurus@localhost:5432/taurus
 SYMBOL ?= INFY
 SYMBOLS ?= $(SYMBOL)
+PAPER_LOOP_KITE_SYMBOL = $(if $(filter command line,$(origin SYMBOL)),$(SYMBOL),)
+PAPER_LOOP_KITE_SYMBOLS = $(if $(filter command line,$(origin SYMBOLS)),$(SYMBOLS),)
 ROUNDS ?= 2
 PAPER_LOOP_ITERATIONS ?= 1
 PAPER_LOOP_INTERVAL_SECONDS ?= 60
@@ -37,6 +39,8 @@ paper-loop-dashboard:
 	$(MAKE) dev-up
 	$(MAKE) migrate
 	$(MAKE) import-market-data
+	$(MAKE) import-taurus-graph
+	$(MAKE) compute-graph-stats
 	$(MAKE) import-mock-news
 	$(MAKE) paper-loop-kite
 	$(MAKE) ui
@@ -116,7 +120,7 @@ paper-loop-start:
 	DATABASE_URL="$(DATABASE_URL)" SYMBOLS="$(SYMBOLS)" PAPER_LOOP_ITERATIONS="$(PAPER_LOOP_ITERATIONS)" PAPER_LOOP_INTERVAL_SECONDS="$(PAPER_LOOP_INTERVAL_SECONDS)" PYTHONPATH=packages:. $(UV) run python scripts/run_paper_loop.py
 
 paper-loop-kite:
-	DATABASE_URL="$(DATABASE_URL)" TAURUS_MARKET_DATA_PROVIDER=kite SYMBOL="" SYMBOLS="" PAPER_LOOP_ITERATIONS="$(PAPER_LOOP_ITERATIONS)" PAPER_LOOP_INTERVAL_SECONDS="$(PAPER_LOOP_INTERVAL_SECONDS)" PYTHONPATH=packages:. $(UV) run python scripts/run_paper_loop.py
+	DATABASE_URL="$(DATABASE_URL)" TAURUS_MARKET_DATA_PROVIDER=kite TAURUS_ENABLED_ANALYSTS=technical,graph TAURUS_GRAPH_ENABLED=true TAURUS_GRAPH_RISK_ENABLED=true STRATEGY=configs/strategies/graph_aware_score_v1.yaml SYMBOL="$(PAPER_LOOP_KITE_SYMBOL)" SYMBOLS="$(PAPER_LOOP_KITE_SYMBOLS)" PAPER_LOOP_ITERATIONS="$(PAPER_LOOP_ITERATIONS)" PAPER_LOOP_INTERVAL_SECONDS="$(PAPER_LOOP_INTERVAL_SECONDS)" PYTHONPATH=packages:. $(UV) run python scripts/run_paper_loop.py
 
 alert-smoke:
 	DATABASE_URL="$(DATABASE_URL)" TAURUS_ALERT_PROVIDER=mock PYTHONPATH=packages:. $(UV) run python scripts/alert_smoke.py

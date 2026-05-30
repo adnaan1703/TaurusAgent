@@ -99,7 +99,7 @@ class GraphBacktestSignalLoader:
         self,
         session: Session,
         *,
-        edge_statuses: Iterable[str] = ("active", "candidate"),
+        edge_statuses: Iterable[str] = ("active",),
     ) -> None:
         self.session = session
         self.graph_repo = GraphRepository(session)

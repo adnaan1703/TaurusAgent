@@ -17,6 +17,7 @@ from taurus_core.agents.portfolio_manager import PortfolioManagerAgent
 from taurus_core.agents.roster import MIN_ANALYST_REPORTS, skipped_analysts
 from taurus_core.agents.runner import run_analyst_suite
 from taurus_core.agents.trader_agent import TraderAgent
+from taurus_core.backtesting.graph import GraphBacktestSignal, GraphBacktestSignalLoader
 from taurus_core.config import Settings, get_settings
 from taurus_core.data.importers import MarketDataImportSummary, import_market_data
 from taurus_core.data.preflight import assert_kite_runtime_preflight
@@ -32,6 +33,7 @@ from taurus_core.db.session import build_session_factory
 from taurus_core.domain.market_data import DailyCandle
 from taurus_core.execution.order_router import ExecutionRouter
 from taurus_core.features.store import TechnicalFeatureService
+from taurus_core.graph.preflight import assert_graph_ready_for_paper
 from taurus_core.intelligence.mock_news_provider import MockNewsProvider
 from taurus_core.llm import build_llm_provider
 from taurus_core.logging import get_logger
@@ -108,8 +110,15 @@ class PaperRunService:
             market_data_summary = self._load_latest_inputs()
             strategy_summary = self._generate_strategy_summary(
                 symbols=normalized_symbols,
+                universe=run.universe,
                 strategy_config_path=strategy_config_path,
             )
+            normalized_symbols = _symbols_for_pipeline(
+                requested_symbols=normalized_symbols,
+                universe=run.universe,
+                strategy_summary=strategy_summary,
+            )
+            run = _run_with_selected_symbols(run, normalized_symbols)
         except Exception as exc:
             error = PaperRunError(
                 symbol="*",
@@ -268,14 +277,29 @@ class PaperRunService:
         self,
         *,
         symbols: list[str],
+        universe: PaperRunUniverse | None,
         strategy_config_path: str | Path | None,
     ) -> dict[str, object]:
         path = strategy_config_path or DEFAULT_STRATEGY_CONFIG_PATH
         strategy_config = load_strategy_config(path)
         strategy = build_strategy(strategy_config)
+        graph_profile_enabled = _graph_profile_enabled(
+            settings=self.settings,
+            strategy_type=strategy_config.strategy_type,
+            strategy_parameters=strategy_config.parameters,
+        )
+        graph_readiness: dict[str, object] | None = None
+        if graph_profile_enabled:
+            with self.session_factory() as session:
+                graph_readiness = assert_graph_ready_for_paper(
+                    session,
+                    settings=self.settings,
+                    symbols=symbols,
+                ).to_dict()
         feature_service = TechnicalFeatureService.from_strategy_parameters(
             strategy_config.parameters
         )
+        current_positions = self._open_position_symbols()
         with self.session_factory() as session:
             instruments = InstrumentRepository(session).list(active_only=True)
             snapshots = {}
@@ -296,21 +320,65 @@ class PaperRunService:
             return {
                 "strategy_name": strategy_config.strategy_name,
                 "strategy_config_path": str(strategy_config.source_path),
+                "strategy_type": strategy_config.strategy_type,
                 "targets": [],
                 "signals": [],
                 "feature_snapshot_count": 0,
+                "graph_enabled_profile": graph_profile_enabled,
+                "graph_risk_enabled": self.settings.taurus_graph_risk_enabled,
+                "graph_readiness": graph_readiness,
+                "graph_signal_count": 0,
+                "symbols_with_graph_signals": [],
+                "graph_signals": {},
+                "graph_selected_symbols": [],
+                "graph_strategy_config_path": str(strategy_config.source_path)
+                if graph_profile_enabled
+                else None,
+                "select_targets_with_graph_called": False,
+                "open_position_symbols": sorted(current_positions),
+                "symbol_selection": _symbol_selection_metadata(
+                    requested_symbols=symbols,
+                    selected_symbols=[],
+                    current_positions=current_positions,
+                    graph_signals_by_symbol={},
+                    universe=universe,
+                    select_targets_with_graph_called=False,
+                ),
             }
 
-        targets, signals = strategy.select_targets(
-            trade_date=max(trade_dates),
-            features_by_symbol=snapshots,
-            current_positions=set(),
+        trade_date = max(trade_dates)
+        graph_signals_by_symbol: dict[str, GraphBacktestSignal] = {}
+        if graph_profile_enabled:
+            with self.session_factory() as session:
+                graph_signals_by_symbol = GraphBacktestSignalLoader(
+                    session,
+                    edge_statuses=("active",),
+                ).load_by_as_of_date(as_of_date=trade_date, symbols=symbols)
+
+        select_targets_with_graph = getattr(strategy, "select_targets_with_graph", None)
+        select_targets_with_graph_called = graph_profile_enabled and callable(
+            select_targets_with_graph
         )
+        if select_targets_with_graph_called:
+            targets, signals = select_targets_with_graph(
+                trade_date=trade_date,
+                features_by_symbol=snapshots,
+                current_positions=current_positions,
+                graph_signals_by_symbol=graph_signals_by_symbol,
+            )
+        else:
+            targets, signals = strategy.select_targets(
+                trade_date=trade_date,
+                features_by_symbol=snapshots,
+                current_positions=current_positions,
+            )
         requested = set(symbols)
+        selected_symbols = sorted(targets)
         return {
             "strategy_name": strategy_config.strategy_name,
             "strategy_config_path": str(strategy_config.source_path),
-            "targets": sorted(targets),
+            "strategy_type": strategy_config.strategy_type,
+            "targets": selected_symbols,
             "signals": [
                 {
                     "trade_date": signal.trade_date.isoformat(),
@@ -324,7 +392,35 @@ class PaperRunService:
                 if signal.symbol in requested or signal.symbol in targets
             ],
             "feature_snapshot_count": len(snapshots),
+            "graph_enabled_profile": graph_profile_enabled,
+            "graph_risk_enabled": self.settings.taurus_graph_risk_enabled,
+            "graph_readiness": graph_readiness,
+            "graph_signal_count": len(graph_signals_by_symbol),
+            "symbols_with_graph_signals": sorted(graph_signals_by_symbol),
+            "graph_signals": {
+                symbol: signal.to_dict()
+                for symbol, signal in sorted(graph_signals_by_symbol.items())
+            },
+            "graph_selected_symbols": selected_symbols if select_targets_with_graph_called else [],
+            "graph_strategy_config_path": str(strategy_config.source_path)
+            if graph_profile_enabled
+            else None,
+            "select_targets_with_graph_called": select_targets_with_graph_called,
+            "open_position_symbols": sorted(current_positions),
+            "symbol_selection": _symbol_selection_metadata(
+                requested_symbols=symbols,
+                selected_symbols=selected_symbols,
+                current_positions=current_positions,
+                graph_signals_by_symbol=graph_signals_by_symbol,
+                universe=universe,
+                select_targets_with_graph_called=select_targets_with_graph_called,
+            ),
         }
+
+    def _open_position_symbols(self) -> set[str]:
+        with self.session_factory() as session:
+            positions = ExecutionRepository(session).list_positions()
+        return {position.symbol.upper() for position in positions if position.quantity > 0}
 
     def _store_run(self, run: PaperRun, *, audit_event: str | None = None) -> PaperRun:
         with self.session_factory() as session:
@@ -469,6 +565,115 @@ def _manual_universe(*, provider: str, symbols: list[str]) -> PaperRunUniverse:
         selected_symbol_count=len(symbols),
         symbols=list(symbols),
     )
+
+
+def _graph_profile_enabled(
+    *,
+    settings: Settings,
+    strategy_type: str,
+    strategy_parameters: dict[str, object],
+) -> bool:
+    return (
+        settings.taurus_graph_enabled
+        or settings.taurus_graph_risk_enabled
+        or strategy_type == "graph_aware_score"
+        or bool(strategy_parameters.get("graph_enabled", False))
+    )
+
+
+def _symbols_for_pipeline(
+    *,
+    requested_symbols: list[str],
+    universe: PaperRunUniverse | None,
+    strategy_summary: dict[str, object],
+) -> list[str]:
+    if (
+        universe is not None
+        and universe.source == "market_data_universe"
+        and strategy_summary.get("select_targets_with_graph_called") is True
+    ):
+        selected = [
+            *[str(symbol) for symbol in strategy_summary.get("graph_selected_symbols", [])],
+            *[str(symbol) for symbol in strategy_summary.get("open_position_symbols", [])],
+        ]
+        normalized = _normalize_symbols(selected)
+        if not normalized:
+            raise ValueError(
+                "Graph-aware paper target selection produced no target or open-position "
+                "symbols for the market-data universe."
+            )
+        return normalized
+    return list(requested_symbols)
+
+
+def _run_with_selected_symbols(run: PaperRun, symbols: list[str]) -> PaperRun:
+    universe = run.universe
+    if universe is not None and universe.source == "market_data_universe":
+        universe = universe.model_copy(
+            update={
+                "selected_symbol_count": len(symbols),
+                "symbols": list(symbols),
+            }
+        )
+    return run.model_copy(update={"symbols": list(symbols), "universe": universe})
+
+
+def _symbol_selection_metadata(
+    *,
+    requested_symbols: list[str],
+    selected_symbols: list[str],
+    current_positions: set[str],
+    graph_signals_by_symbol: dict[str, GraphBacktestSignal],
+    universe: PaperRunUniverse | None,
+    select_targets_with_graph_called: bool,
+) -> dict[str, dict[str, object]]:
+    requested = {symbol.upper() for symbol in requested_symbols}
+    selected = {symbol.upper() for symbol in selected_symbols}
+    graph_signal_symbols = set(graph_signals_by_symbol)
+    universe_mode = universe.source if universe is not None else "manual_symbols"
+    output_symbols = sorted(requested | selected | current_positions | graph_signal_symbols)
+    return {
+        symbol: {
+            "selection_source": _selection_source(
+                symbol=symbol,
+                requested=requested,
+                selected=selected,
+                current_positions=current_positions,
+                universe_mode=universe_mode,
+                select_targets_with_graph_called=select_targets_with_graph_called,
+            ),
+            "requested_explicitly": symbol in requested and universe_mode == "manual_symbols",
+            "selected_by_graph_strategy": (
+                select_targets_with_graph_called and symbol in selected
+            ),
+            "included_from_open_position": symbol in current_positions,
+            "has_graph_signal": symbol in graph_signal_symbols,
+            "graph_signal": graph_signals_by_symbol[symbol].to_dict()
+            if symbol in graph_signals_by_symbol
+            else None,
+        }
+        for symbol in output_symbols
+    }
+
+
+def _selection_source(
+    *,
+    symbol: str,
+    requested: set[str],
+    selected: set[str],
+    current_positions: set[str],
+    universe_mode: str,
+    select_targets_with_graph_called: bool,
+) -> str:
+    if universe_mode == "manual_symbols" and symbol in requested:
+        return "explicit_symbol"
+    if select_targets_with_graph_called and symbol in selected:
+        return "graph_aware_strategy"
+    if symbol in current_positions:
+        return "open_position"
+    if symbol in requested:
+        return "configured_universe"
+    return "graph_signal_only"
 
 
 def _status_for(succeeded_symbols: list[str], failed_symbols: list[str]) -> str:

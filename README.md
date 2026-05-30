@@ -2,7 +2,7 @@
 
 Taurus is an observable, paper-trading-first algo trading MVP for Indian cash equities.
 
-The paper-trading MVP is complete, and the React run-loop observability dashboard is the primary local UI. Runtime market data is Kite-only: Taurus can sync Kite instruments, import Kite daily candles, run news/events, backtests, analyst reports, bull/bear debate, trader proposal, risk review, final approval, PaperBroker execution, scheduled paper loop, replay, backup, API, React dashboard, Streamlit fallback dashboard, Prometheus metrics, and Grafana dashboards.
+The paper-trading MVP is complete, and the React run-loop observability dashboard is the primary local UI. Runtime market data is Kite-only: Taurus can sync Kite instruments, import Kite daily candles, run news/events, graph-aware backtests, analyst reports, bull/bear debate, trader proposal, risk review, final approval, PaperBroker execution, scheduled paper loop, replay, backup, API, React dashboard, Streamlit fallback dashboard, Prometheus metrics, and Grafana dashboards.
 
 Broker order routing is not part of the current roadmap. Taurus remains a local paper simulator unless a future milestone explicitly changes that direction.
 Kite Connect support is data-only: it can sync instruments, import historical
@@ -137,18 +137,26 @@ make kite-sync-instruments
 make import-kite-candles
 make import-market-data
 make kite-ltp-smoke
+make import-taurus-graph
+make compute-graph-stats
 make paper-loop-kite
 curl "http://localhost:8000/data/quotes/latest?symbol=INFY"
 ```
 
 `configs/market_data/kite_nse_cash.yaml` defines the Kite-backed paper universe
 when `TAURUS_MARKET_DATA_PROVIDER=kite`. Use `make paper-loop-kite` to run that
-Kite-backed universe without overriding it through `SYMBOLS`.
+Kite-backed universe, or pass `SYMBOL=INFY` / `SYMBOLS=INFY,TCS` for an explicit
+graph-enabled manual subset. This real-data paper profile enables the technical
+and graph analysts, graph readiness preflight, graph-aware strategy target
+selection, and graph concentration risk while execution remains local
+`PaperBroker` simulation.
 
-Analysts are enabled with `TAURUS_ENABLED_ANALYSTS`. The default is
+Analysts are enabled with `TAURUS_ENABLED_ANALYSTS`. The config default is
 `technical`; add `news`, `sentiment`, `fundamentals`, and `graph` explicitly
-when you want those reports. The graph analyst is deterministic and remains
-disabled unless the roster includes `graph`.
+when you want those reports. The canonical `make paper-loop-kite` target
+overrides the roster to `technical,graph` and fails fast if reviewed active graph
+edges, latest graph stats, or usable graph signals are missing. Candidate graph
+edges stay review-only until promoted to active.
 
 Verify the API:
 
@@ -203,13 +211,14 @@ make compute-graph-stats AS_OF=2024-12-17
 Automatic graph candidate promotion remains disabled by default with
 `TAURUS_GRAPH_AUTO_PROMOTE_EDGES=false`.
 
-Run a full mock paper loop and open the React dashboard in one command:
+Run the Kite-backed graph paper loop and open the React dashboard in one command:
 
 ```bash
 make paper-loop-dashboard
 ```
 
-This target starts the Docker stack, prepares mock data, runs one paper loop, then starts the React dev server in the foreground.
+This target starts the Docker stack, imports market data and graph prerequisites,
+runs one paper loop, then starts the React dev server in the foreground.
 
 Run the Streamlit fallback dashboard:
 

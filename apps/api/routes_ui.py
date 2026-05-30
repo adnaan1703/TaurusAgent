@@ -118,6 +118,10 @@ class UiRunSummary(BaseModel):
     universe: UiRunUniverse | None = None
     final_status_counts: dict[str, int] = Field(default_factory=dict)
     order_status_counts: dict[str, int] = Field(default_factory=dict)
+    graph_enabled_profile: bool = False
+    graph_risk_enabled: bool = False
+    graph_signal_count: int | None = None
+    graph_selected_symbols: list[str] = Field(default_factory=list)
 
 
 class UiStageSummary(BaseModel):
@@ -660,6 +664,7 @@ def _run_summary(
 ) -> UiRunSummary:
     final_decisions = risk_repo.list_final_decisions(run_id=run.run_id, limit=None)
     orders = execution_repo.list_orders(run_id=run.run_id, limit=None)
+    strategy = _strategy_summary(run)
     return UiRunSummary(
         run_id=run.run_id,
         status=run.status,  # type: ignore[arg-type]
@@ -677,6 +682,14 @@ def _run_summary(
         universe=_run_universe(run),
         final_status_counts=dict(Counter(row.status for row in final_decisions)),
         order_status_counts=dict(Counter(row.status for row in orders)),
+        graph_enabled_profile=bool(strategy.get("graph_enabled_profile", False)),
+        graph_risk_enabled=bool(strategy.get("graph_risk_enabled", False)),
+        graph_signal_count=_optional_int(strategy.get("graph_signal_count")),
+        graph_selected_symbols=[
+            str(symbol).upper()
+            for symbol in strategy.get("graph_selected_symbols", [])
+            if str(symbol).strip()
+        ],
     )
 
 
@@ -1193,6 +1206,15 @@ def _duration_seconds(
     if completed_at is None:
         return None
     return max((completed_at - started_at).total_seconds(), 0.0)
+
+
+def _optional_int(value: Any) -> int | None:
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
 
 
 def _symbol_errors(run: PaperRunModel, symbol: str) -> list[str]:

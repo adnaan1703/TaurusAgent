@@ -323,9 +323,47 @@ make kite-login-url
 make kite-sync-instruments
 make import-kite-candles
 make kite-ltp-smoke
+make import-taurus-graph
+make compute-graph-stats
 make paper-loop-kite
 curl "http://localhost:8000/data/quotes/latest?symbol=INFY"
 ```
+
+## M24 Commands Used
+
+```bash
+uv run pytest tests/unit/test_graph_analyst.py tests/unit/test_graph_risk.py tests/unit/test_graph_stats.py tests/unit/test_graph_backtesting.py tests/unit/test_paper_runs.py
+make test
+make lint
+make test-ui
+make build-ui
+rg -n "mock|Mock" packages/taurus_core/agents/graph_analyst.py packages/taurus_core/risk/graph_concentration.py packages/taurus_core/strategies/graph_aware.py packages/taurus_core/graph
+sed -n '/# END MY CUSTOM ADDITION/,$p' /Users/adnaan/.codex/rules/default.rules
+```
+
+`make paper-loop-kite` is now the canonical graph-enabled real-data paper
+profile. It sets:
+
+```bash
+TAURUS_ENABLED_ANALYSTS=technical,graph
+TAURUS_GRAPH_ENABLED=true
+TAURUS_GRAPH_RISK_ENABLED=true
+STRATEGY=configs/strategies/graph_aware_score_v1.yaml
+```
+
+Before running it on a fresh database, import Kite candles, import reviewed
+graph rows, and compute stats:
+
+```bash
+make import-market-data
+make import-taurus-graph
+make compute-graph-stats
+make paper-loop-kite
+```
+
+The graph readiness preflight fails before paper execution if company nodes,
+active edges, latest edge stats, usable active-edge graph signals, or graph risk
+limits are missing.
 
 ## M18 Commands Used
 
