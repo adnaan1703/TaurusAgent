@@ -20,6 +20,7 @@ def run_migrations(settings: Settings | None = None) -> None:
     _add_missing_backtest_signal_columns(engine)
     _add_missing_daily_candle_columns(engine)
     _widen_graph_edge_columns(engine)
+    _add_missing_m28_position_lifecycle_columns(engine)
 
 
 def _add_missing_backtest_signal_columns(engine: Engine) -> None:
@@ -118,6 +119,86 @@ def _widen_graph_edge_columns(engine: Engine) -> None:
         connection.execute(
             text("ALTER TABLE graph_edges ALTER COLUMN tradability_relevance TYPE TEXT")
         )
+
+
+def _add_missing_m28_position_lifecycle_columns(engine: Engine) -> None:
+    if engine.dialect.name != "postgresql":
+        return
+
+    inspector = inspect(engine)
+    table_names = set(inspector.get_table_names())
+    statements: list[str] = []
+
+    for table in ("paper_accounts", "paper_orders", "paper_fills", "paper_positions"):
+        if table not in table_names:
+            continue
+        columns = {column["name"] for column in inspector.get_columns(table)}
+        if "portfolio_id" not in columns:
+            statements.append(
+                f"ALTER TABLE {table} "
+                "ADD COLUMN portfolio_id VARCHAR(128) NOT NULL DEFAULT 'local-paper'"
+            )
+
+    if "trader_proposals" in table_names:
+        columns = {column["name"] for column in inspector.get_columns("trader_proposals")}
+        if "portfolio_id" not in columns:
+            statements.append(
+                "ALTER TABLE trader_proposals "
+                "ADD COLUMN portfolio_id VARCHAR(128) NOT NULL DEFAULT 'local-paper'"
+            )
+        if "current_position_quantity" not in columns:
+            statements.append(
+                "ALTER TABLE trader_proposals "
+                "ADD COLUMN current_position_quantity INTEGER NOT NULL DEFAULT 0"
+            )
+        if "current_position_pct_nav" not in columns:
+            statements.append(
+                "ALTER TABLE trader_proposals "
+                "ADD COLUMN current_position_pct_nav NUMERIC(8, 4) NOT NULL DEFAULT 0"
+            )
+        if "target_position_pct_nav" not in columns:
+            statements.append(
+                "ALTER TABLE trader_proposals "
+                "ADD COLUMN target_position_pct_nav NUMERIC(8, 4) NOT NULL DEFAULT 0"
+            )
+        if "lifecycle_trigger" not in columns:
+            statements.append(
+                "ALTER TABLE trader_proposals "
+                "ADD COLUMN lifecycle_trigger VARCHAR(32) NOT NULL DEFAULT 'new_entry'"
+            )
+        if "evaluation_mode" not in columns:
+            statements.append(
+                "ALTER TABLE trader_proposals "
+                "ADD COLUMN evaluation_mode VARCHAR(32) NOT NULL DEFAULT 'after_close'"
+            )
+        if "position_management_summary" not in columns:
+            statements.append(
+                "ALTER TABLE trader_proposals "
+                "ADD COLUMN position_management_summary TEXT NOT NULL DEFAULT "
+                "'Legacy proposal before position-aware TraderAgent.'"
+            )
+
+    index_statements = [
+        "CREATE INDEX IF NOT EXISTS ix_paper_accounts_portfolio_updated_at "
+        "ON paper_accounts (portfolio_id, updated_at)",
+        "CREATE INDEX IF NOT EXISTS ix_paper_orders_portfolio_symbol_time "
+        "ON paper_orders (portfolio_id, symbol, submitted_at)",
+        "CREATE INDEX IF NOT EXISTS ix_paper_fills_portfolio_symbol_time "
+        "ON paper_fills (portfolio_id, symbol, filled_at)",
+        "CREATE INDEX IF NOT EXISTS ix_paper_positions_portfolio_symbol "
+        "ON paper_positions (portfolio_id, symbol)",
+    ]
+
+    if not statements and not any(table in table_names for table in ("paper_accounts", "paper_orders", "paper_fills", "paper_positions")):
+        return
+
+    with engine.begin() as connection:
+        for statement in statements:
+            connection.execute(text(statement))
+        for statement in index_statements:
+            table_name = statement.split(" ON ", 1)[1].split(" ", 1)[0]
+            if table_name in table_names:
+                connection.execute(text(statement))
 
 
 if __name__ == "__main__":

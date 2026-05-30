@@ -49,6 +49,7 @@ const STATUS_MAP: Record<string, StatusConfig> = {
     icon: ShieldAlert,
   },
   APPROVED_FOR_PAPER: { label: "Approved for paper", tone: "success", icon: ShieldCheck },
+  NO_ACTION: { label: "No action", tone: "info", icon: MinusCircle },
   REJECTED: { label: "Rejected", tone: "failure", icon: XCircle },
   BLOCKED: { label: "Blocked", tone: "failure", icon: Ban },
 

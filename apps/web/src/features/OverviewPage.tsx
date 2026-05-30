@@ -73,7 +73,10 @@ export function OverviewPage() {
             />
             <MetricCard
               label="Latest decision"
-              supportingText={formatId(getString(overviewQuery.data.latest_final_decision, "decision_id"))}
+              supportingText={
+                getString(overviewQuery.data.latest_trader_proposal, "lifecycle_trigger") ||
+                formatId(getString(overviewQuery.data.latest_final_decision, "decision_id"))
+              }
               value={
                 overviewQuery.data.latest_final_decision ? (
                   <StatusBadge status={getString(overviewQuery.data.latest_final_decision, "status")} />
@@ -84,10 +87,16 @@ export function OverviewPage() {
             />
             <MetricCard
               label="Latest order"
-              supportingText={formatId(getString(overviewQuery.data.latest_order, "order_id"))}
+              supportingText={
+                getString(overviewQuery.data.latest_final_decision, "status") === "NO_ACTION"
+                  ? "No paper order expected"
+                  : formatId(getString(overviewQuery.data.latest_order, "order_id"))
+              }
               value={
                 overviewQuery.data.latest_order ? (
                   <StatusBadge status={getString(overviewQuery.data.latest_order, "status")} />
+                ) : getString(overviewQuery.data.latest_final_decision, "status") === "NO_ACTION" ? (
+                  <StatusBadge status="NO_ACTION" />
                 ) : (
                   "None"
                 )
@@ -163,7 +172,24 @@ export function OverviewPage() {
             </DataPanel>
           )}
 
-          <div className="grid gap-6 xl:grid-cols-2">
+          <div className="grid gap-6 xl:grid-cols-3">
+            <ArtifactCard
+              artifact={overviewQuery.data.latest_trader_proposal}
+              emptyTitle="No trader proposal"
+              fields={[
+                ["proposal_id", "Proposal ID"],
+                ["symbol", "Symbol"],
+                ["action", "Action"],
+                ["lifecycle_trigger", "Lifecycle"],
+                ["evaluation_mode", "Mode"],
+                ["current_position_quantity", "Current qty"],
+                ["current_position_pct_nav", "Current NAV"],
+                ["target_position_pct_nav", "Target NAV"],
+                ["position_management_summary", "Lifecycle summary"],
+              ]}
+              statusKey="action"
+              title="Latest Trader Proposal"
+            />
             <ArtifactCard
               artifact={overviewQuery.data.latest_final_decision}
               emptyTitle="No final decision"
@@ -179,7 +205,11 @@ export function OverviewPage() {
             />
             <ArtifactCard
               artifact={overviewQuery.data.latest_order}
-              emptyTitle="No paper order"
+              emptyTitle={
+                getString(overviewQuery.data.latest_final_decision, "status") === "NO_ACTION"
+                  ? "No paper order expected"
+                  : "No paper order"
+              }
               fields={[
                 ["order_id", "Order ID"],
                 ["symbol", "Symbol"],

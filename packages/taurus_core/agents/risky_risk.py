@@ -27,6 +27,15 @@ class RiskyRiskAgent:
                 "Hard risk engine must pass before any final paper approval.",
                 "Stop-loss and invalidation rules must remain attached to the decision.",
             ]
+        elif proposal.action in {"HOLD", "NO_TRADE", "REDUCE", "EXIT"}:
+            recommendation = "allow"
+            score = Decimal("0.1000") if proposal.action in {"REDUCE", "EXIT"} else Decimal("0")
+            key_points = [
+                f"Lifecycle action {proposal.action} does not require new risk budget."
+            ]
+            conditions = [
+                "Hard risk engine must confirm lifecycle direction and position context."
+            ]
         else:
             recommendation = "reject"
             score = Decimal("-0.2500")

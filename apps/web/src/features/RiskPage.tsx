@@ -83,6 +83,8 @@ export function RiskPage() {
                       ),
                   },
                   { key: "status", header: "Status", render: (row) => <StatusBadge status={getString(row, "status")} size="sm" /> },
+                  { key: "action", header: "Action", render: (row) => getString(row, "proposal_action") || "-" },
+                  { key: "lifecycle", header: "Lifecycle", render: (row) => getString(row, "lifecycle_trigger") || "-" },
                   { key: "requested", header: "Requested", align: "right", render: (row) => formatPercent(getPrimitive(row, "requested_position_pct_nav")) },
                   { key: "approved", header: "Approved", align: "right", render: (row) => formatPercent(getPrimitive(row, "approved_position_pct_nav")) },
                   { key: "broker", header: "Broker eligible", render: (row) => <StatusBadge label={getPrimitive(row, "can_send_to_broker") ? "Yes" : "No"} status={getPrimitive(row, "can_send_to_broker") ? "APPROVED" : "BLOCKED"} size="sm" /> },
@@ -100,7 +102,7 @@ export function RiskPage() {
                 { key: "symbol", header: "Symbol", render: (row) => getString(row, "symbol") || "-" },
                 { key: "rule", header: "Rule", render: (row) => getString(row, "rule") || getString(row, "name") || "-" },
                 { key: "status", header: "Status", render: (row) => <StatusBadge status={getString(row, "status") || getString(row, "result")} size="sm" /> },
-                { key: "message", header: "Message", render: (row) => getString(row, "message") || getString(row, "reason") || "-" },
+                { key: "message", header: "Message", render: (row) => getString(row, "details") || getString(row, "message") || getString(row, "reason") || "-" },
                 { key: "risk", header: "Risk ID", render: (row) => formatId(getString(row, "risk_check_id")) },
               ]}
               emptyLabel="No hard-rule results"

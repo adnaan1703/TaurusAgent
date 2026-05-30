@@ -7,6 +7,7 @@ from taurus_core.llm.base import (
     LLMBearThesisOutput,
     LLMBullThesisOutput,
     LLMResearchManagerOutput,
+    LLMTraderOutput,
 )
 
 
@@ -139,6 +140,44 @@ class FakeLLMProvider:
             unresolved_uncertainties=[
                 f"{agent}: manager uncertainty remains tied to {source_id} for {symbol.upper()}."
             ],
+            model_version=self.model_version,
+        )
+
+    def complete_trader_proposal(
+        self,
+        *,
+        agent_name: str,
+        symbol: str,
+        context: dict[str, object],
+    ) -> LLMTraderOutput:
+        fallback = context.get("deterministic_fallback")
+        if not isinstance(fallback, dict):
+            fallback = {}
+        return LLMTraderOutput(
+            action=str(fallback.get("action") or "NO_TRADE"),
+            confidence=_decimal_context(fallback, "confidence", Decimal("0.5500")),
+            target_position_pct_nav=_decimal_context(
+                fallback,
+                "target_position_pct_nav",
+                Decimal("0.0000"),
+            ),
+            stop_loss_pct=_decimal_context(fallback, "stop_loss_pct", Decimal("6.0000")),
+            take_profit_pct=_decimal_context(fallback, "take_profit_pct", Decimal("12.0000")),
+            reason_summary=str(
+                fallback.get("reason_summary")
+                or f"{agent_name}: fake trader proposal for {symbol.upper()}."
+            ),
+            invalid_if=[
+                str(item)
+                for item in fallback.get(
+                    "invalid_if",
+                    ["Test-only fake trader invalidation."],
+                )
+            ],
+            position_management_summary=str(
+                fallback.get("position_management_summary")
+                or f"{agent_name}: fake lifecycle summary for {symbol.upper()}."
+            ),
             model_version=self.model_version,
         )
 

@@ -64,7 +64,11 @@ def run_mock_trader_proposal(
             )
 
     with session_factory() as session:
-        proposal = TraderAgent(session).run(symbol=symbol, run_id=run_id, debate=debate)
+        proposal = TraderAgent(
+            session,
+            settings,
+            llm_provider=llm_provider,
+        ).run(symbol=symbol, run_id=run_id, debate=debate)
         return proposal.model_dump(mode="json")
 
 

@@ -257,6 +257,7 @@ def latest_paper_account(session: Session) -> dict[str, Any] | None:
     return {
         "account_id": account.account_id,
         "run_id": account.run_id,
+        "portfolio_id": account.portfolio_id,
         "cash_inr": _number(account.available_cash_inr),
         "gross_exposure_inr": _number(account.gross_exposure_inr),
         "equity_inr": _number(account.equity_inr),
@@ -301,6 +302,7 @@ def list_paper_positions(
     return [
         {
             "run_id": position.run_id,
+            "portfolio_id": position.portfolio_id,
             "symbol": position.symbol,
             "quantity": position.quantity,
             "average_cost_inr": _number(position.average_cost_inr),
@@ -330,6 +332,7 @@ def list_paper_orders(
         {
             "order_id": order.order_id,
             "run_id": order.run_id,
+            "portfolio_id": order.portfolio_id,
             "decision_id": order.decision_id,
             "final_decision_id": order.final_decision_id,
             "symbol": order.symbol,
@@ -365,6 +368,7 @@ def list_paper_fills(
             "fill_id": fill.fill_id,
             "order_id": fill.order_id,
             "run_id": fill.run_id,
+            "portfolio_id": fill.portfolio_id,
             "symbol": fill.symbol,
             "side": fill.side,
             "quantity": fill.quantity,
@@ -576,13 +580,20 @@ def list_trader_proposals(
         {
             "proposal_id": proposal.proposal_id,
             "run_id": proposal.run_id,
+            "portfolio_id": proposal.portfolio_id,
             "symbol": proposal.symbol,
             "debate_id": proposal.debate_id,
             "action": proposal.action,
+            "lifecycle_trigger": proposal.lifecycle_trigger,
+            "evaluation_mode": proposal.evaluation_mode,
             "confidence": _number(proposal.confidence),
             "requested_pct_nav": _number(proposal.requested_position_pct_nav),
+            "current_quantity": proposal.current_position_quantity,
+            "current_pct_nav": _number(proposal.current_position_pct_nav),
+            "target_pct_nav": _number(proposal.target_position_pct_nav),
             "stop_loss_pct": _number(proposal.stop_loss_pct),
             "take_profit_pct": _number(proposal.take_profit_pct),
+            "position_management_summary": proposal.position_management_summary,
             "reason": proposal.reason_summary,
             "invalid_if": _join_items(proposal.invalid_if),
             "as_of": _display_time(proposal.as_of),

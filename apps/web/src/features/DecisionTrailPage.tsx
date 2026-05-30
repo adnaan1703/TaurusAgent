@@ -68,7 +68,11 @@ export function DecisionTrailPage() {
             />
             <MetricCard
               label="Final action"
-              supportingText={`Broker route: ${trailQuery.data.can_send_to_broker ? "eligible" : "not eligible"}`}
+              supportingText={
+                trailQuery.data.final_status === "NO_ACTION"
+                  ? "No paper order expected"
+                  : `Broker route: ${trailQuery.data.can_send_to_broker ? "eligible" : "not eligible"}`
+              }
               value={trailQuery.data.final_action ?? "-"}
             />
             <MetricCard
@@ -264,7 +268,7 @@ function StageArtifactTable({ stage }: { stage: UiTimelineStage }) {
           columns={[
             { key: "rule", header: "Rule", render: (row) => getString(row, "rule") || getString(row, "name") || "-" },
             { key: "status", header: "Status", render: (row) => <StatusBadge status={getString(row, "status") || getString(row, "result")} size="sm" /> },
-            { key: "message", header: "Message", render: (row) => getString(row, "message") || getString(row, "reason") || "-" },
+            { key: "message", header: "Message", render: (row) => getString(row, "details") || getString(row, "message") || getString(row, "reason") || "-" },
           ]}
           emptyLabel="No hard-rule results"
           getRowKey={(row) => `${getString(row, "rule")}-${getString(row, "status")}-${getString(row, "message")}`}
@@ -281,6 +285,24 @@ function StageArtifactTable({ stage }: { stage: UiTimelineStage }) {
           rows={personas}
         />
       </div>
+    );
+  }
+
+  if (stage.id === "trader_proposal") {
+    return (
+      <DataTable
+        columns={[
+          { key: "action", header: "Action", render: (row) => getString(row, "action") || "-" },
+          { key: "lifecycle", header: "Lifecycle", render: (row) => getString(row, "lifecycle_trigger") || "-" },
+          { key: "mode", header: "Mode", render: (row) => getString(row, "evaluation_mode") || "-" },
+          { key: "qty", header: "Current qty", align: "right", render: (row) => formatNumber(getPrimitive(row, "current_position_quantity")) },
+          { key: "current", header: "Current NAV", align: "right", render: (row) => formatPercent(getPrimitive(row, "current_position_pct_nav")) },
+          { key: "target", header: "Target NAV", align: "right", render: (row) => formatPercent(getPrimitive(row, "target_position_pct_nav")) },
+          { key: "summary", header: "Lifecycle summary", render: (row) => getString(row, "position_management_summary") || "-" },
+        ]}
+        getRowKey={(row) => getString(row, "proposal_id")}
+        rows={stage.artifacts}
+      />
     );
   }
 

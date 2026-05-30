@@ -81,11 +81,13 @@ class PaperRunService:
         universe: PaperRunUniverse | None = None,
         strategy_config_path: str | Path | None = None,
     ) -> PaperRun:
-        normalized_symbols = _normalize_symbols(symbols)
-        if not normalized_symbols:
+        requested_symbols = _normalize_symbols(symbols)
+        if not requested_symbols:
             raise ValueError("At least one symbol is required for a paper run.")
 
         run_migrations(self.settings)
+        open_position_symbols = sorted(self._open_position_symbols())
+        normalized_symbols = _normalize_symbols([*requested_symbols, *open_position_symbols])
         started_at = _utc_now()
         run = PaperRun(
             run_id=paper_run_id(
@@ -101,7 +103,7 @@ class PaperRunService:
             run_after_market_close=self.run_after_market_close,
             universe=universe or _manual_universe(
                 provider=self.settings.taurus_market_data_provider,
-                symbols=normalized_symbols,
+                symbols=requested_symbols,
             ),
         )
         self._store_run(run, audit_event="paper_run.started")
@@ -109,12 +111,12 @@ class PaperRunService:
         try:
             market_data_summary = self._load_latest_inputs()
             strategy_summary = self._generate_strategy_summary(
-                symbols=normalized_symbols,
+                symbols=requested_symbols,
                 universe=run.universe,
                 strategy_config_path=strategy_config_path,
             )
             normalized_symbols = _symbols_for_pipeline(
-                requested_symbols=normalized_symbols,
+                requested_symbols=requested_symbols,
                 universe=run.universe,
                 strategy_summary=strategy_summary,
             )
@@ -211,14 +213,20 @@ class PaperRunService:
             )
 
         with self.session_factory() as session:
-            proposal = TraderAgent(session).run(symbol=symbol, run_id=run_id, debate=debate)
+            proposal = TraderAgent(
+                session,
+                self.settings,
+                llm_provider=llm_provider,
+            ).run(symbol=symbol, run_id=run_id, debate=debate)
 
         with self.session_factory() as session:
             execution_repo = ExecutionRepository(session)
-            open_positions = [
-                position for position in execution_repo.list_positions() if position.quantity > 0
-            ]
-            account = execution_repo.latest_account()
+            open_positions = execution_repo.latest_open_positions_by_portfolio(
+                portfolio_id=self.settings.taurus_paper_portfolio_id,
+            )
+            account = execution_repo.latest_account_by_portfolio(
+                portfolio_id=self.settings.taurus_paper_portfolio_id,
+            )
             review = RiskReviewService(
                 session,
                 self.settings,
@@ -250,9 +258,19 @@ class PaperRunService:
             ),
             "debate_id": debate.debate_id,
             "proposal_id": proposal.proposal_id,
+            "proposal_action": proposal.action,
+            "portfolio_id": proposal.portfolio_id,
+            "lifecycle_trigger": proposal.lifecycle_trigger,
+            "evaluation_mode": proposal.evaluation_mode,
+            "current_position_quantity": proposal.current_position_quantity,
+            "current_position_pct_nav": str(proposal.current_position_pct_nav),
+            "target_position_pct_nav": str(proposal.target_position_pct_nav),
+            "position_management_summary": proposal.position_management_summary,
             "risk_check_id": review.risk_check_id,
             "final_decision_id": decision.final_decision_id,
             "final_status": decision.status,
+            "final_action": decision.final_action,
+            "no_paper_order_expected": decision.status == "NO_ACTION",
             "order_id": order.order_id if order is not None else None,
             "order_status": order.status if order is not None else None,
             "account_id": account.account_id if account is not None else None,
@@ -424,7 +442,9 @@ class PaperRunService:
 
     def _open_position_symbols(self) -> set[str]:
         with self.session_factory() as session:
-            positions = ExecutionRepository(session).list_positions()
+            positions = ExecutionRepository(session).latest_open_positions_by_portfolio(
+                portfolio_id=self.settings.taurus_paper_portfolio_id,
+            )
         return {position.symbol.upper() for position in positions if position.quantity > 0}
 
     def _store_run(self, run: PaperRun, *, audit_event: str | None = None) -> PaperRun:
@@ -608,12 +628,17 @@ def _symbols_for_pipeline(
                 "symbols for the market-data universe."
             )
         return normalized
-    return list(requested_symbols)
+    return _normalize_symbols(
+        [
+            *requested_symbols,
+            *[str(symbol) for symbol in strategy_summary.get("open_position_symbols", [])],
+        ]
+    )
 
 
 def _run_with_selected_symbols(run: PaperRun, symbols: list[str]) -> PaperRun:
     universe = run.universe
-    if universe is not None and universe.source == "market_data_universe":
+    if universe is not None:
         universe = universe.model_copy(
             update={
                 "selected_symbol_count": len(symbols),

@@ -69,7 +69,7 @@ start the next migration unless the user explicitly asks.
 | 5 | M25 | Done | `docs/agent_improvement_plans/LLM_BULL_RESEARCHER_AGENT.md` | Added LLM-backed bullish research with deterministic guardrails and dedicated prompt. |
 | 6 | M26 | Done | `docs/agent_improvement_plans/LLM_BEAR_RESEARCHER_AGENT.md` | Added LLM-backed bearish research with deterministic guardrails and dedicated prompt. |
 | 7 | M27 | Done | `docs/agent_improvement_plans/LLM_RESEARCH_MANAGER_AGENT.md` | Added LLM-backed debate synthesis and consensus management with dedicated prompt. |
-| 8 | M28 | Planned | `docs/agent_improvement_plans/PHASE_1_POSITION_AWARE_TRADER_AGENT.md` | Add cross-run portfolio continuity and after-close BUY/HOLD/REDUCE/EXIT lifecycle proposals. |
+| 8 | M28 | Done | `docs/agent_improvement_plans/PHASE_1_POSITION_AWARE_TRADER_AGENT.md` | Added cross-run portfolio continuity and after-close BUY/HOLD/NO_TRADE/REDUCE/EXIT lifecycle proposals. |
 | 9 | M29 | Planned | `docs/agent_improvement_plans/LLM_PORTFOLIO_MANAGER_AGENT.md` | Add LLM explanations to deterministic final approval/rejection/no-action decisions. |
 | 10 | M30 | Planned | `docs/agent_improvement_plans/PHASE_2_MARKET_HOURS_POSITION_MONITOR.md` | Add market-hours stop-loss/take-profit monitoring for paper positions. |
 

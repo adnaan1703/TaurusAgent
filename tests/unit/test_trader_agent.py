@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
+from decimal import Decimal
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -12,8 +14,15 @@ from taurus_core.agents.runner import DEFAULT_ANALYST_RUN_ID, run_analyst_suite
 from taurus_core.agents.trader_agent import TraderAgent
 from taurus_core.config import Settings
 from taurus_core.db.models import BacktestOrderModel, TraderProposalModel
+from taurus_core.db.repositories import CandleRepository, ExecutionRepository
 from taurus_core.db.session import build_session_factory
+from taurus_core.execution.schemas import (
+    PaperAccount,
+    PaperPosition,
+    paper_account_id,
+)
 from taurus_core.intelligence.mock_news_provider import MockNewsProvider
+from taurus_core.llm import LLMTraderOutput
 from tests.llm_fakes import FakeLLMProvider
 from taurus_core.research.debate_service import ResearchDebateService
 from tests.market_data_fixtures import seed_test_market_data
@@ -36,9 +45,17 @@ def test_trader_proposal_is_structured_deterministic_and_not_an_order(tmp_path: 
         )
 
     with session_factory() as session:
-        first = TraderAgent(session).run(symbol="INFY", debate=debate)
+        first = TraderAgent(
+            session,
+            settings,
+            llm_provider=FakeLLMProvider(),
+        ).run(symbol="INFY", debate=debate)
     with session_factory() as session:
-        second = TraderAgent(session).run(symbol="INFY", debate=debate)
+        second = TraderAgent(
+            session,
+            settings,
+            llm_provider=FakeLLMProvider(),
+        ).run(symbol="INFY", debate=debate)
 
     with session_factory() as session:
         proposal_count = session.scalar(select(func.count()).select_from(TraderProposalModel))
@@ -47,7 +64,15 @@ def test_trader_proposal_is_structured_deterministic_and_not_an_order(tmp_path: 
     assert first.model_dump(mode="json") == second.model_dump(mode="json")
     assert first.debate_id == debate.debate_id
     assert first.source_report_ids == debate.source_report_ids
-    assert first.action in {"BUY", "SELL", "HOLD", "NO_TRADE", "REDUCE", "EXIT"}
+    assert first.portfolio_id == settings.taurus_paper_portfolio_id
+    assert first.action in {"BUY", "HOLD", "NO_TRADE", "REDUCE", "EXIT"}
+    assert first.lifecycle_trigger == "new_entry"
+    assert first.evaluation_mode == "after_close"
+    assert first.current_position_quantity == 0
+    assert first.target_position_pct_nav == first.requested_position_pct_nav
+    assert first.stop_loss_pct == Decimal("6.0000")
+    assert first.take_profit_pct == Decimal("12.0000")
+    assert first.position_management_summary
     assert first.confidence >= 0
     assert first.horizon in {"intraday", "short", "medium", "long"}
     assert first.entry_rule
@@ -74,7 +99,11 @@ def test_research_api_returns_trader_proposals(tmp_path: Path) -> None:
             rounds_requested=2,
         )
     with session_factory() as session:
-        proposal = TraderAgent(session).run(symbol="INFY", debate=debate)
+        proposal = TraderAgent(
+            session,
+            settings,
+            llm_provider=FakeLLMProvider(),
+        ).run(symbol="INFY", debate=debate)
 
     client = TestClient(create_app(settings))
     response = client.get("/trader-proposals?symbol=INFY")
@@ -85,6 +114,108 @@ def test_research_api_returns_trader_proposals(tmp_path: Path) -> None:
     assert proposals[0]["proposal_id"] == proposal.proposal_id
     assert proposals[0]["debate_id"] == debate.debate_id
     assert proposals[0]["is_order"] is False
+    assert proposals[0]["portfolio_id"] == settings.taurus_paper_portfolio_id
+    assert proposals[0]["evaluation_mode"] == "after_close"
+
+
+def test_trader_agent_holds_existing_stable_position(tmp_path: Path) -> None:
+    settings = _settings_for_temp_db(tmp_path)
+    session_factory = _prepare_trader_db(settings)
+    _seed_open_position(session_factory, settings, average_cost_multiplier=Decimal("1.0"))
+    with session_factory() as session:
+        run_analyst_suite(
+            session,
+            symbol="INFY",
+            llm_provider=FakeLLMProvider(),
+            run_id="hold-run",
+        )
+    with session_factory() as session:
+        debate = ResearchDebateService(session, llm_provider=FakeLLMProvider()).run(
+            symbol="INFY",
+            run_id="hold-run",
+            rounds_requested=2,
+        )
+        neutral_summary = debate.manager_summary.model_copy(
+            update={
+                "consensus_label": "neutral",
+                "consensus_score": Decimal("0.0000"),
+            }
+        )
+        debate = debate.model_copy(update={"manager_summary": neutral_summary})
+
+    with session_factory() as session:
+        proposal = TraderAgent(
+            session,
+            settings,
+            llm_provider=FakeLLMProvider(),
+        ).run(symbol="INFY", run_id="hold-run", debate=debate)
+
+    assert proposal.action == "HOLD"
+    assert proposal.lifecycle_trigger == "hold_review"
+    assert proposal.current_position_quantity == 10
+    assert proposal.target_position_pct_nav == proposal.current_position_pct_nav
+    assert proposal.order_type == "NONE"
+
+
+def test_trader_agent_forces_exit_on_stop_loss(tmp_path: Path) -> None:
+    settings = _settings_for_temp_db(tmp_path)
+    session_factory = _prepare_trader_db(settings)
+    _seed_open_position(session_factory, settings, average_cost_multiplier=Decimal("1.12"))
+    with session_factory() as session:
+        run_analyst_suite(
+            session,
+            symbol="INFY",
+            llm_provider=FakeLLMProvider(),
+            run_id="stop-run",
+        )
+    with session_factory() as session:
+        debate = ResearchDebateService(session, llm_provider=FakeLLMProvider()).run(
+            symbol="INFY",
+            run_id="stop-run",
+            rounds_requested=2,
+        )
+
+    with session_factory() as session:
+        proposal = TraderAgent(
+            session,
+            settings,
+            llm_provider=FakeLLMProvider(),
+        ).run(symbol="INFY", run_id="stop-run", debate=debate)
+
+    assert proposal.action == "EXIT"
+    assert proposal.lifecycle_trigger == "stop_loss"
+    assert proposal.target_position_pct_nav == Decimal("0.0000")
+
+
+def test_trader_agent_falls_back_when_llm_recommends_outside_envelope(
+    tmp_path: Path,
+) -> None:
+    settings = _settings_for_temp_db(tmp_path)
+    session_factory = _prepare_trader_db(settings)
+    with session_factory() as session:
+        run_analyst_suite(
+            session,
+            symbol="INFY",
+            llm_provider=FakeLLMProvider(),
+            run_id="bad-llm-run",
+        )
+    with session_factory() as session:
+        debate = ResearchDebateService(session, llm_provider=FakeLLMProvider()).run(
+            symbol="INFY",
+            run_id="bad-llm-run",
+            rounds_requested=2,
+        )
+
+    with session_factory() as session:
+        proposal = TraderAgent(
+            session,
+            settings,
+            llm_provider=_BadTraderLLMProvider(),
+        ).run(symbol="INFY", run_id="bad-llm-run", debate=debate)
+
+    assert proposal.action == "BUY"
+    assert proposal.lifecycle_trigger == "new_entry"
+    assert "outside allowed actions" in proposal.position_management_summary
 
 
 def _prepare_trader_db(settings: Settings):
@@ -94,6 +225,73 @@ def _prepare_trader_db(settings: Settings):
         seed_test_market_data(session, candle_count=252)
         import_mock_news(session, MockNewsProvider())
     return session_factory
+
+
+def _seed_open_position(session_factory, settings: Settings, *, average_cost_multiplier: Decimal) -> None:
+    timestamp = datetime.now(timezone.utc)
+    with session_factory() as session:
+        latest_close = CandleRepository(session).get_by_symbol_and_date_range(symbol="INFY")[-1].close
+        average_cost = (latest_close * average_cost_multiplier).quantize(Decimal("0.0001"))
+        quantity = 10
+        market_value = (latest_close * Decimal(quantity)).quantize(Decimal("0.0001"))
+        account = PaperAccount(
+            account_id=paper_account_id(
+                portfolio_id=settings.taurus_paper_portfolio_id,
+                run_id="prior-position-run",
+            ),
+            run_id="prior-position-run",
+            portfolio_id=settings.taurus_paper_portfolio_id,
+            starting_cash_inr=Decimal("1000000.0000"),
+            available_cash_inr=Decimal("990000.0000"),
+            reserved_cash_inr=Decimal("0.0000"),
+            realized_pnl_inr=Decimal("0.0000"),
+            unrealized_pnl_inr=Decimal("0.0000"),
+            gross_exposure_inr=market_value,
+            equity_inr=Decimal("1000000.0000"),
+            updated_at=timestamp,
+        )
+        position = PaperPosition(
+            run_id="prior-position-run",
+            portfolio_id=settings.taurus_paper_portfolio_id,
+            symbol="INFY",
+            quantity=quantity,
+            average_cost_inr=average_cost,
+            last_price_inr=latest_close,
+            market_value_inr=market_value,
+            realized_pnl_inr=Decimal("0.0000"),
+            unrealized_pnl_inr=(
+                (latest_close - average_cost) * Decimal(quantity)
+            ).quantize(Decimal("0.0001")),
+            updated_at=timestamp,
+        )
+        ExecutionRepository(session).replace_account_state(
+            run_id="prior-position-run",
+            portfolio_id=settings.taurus_paper_portfolio_id,
+            account=account,
+            positions=[position],
+        )
+        session.commit()
+
+
+class _BadTraderLLMProvider(FakeLLMProvider):
+    def complete_trader_proposal(
+        self,
+        *,
+        agent_name: str,
+        symbol: str,
+        context: dict[str, object],
+    ) -> LLMTraderOutput:
+        return LLMTraderOutput(
+            action="EXIT",
+            confidence=Decimal("0.9900"),
+            target_position_pct_nav=Decimal("0.0000"),
+            stop_loss_pct=Decimal("6.0000"),
+            take_profit_pct=Decimal("12.0000"),
+            reason_summary="Bad test output tries to exit without a position.",
+            invalid_if=["Bad test output invalidation."],
+            position_management_summary="Bad test output outside action envelope.",
+            model_version="bad-test-llm",
+        )
 
 
 def _settings_for_temp_db(tmp_path: Path) -> Settings:

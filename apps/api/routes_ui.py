@@ -170,6 +170,7 @@ class UiOverviewResponse(BaseModel):
     safety: UiSafetyStatus
     latest_account: dict[str, Any] | None
     latest_run: UiRunSummary | None
+    latest_trader_proposal: dict[str, Any] | None
     latest_final_decision: dict[str, Any] | None
     latest_order: dict[str, Any] | None
     recent_runs: list[UiRunSummary]
@@ -309,20 +310,31 @@ def get_overview(
 ) -> UiOverviewResponse:
     settings: Settings = request.app.state.settings
     run_repo = PaperRunRepository(session)
+    research_repo = ResearchRepository(session)
     risk_repo = RiskRepository(session)
     execution_repo = ExecutionRepository(session)
 
     run_rows = run_repo.list(limit=limit)
     recent_runs = [_run_summary(row, risk_repo, execution_repo) for row in run_rows]
     latest_run = recent_runs[0] if recent_runs else None
-    latest_account = execution_repo.latest_account()
+    latest_account = execution_repo.latest_account_by_portfolio(
+        portfolio_id=settings.taurus_paper_portfolio_id,
+    )
     latest_account_payload = _payload(latest_account) if latest_account is not None else None
+    latest_proposal = research_repo.list_trader_proposals(
+        portfolio_id=settings.taurus_paper_portfolio_id,
+        limit=1,
+    )
     latest_final = risk_repo.list_final_decisions(limit=1)
-    latest_orders = execution_repo.list_orders(limit=1)
-    position_run_id = latest_account.run_id if latest_account is not None else None
+    latest_orders = execution_repo.list_orders(
+        portfolio_id=settings.taurus_paper_portfolio_id,
+        limit=1,
+    )
     positions = [
         _payload(position)
-        for position in execution_repo.list_positions(run_id=position_run_id)
+        for position in execution_repo.latest_open_positions_by_portfolio(
+            portfolio_id=settings.taurus_paper_portfolio_id,
+        )
     ]
 
     warnings = _overview_warnings(
@@ -334,6 +346,7 @@ def get_overview(
         safety=_safety(settings),
         latest_account=latest_account_payload,
         latest_run=latest_run,
+        latest_trader_proposal=_payload(latest_proposal[0]) if latest_proposal else None,
         latest_final_decision=_payload(latest_final[0]) if latest_final else None,
         latest_order=_payload(latest_orders[0]) if latest_orders else None,
         recent_runs=recent_runs,
@@ -477,7 +490,7 @@ def get_ui_risk(
             )
     return UiRiskResponse(
         safety=_safety(settings),
-        latest_risk_reviews=[_payload(review) for review in reviews],
+        latest_risk_reviews=[_risk_review_payload(session, review) for review in reviews],
         hard_rule_results=hard_rules,
         persona_reviews=persona_reviews,
         latest_final_decisions=[_payload(decision) for decision in decisions],
@@ -493,12 +506,33 @@ def get_ui_portfolio(
 ) -> UiPortfolioResponse:
     settings: Settings = request.app.state.settings
     execution_repo = ExecutionRepository(session)
-    account = execution_repo.latest_account()
+    account = execution_repo.latest_account_by_portfolio(
+        portfolio_id=settings.taurus_paper_portfolio_id,
+    )
     account_payload = _payload(account) if account is not None else None
     run_id = account.run_id if account is not None else None
-    positions = [_payload(row) for row in execution_repo.list_positions(run_id=run_id)]
-    orders = [_payload(row) for row in execution_repo.list_orders(run_id=run_id, limit=limit)]
-    fills = [_payload(row) for row in execution_repo.list_fills(run_id=run_id, limit=limit)]
+    positions = [
+        _payload(row)
+        for row in execution_repo.latest_open_positions_by_portfolio(
+            portfolio_id=settings.taurus_paper_portfolio_id,
+        )
+    ]
+    orders = [
+        _payload(row)
+        for row in execution_repo.list_orders(
+            run_id=run_id,
+            portfolio_id=settings.taurus_paper_portfolio_id,
+            limit=limit,
+        )
+    ]
+    fills = [
+        _payload(row)
+        for row in execution_repo.list_fills(
+            run_id=run_id,
+            portfolio_id=settings.taurus_paper_portfolio_id,
+            limit=limit,
+        )
+    ]
     return UiPortfolioResponse(
         safety=_safety(settings),
         latest_account=account_payload,
@@ -953,6 +987,13 @@ def _order_stage(
                 summary="No final decision is available, so broker routing did not run.",
             )
         if final_decision.status != "APPROVED_FOR_PAPER":
+            if final_decision.status == "NO_ACTION":
+                return _stage(
+                    id="paper_order",
+                    label="Paper Order",
+                    status="skipped",
+                    summary="No paper order expected for approved HOLD/NO_TRADE lifecycle decision.",
+                )
             return _stage(
                 id="paper_order",
                 label="Paper Order",
@@ -993,6 +1034,13 @@ def _fill_stage(
 ) -> UiTimelineStage:
     if not fills:
         if not orders:
+            if final_decision is not None and final_decision.status == "NO_ACTION":
+                return _stage(
+                    id="paper_fills",
+                    label="Paper Fills",
+                    status="skipped",
+                    summary="No paper order expected, so no fills were generated.",
+                )
             return _stage(
                 id="paper_fills",
                 label="Paper Fills",
@@ -1127,6 +1175,27 @@ def _order_status(order: PaperOrderModel) -> StageStatus:
 
 def _payload(row: Any) -> dict[str, Any]:
     return _json_safe(dict(row.payload or {}))
+
+
+def _risk_review_payload(session: Session, review: RiskReviewModel) -> dict[str, Any]:
+    payload = _payload(review)
+    proposal = ResearchRepository(session).get_trader_proposal(review.proposal_id)
+    if proposal is not None:
+        proposal_payload = _payload(proposal)
+        payload.update(
+            {
+                "proposal_action": proposal_payload.get("action"),
+                "lifecycle_trigger": proposal_payload.get("lifecycle_trigger"),
+                "evaluation_mode": proposal_payload.get("evaluation_mode"),
+                "current_position_quantity": proposal_payload.get("current_position_quantity"),
+                "current_position_pct_nav": proposal_payload.get("current_position_pct_nav"),
+                "target_position_pct_nav": proposal_payload.get("target_position_pct_nav"),
+                "position_management_summary": proposal_payload.get(
+                    "position_management_summary"
+                ),
+            }
+        )
+    return payload
 
 
 def _audit_payload(row: AuditLogModel) -> dict[str, Any]:
@@ -1405,8 +1474,9 @@ def _proposal_summary(proposal: TraderProposalModel | None) -> str:
     if proposal is None:
         return "No trader proposal is stored for this run and symbol."
     return (
-        f"{proposal.action} proposal for {proposal.requested_position_pct_nav}% NAV "
-        f"with {proposal.confidence} confidence."
+        f"{proposal.action} {proposal.evaluation_mode} proposal for "
+        f"{proposal.lifecycle_trigger}; current {proposal.current_position_pct_nav}% NAV, "
+        f"target {proposal.target_position_pct_nav}% NAV."
     )
 
 
@@ -1415,11 +1485,18 @@ def _proposal_metrics(proposal: TraderProposalModel | None) -> dict[str, Any]:
         return {}
     return {
         "action": proposal.action,
+        "portfolio_id": proposal.portfolio_id,
+        "lifecycle_trigger": proposal.lifecycle_trigger,
+        "evaluation_mode": proposal.evaluation_mode,
         "confidence": _decimal_to_number(proposal.confidence),
         "requested_position_pct_nav": _decimal_to_number(proposal.requested_position_pct_nav),
+        "current_position_quantity": proposal.current_position_quantity,
+        "current_position_pct_nav": _decimal_to_number(proposal.current_position_pct_nav),
+        "target_position_pct_nav": _decimal_to_number(proposal.target_position_pct_nav),
         "order_type": proposal.order_type,
         "stop_loss_pct": _decimal_to_number(proposal.stop_loss_pct),
         "take_profit_pct": _decimal_to_number(proposal.take_profit_pct),
+        "position_management_summary": proposal.position_management_summary,
     }
 
 

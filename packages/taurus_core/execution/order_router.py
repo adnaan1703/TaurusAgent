@@ -47,5 +47,5 @@ class ExecutionRouter:
             and decision.status == "APPROVED_FOR_PAPER"
             and decision.can_send_to_broker is True
             and decision.approved_quantity > 0
-            and decision.final_action in {"BUY", "SELL", "REDUCE", "EXIT"}
+            and decision.final_action in {"BUY", "REDUCE", "EXIT"}
         )

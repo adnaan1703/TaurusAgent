@@ -178,6 +178,7 @@ def _proposal(*, requested_position_pct_nav: Decimal) -> TraderProposal:
         confidence=Decimal("0.8000"),
         horizon="short",
         requested_position_pct_nav=requested_position_pct_nav,
+        target_position_pct_nav=requested_position_pct_nav,
         order_type="MARKET",
         entry_rule="Synthetic graph risk test entry.",
         stop_loss_pct=Decimal("3.0000"),

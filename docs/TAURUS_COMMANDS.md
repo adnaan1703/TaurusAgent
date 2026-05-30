@@ -365,6 +365,30 @@ The graph readiness preflight fails before paper execution if company nodes,
 active edges, latest edge stats, usable active-edge graph signals, or graph risk
 limits are missing.
 
+## M28 Commands Used
+
+```bash
+uv run pytest tests/unit/test_trader_agent.py tests/unit/test_risk_approval.py tests/unit/test_paper_broker.py tests/unit/test_paper_runs.py tests/unit/test_ui_aggregate_api.py tests/unit/test_dashboard_observability.py tests/unit/test_llm_provider.py
+uv run pytest tests/unit/test_graph_risk.py
+make test-ui
+make build-ui
+make test
+make lint
+rg -n "MockLLMProvider|mock LLM|mock_llm|LLM mock" packages apps scripts
+rg -n "MockMarketDataProvider|mock market data|mock_market_data|CSVMarketDataProvider|csv market" packages apps scripts
+git diff --check
+sed -n '/# END MY CUSTOM ADDITION/,$p' /Users/adnaan/.codex/rules/default.rules
+sed -n '1,260p' .codex/rules/default.rules
+```
+
+`TAURUS_PAPER_PORTFOLIO_ID=local-paper` is now the default paper portfolio
+boundary. Paper orders, fills, positions, and account snapshots retain `run_id`
+for audit, but PaperBroker reconstructs portfolio state from all prior fills for
+the configured portfolio. `TraderAgent` calls the configured real LLM provider
+for advisory after-close lifecycle reasoning, then deterministic guardrails
+validate BUY/HOLD/NO_TRADE/REDUCE/EXIT action, target exposure, stop/take-profit
+defaults, and summaries before persistence.
+
 ## M18 Commands Used
 
 ```bash

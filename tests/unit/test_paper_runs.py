@@ -157,6 +157,24 @@ def test_paper_run_succeeds_with_technical_only_roster(tmp_path: Path) -> None:
     }
 
 
+def test_paper_run_includes_open_position_symbols_across_runs(tmp_path: Path) -> None:
+    settings = _settings_for_temp_db(tmp_path, enabled_analysts="technical")
+    first = PaperRunService(settings, schedule_name="open_position_seed").run_once(
+        symbols=["INFY"]
+    )
+    second = PaperRunService(settings, schedule_name="open_position_review").run_once(
+        symbols=["TCS"]
+    )
+
+    assert first.status == "COMPLETED"
+    assert "INFY" in second.symbols
+    assert "TCS" in second.symbols
+    assert second.artifacts["strategy"]["symbol_selection"]["INFY"][
+        "included_from_open_position"
+    ] is True
+    assert second.artifacts["strategy"]["symbol_selection"]["TCS"]["requested_explicitly"] is True
+
+
 def test_graph_enabled_kite_paper_run_uses_graph_roster_strategy_and_risk(
     tmp_path: Path,
 ) -> None:

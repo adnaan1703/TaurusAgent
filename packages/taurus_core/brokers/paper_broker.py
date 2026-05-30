@@ -4,14 +4,12 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal, ROUND_DOWN, ROUND_HALF_UP
 
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from taurus_core.alerts.service import AlertService
 from taurus_core.alerts.templates import order_rejection_event, paper_fill_event
 from taurus_core.brokers.base import BrokerAdapter
 from taurus_core.config import Settings, get_settings
-from taurus_core.db.models import PaperFillModel
 from taurus_core.db.repositories import CandleRepository, ExecutionRepository
 from taurus_core.execution.costs import IndiaPaperCostModel
 from taurus_core.execution.schemas import (
@@ -45,6 +43,7 @@ class _PositionState:
 @dataclass(slots=True)
 class _AccountState:
     run_id: str
+    portfolio_id: str
     starting_cash_inr: Decimal
     available_cash_inr: Decimal
     realized_pnl_inr: Decimal = SCORE_ZERO
@@ -74,20 +73,42 @@ class PaperBroker(BrokerAdapter):
 
         account_state, positions = self._rebuild_state_from_fills(
             run_id=decision.run_id,
+            portfolio_id=self.settings.taurus_paper_portfolio_id,
             updated_at=timestamp,
         )
         side = _side_for_action(decision.final_action)
-        quantity = decision.approved_quantity
         candle = self._latest_candle(decision.symbol)
         if candle is None:
             order, account, position_models = self._rejected_order(
                 decision=decision,
                 side=side,
-                quantity=quantity,
+                quantity=decision.approved_quantity,
                 timestamp=timestamp,
                 account_state=account_state,
                 positions=positions,
                 reason=f"No candle data available for {decision.symbol}.",
+            )
+            repo.store_rejected_order(order=order, account=account, positions=position_models)
+            self.session.commit()
+            self._log_order(order, fill_ids=[])
+            self._send_order_alert(order, fill_ids=[])
+            return order
+
+        quantity = self._execution_quantity(
+            decision=decision,
+            account_state=account_state,
+            positions=positions,
+            reference_price=candle.close,
+        )
+        if quantity <= 0:
+            order, account, position_models = self._rejected_order(
+                decision=decision,
+                side=side,
+                quantity=decision.approved_quantity,
+                timestamp=timestamp,
+                account_state=account_state,
+                positions=positions,
+                reason="No existing paper position or positive executable quantity for action.",
             )
             repo.store_rejected_order(order=order, account=account, positions=position_models)
             self.session.commit()
@@ -221,15 +242,30 @@ class PaperBroker(BrokerAdapter):
         symbol: str | None = None,
         limit: int | None = 100,
     ) -> list[PaperOrder]:
-        rows = ExecutionRepository(self.session).list_orders(symbol=symbol, limit=limit)
+        rows = ExecutionRepository(self.session).list_orders(
+            portfolio_id=self.settings.taurus_paper_portfolio_id,
+            symbol=symbol,
+            limit=limit,
+        )
         return [PaperOrder.model_validate(row.payload) for row in rows]
 
     def positions(self, *, symbol: str | None = None) -> list[PaperPosition]:
-        rows = ExecutionRepository(self.session).list_positions(symbol=symbol)
+        rows = ExecutionRepository(self.session).latest_open_positions_by_portfolio(
+            portfolio_id=self.settings.taurus_paper_portfolio_id,
+        )
+        if symbol is not None:
+            rows = [row for row in rows if row.symbol == symbol.upper()]
         return [PaperPosition.model_validate(row.payload) for row in rows]
 
     def cash(self, *, run_id: str | None = None) -> PaperAccount | None:
-        row = ExecutionRepository(self.session).latest_account(run_id=run_id)
+        repo = ExecutionRepository(self.session)
+        row = (
+            repo.latest_account(run_id=run_id)
+            if run_id is not None
+            else repo.latest_account_by_portfolio(
+                portfolio_id=self.settings.taurus_paper_portfolio_id,
+            )
+        )
         return PaperAccount.model_validate(row.payload) if row is not None else None
 
     def _validate_decision(self, decision: FinalDecision) -> None:
@@ -283,6 +319,42 @@ class PaperBroker(BrokerAdapter):
         candles = CandleRepository(self.session).get_by_symbol_and_date_range(symbol=symbol)
         return candles[-1] if candles else None
 
+    def _execution_quantity(
+        self,
+        *,
+        decision: FinalDecision,
+        account_state: _AccountState,
+        positions: dict[str, _PositionState],
+        reference_price: Decimal,
+    ) -> int:
+        symbol = decision.symbol.upper()
+        held = positions.get(symbol, _PositionState(symbol=symbol)).quantity
+        if decision.final_action == "BUY":
+            return decision.approved_quantity
+        if decision.final_action == "EXIT":
+            return held
+        if decision.final_action == "REDUCE":
+            if held <= 0 or reference_price <= 0:
+                return 0
+            target_notional = (
+                (account_state.available_cash_inr + self._gross_exposure(positions))
+                * decision.approved_position_pct_nav
+                / Decimal("100")
+            )
+            target_quantity = int(target_notional // reference_price)
+            return max(0, min(held, held - target_quantity))
+        return 0
+
+    def _gross_exposure(self, positions: dict[str, _PositionState]) -> Decimal:
+        return sum(
+            (
+                _money(position.last_price_inr * Decimal(position.quantity))
+                for position in positions.values()
+                if position.quantity > 0
+            ),
+            SCORE_ZERO,
+        )
+
     def _build_fills(
         self,
         *,
@@ -320,6 +392,7 @@ class PaperBroker(BrokerAdapter):
                     order_id=order_id,
                     final_decision_id=decision.final_decision_id,
                     run_id=decision.run_id,
+                    portfolio_id=self.settings.taurus_paper_portfolio_id,
                     symbol=decision.symbol,
                     trade_date=trade_date,
                     side=side,
@@ -427,21 +500,21 @@ class PaperBroker(BrokerAdapter):
         self,
         *,
         run_id: str,
+        portfolio_id: str,
         updated_at: datetime,
     ) -> tuple[_AccountState, dict[str, _PositionState]]:
         starting_cash = _money(Decimal(str(self.settings.taurus_initial_capital_inr)))
         account_state = _AccountState(
             run_id=run_id,
+            portfolio_id=portfolio_id,
             starting_cash_inr=starting_cash,
             available_cash_inr=starting_cash,
         )
         positions: dict[str, _PositionState] = {}
-        statement = (
-            select(PaperFillModel)
-            .where(PaperFillModel.run_id == run_id)
-            .order_by(PaperFillModel.filled_at, PaperFillModel.fill_sequence)
+        rows = ExecutionRepository(self.session).list_fills_by_portfolio(
+            portfolio_id=portfolio_id,
         )
-        for row in self.session.scalars(statement):
+        for row in rows:
             self._apply_fill(
                 account_state=account_state,
                 positions=positions,
@@ -494,6 +567,7 @@ class PaperBroker(BrokerAdapter):
             final_decision_id=decision.final_decision_id,
             decision_id=decision.decision_id,
             run_id=decision.run_id,
+            portfolio_id=self.settings.taurus_paper_portfolio_id,
             symbol=decision.symbol,
             side=side,
             quantity=requested_quantity,
@@ -538,6 +612,7 @@ class PaperBroker(BrokerAdapter):
             final_decision_id=decision.final_decision_id,
             decision_id=decision.decision_id,
             run_id=decision.run_id,
+            portfolio_id=self.settings.taurus_paper_portfolio_id,
             symbol=decision.symbol,
             side=side,
             quantity=quantity,
@@ -583,6 +658,7 @@ class PaperBroker(BrokerAdapter):
             position_models.append(
                 PaperPosition(
                     run_id=account_state.run_id,
+                    portfolio_id=account_state.portfolio_id,
                     symbol=symbol,
                     quantity=position.quantity,
                     average_cost_inr=position.average_cost_inr,
@@ -596,8 +672,12 @@ class PaperBroker(BrokerAdapter):
             )
 
         account = PaperAccount(
-            account_id=paper_account_id(run_id=account_state.run_id),
+            account_id=paper_account_id(
+                portfolio_id=account_state.portfolio_id,
+                run_id=account_state.run_id,
+            ),
             run_id=account_state.run_id,
+            portfolio_id=account_state.portfolio_id,
             starting_cash_inr=account_state.starting_cash_inr,
             available_cash_inr=account_state.available_cash_inr,
             reserved_cash_inr=SCORE_ZERO,
@@ -615,7 +695,7 @@ class PaperBroker(BrokerAdapter):
 def _side_for_action(action: str) -> OrderSide:
     if action == "BUY":
         return "BUY"
-    if action in {"SELL", "REDUCE", "EXIT"}:
+    if action in {"REDUCE", "EXIT"}:
         return "SELL"
     raise ValueError(f"Final action {action} is not executable by PaperBroker.")
 

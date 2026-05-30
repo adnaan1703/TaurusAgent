@@ -11,18 +11,22 @@ from taurus_core.llm.base import (
     BEAR_THESIS_OUTPUT_JSON_SCHEMA,
     BULL_THESIS_OUTPUT_JSON_SCHEMA,
     RESEARCH_MANAGER_OUTPUT_JSON_SCHEMA,
+    TRADER_OUTPUT_JSON_SCHEMA,
     LLMBearThesisOutput,
     LLMBullThesisOutput,
     LLMResearchManagerOutput,
+    LLMTraderOutput,
     LLMProviderError,
     analyst_output_system_prompt,
     bear_thesis_system_prompt,
     bull_thesis_system_prompt,
     research_manager_system_prompt,
+    trader_system_prompt,
     parse_bear_thesis_output,
     parse_bull_thesis_output,
     parse_llm_output,
     parse_research_manager_output,
+    parse_trader_output,
 )
 
 
@@ -116,6 +120,26 @@ class LMStudioProvider:
         context: dict[str, object],
     ) -> LLMResearchManagerOutput:
         return _openai_compatible_research_manager_completion(
+            base_url=self.base_url,
+            api_key="lmstudio",
+            model=self.model,
+            model_version=self.model_version,
+            agent_name=agent_name,
+            symbol=symbol,
+            context=context,
+            timeout_seconds=self.timeout_seconds,
+            response_format={"type": "json_object"},
+            provider_name="LM Studio",
+        )
+
+    def complete_trader_proposal(
+        self,
+        *,
+        agent_name: str,
+        symbol: str,
+        context: dict[str, object],
+    ) -> LLMTraderOutput:
+        return _openai_compatible_trader_completion(
             base_url=self.base_url,
             api_key="lmstudio",
             model=self.model,
@@ -275,6 +299,47 @@ def _openai_compatible_research_manager_completion(
     return parse_research_manager_output(str(content), fallback_model_version=model_version)
 
 
+def _openai_compatible_trader_completion(
+    *,
+    base_url: str,
+    api_key: str,
+    model: str,
+    model_version: str,
+    agent_name: str,
+    symbol: str,
+    context: dict[str, object],
+    timeout_seconds: int,
+    response_format: dict[str, object] | None = None,
+    provider_name: str = "LLM provider",
+) -> LLMTraderOutput:
+    content = _openai_compatible_chat_content(
+        base_url=base_url,
+        api_key=api_key,
+        model=model,
+        system_prompt=trader_system_prompt(),
+        user_payload={
+            "agent_name": agent_name,
+            "symbol": symbol.upper(),
+            "context": context,
+            "output_schema": {
+                "action": "BUY|HOLD|NO_TRADE|REDUCE|EXIT",
+                "confidence": "number 0..1",
+                "target_position_pct_nav": "number 0..100",
+                "stop_loss_pct": "number 0..100",
+                "take_profit_pct": "number 0..100",
+                "reason_summary": "evidence-bound string",
+                "invalid_if": "non-empty string array",
+                "position_management_summary": "position lifecycle rationale string",
+                "model_version": "provider/model identifier string",
+            },
+        },
+        timeout_seconds=timeout_seconds,
+        response_format=response_format,
+        provider_name=provider_name,
+    )
+    return parse_trader_output(str(content), fallback_model_version=model_version)
+
+
 def _openai_compatible_chat_content(
     *,
     base_url: str,
@@ -368,5 +433,16 @@ def openai_research_manager_json_schema_response_format() -> dict[str, object]:
             "name": "LLMResearchManagerOutput",
             "strict": True,
             "schema": RESEARCH_MANAGER_OUTPUT_JSON_SCHEMA,
+        },
+    }
+
+
+def openai_trader_json_schema_response_format() -> dict[str, object]:
+    return {
+        "type": "json_schema",
+        "json_schema": {
+            "name": "LLMTraderOutput",
+            "strict": True,
+            "schema": TRADER_OUTPUT_JSON_SCHEMA,
         },
     }

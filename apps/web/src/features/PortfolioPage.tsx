@@ -91,7 +91,7 @@ export function PortfolioPage() {
                 { key: "cost", header: "Costs", align: "right", render: (row) => formatInr(getPrimitive(row, "total_cost_inr")) },
                 { key: "slippage", header: "Slippage", align: "right", render: (row) => `${formatNumber(getPrimitive(row, "slippage_bps"))} bps` },
               ]}
-              emptyLabel="No orders"
+              emptyLabel="No orders; approved HOLD/NO_TRADE decisions are no-action"
               getRowKey={(row) => getString(row, "order_id")}
               rows={portfolioQuery.data.orders}
             />
@@ -111,7 +111,7 @@ export function PortfolioPage() {
                 { key: "slippage", header: "Slippage", align: "right", render: (row) => `${formatNumber(getPrimitive(row, "slippage_bps"))} bps` },
                 { key: "filled", header: "Filled at", render: (row) => formatTimestamp(getString(row, "filled_at")) },
               ]}
-              emptyLabel="No fills"
+              emptyLabel="No fills; no-action decisions do not create paper fills"
               getRowKey={(row) => getString(row, "fill_id")}
               rows={portfolioQuery.data.fills}
             />

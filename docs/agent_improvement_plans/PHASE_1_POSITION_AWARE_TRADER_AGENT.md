@@ -259,3 +259,48 @@ Hard rules:
 - Phase 1 uses latest available after-close data only.
 - Market-hours quote monitoring is intentionally deferred to Phase 2.
 - Test-only fake LLM providers are allowed; runtime mock LLM providers are not.
+
+## Completion Summary
+
+Status: Completed in M28 on 2026-05-30.
+
+- Implementation: `TraderAgent` now loads the configured paper portfolio,
+  latest account, open symbol position, latest close, current exposure, and
+  unrealized PnL before building an after-close lifecycle proposal. New entries
+  keep BUY/NO_TRADE behavior, while existing long positions can produce
+  HOLD/BUY/REDUCE/EXIT proposals using `new_entry`, `hold_review`,
+  `stop_loss`, `take_profit`, `thesis_weakened`, and `thesis_invalidated`
+  triggers.
+- Provider contract: LM Studio, OpenAI, and Gemini implement
+  `complete_trader_proposal(...)` with `LLMTraderOutput`, the dedicated
+  TraderAgent prompt, and temperature 0 for OpenAI-compatible output. Runtime
+  paper and CLI trader flows inject `build_llm_provider(settings)`; test-only
+  fakes remain confined to tests.
+- Guardrails: LLM trader output is advisory. Actions must fit the deterministic
+  lifecycle envelope, targets are validated/clamped, confidence/text is bounded,
+  stop-loss and take-profit defaults remain `6.0000` and `12.0000`, and
+  invalid or unavailable provider output records deterministic fallback context
+  in `position_management_summary`.
+- Portfolio continuity: paper account/order/fill/position schemas and models
+  include `portfolio_id`, Docker Postgres migrations add the new columns, and
+  `PaperBroker` reconstructs state from all prior fills for
+  `TAURUS_PAPER_PORTFOLIO_ID=local-paper` while preserving `run_id` for audit.
+- Lifecycle execution: `RiskEngine`, `PortfolioManagerAgent`,
+  `ExecutionRouter`, and `PaperBroker` now handle BUY/HOLD/NO_TRADE/REDUCE/EXIT
+  semantics, no-action final decisions, sell-side quantity caps, and severe
+  event blocking only for new/increased BUY exposure.
+- UI/API/docs: existing paper API, UI aggregate payloads, React dashboard
+  surfaces, Streamlit data extraction, README, usage guide, command reference,
+  mock migration status, `.env.example`, and milestone tracker were updated for
+  lifecycle and portfolio context.
+- Verification: focused M28 tests, graph-risk lifecycle compatibility tests,
+  `make test-ui`, `make build-ui`, `make test`, `make lint`, runtime LLM mock guard,
+  runtime market-data mock guard, global/project rules inspection, and
+  `git diff --check` passed.
+- Assumptions made: Taurus remains long-only and paper-only; M28 is after-close
+  lifecycle review only; market-hours monitoring and broker-native stop/OCO
+  orders remain deferred; zero-share BUY increases can be rejected by final
+  approval rather than routed.
+- Mocks created: test-only fake trader LLM output in `tests/llm_fakes.py`.
+- Mocks used: test-only fake LLM provider outputs and test-only fake Kite market
+  data fixtures in unit tests only.

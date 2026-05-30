@@ -15,7 +15,13 @@ class NeutralRiskAgent:
 
     def run(self, *, proposal: TraderProposal, settings: Settings) -> RiskPersonaReview:
         max_position = Decimal(str(settings.taurus_max_position_pct))
-        if proposal.action != "BUY" or proposal.requested_position_pct_nav == 0:
+        if proposal.action in {"HOLD", "NO_TRADE", "REDUCE", "EXIT"}:
+            recommendation = "allow"
+            score = Decimal("0.0500")
+            key_points = [
+                f"Lifecycle action {proposal.action} preserves or reduces paper exposure."
+            ]
+        elif proposal.action != "BUY" or proposal.requested_position_pct_nav == 0:
             recommendation = "reject"
             score = Decimal("-0.2000")
             key_points = [f"No new paper exposure is needed for action {proposal.action}."]

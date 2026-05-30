@@ -15,7 +15,7 @@ from taurus_core.agents.runner import DEFAULT_ANALYST_RUN_ID, run_analyst_suite
 from taurus_core.agents.trader_agent import TraderAgent
 from taurus_core.config import Settings
 from taurus_core.db.models import BacktestOrderModel, FinalDecisionModel, RiskReviewModel
-from taurus_core.db.repositories import IntelligenceRepository
+from taurus_core.db.repositories import IntelligenceRepository, ResearchRepository
 from taurus_core.db.session import build_session_factory
 from taurus_core.intelligence.documents import NewsEvent, RawDocument, document_checksum, stable_id
 from taurus_core.intelligence.mock_news_provider import MockNewsProvider
@@ -70,6 +70,7 @@ def test_risk_engine_reduces_oversized_positions(tmp_path: Path) -> None:
         update={
             "action": "BUY",
             "requested_position_pct_nav": Decimal("12.0000"),
+            "target_position_pct_nav": Decimal("12.0000"),
         }
     )
 
@@ -115,6 +116,7 @@ def test_severe_negative_event_blocks_long_entry(tmp_path: Path) -> None:
         update={
             "action": "BUY",
             "requested_position_pct_nav": Decimal("3.0000"),
+            "target_position_pct_nav": Decimal("3.0000"),
         }
     )
 
@@ -168,6 +170,67 @@ def test_portfolio_manager_stores_final_paper_decision_and_api_returns_m6_artifa
     assert final_response.json()[0]["final_decision_id"] == decision.final_decision_id
 
 
+def test_hold_proposal_becomes_no_action_final_decision(tmp_path: Path) -> None:
+    settings = _settings_for_temp_db(tmp_path)
+    session_factory = _prepare_approval_db(settings)
+    proposal = _build_trader_proposal(session_factory).model_copy(
+        update={
+            "action": "HOLD",
+            "requested_position_pct_nav": Decimal("2.0000"),
+            "current_position_quantity": 10,
+            "current_position_pct_nav": Decimal("2.0000"),
+            "target_position_pct_nav": Decimal("2.0000"),
+            "lifecycle_trigger": "hold_review",
+        }
+    )
+    with session_factory() as session:
+        ResearchRepository(session).replace_trader_proposal_for_run_symbol(proposal)
+        session.commit()
+
+    with session_factory() as session:
+        review = RiskReviewService(session, settings).run(symbol="INFY", proposal=proposal)
+    with session_factory() as session:
+        decision = PortfolioManagerAgent(session, settings).run(
+            symbol="INFY",
+            risk_review=review,
+        )
+
+    assert review.status == "APPROVED"
+    assert decision.status == "NO_ACTION"
+    assert decision.final_action == "HOLD"
+    assert decision.approved_quantity == 0
+    assert decision.can_send_to_broker is False
+
+
+def test_severe_negative_event_does_not_block_exit(tmp_path: Path) -> None:
+    settings = _settings_for_temp_db(tmp_path)
+    session_factory = _prepare_approval_db(settings)
+    proposal = _build_trader_proposal(session_factory).model_copy(
+        update={
+            "action": "EXIT",
+            "requested_position_pct_nav": Decimal("0.0000"),
+            "current_position_quantity": 10,
+            "current_position_pct_nav": Decimal("2.0000"),
+            "target_position_pct_nav": Decimal("0.0000"),
+            "lifecycle_trigger": "thesis_invalidated",
+        }
+    )
+
+    with session_factory() as session:
+        _insert_severe_negative_event(session, proposal)
+        result = RiskEngine(session, settings).evaluate(
+            proposal=proposal,
+            decision_id=_decision_id(proposal),
+            risk_check_id=_risk_check_id(proposal),
+        )
+
+    assert result.status == "APPROVED"
+    assert any(
+        rule.rule == "severe_event_block" and rule.status == "passed"
+        for rule in result.hard_rule_results
+    )
+
+
 def _prepare_approval_db(settings: Settings):
     run_migrations(settings)
     session_factory = build_session_factory(settings)
@@ -191,7 +254,11 @@ def _build_trader_proposal(session_factory) -> TraderProposal:
             rounds_requested=2,
         )
     with session_factory() as session:
-        return TraderAgent(session).run(symbol="INFY", debate=debate)
+        return TraderAgent(
+            session,
+            Settings(),
+            llm_provider=FakeLLMProvider(),
+        ).run(symbol="INFY", debate=debate)
 
 
 def _insert_severe_negative_event(session, proposal: TraderProposal) -> None:

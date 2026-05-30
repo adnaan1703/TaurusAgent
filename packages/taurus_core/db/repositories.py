@@ -904,6 +904,9 @@ class ResearchRepository:
     def get_debate(self, debate_id: str) -> DebateReportModel | None:
         return self.session.get(DebateReportModel, debate_id)
 
+    def get_trader_proposal(self, proposal_id: str) -> TraderProposalModel | None:
+        return self.session.get(TraderProposalModel, proposal_id)
+
     def latest_debate(
         self,
         *,
@@ -941,6 +944,7 @@ class ResearchRepository:
         self,
         *,
         run_id: str | None = None,
+        portfolio_id: str | None = None,
         symbol: str | None = None,
         limit: int | None = 100,
     ) -> list[TraderProposalModel]:
@@ -950,6 +954,8 @@ class ResearchRepository:
         )
         if run_id is not None:
             statement = statement.where(TraderProposalModel.run_id == run_id)
+        if portfolio_id is not None:
+            statement = statement.where(TraderProposalModel.portfolio_id == portfolio_id)
         if symbol is not None:
             statement = statement.where(TraderProposalModel.symbol == symbol.upper())
         if limit is not None:
@@ -1155,6 +1161,7 @@ class ExecutionRepository:
         self.session.add_all([_paper_fill_to_model(fill) for fill in fills])
         self.replace_account_state(
             run_id=order.run_id,
+            portfolio_id=order.portfolio_id,
             account=account,
             positions=positions,
         )
@@ -1189,6 +1196,7 @@ class ExecutionRepository:
         self.session.add(order_model)
         self.replace_account_state(
             run_id=order.run_id,
+            portfolio_id=order.portfolio_id,
             account=account,
             positions=positions,
         )
@@ -1232,10 +1240,16 @@ class ExecutionRepository:
         self,
         *,
         run_id: str,
+        portfolio_id: str,
         account: PaperAccount,
         positions: list[PaperPosition],
     ) -> None:
-        self.session.execute(delete(PaperPositionModel).where(PaperPositionModel.run_id == run_id))
+        self.session.execute(
+            delete(PaperPositionModel).where(
+                PaperPositionModel.run_id == run_id,
+                PaperPositionModel.portfolio_id == portfolio_id,
+            )
+        )
         self.session.add_all([_paper_position_to_model(position) for position in positions])
 
         model = self.session.get(PaperAccountModel, account.account_id)
@@ -1243,6 +1257,7 @@ class ExecutionRepository:
             self.session.add(_paper_account_to_model(account))
         else:
             model.run_id = account.run_id
+            model.portfolio_id = account.portfolio_id
             model.starting_cash_inr = account.starting_cash_inr
             model.available_cash_inr = account.available_cash_inr
             model.reserved_cash_inr = account.reserved_cash_inr
@@ -1262,6 +1277,7 @@ class ExecutionRepository:
         self,
         *,
         run_id: str | None = None,
+        portfolio_id: str | None = None,
         symbol: str | None = None,
         decision_id: str | None = None,
         final_decision_id: str | None = None,
@@ -1273,6 +1289,8 @@ class ExecutionRepository:
         )
         if run_id is not None:
             statement = statement.where(PaperOrderModel.run_id == run_id)
+        if portfolio_id is not None:
+            statement = statement.where(PaperOrderModel.portfolio_id == portfolio_id)
         if symbol is not None:
             statement = statement.where(PaperOrderModel.symbol == symbol.upper())
         if decision_id is not None:
@@ -1287,6 +1305,7 @@ class ExecutionRepository:
         self,
         *,
         run_id: str | None = None,
+        portfolio_id: str | None = None,
         symbol: str | None = None,
         order_id: str | None = None,
         final_decision_id: str | None = None,
@@ -1298,6 +1317,8 @@ class ExecutionRepository:
         )
         if run_id is not None:
             statement = statement.where(PaperFillModel.run_id == run_id)
+        if portfolio_id is not None:
+            statement = statement.where(PaperFillModel.portfolio_id == portfolio_id)
         if symbol is not None:
             statement = statement.where(PaperFillModel.symbol == symbol.upper())
         if order_id is not None:
@@ -1312,11 +1333,14 @@ class ExecutionRepository:
         self,
         *,
         run_id: str | None = None,
+        portfolio_id: str | None = None,
         symbol: str | None = None,
     ) -> list[PaperPositionModel]:
         statement = select(PaperPositionModel).order_by(PaperPositionModel.symbol)
         if run_id is not None:
             statement = statement.where(PaperPositionModel.run_id == run_id)
+        if portfolio_id is not None:
+            statement = statement.where(PaperPositionModel.portfolio_id == portfolio_id)
         if symbol is not None:
             statement = statement.where(PaperPositionModel.symbol == symbol.upper())
         return list(self.session.scalars(statement))
@@ -1329,6 +1353,68 @@ class ExecutionRepository:
         if run_id is not None:
             statement = statement.where(PaperAccountModel.run_id == run_id)
         return self.session.scalar(statement.limit(1))
+
+    def latest_account_by_portfolio(self, *, portfolio_id: str) -> PaperAccountModel | None:
+        statement = (
+            select(PaperAccountModel)
+            .where(PaperAccountModel.portfolio_id == portfolio_id)
+            .order_by(PaperAccountModel.updated_at.desc(), PaperAccountModel.account_id)
+            .limit(1)
+        )
+        return self.session.scalar(statement)
+
+    def latest_open_positions_by_portfolio(
+        self,
+        *,
+        portfolio_id: str,
+    ) -> list[PaperPositionModel]:
+        account = self.latest_account_by_portfolio(portfolio_id=portfolio_id)
+        if account is None:
+            return []
+        return [
+            position
+            for position in self.list_positions(
+                run_id=account.run_id,
+                portfolio_id=portfolio_id,
+            )
+            if position.quantity > 0
+        ]
+
+    def latest_open_position_by_portfolio_symbol(
+        self,
+        *,
+        portfolio_id: str,
+        symbol: str,
+    ) -> PaperPositionModel | None:
+        account = self.latest_account_by_portfolio(portfolio_id=portfolio_id)
+        if account is None:
+            return None
+        statement = (
+            select(PaperPositionModel)
+            .where(
+                PaperPositionModel.run_id == account.run_id,
+                PaperPositionModel.portfolio_id == portfolio_id,
+                PaperPositionModel.symbol == symbol.upper(),
+                PaperPositionModel.quantity > 0,
+            )
+            .limit(1)
+        )
+        return self.session.scalar(statement)
+
+    def list_fills_by_portfolio(
+        self,
+        *,
+        portfolio_id: str,
+        symbol: str | None = None,
+    ) -> list[PaperFillModel]:
+        statement = (
+            select(PaperFillModel)
+            .where(PaperFillModel.portfolio_id == portfolio_id)
+            .order_by(PaperFillModel.filled_at, PaperFillModel.fill_sequence)
+        )
+        if symbol is not None:
+            statement = statement.where(PaperFillModel.symbol == symbol.upper())
+        return list(self.session.scalars(statement))
 
 
 class GraphRepository:
@@ -2091,6 +2177,7 @@ def _paper_order_to_model(order: PaperOrder) -> PaperOrderModel:
         final_decision_id=order.final_decision_id,
         decision_id=order.decision_id,
         run_id=order.run_id,
+        portfolio_id=order.portfolio_id,
         symbol=order.symbol.upper(),
         side=order.side,
         quantity=order.quantity,
@@ -2116,6 +2203,7 @@ def _paper_fill_to_model(fill: PaperFill) -> PaperFillModel:
         order_id=fill.order_id,
         final_decision_id=fill.final_decision_id,
         run_id=fill.run_id,
+        portfolio_id=fill.portfolio_id,
         symbol=fill.symbol.upper(),
         trade_date=fill.trade_date,
         side=fill.side,
@@ -2138,6 +2226,7 @@ def _paper_fill_to_model(fill: PaperFill) -> PaperFillModel:
 def _paper_position_to_model(position: PaperPosition) -> PaperPositionModel:
     return PaperPositionModel(
         run_id=position.run_id,
+        portfolio_id=position.portfolio_id,
         symbol=position.symbol.upper(),
         quantity=position.quantity,
         average_cost_inr=position.average_cost_inr,
@@ -2154,6 +2243,7 @@ def _paper_account_to_model(account: PaperAccount) -> PaperAccountModel:
     return PaperAccountModel(
         account_id=account.account_id,
         run_id=account.run_id,
+        portfolio_id=account.portfolio_id,
         starting_cash_inr=account.starting_cash_inr,
         available_cash_inr=account.available_cash_inr,
         reserved_cash_inr=account.reserved_cash_inr,
@@ -2295,6 +2385,7 @@ def _trader_proposal_to_model(proposal: TraderProposal) -> TraderProposalModel:
     return TraderProposalModel(
         proposal_id=proposal.proposal_id,
         run_id=proposal.run_id,
+        portfolio_id=proposal.portfolio_id,
         symbol=proposal.symbol.upper(),
         debate_id=proposal.debate_id,
         as_of=proposal.as_of,
@@ -2302,12 +2393,18 @@ def _trader_proposal_to_model(proposal: TraderProposal) -> TraderProposalModel:
         confidence=proposal.confidence,
         horizon=proposal.horizon,
         requested_position_pct_nav=proposal.requested_position_pct_nav,
+        current_position_quantity=proposal.current_position_quantity,
+        current_position_pct_nav=proposal.current_position_pct_nav,
+        target_position_pct_nav=proposal.target_position_pct_nav,
+        lifecycle_trigger=proposal.lifecycle_trigger,
+        evaluation_mode=proposal.evaluation_mode,
         order_type=proposal.order_type,
         entry_rule=proposal.entry_rule,
         stop_loss_pct=proposal.stop_loss_pct,
         take_profit_pct=proposal.take_profit_pct,
         reason_summary=proposal.reason_summary,
         invalid_if=list(proposal.invalid_if),
+        position_management_summary=proposal.position_management_summary,
         source_report_ids=list(proposal.source_report_ids),
         is_order=proposal.is_order,
         requires_risk_approval=proposal.requires_risk_approval,

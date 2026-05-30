@@ -865,6 +865,7 @@ class TraderProposalModel(Base):
 
     proposal_id: Mapped[str] = mapped_column(String(128), primary_key=True)
     run_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    portfolio_id: Mapped[str] = mapped_column(String(128), nullable=False, default="local-paper")
     symbol: Mapped[str] = mapped_column(
         String(32),
         ForeignKey("instruments.symbol", ondelete="CASCADE"),
@@ -880,12 +881,26 @@ class TraderProposalModel(Base):
     confidence: Mapped[Decimal] = mapped_column(Numeric(8, 4), nullable=False)
     horizon: Mapped[str] = mapped_column(String(32), nullable=False)
     requested_position_pct_nav: Mapped[Decimal] = mapped_column(Numeric(8, 4), nullable=False)
+    current_position_quantity: Mapped[int] = mapped_column(nullable=False, default=0)
+    current_position_pct_nav: Mapped[Decimal] = mapped_column(
+        Numeric(8, 4),
+        nullable=False,
+        default=Decimal("0"),
+    )
+    target_position_pct_nav: Mapped[Decimal] = mapped_column(
+        Numeric(8, 4),
+        nullable=False,
+        default=Decimal("0"),
+    )
+    lifecycle_trigger: Mapped[str] = mapped_column(String(32), nullable=False, default="new_entry")
+    evaluation_mode: Mapped[str] = mapped_column(String(32), nullable=False, default="after_close")
     order_type: Mapped[str] = mapped_column(String(16), nullable=False)
     entry_rule: Mapped[str] = mapped_column(Text, nullable=False)
     stop_loss_pct: Mapped[Decimal] = mapped_column(Numeric(8, 4), nullable=False)
     take_profit_pct: Mapped[Decimal] = mapped_column(Numeric(8, 4), nullable=False)
     reason_summary: Mapped[str] = mapped_column(Text, nullable=False)
     invalid_if: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    position_management_summary: Mapped[str] = mapped_column(Text, nullable=False, default="")
     source_report_ids: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     is_order: Mapped[bool] = mapped_column(nullable=False, default=False)
     requires_risk_approval: Mapped[bool] = mapped_column(nullable=False, default=True)
@@ -1003,6 +1018,7 @@ class PaperOrderModel(Base):
     __table_args__ = (
         UniqueConstraint("final_decision_id", name="uq_paper_orders_final_decision"),
         Index("ix_paper_orders_run_symbol_time", "run_id", "symbol", "submitted_at"),
+        Index("ix_paper_orders_portfolio_symbol_time", "portfolio_id", "symbol", "submitted_at"),
     )
 
     order_id: Mapped[str] = mapped_column(String(128), primary_key=True)
@@ -1013,6 +1029,7 @@ class PaperOrderModel(Base):
     )
     decision_id: Mapped[str] = mapped_column(String(128), nullable=False)
     run_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    portfolio_id: Mapped[str] = mapped_column(String(128), nullable=False, default="local-paper")
     symbol: Mapped[str] = mapped_column(
         String(32),
         ForeignKey("instruments.symbol", ondelete="CASCADE"),
@@ -1049,6 +1066,7 @@ class PaperFillModel(Base):
     __table_args__ = (
         UniqueConstraint("order_id", "fill_sequence", name="uq_paper_fills_order_sequence"),
         Index("ix_paper_fills_run_symbol_time", "run_id", "symbol", "filled_at"),
+        Index("ix_paper_fills_portfolio_symbol_time", "portfolio_id", "symbol", "filled_at"),
     )
 
     fill_id: Mapped[str] = mapped_column(String(128), primary_key=True)
@@ -1059,6 +1077,7 @@ class PaperFillModel(Base):
     )
     final_decision_id: Mapped[str] = mapped_column(String(128), nullable=False)
     run_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    portfolio_id: Mapped[str] = mapped_column(String(128), nullable=False, default="local-paper")
     symbol: Mapped[str] = mapped_column(
         String(32),
         ForeignKey("instruments.symbol", ondelete="CASCADE"),
@@ -1087,10 +1106,12 @@ class PaperPositionModel(Base):
     __table_args__ = (
         UniqueConstraint("run_id", "symbol", name="uq_paper_positions_run_symbol"),
         Index("ix_paper_positions_run_symbol", "run_id", "symbol"),
+        Index("ix_paper_positions_portfolio_symbol", "portfolio_id", "symbol"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     run_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    portfolio_id: Mapped[str] = mapped_column(String(128), nullable=False, default="local-paper")
     symbol: Mapped[str] = mapped_column(
         String(32),
         ForeignKey("instruments.symbol", ondelete="CASCADE"),
@@ -1116,10 +1137,12 @@ class PaperAccountModel(Base):
     __table_args__ = (
         UniqueConstraint("run_id", name="uq_paper_accounts_run_id"),
         Index("ix_paper_accounts_updated_at", "updated_at"),
+        Index("ix_paper_accounts_portfolio_updated_at", "portfolio_id", "updated_at"),
     )
 
     account_id: Mapped[str] = mapped_column(String(128), primary_key=True)
     run_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    portfolio_id: Mapped[str] = mapped_column(String(128), nullable=False, default="local-paper")
     starting_cash_inr: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
     available_cash_inr: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
     reserved_cash_inr: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False, default=Decimal("0"))

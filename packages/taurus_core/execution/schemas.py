@@ -26,6 +26,7 @@ class PaperOrder(BaseModel):
     final_decision_id: str
     decision_id: str
     run_id: str
+    portfolio_id: str = "local-paper"
     symbol: str
     side: OrderSide
     quantity: int = Field(ge=0)
@@ -57,6 +58,7 @@ class PaperFill(BaseModel):
     order_id: str
     final_decision_id: str
     run_id: str
+    portfolio_id: str = "local-paper"
     symbol: str
     trade_date: date
     side: OrderSide
@@ -84,6 +86,7 @@ class PaperPosition(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     run_id: str
+    portfolio_id: str = "local-paper"
     symbol: str
     quantity: int = Field(ge=0)
     average_cost_inr: Decimal = Field(ge=Decimal("0"))
@@ -105,6 +108,7 @@ class PaperAccount(BaseModel):
 
     account_id: str
     run_id: str
+    portfolio_id: str = "local-paper"
     starting_cash_inr: Decimal = Field(gt=Decimal("0"))
     available_cash_inr: Decimal
     reserved_cash_inr: Decimal = Field(ge=Decimal("0"))
@@ -117,8 +121,8 @@ class PaperAccount(BaseModel):
     model_version: str = "paper_broker_v1"
 
 
-def paper_account_id(*, run_id: str) -> str:
-    return stable_id("pa", run_id)
+def paper_account_id(*, portfolio_id: str, run_id: str) -> str:
+    return stable_id("pa", portfolio_id, run_id)
 
 
 def paper_order_id(*, final_decision_id: str, decision_id: str, quantity: int) -> str:

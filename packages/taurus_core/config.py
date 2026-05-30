@@ -196,6 +196,11 @@ class Settings(BaseSettings):
         gt=0,
         validation_alias="TAURUS_INITIAL_CAPITAL_INR",
     )
+    taurus_paper_portfolio_id: str = Field(
+        default="local-paper",
+        min_length=1,
+        validation_alias="TAURUS_PAPER_PORTFOLIO_ID",
+    )
     taurus_max_position_pct: int = Field(
         default=5,
         gt=0,

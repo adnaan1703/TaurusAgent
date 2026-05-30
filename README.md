@@ -33,8 +33,8 @@ The access token is a short-lived manual Kite Connect login artifact. If Kite
 commands fail with an expired-token message, generate a fresh token locally and
 update `.env`; do not put credentials in tracked files or command references.
 
-LLM-backed analyst and research-debate workflows use real providers only.
-The default is LM Studio:
+LLM-backed analyst, research-debate, and trader proposal workflows use real
+providers only. The default is LM Studio:
 
 ```bash
 TAURUS_LLM_PROVIDER=lmstudio
@@ -43,11 +43,11 @@ TAURUS_LLM_MODEL=
 TAURUS_LLM_TIMEOUT_SECONDS=20
 ```
 
-Start a compatible LM Studio local server before running analyst, debate, or
-paper-loop workflows. Hosted providers are explicit opt-ins: `openai` requires
-`OPENAI_API_KEY` API billing, and `gemini` requires `GEMINI_API_KEY`. Taurus does
-not use ChatGPT subscriptions, browser sessions, cookies, or OAuth workarounds
-for backend inference.
+Start a compatible LM Studio local server before running analyst, debate,
+trader-proposal, or paper-loop workflows. Hosted providers are explicit opt-ins:
+`openai` requires `OPENAI_API_KEY` API billing, and `gemini` requires
+`GEMINI_API_KEY`. Taurus does not use ChatGPT subscriptions, browser sessions,
+cookies, or OAuth workarounds for backend inference.
 
 Generate and store the access token locally:
 
@@ -128,9 +128,10 @@ make backup-local
 
 These analyst, debate, trader-proposal, and paper-loop commands call the
 configured real LLM provider. `BullResearcherAgent` uses the provider for
-evidence-bound bullish research, and `BearResearcherAgent` uses the same
-provider for evidence-bound bearish research. `ResearchManagerAgent` uses it
-for bounded debate synthesis and consensus management. Deterministic risk and
+evidence-bound bullish research, `BearResearcherAgent` uses it for
+evidence-bound bearish research, `ResearchManagerAgent` uses it for bounded
+debate synthesis, and `TraderAgent` uses it for after-close lifecycle proposal
+reasoning. Deterministic trader guardrails, risk, final approval, and
 paper-broker safeguards remain authoritative. For local no-cost paper runs, keep
 LM Studio running or explicitly configure a hosted provider and model.
 
@@ -153,8 +154,9 @@ when `TAURUS_MARKET_DATA_PROVIDER=kite`. Use `make paper-loop-kite` to run that
 Kite-backed universe, or pass `SYMBOL=INFY` / `SYMBOLS=INFY,TCS` for an explicit
 graph-enabled manual subset. This real-data paper profile enables the technical
 and graph analysts, graph readiness preflight, graph-aware strategy target
-selection, and graph concentration risk while execution remains local
-`PaperBroker` simulation.
+selection, graph concentration risk, and position-aware after-close lifecycle
+reviews while execution remains local `PaperBroker` simulation. Paper account
+state persists by `TAURUS_PAPER_PORTFOLIO_ID` across run IDs.
 
 Analysts are enabled with `TAURUS_ENABLED_ANALYSTS`. The config default is
 `technical`; add `news`, `sentiment`, `fundamentals`, and `graph` explicitly

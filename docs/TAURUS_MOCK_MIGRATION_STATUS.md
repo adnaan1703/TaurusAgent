@@ -16,6 +16,7 @@ BROKER_PROVIDER=paper
 TAURUS_MARKET_DATA_PROVIDER=kite
 TAURUS_LLM_PROVIDER=lmstudio
 TAURUS_ALERT_PROVIDER=mock
+TAURUS_PAPER_PORTFOLIO_ID=local-paper
 TAURUS_ENABLED_ANALYSTS=technical
 TAURUS_GRAPH_ENABLED=false
 TAURUS_GRAPH_RISK_ENABLED=false
@@ -70,14 +71,14 @@ providers may still be used inside unit tests.
 
 ## Non-Analyst Agents And Services
 
-These are "agents" in code structure. Debate synthesis now uses the configured
-real LLM provider with deterministic guardrails; later workflow stages remain
-rule-based consumers of analyst reports and other stored artifacts.
+These are "agents" in code structure. Debate synthesis and trader proposals now
+use the configured real LLM provider with deterministic guardrails; risk, final
+approval, and paper execution remain rule-based consumers of stored artifacts.
 
 | Workflow | Agents/services | Requires LLM provider? | Current mock exposure |
 |---|---|---:|---|
 | Debate | `BullResearcherAgent`, `BearResearcherAgent`, `ResearchManagerAgent` | Yes | Bull, bear, and manager synthesis use the configured real LLM provider with deterministic score/confidence guardrails. |
-| Trader proposal | `TraderAgent` | No | Consumes debate output; inherits upstream analyst/data limitations. |
+| Trader proposal | `TraderAgent` | Yes | Uses the configured real LLM provider for after-close lifecycle reasoning, then deterministic guardrails validate action, target exposure, and summaries. |
 | Risk review | `RiskyRiskAgent`, `NeutralRiskAgent`, `SafeRiskAgent`, `RiskEngine` | No | Can be influenced by mock news/events in the DB. |
 | Final approval | `PortfolioManagerAgent` | No | Consumes risk review; no direct LLM use. |
 | Paper execution | `ExecutionRouter`, `PaperBroker` | No | Simulated fills/costs/slippage only. |
@@ -94,7 +95,7 @@ rule-based consumers of analyst reports and other stored artifacts.
 | `BullResearcherAgent` | Builds an LLM-assisted bull thesis from analyst evidence with deterministic guardrails | Yes | MUST | High | Completed in M25; keep downstream trader/risk/final/PaperBroker safeguards authoritative. |
 | `BearResearcherAgent` | Builds an LLM-assisted bear thesis from analyst evidence with deterministic guardrails | Yes | MUST | High | Completed in M26; challenge assumptions, surface downside, and identify invalidation risks without overriding downstream safeguards. |
 | `ResearchManagerAgent` | Builds LLM-assisted debate synthesis from analyst evidence plus bull/bear theses with deterministic guardrails | Yes | MUST | High | Completed in M27; synthesize bull/bear debate into consensus, confidence, and unresolved uncertainties without overriding downstream safeguards. |
-| `TraderAgent` | Converts consensus into proposal using rules | No | MUST | High | Convert research consensus into trade thesis, entry logic, stop-loss, take-profit, hold/reduce/exit rationale. |
+| `TraderAgent` | Builds position-aware lifecycle proposals with deterministic guardrails around advisory LLM output | Yes | MUST | High | Completed in M28; convert research consensus plus paper portfolio context into after-close BUY/HOLD/NO_TRADE/REDUCE/EXIT proposals. |
 | `RiskyRiskAgent` / `NeutralRiskAgent` / `SafeRiskAgent` | Risk persona rules | No | Optional | Medium | Provide advisory committee-style risk reasoning; hard risk rules remain authoritative. |
 | `RiskEngine` | Hard risk rules | No | Never | N/A | Keep deterministic: kill switch, caps, stale data, severe event block, graph concentration gates. |
 | `PortfolioManagerAgent` | Final approval rules | No | Optional | Low | Explain final approval/rejection; deterministic approval gates remain authoritative. |
@@ -103,8 +104,8 @@ rule-based consumers of analyst reports and other stored artifacts.
 Current distinction:
 
 ```text
-Analyst and debate agents = can call LLM provider
-Trader / risk / portfolio agents = currently rule-based consumers of analyst and debate outputs
+Analyst, debate, and trader proposal agents = can call LLM provider
+Risk / portfolio / execution agents = rule-based consumers of stored outputs
 ```
 
 The selected functional-MVP sequence now tracks separate migrations for
@@ -146,7 +147,7 @@ The advisory risk personas can be upgraded after that. `RiskEngine`,
       default runtime provider and deterministic score/confidence guardrails.
 - [x] Add LLM-backed `ResearchManagerAgent` debate synthesis with LM Studio as
       the default runtime provider and deterministic score/confidence guardrails.
-- [ ] Add position-aware `TraderAgent` proposals with LM Studio as the default
+- [x] Add position-aware `TraderAgent` proposals with LM Studio as the default
       runtime provider.
 - [ ] Add optional LLM explanation to `PortfolioManagerAgent`; deterministic
       final approval gates remain authoritative.
@@ -154,7 +155,7 @@ The advisory risk personas can be upgraded after that. `RiskEngine`,
       instruments before enabling fundamentals in production-like paper runs.
 - [ ] Review and calibrate paper brokerage, charges, slippage, and fill
       assumptions.
-- [ ] Add true portfolio continuity across paper runs.
+- [x] Add true portfolio continuity across paper runs.
 - [ ] Verify Telegram alerts with local-only credentials before relying on alert
       delivery.
 - [x] Enable graph analyst for the Kite real-data paper path after graph
@@ -182,13 +183,14 @@ Neo4j disabled
 The selected migration path is now tracked as M21-M30 in
 `docs/TAURUS_MILESTONE_TODO.md`. Docker Postgres-only persistence, real LLM
 providers, Kite-only runtime market data, and graph-enabled Kite paper loops are
-complete. The next migration in the selected path is the LLM bull researcher.
+complete through the position-aware TraderAgent lifecycle migration. The next
+migration in the selected path is optional LLM final-decision explanation.
 
 **The target workflow should become:**
 
 Analysts produce evidence
 Bull/Bear/Manager produce research view
-TraderAgent produces entry/hold/reduce/exit proposal
+TraderAgent produces after-close entry/hold/reduce/exit proposal
 RiskEngine applies hard gates
 PortfolioManagerAgent gives final approval
 PaperBroker executes simulated BUY/SELL

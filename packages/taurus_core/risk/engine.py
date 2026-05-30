@@ -35,7 +35,7 @@ class RiskEngineResult:
 
 
 class RiskEngine:
-    model_version = "risk_engine_rules_v1"
+    model_version = "risk_engine_lifecycle_rules_v1"
 
     def __init__(
         self,
@@ -67,7 +67,11 @@ class RiskEngine:
         risk_check_id: str,
     ) -> RiskEngineResult:
         symbol = proposal.symbol.upper()
-        approved_position = proposal.requested_position_pct_nav.quantize(SCORE_QUANT)
+        action = proposal.action
+        current_position = proposal.current_position_pct_nav.quantize(SCORE_QUANT)
+        target_position = proposal.target_position_pct_nav.quantize(SCORE_QUANT)
+        approved_position = target_position
+        has_existing_position = proposal.current_position_quantity > 0
         results: list[HardRuleResult] = []
 
         live_safe = (
@@ -95,7 +99,7 @@ class RiskEngine:
                 details=(
                     "Kill switch is clear."
                     if kill_switch_clear
-                    else "Kill switch is enabled; no order may be considered."
+                    else "Kill switch is enabled; no paper decision may be considered."
                 ),
             )
         )
@@ -127,8 +131,22 @@ class RiskEngine:
             )
         )
 
+        action_valid, action_details = self._action_is_valid(
+            action=action,
+            target_position=target_position,
+            current_position=current_position,
+            has_existing_position=has_existing_position,
+        )
+        results.append(
+            HardRuleResult(
+                rule="lifecycle_action_valid",
+                status="passed" if action_valid else "rejected",
+                details=action_details,
+            )
+        )
+
         max_position = Decimal(str(self.settings.taurus_max_position_pct)).quantize(SCORE_QUANT)
-        if approved_position > max_position:
+        if action == "BUY" and approved_position > max_position:
             results.append(
                 HardRuleResult(
                     rule="max_position_pct",
@@ -142,13 +160,38 @@ class RiskEngine:
                 HardRuleResult(
                     rule="max_position_pct",
                     status="passed",
-                    details=f"{approved_position} is within configured cap {max_position}.",
+                    details=(
+                        f"{approved_position} is within configured cap {max_position}."
+                        if action == "BUY"
+                        else f"Position cap does not block lifecycle action {action}."
+                    ),
+                )
+            )
+
+        if action == "BUY" and approved_position <= current_position:
+            results.append(
+                HardRuleResult(
+                    rule="buy_increases_exposure",
+                    status="rejected",
+                    details=(
+                        f"BUY target {approved_position}% does not exceed current "
+                        f"exposure {current_position}%."
+                    ),
+                )
+            )
+        else:
+            results.append(
+                HardRuleResult(
+                    rule="buy_increases_exposure",
+                    status="passed",
+                    details=f"Lifecycle action {action} has a valid exposure direction.",
                 )
             )
 
         max_open_positions = self.settings.taurus_max_open_positions
         open_positions_ok = (
-            proposal.action != "BUY"
+            action != "BUY"
+            or has_existing_position
             or approved_position == 0
             or self.current_open_positions < max_open_positions
         )
@@ -165,15 +208,19 @@ class RiskEngine:
         )
 
         max_daily_loss = self.settings.taurus_max_daily_loss_pct
-        daily_loss_ok = self.daily_loss_pct < max_daily_loss
+        daily_loss_ok = action != "BUY" or self.daily_loss_pct < max_daily_loss
         results.append(
             HardRuleResult(
                 rule="max_daily_loss_pct",
                 status="passed" if daily_loss_ok else "blocked",
                 details=(
                     f"Daily loss {self.daily_loss_pct} is below cap {max_daily_loss}."
-                    if daily_loss_ok
-                    else f"Daily loss {self.daily_loss_pct} breached cap {max_daily_loss}."
+                    if daily_loss_ok and action == "BUY"
+                    else (
+                        f"Daily loss {self.daily_loss_pct} breached cap {max_daily_loss}."
+                        if not daily_loss_ok
+                        else f"Daily loss cap does not block lifecycle action {action}."
+                    )
                 ),
             )
         )
@@ -184,7 +231,7 @@ class RiskEngine:
                 rule="stale_data",
                 status="passed" if stale_data_ok else "rejected",
                 details=(
-                    "Proposal source data is within the mock-mode freshness window."
+                    "Proposal source data is within the freshness window."
                     if stale_data_ok
                     else "Proposal source data is too old for approval."
                 ),
@@ -192,45 +239,36 @@ class RiskEngine:
         )
 
         severe_event = self._severe_negative_event(symbol=symbol)
-        severe_event_ok = proposal.action != "BUY" or severe_event is None
+        severe_event_ok = action != "BUY" or severe_event is None
         results.append(
             HardRuleResult(
                 rule="severe_event_block",
                 status="passed" if severe_event_ok else "blocked",
                 details=(
-                    "No severe negative event blocks a long entry."
+                    f"No severe negative event blocks lifecycle action {action}."
                     if severe_event_ok
                     else f"Blocked by {severe_event.event_type}: {severe_event.headline}"
                 ),
             )
         )
 
-        if proposal.action != "BUY":
-            approved_position = Decimal("0.0000")
-            results.append(
-                HardRuleResult(
-                    rule="action_requires_long_entry",
-                    status="rejected",
-                    details=f"Trader action {proposal.action} does not request a long entry.",
-                )
+        if action == "BUY" and approved_position > current_position:
+            approved_position, graph_results = evaluate_graph_concentration(
+                self.session,
+                settings=self.settings,
+                symbol=symbol,
+                approved_position_pct_nav=approved_position,
+                current_position_exposures_pct_nav=self.current_position_exposures_pct_nav,
             )
+            results.extend(graph_results)
         else:
             results.append(
                 HardRuleResult(
-                    rule="action_requires_long_entry",
+                    rule="graph_risk_lifecycle_scope",
                     status="passed",
-                    details="Trader action requests a paper long entry only after final approval.",
+                    details=f"Graph concentration does not block lifecycle action {action}.",
                 )
             )
-            if approved_position > 0:
-                approved_position, graph_results = evaluate_graph_concentration(
-                    self.session,
-                    settings=self.settings,
-                    symbol=symbol,
-                    approved_position_pct_nav=approved_position,
-                    current_position_exposures_pct_nav=self.current_position_exposures_pct_nav,
-                )
-                results.extend(graph_results)
 
         hard_statuses = [result.status for result in results]
         if "blocked" in hard_statuses:
@@ -256,6 +294,44 @@ class RiskEngine:
             approved_position_pct_nav=approved_position.quantize(SCORE_QUANT),
             hard_rule_results=results,
         )
+
+    def _action_is_valid(
+        self,
+        *,
+        action: str,
+        target_position: Decimal,
+        current_position: Decimal,
+        has_existing_position: bool,
+    ) -> tuple[bool, str]:
+        if action == "BUY":
+            return (
+                target_position > current_position and target_position > 0,
+                f"BUY target {target_position}% increases current {current_position}% exposure.",
+            )
+        if action == "REDUCE":
+            return (
+                has_existing_position and Decimal("0") < target_position < current_position,
+                (
+                    f"REDUCE target {target_position}% is below current {current_position}% "
+                    "for an existing long position."
+                ),
+            )
+        if action == "EXIT":
+            return (
+                has_existing_position and target_position == Decimal("0.0000"),
+                "EXIT requires an existing long position and zero target exposure.",
+            )
+        if action == "HOLD":
+            return (
+                has_existing_position and target_position == current_position,
+                "HOLD requires an existing long position and unchanged target exposure.",
+            )
+        if action == "NO_TRADE":
+            return (
+                not has_existing_position and target_position == Decimal("0.0000"),
+                "NO_TRADE requires no existing position and zero target exposure.",
+            )
+        return False, f"Lifecycle action {action} is not supported in paper risk review."
 
     def _data_is_fresh_enough(self, proposal: TraderProposal) -> bool:
         if not proposal.source_report_ids:

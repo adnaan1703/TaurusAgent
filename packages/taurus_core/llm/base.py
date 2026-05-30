@@ -103,6 +103,40 @@ RESEARCH_MANAGER_OUTPUT_JSON_SCHEMA: dict[str, object] = {
     "additionalProperties": False,
 }
 
+TRADER_OUTPUT_JSON_SCHEMA: dict[str, object] = {
+    "type": "object",
+    "properties": {
+        "action": {
+            "type": "string",
+            "enum": ["BUY", "HOLD", "NO_TRADE", "REDUCE", "EXIT"],
+        },
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "target_position_pct_nav": {"type": "number", "minimum": 0, "maximum": 100},
+        "stop_loss_pct": {"type": "number", "minimum": 0, "maximum": 100},
+        "take_profit_pct": {"type": "number", "minimum": 0, "maximum": 100},
+        "reason_summary": {"type": "string", "minLength": 1},
+        "invalid_if": {
+            "type": "array",
+            "items": {"type": "string"},
+            "minItems": 1,
+        },
+        "position_management_summary": {"type": "string", "minLength": 1},
+        "model_version": {"type": "string"},
+    },
+    "required": [
+        "action",
+        "confidence",
+        "target_position_pct_nav",
+        "stop_loss_pct",
+        "take_profit_pct",
+        "reason_summary",
+        "invalid_if",
+        "position_management_summary",
+        "model_version",
+    ],
+    "additionalProperties": False,
+}
+
 
 class LLMBullThesisOutput(BaseModel):
     model_config = ConfigDict(frozen=True)
@@ -162,12 +196,41 @@ class LLMResearchManagerOutput(BaseModel):
 
     @field_validator("unresolved_uncertainties")
     @classmethod
-    def remove_empty_items(cls, value: list[str]) -> list[str]:
+    def remove_empty_uncertainty_items(cls, value: list[str]) -> list[str]:
         cleaned = [item.strip() for item in value if item.strip()]
         if not cleaned:
             raise ValueError("at least one non-empty item is required")
         return cleaned
 
+
+class LLMTraderOutput(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    action: str = Field(pattern="^(BUY|HOLD|NO_TRADE|REDUCE|EXIT)$")
+    confidence: Decimal = Field(ge=Decimal("0"), le=Decimal("1"))
+    target_position_pct_nav: Decimal = Field(ge=Decimal("0"), le=Decimal("100"))
+    stop_loss_pct: Decimal = Field(ge=Decimal("0"), le=Decimal("100"))
+    take_profit_pct: Decimal = Field(ge=Decimal("0"), le=Decimal("100"))
+    reason_summary: str = Field(min_length=1)
+    invalid_if: list[str] = Field(min_length=1)
+    position_management_summary: str = Field(min_length=1)
+    model_version: str
+
+    @field_validator("reason_summary", "position_management_summary")
+    @classmethod
+    def clean_text(cls, value: str) -> str:
+        cleaned = " ".join(value.split())
+        if not cleaned:
+            raise ValueError("text field must not be empty")
+        return cleaned
+
+    @field_validator("invalid_if")
+    @classmethod
+    def remove_empty_items(cls, value: list[str]) -> list[str]:
+        cleaned = [item.strip() for item in value if item.strip()]
+        if not cleaned:
+            raise ValueError("at least one non-empty item is required")
+        return cleaned
 
 def analyst_output_system_prompt() -> str:
     return (
@@ -237,6 +300,27 @@ def research_manager_system_prompt() -> str:
     )
 
 
+def trader_system_prompt() -> str:
+    return (
+        "You are Taurus TraderAgent, a paper-trading lifecycle proposal agent for a\n"
+        "long-only portfolio. You convert validated research consensus and current paper\n"
+        "portfolio context into one structured proposal for BUY, HOLD, REDUCE, EXIT, or\n"
+        "NO_TRADE.\n\n"
+        "Hard rules:\n"
+        "- You are advisory. Taurus deterministic guardrails decide the allowed action\n"
+        "  envelope, final sizing, risk approval, and broker routing.\n"
+        "- Never recommend live trading, real broker order placement, leverage, shorts,\n"
+        "  options, futures, or intraday speculation.\n"
+        "- Use only the evidence in the provided context. Do not invent prices, fills,\n"
+        "  positions, source IDs, research claims, or news.\n"
+        "- Respect the supplied lifecycle trigger, evaluation mode, current position,\n"
+        "  target exposure bounds, stop-loss, take-profit, and allowed actions.\n"
+        "- If stop-loss is breached, explain EXIT only.\n"
+        "- If take-profit is breached, recommend REDUCE or stricter EXIT only.\n"
+        "- Return valid JSON matching the requested schema and no prose outside JSON."
+    )
+
+
 class LLMProvider(Protocol):
     @property
     def model_version(self) -> str:
@@ -278,6 +362,15 @@ class LLMProvider(Protocol):
         symbol: str,
         context: dict[str, object],
     ) -> LLMResearchManagerOutput:
+        ...
+
+    def complete_trader_proposal(
+        self,
+        *,
+        agent_name: str,
+        symbol: str,
+        context: dict[str, object],
+    ) -> LLMTraderOutput:
         ...
 
 
@@ -343,3 +436,20 @@ def parse_research_manager_output(
         return LLMResearchManagerOutput.model_validate(payload)
     except ValidationError as exc:
         raise LLMProviderError("LLM research manager response failed schema validation") from exc
+
+
+def parse_trader_output(
+    raw_content: str,
+    *,
+    fallback_model_version: str,
+) -> LLMTraderOutput:
+    try:
+        payload = json.loads(raw_content)
+    except json.JSONDecodeError as exc:
+        raise LLMProviderError("LLM trader response was not valid JSON") from exc
+    if isinstance(payload, dict) and "model_version" not in payload:
+        payload["model_version"] = fallback_model_version
+    try:
+        return LLMTraderOutput.model_validate(payload)
+    except ValidationError as exc:
+        raise LLMProviderError("LLM trader response failed schema validation") from exc

@@ -17,7 +17,13 @@ class SafeRiskAgent:
         half_cap = (Decimal(str(settings.taurus_max_position_pct)) / Decimal("2")).quantize(
             SCORE_QUANT
         )
-        if proposal.action != "BUY" or proposal.requested_position_pct_nav == 0:
+        if proposal.action in {"HOLD", "NO_TRADE", "REDUCE", "EXIT"}:
+            recommendation = "allow"
+            score = Decimal("0.1000") if proposal.action in {"REDUCE", "EXIT"} else Decimal("0")
+            key_points = [
+                f"Conservative view accepts lifecycle action {proposal.action} without new exposure."
+            ]
+        elif proposal.action != "BUY" or proposal.requested_position_pct_nav == 0:
             recommendation = "reject"
             score = Decimal("-0.3000")
             key_points = [f"Conservative view avoids exposure for action {proposal.action}."]

@@ -6,9 +6,15 @@ from sqlalchemy.orm import Session
 
 from taurus_core.agents.runner import DEFAULT_ANALYST_RUN_ID
 from taurus_core.config import Settings, get_settings
-from taurus_core.db.repositories import CandleRepository, RiskRepository
+from taurus_core.db.repositories import (
+    CandleRepository,
+    ExecutionRepository,
+    ResearchRepository,
+    RiskRepository,
+)
 from taurus_core.logging import get_logger
 from taurus_core.observability.tracing import bound_trace_context
+from taurus_core.research.schemas import TraderProposal
 from taurus_core.risk.schemas import (
     FinalDecision,
     RiskReview,
@@ -20,7 +26,7 @@ SCORE_QUANT = Decimal("0.0001")
 
 class PortfolioManagerAgent:
     agent_name = "PortfolioManagerAgent"
-    model_version = "portfolio_manager_rules_v1"
+    model_version = "portfolio_manager_lifecycle_rules_v1"
 
     def __init__(self, session: Session, settings: Settings | None = None) -> None:
         self.session = session
@@ -38,6 +44,7 @@ class PortfolioManagerAgent:
         if risk_review.symbol != symbol:
             raise ValueError("Risk review symbol does not match final approval symbol.")
 
+        proposal = self._load_proposal(risk_review.proposal_id)
         final_action = "NO_TRADE"
         status = "REJECTED"
         can_send_to_broker = False
@@ -49,18 +56,30 @@ class PortfolioManagerAgent:
             status = "BLOCKED"
             reason = "Blocked by hard risk rules; no paper decision may proceed."
         elif risk_review.status in {"APPROVED", "APPROVED_WITH_REDUCTION"}:
+            final_action = proposal.action
             approved_position = risk_review.approved_position_pct_nav.quantize(SCORE_QUANT)
             approved_quantity = self._approved_quantity(
-                symbol=symbol,
+                proposal=proposal,
                 approved_position_pct_nav=approved_position,
             )
-            if approved_quantity > 0 and self._paper_safe():
-                final_action = "BUY"
+            if final_action in {"HOLD", "NO_TRADE"}:
+                status = "NO_ACTION"
+                can_send_to_broker = False
+                approved_quantity = 0
+                reason = f"Approved {final_action}; no paper order expected."
+            elif approved_quantity > 0 and self._paper_safe():
                 status = "APPROVED_FOR_PAPER"
                 can_send_to_broker = True
                 reason = (
-                    "Approved for future PaperBroker execution after stored risk review "
-                    "and paper-safe configuration checks."
+                    f"Approved {final_action} for PaperBroker execution after stored "
+                    "risk review and paper-safe configuration checks."
+                )
+            elif final_action in {"REDUCE", "EXIT"}:
+                status = "NO_ACTION"
+                can_send_to_broker = False
+                reason = (
+                    f"Approved {final_action}, but current and target quantities do not "
+                    "produce a positive paper sell order."
                 )
             else:
                 reason = "Approved risk percentage could not produce a positive paper quantity."
@@ -111,11 +130,39 @@ class PortfolioManagerAgent:
         if model is None:
             raise ValueError(
                 f"No risk review found for {symbol} run_id={run_id}. "
-                "Run make risk-review-mock first."
+                "Run risk review before final approval."
             )
         return RiskReview.model_validate(model.payload)
 
-    def _approved_quantity(self, *, symbol: str, approved_position_pct_nav: Decimal) -> int:
+    def _load_proposal(self, proposal_id: str) -> TraderProposal:
+        model = ResearchRepository(self.session).get_trader_proposal(proposal_id)
+        if model is None:
+            raise ValueError(f"Trader proposal {proposal_id} not found for final approval.")
+        return TraderProposal.model_validate(model.payload)
+
+    def _approved_quantity(
+        self,
+        *,
+        proposal: TraderProposal,
+        approved_position_pct_nav: Decimal,
+    ) -> int:
+        if proposal.action in {"HOLD", "NO_TRADE"}:
+            return 0
+        current_quantity = proposal.current_position_quantity
+        if proposal.action == "EXIT":
+            return current_quantity
+
+        target_quantity = self._target_quantity(
+            symbol=proposal.symbol,
+            approved_position_pct_nav=approved_position_pct_nav,
+        )
+        if proposal.action == "BUY":
+            return max(0, target_quantity - current_quantity)
+        if proposal.action == "REDUCE":
+            return max(0, current_quantity - target_quantity)
+        return 0
+
+    def _target_quantity(self, *, symbol: str, approved_position_pct_nav: Decimal) -> int:
         if approved_position_pct_nav <= 0:
             return 0
         candles = CandleRepository(self.session).get_by_symbol_and_date_range(symbol=symbol)
@@ -124,11 +171,15 @@ class PortfolioManagerAgent:
         latest_close = candles[-1].close
         if latest_close <= 0:
             return 0
-        notional = (
-            Decimal(str(self.settings.taurus_initial_capital_inr))
-            * approved_position_pct_nav
-            / Decimal("100")
+        account = ExecutionRepository(self.session).latest_account_by_portfolio(
+            portfolio_id=self.settings.taurus_paper_portfolio_id,
         )
+        equity = (
+            account.equity_inr
+            if account is not None
+            else Decimal(str(self.settings.taurus_initial_capital_inr))
+        )
+        notional = equity * approved_position_pct_nav / Decimal("100")
         return int(notional // latest_close)
 
     def _paper_safe(self) -> bool:

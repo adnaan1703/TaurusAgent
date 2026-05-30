@@ -58,6 +58,8 @@ def test_ui_aggregate_endpoints_return_completed_run_trail(tmp_path: Path) -> No
     assert overview.json()["safety"]["llm_provider"] == "lmstudio"
     assert overview.json()["safety"]["llm_model_version"] == "lmstudio:local-model"
     assert overview.json()["latest_run"]["run_id"] == run.run_id
+    assert overview.json()["latest_trader_proposal"]["evaluation_mode"] == "after_close"
+    assert overview.json()["latest_trader_proposal"]["lifecycle_trigger"] == "new_entry"
     assert overview.json()["latest_run"]["final_status_counts"] == {"APPROVED_FOR_PAPER": 1}
     assert overview.json()["latest_run"]["order_status_counts"] == {"FILLED": 1}
 
@@ -82,6 +84,9 @@ def test_ui_aggregate_endpoints_return_completed_run_trail(tmp_path: Path) -> No
     trail_payload = trail.json()
     assert [stage["id"] for stage in trail_payload["stages"]] == EXPECTED_TRAIL_STAGES
     assert trail_payload["final_status"] == "APPROVED_FOR_PAPER"
+    proposal_stage = _stage_artifacts(trail_payload, "trader_proposal")[0]
+    assert proposal_stage["evaluation_mode"] == "after_close"
+    assert proposal_stage["lifecycle_trigger"] == "new_entry"
     assert trail_payload["analyst_roster"] == detail_payload["symbols"][0]["analyst_roster"]
     assert _stage_status(trail_payload, "paper_order") == "complete"
     assert _stage_status(trail_payload, "paper_fills") == "complete"
@@ -148,13 +153,16 @@ def test_ui_decision_trail_is_run_scoped_for_repeated_symbol(tmp_path: Path) -> 
     first_final = _stage_artifacts(first_trail.json(), "final_decision")[0]
     second_final = _stage_artifacts(second_trail.json(), "final_decision")[0]
     first_order = _stage_artifacts(first_trail.json(), "paper_order")[0]
-    second_order = _stage_artifacts(second_trail.json(), "paper_order")[0]
 
     assert first_final["run_id"] == first.run_id
     assert second_final["run_id"] == second.run_id
     assert first_final["final_decision_id"] != second_final["final_decision_id"]
     assert first_order["run_id"] == first.run_id
-    assert second_order["run_id"] == second.run_id
+    if second_final["status"] != "APPROVED_FOR_PAPER":
+        assert _stage_status(second_trail.json(), "paper_order") == "skipped"
+    else:
+        second_order = _stage_artifacts(second_trail.json(), "paper_order")[0]
+        assert second_order["run_id"] == second.run_id
 
 
 def test_ui_overview_handles_migrated_empty_database(tmp_path: Path) -> None:

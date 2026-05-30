@@ -120,6 +120,7 @@ export type UiOverviewResponse = {
   safety: UiSafetyStatus;
   latest_account?: JsonObject | null;
   latest_run?: UiRunSummary | null;
+  latest_trader_proposal?: JsonObject | null;
   latest_final_decision?: JsonObject | null;
   latest_order?: JsonObject | null;
   recent_runs: UiRunSummary[];

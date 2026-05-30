@@ -22,7 +22,12 @@ from taurus_core.db.models import (
     PaperOrderModel,
     PaperPositionModel,
 )
-from taurus_core.db.repositories import ExecutionRepository, IntelligenceRepository, RiskRepository
+from taurus_core.db.repositories import (
+    ExecutionRepository,
+    IntelligenceRepository,
+    ResearchRepository,
+    RiskRepository,
+)
 from taurus_core.db.session import build_session_factory
 from taurus_core.execution.order_router import ExecutionRouter
 from taurus_core.execution.schemas import PaperAccount, PaperOrder, PaperPosition
@@ -30,7 +35,7 @@ from taurus_core.intelligence.documents import NewsEvent, RawDocument, document_
 from taurus_core.intelligence.mock_news_provider import MockNewsProvider
 from tests.llm_fakes import FakeLLMProvider
 from taurus_core.research.debate_service import ResearchDebateService
-from taurus_core.research.schemas import TraderProposal
+from taurus_core.research.schemas import TraderProposal, trader_proposal_id
 from taurus_core.risk.review_service import RiskReviewService
 from taurus_core.risk.schemas import FinalDecision
 from tests.market_data_fixtures import seed_test_market_data
@@ -61,8 +66,17 @@ def test_paper_broker_executes_approved_decision_and_api_returns_artifacts(
         fill_count = session.scalar(select(func.count()).select_from(PaperFillModel))
         position_count = session.scalar(select(func.count()).select_from(PaperPositionModel))
         account_count = session.scalar(select(func.count()).select_from(PaperAccountModel))
-        account = PaperAccount.model_validate(ExecutionRepository(session).latest_account().payload)
-        position = PaperPosition.model_validate(ExecutionRepository(session).list_positions()[0].payload)
+        repo = ExecutionRepository(session)
+        account = PaperAccount.model_validate(
+            repo.latest_account_by_portfolio(
+                portfolio_id=settings.taurus_paper_portfolio_id,
+            ).payload
+        )
+        position = PaperPosition.model_validate(
+            repo.latest_open_positions_by_portfolio(
+                portfolio_id=settings.taurus_paper_portfolio_id,
+            )[0].payload
+        )
 
     assert order is not None
     assert order.status == "FILLED"
@@ -166,6 +180,73 @@ def test_event_risk_blocked_final_decision_does_not_create_paper_order(
     assert order_count == 0
 
 
+def test_paper_broker_exits_position_opened_in_prior_run(tmp_path: Path) -> None:
+    settings = _settings_for_temp_db(tmp_path)
+    _prepare_market_data_db(settings)
+    run_mock_final_approval(symbol="INFY", settings=settings)
+    session_factory = build_session_factory(settings)
+
+    with session_factory() as session:
+        buy_decision = _latest_final_decision(session, "INFY")
+        buy_order = ExecutionRouter(session, settings).route_decision(buy_decision)
+    assert buy_order is not None
+    assert buy_order.side == "BUY"
+
+    with session_factory() as session:
+        repo = ExecutionRepository(session)
+        position = PaperPosition.model_validate(
+            repo.latest_open_position_by_portfolio_symbol(
+                portfolio_id=settings.taurus_paper_portfolio_id,
+                symbol="INFY",
+            ).payload
+        )
+        original_quantity = position.quantity
+        proposal = _exit_proposal_from_latest(session, settings, position)
+        ResearchRepository(session).replace_trader_proposal_for_run_symbol(proposal)
+        session.commit()
+
+    with session_factory() as session:
+        review = RiskReviewService(session, settings).run(
+            symbol="INFY",
+            run_id="exit-run",
+            proposal=proposal,
+        )
+    with session_factory() as session:
+        decision = PortfolioManagerAgent(session, settings).run(
+            symbol="INFY",
+            run_id="exit-run",
+            risk_review=review,
+        )
+    with session_factory() as session:
+        exit_order = ExecutionRouter(session, settings).route_decision(decision)
+
+    with session_factory() as session:
+        repo = ExecutionRepository(session)
+        open_positions = repo.latest_open_positions_by_portfolio(
+            portfolio_id=settings.taurus_paper_portfolio_id,
+        )
+        fills = repo.list_fills_by_portfolio(
+            portfolio_id=settings.taurus_paper_portfolio_id,
+            symbol="INFY",
+        )
+        account = PaperAccount.model_validate(
+            repo.latest_account_by_portfolio(
+                portfolio_id=settings.taurus_paper_portfolio_id,
+            ).payload
+        )
+
+    assert review.status == "APPROVED"
+    assert decision.status == "APPROVED_FOR_PAPER"
+    assert decision.final_action == "EXIT"
+    assert decision.approved_quantity == original_quantity
+    assert exit_order is not None
+    assert exit_order.side == "SELL"
+    assert exit_order.filled_quantity == original_quantity
+    assert open_positions == []
+    assert {fill.side for fill in fills} == {"BUY", "SELL"}
+    assert account.portfolio_id == settings.taurus_paper_portfolio_id
+
+
 def _prepare_paper_db(settings: Settings):
     run_migrations(settings)
     session_factory = build_session_factory(settings)
@@ -197,7 +278,46 @@ def _build_trader_proposal(session_factory) -> TraderProposal:
             rounds_requested=2,
         )
     with session_factory() as session:
-        return TraderAgent(session).run(symbol="INFY", debate=debate)
+        return TraderAgent(
+            session,
+            Settings(),
+            llm_provider=FakeLLMProvider(),
+        ).run(symbol="INFY", debate=debate)
+
+
+def _exit_proposal_from_latest(
+    session,
+    settings: Settings,
+    position: PaperPosition,
+) -> TraderProposal:
+    base = ResearchRepository(session).latest_trader_proposal(
+        run_id=DEFAULT_ANALYST_RUN_ID,
+        symbol=position.symbol,
+    )
+    assert base is not None
+    proposal = TraderProposal.model_validate(base.payload)
+    source_report_ids = list(proposal.source_report_ids)
+    return proposal.model_copy(
+        update={
+            "proposal_id": trader_proposal_id(
+                run_id="exit-run",
+                symbol=position.symbol,
+                debate_id=proposal.debate_id,
+                source_report_ids=source_report_ids,
+            ),
+            "run_id": "exit-run",
+            "portfolio_id": settings.taurus_paper_portfolio_id,
+            "action": "EXIT",
+            "requested_position_pct_nav": Decimal("0.0000"),
+            "current_position_quantity": position.quantity,
+            "current_position_pct_nav": Decimal("2.0000"),
+            "target_position_pct_nav": Decimal("0.0000"),
+            "lifecycle_trigger": "thesis_invalidated",
+            "evaluation_mode": "after_close",
+            "order_type": "LIMIT",
+            "position_management_summary": "Test exit of prior-run paper position.",
+        }
+    )
 
 
 def _insert_severe_negative_event(session, proposal: TraderProposal) -> None:

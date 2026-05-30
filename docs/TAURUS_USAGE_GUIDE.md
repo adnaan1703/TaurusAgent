@@ -2,10 +2,10 @@
 
 ## Current State
 
-- Backend tests: `make test` -> `142 passed, 1 skipped` during M24.
-- Frontend tests: `make test-ui` -> `25 passed` during M24.
-- Compile check: `make lint` -> passed during M24.
-- Frontend build: `make build-ui` -> passed during M24.
+- Backend tests: `make test` -> `181 passed, 1 skipped` during M28.
+- Frontend tests: `make test-ui` -> `25 passed` during M28.
+- Compile check: `make lint` -> passed during M28.
+- Frontend build: `make build-ui` -> passed during M28.
 - Docker Postgres is the canonical Taurus database. Runtime, scripts, and tests
   reject SQLite database URLs.
 - Docker Compose volumes exist for canonical Postgres data:
@@ -23,8 +23,12 @@ Taurus is a local, observable paper-trading simulator for Indian cash equities. 
 - Store latest Kite OHLC/LTP snapshots, but those snapshots are currently for visibility, not paper fills.
 - Compute technical indicators and strategy signals.
 - Run analyst reports with configurable analyst roster. Default is technical only.
-- Run bull/bear research debate, trader proposal, risk review, and final approval.
+- Run bull/bear research debate, position-aware trader proposal, risk review,
+  and final approval.
 - Simulate orders, fills, positions, cash, costs, and slippage through `PaperBroker`.
+- Preserve one local paper portfolio across run IDs with
+  `TAURUS_PAPER_PORTFOLIO_ID=local-paper`, while keeping `run_id` on artifacts
+  for audit.
 - Track paper runs with audit artifacts.
 - Expose FastAPI endpoints and React dashboard.
 - Provide replay, backup/restore, alerts, Prometheus metrics, and Grafana dashboards.
@@ -98,7 +102,9 @@ Taurus is a local, observable paper-trading simulator for Indian cash equities. 
 - `make paper-loop-kite`: Kite-backed data import plus graph-enabled local
   `PaperBroker` simulation. This target sets `TAURUS_ENABLED_ANALYSTS=technical,graph`,
   `TAURUS_GRAPH_ENABLED=true`, `TAURUS_GRAPH_RISK_ENABLED=true`, and
-  `STRATEGY=configs/strategies/graph_aware_score_v1.yaml`.
+  `STRATEGY=configs/strategies/graph_aware_score_v1.yaml`. Open positions from
+  the configured paper portfolio are automatically included for after-close
+  lifecycle review.
 - `make paper-loop-start PAPER_LOOP_ITERATIONS=5`: repeated local loop.
 - `make paper-loop-dashboard`: Kite-backed run plus React dashboard.
 - `make taurus-smoke`: full MVP smoke test using existing Kite-imported market data and remaining non-market mocks.
@@ -201,8 +207,8 @@ For the maintained component-by-component tracker, see
 
 - Market data defaults to `kite`; runtime `mock`, `csv`, and placeholder `external` providers are rejected.
 - LLM defaults to the real local `lmstudio` provider; LM Studio must be running
-  before LLM-backed analyst and research-debate workflows unless `openai` or
-  `gemini` is explicitly configured.
+  before LLM-backed analyst, research-debate, and trader-proposal workflows
+  unless `openai` or `gemini` is explicitly configured.
 - `PaperRunService` imports `MockNewsProvider` on every paper run, even with technical-only analysts.
 - Alerts default to `MockAlertAdapter`.
 - `/alerts/test` always uses mock alert delivery.
@@ -220,8 +226,9 @@ With `TAURUS_ENABLED_ANALYSTS=technical`:
 - It still calls the configured real LLM provider. The default is LM Studio;
   `openai` and `gemini` are explicit hosted-provider opt-ins.
 - If you continue into debate or paper-run workflows, `BullResearcherAgent`,
-  `BearResearcherAgent`, and `ResearchManagerAgent` also call the configured
-  real LLM provider and clamp their output to deterministic scoring guardrails.
+  `BearResearcherAgent`, `ResearchManagerAgent`, and `TraderAgent` also call
+  the configured real LLM provider and clamp their output to deterministic
+  scoring and lifecycle guardrails.
 - OpenAI uses API billing through `OPENAI_API_KEY`; ChatGPT subscriptions are
   not supported for Taurus backend inference.
 - Mock news is still imported into the DB.
@@ -371,7 +378,7 @@ TAURUS_GRAPH_CONCENTRATION_WARNING_FRACTION=0.80
 1. Remove mock news from real paper runs, or add a real/no-news mode. Right now mock news can affect risk even with technical/graph paper runs.
 2. Add a rule-only technical analyst path if no LLM should be required for
    technical-only paper runs. Runtime mock LLM has been removed.
-3. Add true portfolio continuity across paper runs. Current paper account state is run-scoped; it does not behave like one persistent paper account across days.
+3. Add market-hours paper position monitoring for stop-loss/take-profit review; current lifecycle proposals are after-close only.
 4. Use a clean DB if legacy `mock_market_data` candles or old mock-backed paper-run summaries exist; Kite runs fail clearly rather than mixing sources.
 5. Make Kite-backed backtesting first-class. Current backtest script uses existing daily candles and no longer imports mock or CSV candles.
 6. Replace placeholder cost/slippage/fill assumptions with broker-calibrated paper execution assumptions.
