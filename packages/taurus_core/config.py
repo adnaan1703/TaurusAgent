@@ -13,6 +13,13 @@ from taurus_core.agents.roster import DEFAULT_ENABLED_ANALYSTS, parse_enabled_an
 
 
 DEFAULT_DATABASE_URL = "postgresql+psycopg://taurus:taurus@localhost:5432/taurus"
+DEFAULT_LMSTUDIO_BASE_URL = "http://localhost:1234/v1"
+DEFAULT_LMSTUDIO_MODEL = "local-model"
+DEFAULT_OPENAI_BASE_URL = "https://api.openai.com/v1"
+DEFAULT_OPENAI_MODEL = "gpt-5-mini"
+DEFAULT_GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
+DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
+SUPPORTED_LLM_PROVIDERS = ("lmstudio", "openai", "gemini")
 
 
 class Settings(BaseSettings):
@@ -261,14 +268,21 @@ class Settings(BaseSettings):
         validation_alias="TAURUS_PAPER_SCHEDULE",
     )
 
-    taurus_llm_provider: str = Field(default="mock", validation_alias="TAURUS_LLM_PROVIDER")
+    taurus_llm_provider: str = Field(default="lmstudio", validation_alias="TAURUS_LLM_PROVIDER")
     taurus_llm_base_url: str = Field(default="", validation_alias="TAURUS_LLM_BASE_URL")
+    taurus_llm_model: str = Field(default="", validation_alias="TAURUS_LLM_MODEL")
+    taurus_llm_timeout_seconds: int = Field(
+        default=20,
+        gt=0,
+        validation_alias="TAURUS_LLM_TIMEOUT_SECONDS",
+    )
     taurus_alert_provider: str = Field(default="mock", validation_alias="TAURUS_ALERT_PROVIDER")
     taurus_enabled_analysts: str = Field(
         default=DEFAULT_ENABLED_ANALYSTS,
         validation_alias="TAURUS_ENABLED_ANALYSTS",
     )
     openai_api_key: str = Field(default="", validation_alias="OPENAI_API_KEY")
+    gemini_api_key: str = Field(default="", validation_alias="GEMINI_API_KEY")
     telegram_bot_token: str = Field(default="", validation_alias="TELEGRAM_BOT_TOKEN")
     telegram_chat_id: str = Field(default="", validation_alias="TELEGRAM_CHAT_ID")
     kite_api_key: str = Field(default="", validation_alias="KITE_API_KEY")
@@ -288,8 +302,11 @@ class Settings(BaseSettings):
             raise ValueError("SQLite database URLs are no longer supported; use Docker Postgres.")
         if self.taurus_market_data_provider not in {"mock", "csv", "kite", "external"}:
             raise ValueError("Unsupported Taurus market data provider.")
-        if self.taurus_llm_provider not in {"mock", "lmstudio", "openai"}:
-            raise ValueError("Unsupported Taurus LLM provider.")
+        if self.taurus_llm_provider not in set(SUPPORTED_LLM_PROVIDERS):
+            raise ValueError(
+                "Unsupported Taurus LLM provider. Supported values: "
+                f"{', '.join(SUPPORTED_LLM_PROVIDERS)}."
+            )
         if self.taurus_alert_provider not in {"mock", "telegram", "disabled"}:
             raise ValueError("Unsupported Taurus alert provider.")
         parse_enabled_analysts(self.taurus_enabled_analysts)
@@ -304,10 +321,25 @@ class Settings(BaseSettings):
     def graph_stats_windows(self) -> tuple[int, ...]:
         return _parse_graph_stats_windows(self.taurus_graph_stats_windows)
 
+    @property
+    def configured_llm_model(self) -> str:
+        if self.taurus_llm_model:
+            return self.taurus_llm_model
+        if self.taurus_llm_provider == "openai":
+            return DEFAULT_OPENAI_MODEL
+        if self.taurus_llm_provider == "gemini":
+            return DEFAULT_GEMINI_MODEL
+        return DEFAULT_LMSTUDIO_MODEL
+
+    @property
+    def configured_llm_model_version(self) -> str:
+        return f"{self.taurus_llm_provider}:{self.configured_llm_model}"
+
     def safe_dict(self) -> dict[str, Any]:
         redacted = self.model_dump()
         for key in (
             "openai_api_key",
+            "gemini_api_key",
             "telegram_bot_token",
             "telegram_chat_id",
             "kite_api_key",

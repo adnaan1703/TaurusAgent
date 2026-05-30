@@ -66,7 +66,7 @@ Tests may use deterministic Docker Postgres test databases or test-only fakes,
 but they must not add runtime graph mocks or temporary SQLite databases.
 
 Existing non-graph mocks in Taurus are outside this plan. In particular, the
-current paper loop still has separate mock concerns such as mock LLM defaults,
+paper loop still has separate concerns such as configured real LLM availability,
 mock news import, mock alert delivery, and the paper broker simulator. Those
 should be handled by their own migration plans.
 

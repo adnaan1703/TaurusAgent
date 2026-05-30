@@ -169,7 +169,9 @@ For the maintained component-by-component tracker, see
 **Runtime mocks/defaults still present:**
 
 - Market data defaults to `mock` unless Kite/CSV is explicitly selected.
-- `make paper-loop-kite` uses real Kite market data, but still forces `TAURUS_LLM_PROVIDER=mock`.
+- LLM defaults to the real local `lmstudio` provider; LM Studio must be running
+  before LLM-backed analyst workflows unless `openai` or `gemini` is explicitly
+  configured.
 - `PaperRunService` imports `MockNewsProvider` on every paper run, even with technical-only analysts.
 - Alerts default to `MockAlertAdapter`.
 - `/alerts/test` always uses mock alert delivery.
@@ -184,7 +186,10 @@ With `TAURUS_ENABLED_ANALYSTS=technical`:
 
 - Only `TechnicalAnalystAgent` runs.
 - It computes technical score from candles/features/signals.
-- It still calls the configured LLM provider. Default/make target is mock LLM.
+- It still calls the configured real LLM provider. The default is LM Studio;
+  `openai` and `gemini` are explicit hosted-provider opt-ins.
+- OpenAI uses API billing through `OPENAI_API_KEY`; ChatGPT subscriptions are
+  not supported for Taurus backend inference.
 - Mock news is still imported into the DB.
 - Risk engine still checks severe events in the DB, so mock news can still influence risk blocks if matching active instruments.
 - News, sentiment, fundamentals, and graph analyst reports are skipped.
@@ -329,7 +334,8 @@ TAURUS_GRAPH_CONCENTRATION_WARNING_FRACTION=0.80
 ## Main Gaps Before It Is "Super Ready"
 
 1. Remove mock news from real paper runs, or add a real/no-news mode. Right now mock news can affect risk even with technical-only analysts.
-2. Stop forcing mock LLM in `paper-loop-kite`, or add a rule-only technical analyst path that does not call any LLM.
+2. Add a rule-only technical analyst path if no LLM should be required for
+   technical-only paper runs. Runtime mock LLM has been removed.
 3. Add true portfolio continuity across paper runs. Current paper account state is run-scoped; it does not behave like one persistent paper account across days.
 4. Avoid mixed mock/Kite data in the same DB. Active mock instruments can remain after `seed-mock`; real paper runs should use a clean DB or provider-scoped universe handling.
 5. Make Kite-backed backtesting first-class. Current backtest script supports `mock`/`csv`/`external`, not Kite directly.
@@ -341,4 +347,8 @@ TAURUS_GRAPH_CONCENTRATION_WARNING_FRACTION=0.80
 
 ## Bottom Line
 
-Taurus is green and usable today for local, observable, real-Kite-data paper simulation with technical-only analysis. It is not yet clean of mocks, and it is not broker-level paper trading. For your current technical-only setup, the biggest mock contamination is mock LLM plus mock news imported into risk context.
+Taurus is green and usable today for local, observable, real-Kite-data paper
+simulation with technical-only analysis when LM Studio or an explicit hosted LLM
+provider is configured. It is not yet clean of mocks, and it is not broker-level
+paper trading. For your current technical-only setup, the biggest remaining mock
+contamination is mock news imported into risk context.

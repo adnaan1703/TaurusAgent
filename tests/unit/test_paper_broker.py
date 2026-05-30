@@ -4,6 +4,7 @@ from datetime import timezone
 from decimal import Decimal
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import func, select
 
@@ -29,11 +30,19 @@ from taurus_core.execution.order_router import ExecutionRouter
 from taurus_core.execution.schemas import PaperAccount, PaperOrder, PaperPosition
 from taurus_core.intelligence.documents import NewsEvent, RawDocument, document_checksum, stable_id
 from taurus_core.intelligence.mock_news_provider import MockNewsProvider
-from taurus_core.llm.mock_provider import MockLLMProvider
+from tests.llm_fakes import FakeLLMProvider
 from taurus_core.research.debate_service import ResearchDebateService
 from taurus_core.research.schemas import TraderProposal
 from taurus_core.risk.review_service import RiskReviewService
 from taurus_core.risk.schemas import FinalDecision
+
+
+@pytest.fixture(autouse=True)
+def fake_llm_provider(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "scripts.run_trader_proposal.build_llm_provider",
+        lambda settings: FakeLLMProvider(),
+    )
 
 
 def test_paper_broker_executes_approved_decision_and_api_returns_artifacts(
@@ -169,7 +178,7 @@ def _build_trader_proposal(session_factory) -> TraderProposal:
         run_analyst_suite(
             session,
             symbol="INFY",
-            llm_provider=MockLLMProvider(),
+            llm_provider=FakeLLMProvider(),
             run_id=DEFAULT_ANALYST_RUN_ID,
         )
     with session_factory() as session:

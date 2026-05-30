@@ -16,7 +16,8 @@ export function SafetyBanner({ safety }: { safety: UiSafetyStatus }) {
           <div>
             <p className="text-sm font-semibold text-taurus-text">Paper-mode safety context</p>
             <p className="mt-1 text-xs text-taurus-muted">
-              Taurus mode {safety.taurus_mode}; alert provider {safety.alert_provider ?? "unset"}.
+              Taurus mode {safety.taurus_mode}; LLM {safety.llm_provider} / {safety.llm_model_version};
+              alert provider {safety.alert_provider ?? "unset"}.
             </p>
           </div>
         </div>
@@ -27,6 +28,12 @@ export function SafetyBanner({ safety }: { safety: UiSafetyStatus }) {
             size="sm"
           />
           <StatusBadge label={`BROKER_PROVIDER=${safety.broker_provider}`} status="APPROVED_FOR_PAPER" size="sm" />
+          <StatusBadge label={`LLM=${safety.llm_provider}`} status="APPROVED" size="sm" />
+          <StatusBadge
+            label={`LLM failures=${safety.llm_failure_count}`}
+            status={safety.llm_failure_count > 0 ? "BLOCKED" : "APPROVED"}
+            size="sm"
+          />
         </div>
       </div>
     </section>

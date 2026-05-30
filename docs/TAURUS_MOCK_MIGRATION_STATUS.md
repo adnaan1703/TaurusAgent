@@ -14,7 +14,7 @@ TAURUS_MODE=paper
 LIVE_TRADING_ENABLED=false
 BROKER_PROVIDER=paper
 TAURUS_MARKET_DATA_PROVIDER=mock
-TAURUS_LLM_PROVIDER=mock
+TAURUS_LLM_PROVIDER=lmstudio
 TAURUS_ALERT_PROVIDER=mock
 TAURUS_ENABLED_ANALYSTS=technical
 TAURUS_GRAPH_ENABLED=false
@@ -30,7 +30,7 @@ TAURUS_NEO4J_ENABLED=false
 | Broker | `paper` | No | No | Real broker order routing would require a new approved milestone. |
 | Market data | `mock` | No | No | Use `csv` or `kite`; avoid mixing mock/Kite data in the same DB. |
 | News data | Mock | Feeds `NewsAnalystAgent` / `SentimentAnalystAgent` | Yes, if those analysts are enabled | Add real news provider or explicit no-news mode. |
-| LLM provider | `mock` | Used by analyst agents | Yes | Configure `lmstudio` or `openai`; validate model output quality. |
+| LLM provider | `lmstudio` default; `openai`/`gemini` opt-in | Used by analyst agents | Yes | Keep LM Studio running locally or configure hosted API keys/models. |
 | Alerts | `mock` | No | No | Use `telegram`; verify delivery with local credentials. |
 | Fundamentals | Mock unless Screener CSV imported | `FundamentalsAnalystAgent` | Yes, if enabled | Import and validate real Screener CSV exports. |
 | Graph analyst | Disabled | `GraphAnalystAgent` | No | Enable via `TAURUS_ENABLED_ANALYSTS=...,graph` after graph data/stats are imported. |
@@ -42,7 +42,7 @@ TAURUS_NEO4J_ENABLED=false
 
 | Analyst key | Agent class | Enabled now? | Uses LLM provider? | Mock dependency risk |
 |---|---|---:|---:|---|
-| `technical` | `TechnicalAnalystAgent` | Yes | Yes | Uses candles/features/signals, then calls configured LLM provider; currently mock LLM. |
+| `technical` | `TechnicalAnalystAgent` | Yes | Yes | Uses candles/features/signals, then calls configured real LLM provider. |
 | `news` | `NewsAnalystAgent` | No | Yes | Depends on stored news/events; currently mock news unless a real provider is added. |
 | `sentiment` | `SentimentAnalystAgent` | No | Yes | Depends on stored sentiment from events; currently mock event source. |
 | `fundamentals` | `FundamentalsAnalystAgent` | No | Yes | Uses real imported Screener scores when present; otherwise mock fallback. |
@@ -54,9 +54,9 @@ Current enabled analyst roster:
 TAURUS_ENABLED_ANALYSTS=technical
 ```
 
-This means only `TechnicalAnalystAgent` runs by default. Because
-`TAURUS_LLM_PROVIDER=mock`, the active analyst report path currently uses
-`MockLLMProvider`.
+This means only `TechnicalAnalystAgent` runs by default. It calls the configured
+real LLM provider; runtime mock LLM support has been removed. Test-only fake LLM
+providers may still be used inside unit tests.
 
 ## Non-Analyst Agents And Services
 
@@ -126,9 +126,9 @@ The advisory risk personas can be upgraded after that. `RiskEngine`,
       explicit no-news mode.
 - [ ] Add a real news provider before enabling news/sentiment analysts in a
       real-data workflow.
-- [ ] Add a rule-only technical analyst path that does not call the mock LLM
-      provider when no LLM is desired.
-- [ ] Configure and test `TAURUS_LLM_PROVIDER=lmstudio`, with `openai` and
+- [ ] Add a rule-only technical analyst path if no LLM should be required for
+      technical-only paper runs.
+- [x] Configure and test `TAURUS_LLM_PROVIDER=lmstudio`, with `openai` and
       `gemini` as explicit hosted-provider opt-ins.
 - [ ] Add LLM-backed Bull/Bear/ResearchManager debate and position-aware
       `TraderAgent` proposals with LM Studio as the default runtime provider.
@@ -154,7 +154,7 @@ it is still mock-default. The active default path is:
 paper mode
 paper broker simulator
 mock market data
-mock LLM
+real LLM provider defaulting to LM Studio
 mock alerts
 technical analyst only
 graph disabled
@@ -164,8 +164,8 @@ Neo4j disabled
 
 The selected migration path is now tracked as M21-M30 in
 `docs/TAURUS_MILESTONE_TODO.md`. The first implementation step is Docker
-Postgres-only persistence, followed by the real LLM provider migration, then
-Kite-only market data.
+Postgres-only persistence and the real LLM provider migration are complete. The
+next migration in the selected path is Kite-only market data.
 
 **The target workflow should become:**
 

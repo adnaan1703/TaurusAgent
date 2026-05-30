@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import func, select
 
@@ -17,6 +18,15 @@ from taurus_core.db.models import (
 )
 from taurus_core.db.session import build_session_factory
 from taurus_core.paper_trading.service import PaperRunService
+from tests.llm_fakes import FakeLLMProvider
+
+
+@pytest.fixture(autouse=True)
+def fake_llm_provider(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "taurus_core.paper_trading.service.build_llm_provider",
+        lambda settings: FakeLLMProvider(),
+    )
 
 
 def test_paper_run_service_executes_full_chain_and_api_returns_runs(tmp_path: Path) -> None:

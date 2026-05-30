@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 
 from apps.api.main import create_app
@@ -26,8 +27,17 @@ from scripts.run_paper_once import run_mock_paper_once
 from taurus_core.agents.roster import ANALYST_KEYS
 from taurus_core.config import Settings
 from taurus_core.db.session import build_session_factory
+from tests.llm_fakes import FakeLLMProvider
 
 FULL_ANALYST_ROSTER = ",".join(ANALYST_KEYS)
+
+
+@pytest.fixture(autouse=True)
+def fake_llm_provider(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "scripts.run_trader_proposal.build_llm_provider",
+        lambda settings: FakeLLMProvider(),
+    )
 
 
 def test_dashboard_queries_and_metrics_expose_m8_panels(tmp_path: Path) -> None:

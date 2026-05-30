@@ -44,7 +44,12 @@ def test_default_settings_are_safe() -> None:
     assert settings.taurus_market_data_universe_path == "configs/market_data/kite_nse_cash.yaml"
     assert settings.taurus_market_data_lookback_days == 400
     assert settings.taurus_kite_exchange == "NSE"
-    assert settings.taurus_llm_provider == "mock"
+    assert settings.taurus_llm_provider == "lmstudio"
+    assert settings.taurus_llm_base_url == ""
+    assert settings.taurus_llm_model == ""
+    assert settings.taurus_llm_timeout_seconds == 20
+    assert settings.configured_llm_model == "local-model"
+    assert settings.configured_llm_model_version == "lmstudio:local-model"
     assert settings.taurus_enabled_analysts == "technical"
     assert settings.enabled_analyst_keys == ("technical",)
     assert settings.taurus_initial_capital_inr == 1_000_000
@@ -84,6 +89,23 @@ def test_kite_market_data_provider_is_allowed(monkeypatch: pytest.MonkeyPatch) -
     monkeypatch.setenv("TAURUS_MARKET_DATA_PROVIDER", "kite")
 
     assert Settings().taurus_market_data_provider == "kite"
+
+
+def test_mock_llm_provider_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("TAURUS_LLM_PROVIDER", "mock")
+
+    with pytest.raises(ValidationError, match="LLM provider"):
+        Settings()
+
+
+def test_gemini_llm_provider_is_allowed(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("TAURUS_LLM_PROVIDER", "gemini")
+
+    settings = Settings()
+
+    assert settings.taurus_llm_provider == "gemini"
+    assert settings.configured_llm_model == "gemini-2.5-flash"
+    assert settings.configured_llm_model_version == "gemini:gemini-2.5-flash"
 
 
 def test_graph_flags_can_be_enabled_explicitly(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -129,6 +151,7 @@ def test_empty_enabled_analyst_roster_is_rejected(monkeypatch: pytest.MonkeyPatc
 
 def test_secret_values_are_redacted(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    monkeypatch.setenv("GEMINI_API_KEY", "gemini-test")
     monkeypatch.setenv("KITE_API_KEY", "kite-key")
     monkeypatch.setenv("KITE_API_SECRET", "kite-secret")
     monkeypatch.setenv("KITE_ACCESS_TOKEN", "kite-token")
@@ -136,6 +159,7 @@ def test_secret_values_are_redacted(monkeypatch: pytest.MonkeyPatch) -> None:
 
     safe = Settings().safe_dict()
     assert safe["openai_api_key"] == "***REDACTED***"
+    assert safe["gemini_api_key"] == "***REDACTED***"
     assert safe["kite_api_key"] == "***REDACTED***"
     assert safe["kite_api_secret"] == "***REDACTED***"
     assert safe["kite_access_token"] == "***REDACTED***"

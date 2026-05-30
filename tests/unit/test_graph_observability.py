@@ -16,7 +16,7 @@ from taurus_core.db.repositories import GraphRepository, InstrumentRepository
 from taurus_core.db.session import build_session_factory
 from taurus_core.domain.instruments import Instrument
 from taurus_core.graph.importer import TaurusGraphImportError, import_taurus_graph_csvs
-from taurus_core.llm.mock_provider import MockLLMProvider
+from tests.llm_fakes import FakeLLMProvider
 from taurus_core.observability.metrics import metrics_response_body
 
 
@@ -115,7 +115,7 @@ def test_graph_failure_counters_are_observable(
                 session,
                 symbol="FAILM209",
                 run_id="graph-observability-failure",
-                llm_provider=MockLLMProvider(),
+                llm_provider=FakeLLMProvider(),
                 enabled_analysts=("graph",),
             )
         with pytest.raises(TaurusGraphImportError):

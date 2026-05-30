@@ -7,6 +7,7 @@ import pytest
 from scripts.taurus_smoke import run_taurus_smoke
 from taurus_core.agents.roster import ANALYST_KEYS
 from taurus_core.config import Settings
+from tests.llm_fakes import FakeLLMProvider
 
 FULL_ANALYST_ROSTER = ",".join(ANALYST_KEYS)
 
@@ -16,10 +17,14 @@ def test_taurus_smoke_covers_paper_mvp_release_flow(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("BACKUP_DIR", str(tmp_path / "backups"))
+    fake_provider = FakeLLMProvider()
+    monkeypatch.setattr("scripts.run_analysts.build_llm_provider", lambda settings: fake_provider)
+    monkeypatch.setattr("scripts.run_research_debate.build_llm_provider", lambda settings: fake_provider)
+    monkeypatch.setattr("scripts.run_trader_proposal.build_llm_provider", lambda settings: fake_provider)
+    monkeypatch.setattr("taurus_core.paper_trading.service.build_llm_provider", lambda settings: fake_provider)
     settings = Settings(
         taurus_alert_provider="mock",
         taurus_enabled_analysts=FULL_ANALYST_ROSTER,
-        taurus_llm_provider="mock",
         taurus_paper_partial_fill_threshold=1,
     )
 

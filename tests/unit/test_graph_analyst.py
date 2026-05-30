@@ -16,7 +16,7 @@ from taurus_core.db.repositories import CandleRepository, GraphRepository, Instr
 from taurus_core.db.session import build_session_factory
 from taurus_core.domain.instruments import Instrument
 from taurus_core.domain.market_data import DailyCandle
-from taurus_core.llm.mock_provider import MockLLMProvider
+from tests.llm_fakes import FakeLLMProvider
 
 
 def test_graph_analyst_returns_neutral_when_no_graph_evidence_exists(tmp_path: Path) -> None:
@@ -30,7 +30,7 @@ def test_graph_analyst_returns_neutral_when_no_graph_evidence_exists(tmp_path: P
             session,
             symbol="AAA",
             run_id="graph-neutral",
-            llm_provider=MockLLMProvider(),
+            llm_provider=FakeLLMProvider(),
             enabled_analysts=("graph",),
         )
 
@@ -63,7 +63,7 @@ def test_graph_analyst_explains_bullish_positive_peer_momentum(tmp_path: Path) -
             session,
             symbol="AAA",
             run_id="graph-bullish",
-            llm_provider=MockLLMProvider(),
+            llm_provider=FakeLLMProvider(),
             enabled_analysts=("graph",),
         )[0]
 
@@ -102,7 +102,7 @@ def test_graph_analyst_explains_bearish_negative_dependency_signal(tmp_path: Pat
             session,
             symbol="AAA",
             run_id="graph-bearish",
-            llm_provider=MockLLMProvider(),
+            llm_provider=FakeLLMProvider(),
             enabled_analysts=("graph",),
         )[0]
 
@@ -139,7 +139,6 @@ def test_graph_analyst_does_not_let_llm_failure_override_deterministic_output(
 
     assert report.stance == "bullish"
     assert report.model_version == GRAPH_ANALYST_MODEL_VERSION
-    assert not report.model_version.endswith("+llm_fallback")
 
 
 class FailingLLMProvider:

@@ -54,6 +54,8 @@ def ready(request: Request) -> ReadinessResponse:
         checks={
             "config": "ok",
             "broker_provider": settings.broker_provider,
+            "llm_provider": settings.taurus_llm_provider,
+            "llm_model_version": settings.configured_llm_model_version,
             "live_trading": "disabled",
         },
         live_trading_enabled=settings.live_trading_enabled,

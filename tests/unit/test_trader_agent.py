@@ -16,7 +16,7 @@ from taurus_core.data.providers.mock_market_data import MockMarketDataProvider
 from taurus_core.db.models import BacktestOrderModel, TraderProposalModel
 from taurus_core.db.session import build_session_factory
 from taurus_core.intelligence.mock_news_provider import MockNewsProvider
-from taurus_core.llm.mock_provider import MockLLMProvider
+from tests.llm_fakes import FakeLLMProvider
 from taurus_core.research.debate_service import ResearchDebateService
 
 
@@ -27,7 +27,7 @@ def test_trader_proposal_is_structured_deterministic_and_not_an_order(tmp_path: 
         run_analyst_suite(
             session,
             symbol="INFY",
-            llm_provider=MockLLMProvider(),
+            llm_provider=FakeLLMProvider(),
             run_id=DEFAULT_ANALYST_RUN_ID,
         )
     with session_factory() as session:
@@ -63,7 +63,7 @@ def test_research_api_returns_trader_proposals(tmp_path: Path) -> None:
         run_analyst_suite(
             session,
             symbol="INFY",
-            llm_provider=MockLLMProvider(),
+            llm_provider=FakeLLMProvider(),
             run_id=DEFAULT_ANALYST_RUN_ID,
         )
     with session_factory() as session:

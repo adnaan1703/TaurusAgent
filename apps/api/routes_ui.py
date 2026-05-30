@@ -38,6 +38,7 @@ from taurus_core.db.repositories import (
     RiskRepository,
 )
 from taurus_core.data.universe import load_market_data_universe
+from taurus_core.observability.metrics import current_llm_failure_count
 from taurus_core.replay.service import DecisionReplayService
 
 router = APIRouter(prefix="/ui", tags=["ui"])
@@ -61,6 +62,9 @@ class UiSafetyStatus(BaseModel):
     taurus_mode: str
     broker_provider: str
     live_trading_enabled: bool
+    llm_provider: str
+    llm_model_version: str
+    llm_failure_count: int
     alert_provider: str | None = None
 
 
@@ -567,6 +571,9 @@ def _safety(settings: Settings) -> UiSafetyStatus:
         taurus_mode=settings.taurus_mode,
         broker_provider=settings.broker_provider,
         live_trading_enabled=settings.live_trading_enabled,
+        llm_provider=settings.taurus_llm_provider,
+        llm_model_version=settings.configured_llm_model_version,
+        llm_failure_count=current_llm_failure_count(),
         alert_provider=settings.taurus_alert_provider,
     )
 

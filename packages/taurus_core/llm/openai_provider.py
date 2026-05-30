@@ -1,21 +1,24 @@
 from __future__ import annotations
 
 from taurus_core.agents.schemas import LLMAnalystOutput
+from taurus_core.config import DEFAULT_OPENAI_BASE_URL, DEFAULT_OPENAI_MODEL
 from taurus_core.llm.base import LLMProviderError
-from taurus_core.llm.lmstudio_provider import _openai_compatible_completion
+from taurus_core.llm.lmstudio_provider import _openai_compatible_completion, openai_json_schema_response_format
 
 
 class OpenAIProvider:
-    """Optional OpenAI-compatible provider; mock remains the default path."""
+    """OpenAI API provider using API-key billing."""
 
     def __init__(
         self,
         *,
         api_key: str,
-        base_url: str = "https://api.openai.com/v1",
-        model: str = "gpt-4o-mini",
+        base_url: str = DEFAULT_OPENAI_BASE_URL,
+        model: str = DEFAULT_OPENAI_MODEL,
         timeout_seconds: int = 20,
     ) -> None:
+        if not api_key:
+            raise LLMProviderError("OPENAI_API_KEY is required for TAURUS_LLM_PROVIDER=openai")
         self.api_key = api_key
         self.base_url = base_url.rstrip("/")
         self.model = model
@@ -32,8 +35,6 @@ class OpenAIProvider:
         symbol: str,
         context: dict[str, object],
     ) -> LLMAnalystOutput:
-        if not self.api_key:
-            raise LLMProviderError("OPENAI_API_KEY is required for TAURUS_LLM_PROVIDER=openai")
         return _openai_compatible_completion(
             base_url=self.base_url,
             api_key=self.api_key,
@@ -43,4 +44,6 @@ class OpenAIProvider:
             symbol=symbol,
             context=context,
             timeout_seconds=self.timeout_seconds,
+            response_format=openai_json_schema_response_format(),
+            provider_name="OpenAI",
         )

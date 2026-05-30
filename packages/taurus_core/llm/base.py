@@ -12,6 +12,39 @@ class LLMProviderError(RuntimeError):
     pass
 
 
+ANALYST_OUTPUT_JSON_SCHEMA: dict[str, object] = {
+    "type": "object",
+    "properties": {
+        "score": {"type": "number", "minimum": -1, "maximum": 1},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "stance": {"type": "string", "enum": ["bullish", "bearish", "neutral"]},
+        "horizon": {"type": "string", "enum": ["intraday", "short", "medium", "long"]},
+        "key_points": {"type": "array", "items": {"type": "string"}},
+        "risks": {"type": "array", "items": {"type": "string"}},
+        "model_version": {"type": "string"},
+    },
+    "required": [
+        "score",
+        "confidence",
+        "stance",
+        "horizon",
+        "key_points",
+        "risks",
+        "model_version",
+    ],
+    "additionalProperties": False,
+}
+
+
+def analyst_output_system_prompt() -> str:
+    return (
+        "Return JSON only. The JSON must conform to LLMAnalystOutput: score number -1..1, "
+        "confidence number 0..1, stance bullish|bearish|neutral, horizon intraday|short|medium|long, "
+        "key_points string array, risks string array, and model_version string. Do not include prose "
+        "outside the JSON object."
+    )
+
+
 class LLMProvider(Protocol):
     @property
     def model_version(self) -> str:

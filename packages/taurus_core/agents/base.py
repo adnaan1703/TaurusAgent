@@ -11,7 +11,7 @@ from taurus_core.agents.schemas import (
     analyst_report_id,
     stance_from_score,
 )
-from taurus_core.llm.base import LLMProvider
+from taurus_core.llm.base import LLMProvider, LLMProviderError
 from taurus_core.observability.metrics import record_llm_failure
 
 REPORT_QUANT = Decimal("0.0001")
@@ -37,7 +37,6 @@ class BaseAnalystAgent:
         context: dict[str, object],
         source_ids: list[str],
     ) -> AnalystReport:
-        draft = fallback
         try:
             draft = self.llm_provider.complete_analyst_report(
                 agent_name=self.agent_name,
@@ -51,18 +50,9 @@ class BaseAnalystAgent:
                 symbol=symbol,
                 error_type=exc.__class__.__name__,
             )
-            draft = LLMAnalystOutput(
-                score=fallback.score,
-                confidence=fallback.confidence,
-                stance=fallback.stance,
-                horizon=fallback.horizon,
-                key_points=fallback.key_points,
-                risks=[
-                    *fallback.risks,
-                    f"LLM provider fallback used: {exc.__class__.__name__}",
-                ],
-                model_version=f"{fallback.model_version}+llm_fallback",
-            )
+            raise LLMProviderError(
+                f"{self.agent_name} LLM provider failed for {symbol.upper()}: {exc}"
+            ) from exc
 
         report_id = analyst_report_id(
             run_id=run_id,

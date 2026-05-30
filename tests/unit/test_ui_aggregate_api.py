@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 
 from apps.api.main import create_app
@@ -10,6 +11,7 @@ from scripts.migrate import run_migrations
 from taurus_core.compliance import import_halal_stock_compliance, parse_halal_stock_rows
 from taurus_core.config import Settings
 from taurus_core.paper_trading.service import PaperRunService
+from tests.llm_fakes import FakeLLMProvider
 
 
 EXPECTED_TRAIL_STAGES = [
@@ -23,6 +25,14 @@ EXPECTED_TRAIL_STAGES = [
     "paper_fills",
     "audit_log",
 ]
+
+
+@pytest.fixture(autouse=True)
+def fake_llm_provider(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "taurus_core.paper_trading.service.build_llm_provider",
+        lambda settings: FakeLLMProvider(),
+    )
 
 
 def test_ui_aggregate_endpoints_return_completed_run_trail(tmp_path: Path) -> None:
@@ -40,6 +50,8 @@ def test_ui_aggregate_endpoints_return_completed_run_trail(tmp_path: Path) -> No
     assert overview.status_code == 200
     assert overview.json()["safety"]["live_trading_enabled"] is False
     assert overview.json()["safety"]["broker_provider"] == "paper"
+    assert overview.json()["safety"]["llm_provider"] == "lmstudio"
+    assert overview.json()["safety"]["llm_model_version"] == "lmstudio:local-model"
     assert overview.json()["latest_run"]["run_id"] == run.run_id
     assert overview.json()["latest_run"]["final_status_counts"] == {"APPROVED_FOR_PAPER": 1}
     assert overview.json()["latest_run"]["order_status_counts"] == {"FILLED": 1}
@@ -243,7 +255,6 @@ def test_ui_cors_allows_local_vite_origin(tmp_path: Path) -> None:
 def _settings_for_temp_db(tmp_path: Path) -> Settings:
     return Settings(
         taurus_alert_provider="mock",
-        taurus_llm_provider="mock",
         taurus_paper_partial_fill_threshold=1,
     )
 

@@ -18,6 +18,9 @@ export type UiSafetyStatus = {
   taurus_mode: string;
   broker_provider: string;
   live_trading_enabled: boolean;
+  llm_provider: string;
+  llm_model_version: string;
+  llm_failure_count: number;
   alert_provider?: string | null;
 };
 

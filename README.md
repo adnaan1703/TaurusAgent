@@ -33,6 +33,21 @@ The access token is a short-lived manual Kite Connect login artifact. If Kite
 commands fail with an expired-token message, generate a fresh token locally and
 update `.env`; do not put credentials in tracked files or command references.
 
+LLM-backed analyst workflows use real providers only. The default is LM Studio:
+
+```bash
+TAURUS_LLM_PROVIDER=lmstudio
+TAURUS_LLM_BASE_URL=http://localhost:1234/v1
+TAURUS_LLM_MODEL=
+TAURUS_LLM_TIMEOUT_SECONDS=20
+```
+
+Start a compatible LM Studio local server before running analyst or paper-loop
+workflows. Hosted providers are explicit opt-ins: `openai` requires
+`OPENAI_API_KEY` API billing, and `gemini` requires `GEMINI_API_KEY`. Taurus does
+not use ChatGPT subscriptions, browser sessions, cookies, or OAuth workarounds
+for backend inference.
+
 Generate and store the access token locally:
 
 ```bash
@@ -109,6 +124,10 @@ make paper-loop-mock
 make replay-decision DECISION_ID=sample
 make backup-local
 ```
+
+These analyst and paper-loop commands call the configured real LLM provider. For
+local no-cost paper runs, keep LM Studio running or explicitly configure a
+hosted provider and model.
 
 Run data-only Kite market-data commands after adding a valid local
 `KITE_ACCESS_TOKEN`:

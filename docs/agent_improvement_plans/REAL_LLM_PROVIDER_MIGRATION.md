@@ -342,3 +342,23 @@ Taurus-specific approved prefixes found after that marker must be copied into
 `.codex/rules/default.rules` if missing, documented in
 `docs/TAURUS_COMMANDS.md`, and removed from the global rules file. Do not copy
 unrelated global approvals into this project.
+
+## M22 Completion Summary
+
+- Assumptions made:
+  - LM Studio remains the default provider for local, API-cost-free paper runs
+    and uses `local-model` when `TAURUS_LLM_MODEL` is unset.
+  - OpenAI defaults to `gpt-5-mini`; verified against official OpenAI model docs
+    at <https://platform.openai.com/docs/models> and
+    <https://platform.openai.com/docs/models/gpt-5-mini>, which list it as a
+    faster, cost-efficient GPT-5 model.
+  - Gemini defaults to `gemini-2.5-flash`; verified against official Gemini API
+    model docs at <https://ai.google.dev/gemini-api/docs/models>, which list
+    stable Gemini 2.5 Flash with structured outputs support.
+  - Hosted provider credentials are validated when provider wiring is built,
+    not when generic settings are loaded.
+- Mocks created:
+  - `tests/llm_fakes.py::FakeLLMProvider`, a test-only fake provider.
+- Mocks used:
+  - Test-only `FakeLLMProvider` for unit tests that need deterministic analyst
+    output without live LM Studio/OpenAI/Gemini credentials.

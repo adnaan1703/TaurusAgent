@@ -18,7 +18,7 @@ from taurus_core.db.models import FundamentalScoreModel, FundamentalSnapshotMode
 from taurus_core.db.repositories import FundamentalsRepository
 from taurus_core.db.session import build_session_factory
 from taurus_core.fundamentals import ScreenerImportError, import_screener_csv
-from taurus_core.llm.mock_provider import MockLLMProvider
+from tests.llm_fakes import FakeLLMProvider
 
 FIXTURE = Path("tests/fixtures/screener_sample.csv")
 AVAILABLE_AT = datetime(2026, 5, 19, 15, 30, tzinfo=timezone.utc)
@@ -96,7 +96,7 @@ def test_fundamentals_analyst_uses_imported_screener_data(tmp_path: Path) -> Non
     session_factory = _prepare_db(settings)
     with session_factory() as session:
         import_screener_csv(session, FIXTURE, data_available_time=AVAILABLE_AT)
-        report = FundamentalsAnalystAgent(session, MockLLMProvider()).run(
+        report = FundamentalsAnalystAgent(session, FakeLLMProvider()).run(
             symbol="INFY",
             run_id="fundamentals-test",
         )

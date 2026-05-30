@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import func, select
 
@@ -17,7 +18,8 @@ from taurus_core.data.providers.mock_market_data import MockMarketDataProvider
 from taurus_core.db.models import AnalystReportModel, BacktestOrderModel
 from taurus_core.db.session import build_session_factory
 from taurus_core.intelligence.mock_news_provider import MockNewsProvider
-from taurus_core.llm.mock_provider import MockLLMProvider
+from taurus_core.llm.base import LLMProviderError
+from tests.llm_fakes import FakeLLMProvider
 
 FULL_ANALYST_ROSTER = ANALYST_KEYS
 
@@ -30,7 +32,7 @@ def test_analyst_suite_stores_full_roster_without_creating_orders(tmp_path: Path
         reports = run_analyst_suite(
             session,
             symbol="INFY",
-            llm_provider=MockLLMProvider(),
+            llm_provider=FakeLLMProvider(),
             run_id="test-run",
             enabled_analysts=FULL_ANALYST_ROSTER,
         )
@@ -53,25 +55,24 @@ def test_analyst_suite_stores_full_roster_without_creating_orders(tmp_path: Path
     assert order_count == 0
 
 
-def test_analyst_suite_falls_back_when_llm_provider_fails(tmp_path: Path) -> None:
+def test_analyst_suite_raises_when_llm_provider_fails(tmp_path: Path) -> None:
     settings = _settings_for_temp_db(tmp_path)
     session_factory = _prepare_intelligence_db(settings)
 
     with session_factory() as session:
-        reports = run_analyst_suite(
-            session,
-            symbol="INFY",
-            llm_provider=FailingLLMProvider(),
-            run_id="fallback-run",
-            enabled_analysts=FULL_ANALYST_ROSTER,
-        )
+        with pytest.raises(LLMProviderError, match="TechnicalAnalystAgent LLM provider failed"):
+            run_analyst_suite(
+                session,
+                symbol="INFY",
+                llm_provider=FailingLLMProvider(),
+                run_id="provider-failure-run",
+                enabled_analysts=FULL_ANALYST_ROSTER,
+            )
 
-    assert len(reports) == 5
-    llm_reports = [report for report in reports if report.agent_name != "GraphAnalystAgent"]
-    graph_reports = [report for report in reports if report.agent_name == "GraphAnalystAgent"]
-    assert all(report.model_version.endswith("+llm_fallback") for report in llm_reports)
-    assert all("LLM provider fallback used" in " ".join(report.risks) for report in llm_reports)
-    assert graph_reports[0].model_version == "graph_rule_v1"
+    with session_factory() as session:
+        report_count = session.scalar(select(func.count()).select_from(AnalystReportModel))
+
+    assert report_count == 0
 
 
 def test_analyst_suite_can_skip_fundamentals(tmp_path: Path) -> None:
@@ -82,7 +83,7 @@ def test_analyst_suite_can_skip_fundamentals(tmp_path: Path) -> None:
         reports = run_analyst_suite(
             session,
             symbol="INFY",
-            llm_provider=MockLLMProvider(),
+            llm_provider=FakeLLMProvider(),
             run_id="no-fundamentals-run",
             enabled_analysts=("technical", "news", "sentiment"),
         )
@@ -103,7 +104,7 @@ def test_analyst_suite_allows_technical_only_roster(tmp_path: Path) -> None:
         reports = run_analyst_suite(
             session,
             symbol="INFY",
-            llm_provider=MockLLMProvider(),
+            llm_provider=FakeLLMProvider(),
             run_id="technical-only-run",
             enabled_analysts=("technical",),
         )
@@ -119,7 +120,7 @@ def test_intelligence_api_returns_events_and_agent_reports(tmp_path: Path) -> No
         run_analyst_suite(
             session,
             symbol="INFY",
-            llm_provider=MockLLMProvider(),
+            llm_provider=FakeLLMProvider(),
             run_id="api-run",
             enabled_analysts=FULL_ANALYST_ROSTER,
         )

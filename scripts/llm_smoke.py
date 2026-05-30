@@ -20,4 +20,13 @@ if __name__ == "__main__":
             "risks": ["Smoke output only; no trading action."],
         },
     )
-    print(json.dumps(output.model_dump(mode="json"), sort_keys=True))
+    print(
+        json.dumps(
+            {
+                "provider": settings.taurus_llm_provider,
+                "model_version": provider.model_version,
+                "validated_analyst_output": output.model_dump(mode="json"),
+            },
+            sort_keys=True,
+        )
+    )

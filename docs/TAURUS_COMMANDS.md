@@ -687,6 +687,28 @@ TAURUS_ENABLED_ANALYSTS=technical make paper-once-mock SYMBOL=INFY
 Default roster is `technical`; the deterministic graph analyst runs only when
 `TAURUS_ENABLED_ANALYSTS` includes `graph`.
 
+LLM-backed analyst workflows use real providers only. The default is local
+LM Studio:
+
+```bash
+TAURUS_LLM_PROVIDER=lmstudio
+TAURUS_LLM_BASE_URL=http://localhost:1234/v1
+TAURUS_LLM_MODEL=
+TAURUS_LLM_TIMEOUT_SECONDS=20
+make llm-smoke
+```
+
+Hosted providers are explicit opt-ins:
+
+```bash
+TAURUS_LLM_PROVIDER=openai OPENAI_API_KEY=... TAURUS_LLM_MODEL=gpt-5-mini make llm-smoke
+TAURUS_LLM_PROVIDER=gemini GEMINI_API_KEY=... TAURUS_LLM_MODEL=gemini-2.5-flash make llm-smoke
+```
+
+OpenAI usage requires OpenAI API billing through `OPENAI_API_KEY`; Taurus does
+not use ChatGPT subscriptions, browser sessions, cookies, or OAuth workarounds
+for backend inference.
+
 ## Expected Project Commands By Milestone
 
 ```bash

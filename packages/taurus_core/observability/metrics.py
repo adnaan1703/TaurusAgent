@@ -97,13 +97,13 @@ NEWS_EVENTS = Gauge(
 
 LLM_PROVIDER_INFO = Gauge(
     "taurus_llm_provider_info",
-    "Configured Taurus LLM provider.",
+    "Configured Taurus real LLM provider.",
     ["provider", "model_version"],
 )
 
 LLM_FAILURES = Counter(
     "taurus_llm_failures_total",
-    "LLM provider failures that used deterministic fallback output.",
+    "Real LLM provider failures surfaced to Taurus workflows.",
     ["provider", "agent_name", "symbol", "error_type"],
 )
 
@@ -250,7 +250,7 @@ def configure_runtime_metrics(settings: Settings) -> None:
     LIVE_TRADING_ENABLED.set(1 if settings.live_trading_enabled else 0)
     LLM_PROVIDER_INFO.labels(
         provider=settings.taurus_llm_provider,
-        model_version=settings.taurus_llm_provider,
+        model_version=settings.configured_llm_model_version,
     ).set(1)
 
 
@@ -282,6 +282,15 @@ def record_llm_failure(
         symbol=symbol.upper(),
         error_type=error_type,
     ).inc()
+
+
+def current_llm_failure_count() -> int:
+    total = 0.0
+    for metric in LLM_FAILURES.collect():
+        for sample in metric.samples:
+            if sample.name == "taurus_llm_failures_total":
+                total += float(sample.value)
+    return int(total)
 
 
 def record_agent_run(

@@ -19,8 +19,17 @@ from taurus_core.db.session import build_session_factory
 from taurus_core.ops import backup as backup_module
 from taurus_core.ops.backup import create_backup, restore_backup
 from taurus_core.risk.schemas import HardRuleResult, RiskPersonaReview, RiskReview
+from tests.llm_fakes import FakeLLMProvider
 
 FULL_ANALYST_ROSTER = ",".join(ANALYST_KEYS)
+
+
+@pytest.fixture(autouse=True)
+def fake_llm_provider(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "scripts.run_trader_proposal.build_llm_provider",
+        lambda settings: FakeLLMProvider(),
+    )
 
 
 def test_mock_alerts_are_stored_and_replay_api_reconstructs_decision_path(

@@ -5,8 +5,10 @@ from decimal import Decimal
 from taurus_core.agents.schemas import LLMAnalystOutput, stance_from_score
 
 
-class MockLLMProvider:
-    def __init__(self, *, model_version: str = "mock-llm-v1") -> None:
+class FakeLLMProvider:
+    """Test-only fake LLM provider; not part of runtime Taurus wiring."""
+
+    def __init__(self, *, model_version: str = "test-fake-llm-v1") -> None:
         self._model_version = model_version
 
     @property
@@ -26,17 +28,18 @@ class MockLLMProvider:
         key_points = _list_context(
             context,
             "key_points",
-            [f"{agent_name} mock analysis completed for {symbol.upper()}."],
+            [f"{agent_name} test fake analysis completed for {symbol.upper()}."],
         )
         risks = _list_context(
             context,
             "risks",
-            ["Mock-mode output should be replaced with real evidence before live use."],
+            ["Test-only fake LLM output."],
         )
+        bounded_score = max(Decimal("-1"), min(Decimal("1"), score))
         return LLMAnalystOutput(
-            score=max(Decimal("-1"), min(Decimal("1"), score)),
+            score=bounded_score,
             confidence=max(Decimal("0"), min(Decimal("1"), confidence)),
-            stance=stance_from_score(score),
+            stance=stance_from_score(bounded_score),
             horizon=horizon,  # type: ignore[arg-type]
             key_points=key_points,
             risks=risks,

@@ -15,7 +15,7 @@ from taurus_core.data.providers.mock_market_data import MockMarketDataProvider
 from taurus_core.db.models import BacktestOrderModel, DebateReportModel
 from taurus_core.db.session import build_session_factory
 from taurus_core.intelligence.mock_news_provider import MockNewsProvider
-from taurus_core.llm.mock_provider import MockLLMProvider
+from tests.llm_fakes import FakeLLMProvider
 from taurus_core.research.debate_service import ResearchDebateService
 
 
@@ -26,7 +26,7 @@ def test_research_debate_is_deterministic_and_does_not_create_orders(tmp_path: P
         run_analyst_suite(
             session,
             symbol="INFY",
-            llm_provider=MockLLMProvider(),
+            llm_provider=FakeLLMProvider(),
             run_id=DEFAULT_ANALYST_RUN_ID,
         )
 
@@ -62,7 +62,7 @@ def test_research_api_returns_debates(tmp_path: Path) -> None:
         run_analyst_suite(
             session,
             symbol="INFY",
-            llm_provider=MockLLMProvider(),
+            llm_provider=FakeLLMProvider(),
             run_id=DEFAULT_ANALYST_RUN_ID,
         )
     with session_factory() as session:

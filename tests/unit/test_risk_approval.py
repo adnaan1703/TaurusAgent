@@ -21,7 +21,7 @@ from taurus_core.db.repositories import IntelligenceRepository
 from taurus_core.db.session import build_session_factory
 from taurus_core.intelligence.documents import NewsEvent, RawDocument, document_checksum, stable_id
 from taurus_core.intelligence.mock_news_provider import MockNewsProvider
-from taurus_core.llm.mock_provider import MockLLMProvider
+from tests.llm_fakes import FakeLLMProvider
 from taurus_core.research.debate_service import ResearchDebateService
 from taurus_core.research.schemas import TraderProposal
 from taurus_core.risk.engine import RiskEngine
@@ -183,7 +183,7 @@ def _build_trader_proposal(session_factory) -> TraderProposal:
         run_analyst_suite(
             session,
             symbol="INFY",
-            llm_provider=MockLLMProvider(),
+            llm_provider=FakeLLMProvider(),
             run_id=DEFAULT_ANALYST_RUN_ID,
         )
     with session_factory() as session:

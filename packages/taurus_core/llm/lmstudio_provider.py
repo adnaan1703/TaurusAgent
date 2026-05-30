@@ -5,18 +5,24 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from taurus_core.agents.schemas import LLMAnalystOutput
-from taurus_core.llm.base import LLMProviderError, parse_llm_output
+from taurus_core.config import DEFAULT_LMSTUDIO_BASE_URL, DEFAULT_LMSTUDIO_MODEL
+from taurus_core.llm.base import (
+    ANALYST_OUTPUT_JSON_SCHEMA,
+    LLMProviderError,
+    analyst_output_system_prompt,
+    parse_llm_output,
+)
 
 
 class LMStudioProvider:
-    """OpenAI-compatible local provider used only for optional smoke checks."""
+    """OpenAI-compatible local provider for local real-model inference."""
 
     def __init__(
         self,
         *,
-        base_url: str = "http://localhost:1234/v1",
-        model: str = "local-model",
-        timeout_seconds: int = 10,
+        base_url: str = DEFAULT_LMSTUDIO_BASE_URL,
+        model: str = DEFAULT_LMSTUDIO_MODEL,
+        timeout_seconds: int = 20,
     ) -> None:
         self.base_url = base_url.rstrip("/")
         self.model = model
@@ -42,6 +48,8 @@ class LMStudioProvider:
             symbol=symbol,
             context=context,
             timeout_seconds=self.timeout_seconds,
+            response_format={"type": "json_object"},
+            provider_name="LM Studio",
         )
 
 
@@ -55,18 +63,15 @@ def _openai_compatible_completion(
     symbol: str,
     context: dict[str, object],
     timeout_seconds: int,
+    response_format: dict[str, object] | None = None,
+    provider_name: str = "LLM provider",
 ) -> LLMAnalystOutput:
     payload = {
         "model": model,
         "messages": [
             {
                 "role": "system",
-                "content": (
-                    "Return only JSON matching this schema: score number -1..1, "
-                    "confidence number 0..1, stance bullish|bearish|neutral, "
-                    "horizon intraday|short|medium|long, key_points string array, "
-                    "risks string array, model_version string."
-                ),
+                "content": analyst_output_system_prompt(),
             },
             {
                 "role": "user",
@@ -83,6 +88,8 @@ def _openai_compatible_completion(
         ],
         "temperature": 0,
     }
+    if response_format is not None:
+        payload["response_format"] = response_format
     request = Request(
         f"{base_url}/chat/completions",
         data=json.dumps(payload).encode("utf-8"),
@@ -96,10 +103,21 @@ def _openai_compatible_completion(
         with urlopen(request, timeout=timeout_seconds) as response:
             response_payload = json.loads(response.read().decode("utf-8"))
     except (HTTPError, URLError, TimeoutError, json.JSONDecodeError) as exc:
-        raise LLMProviderError("LLM provider request failed") from exc
+        raise LLMProviderError(f"{provider_name} request failed") from exc
 
     try:
         content = response_payload["choices"][0]["message"]["content"]
     except (KeyError, IndexError, TypeError) as exc:
-        raise LLMProviderError("LLM provider response did not include chat content") from exc
+        raise LLMProviderError(f"{provider_name} response did not include chat content") from exc
     return parse_llm_output(str(content), fallback_model_version=model_version)
+
+
+def openai_json_schema_response_format() -> dict[str, object]:
+    return {
+        "type": "json_schema",
+        "json_schema": {
+            "name": "LLMAnalystOutput",
+            "strict": True,
+            "schema": ANALYST_OUTPUT_JSON_SCHEMA,
+        },
+    }

@@ -11,6 +11,9 @@ const safety = {
   taurus_mode: "paper",
   broker_provider: "paper",
   live_trading_enabled: false,
+  llm_provider: "lmstudio",
+  llm_model_version: "lmstudio:local-model",
+  llm_failure_count: 0,
   alert_provider: "mock",
 };
 
