@@ -85,6 +85,7 @@ export function RiskPage() {
                   { key: "status", header: "Status", render: (row) => <StatusBadge status={getString(row, "status")} size="sm" /> },
                   { key: "action", header: "Action", render: (row) => getString(row, "proposal_action") || "-" },
                   { key: "lifecycle", header: "Lifecycle", render: (row) => getString(row, "lifecycle_trigger") || "-" },
+                  { key: "mode", header: "Mode", render: (row) => getString(row, "evaluation_mode") || "-" },
                   { key: "requested", header: "Requested", align: "right", render: (row) => formatPercent(getPrimitive(row, "requested_position_pct_nav")) },
                   { key: "approved", header: "Approved", align: "right", render: (row) => formatPercent(getPrimitive(row, "approved_position_pct_nav")) },
                   { key: "broker", header: "Broker eligible", render: (row) => <StatusBadge label={getPrimitive(row, "can_send_to_broker") ? "Yes" : "No"} status={getPrimitive(row, "can_send_to_broker") ? "APPROVED" : "BLOCKED"} size="sm" /> },

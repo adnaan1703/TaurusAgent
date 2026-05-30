@@ -1,4 +1,4 @@
-.PHONY: setup setup-ui dev-up dev-down api ui build-ui test-ui dashboard migrate backtest-mock import-mock-news import-screener import-market-data import-taurus-graph compute-graph-stats project-neo4j-graph sync-halal-stocks kite-login-url kite-exchange-token kite-sync-instruments import-kite-candles kite-ltp-smoke run-analysts-mock debate-mock trader-proposal-mock risk-review-mock final-approval-mock paper-once-mock paper-loop-once paper-loop-start paper-loop-kite paper-loop-dashboard alert-smoke alert-test-telegram replay-decision backup-local backup-db restore-local taurus-smoke llm-smoke test lint
+.PHONY: setup setup-ui dev-up dev-down api ui build-ui test-ui dashboard migrate backtest-mock import-mock-news import-screener import-market-data import-taurus-graph compute-graph-stats project-neo4j-graph sync-halal-stocks kite-login-url kite-exchange-token kite-sync-instruments import-kite-candles kite-ltp-smoke run-analysts-mock debate-mock trader-proposal-mock risk-review-mock final-approval-mock paper-once-mock paper-loop-once paper-loop-start paper-loop-kite position-monitor paper-loop-dashboard alert-smoke alert-test-telegram replay-decision backup-local backup-db restore-local taurus-smoke llm-smoke test lint
 
 UV ?= uv
 PNPM ?= pnpm
@@ -11,6 +11,8 @@ PAPER_LOOP_KITE_SYMBOLS = $(if $(filter command line,$(origin SYMBOLS)),$(SYMBOL
 ROUNDS ?= 2
 PAPER_LOOP_ITERATIONS ?= 1
 PAPER_LOOP_INTERVAL_SECONDS ?= 60
+POSITION_MONITOR_ITERATIONS ?= 0
+POSITION_MONITOR_INTERVAL_SECONDS ?= 30
 FULL_ANALYST_ROSTER ?= technical,news,sentiment,fundamentals,graph
 DATA_DIR ?= configs/taurus_data
 AS_OF ?=
@@ -121,6 +123,9 @@ paper-loop-start:
 
 paper-loop-kite:
 	DATABASE_URL="$(DATABASE_URL)" TAURUS_MARKET_DATA_PROVIDER=kite TAURUS_ENABLED_ANALYSTS=technical,graph TAURUS_GRAPH_ENABLED=true TAURUS_GRAPH_RISK_ENABLED=true STRATEGY=configs/strategies/graph_aware_score_v1.yaml SYMBOL="$(PAPER_LOOP_KITE_SYMBOL)" SYMBOLS="$(PAPER_LOOP_KITE_SYMBOLS)" PAPER_LOOP_ITERATIONS="$(PAPER_LOOP_ITERATIONS)" PAPER_LOOP_INTERVAL_SECONDS="$(PAPER_LOOP_INTERVAL_SECONDS)" PYTHONPATH=packages:. $(UV) run python scripts/run_paper_loop.py
+
+position-monitor:
+	DATABASE_URL="$(DATABASE_URL)" TAURUS_POSITION_MONITOR_ENABLED=true TAURUS_POSITION_MONITOR_PROVIDER=kite TAURUS_POSITION_MONITOR_MAX_ITERATIONS="$(POSITION_MONITOR_ITERATIONS)" TAURUS_POSITION_MONITOR_INTERVAL_SECONDS="$(POSITION_MONITOR_INTERVAL_SECONDS)" PYTHONPATH=packages:. $(UV) run python scripts/run_position_monitor.py
 
 alert-smoke:
 	DATABASE_URL="$(DATABASE_URL)" TAURUS_ALERT_PROVIDER=mock PYTHONPATH=packages:. $(UV) run python scripts/alert_smoke.py

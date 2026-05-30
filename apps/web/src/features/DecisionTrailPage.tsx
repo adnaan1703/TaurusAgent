@@ -295,6 +295,8 @@ function StageArtifactTable({ stage }: { stage: UiTimelineStage }) {
           { key: "action", header: "Action", render: (row) => getString(row, "action") || "-" },
           { key: "lifecycle", header: "Lifecycle", render: (row) => getString(row, "lifecycle_trigger") || "-" },
           { key: "mode", header: "Mode", render: (row) => getString(row, "evaluation_mode") || "-" },
+          { key: "ltp", header: "Quote LTP", align: "right", render: (row) => formatInr(getPrimitive(row, "latest_price_inr")) },
+          { key: "threshold", header: "Threshold", align: "right", render: (row) => formatInr(getPrimitive(row, "trigger_threshold_price_inr")) },
           { key: "qty", header: "Current qty", align: "right", render: (row) => formatNumber(getPrimitive(row, "current_position_quantity")) },
           { key: "current", header: "Current NAV", align: "right", render: (row) => formatPercent(getPrimitive(row, "current_position_pct_nav")) },
           { key: "target", header: "Target NAV", align: "right", render: (row) => formatPercent(getPrimitive(row, "target_position_pct_nav")) },

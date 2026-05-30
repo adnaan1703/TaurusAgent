@@ -15,6 +15,8 @@ AlertEventType = Literal[
     "scheduled_job_failure",
     "stale_data_event",
     "risk_rejection_spike",
+    "position_monitor_stop_loss",
+    "position_monitor_take_profit",
     "alert_smoke_test",
 ]
 AlertSeverity = Literal["info", "warning", "critical"]

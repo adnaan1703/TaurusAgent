@@ -20,7 +20,7 @@ LifecycleTrigger = Literal[
     "thesis_weakened",
     "thesis_invalidated",
 ]
-EvaluationMode = Literal["after_close"]
+EvaluationMode = Literal["after_close", "market_hours"]
 
 
 class BullThesis(BaseModel):
@@ -133,6 +133,14 @@ class TraderProposal(BaseModel):
     target_position_pct_nav: Decimal = Field(default=Decimal("0.0000"), ge=Decimal("0"), le=Decimal("100"))
     lifecycle_trigger: LifecycleTrigger = "new_entry"
     evaluation_mode: EvaluationMode = "after_close"
+    market_session_date: str | None = None
+    quote_snapshot_id: int | None = None
+    quote_snapshot: dict[str, object] = Field(default_factory=dict)
+    latest_price_inr: Decimal | None = Field(default=None, ge=Decimal("0"))
+    stop_loss_price_inr: Decimal | None = Field(default=None, ge=Decimal("0"))
+    take_profit_price_inr: Decimal | None = Field(default=None, ge=Decimal("0"))
+    trigger_threshold_price_inr: Decimal | None = Field(default=None, ge=Decimal("0"))
+    trigger_evidence: dict[str, object] = Field(default_factory=dict)
     order_type: TraderOrderType
     entry_rule: str = Field(min_length=1)
     stop_loss_pct: Decimal = Field(ge=Decimal("0"), le=Decimal("100"))

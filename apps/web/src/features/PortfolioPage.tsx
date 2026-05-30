@@ -52,6 +52,15 @@ export function PortfolioPage() {
                   value={formatMetric(metric)}
                 />
               ))}
+              <MetricCard
+                label="Monitor triggers today"
+                supportingText={
+                  getString(portfolioQuery.data.monitor_status, "last_iteration_time")
+                    ? `Last ${formatTimestamp(getString(portfolioQuery.data.monitor_status, "last_iteration_time"))}`
+                    : "No monitor iteration"
+                }
+                value={formatNumber(getPrimitive(portfolioQuery.data.monitor_status, "trigger_count_today"))}
+              />
             </div>
           ) : (
             <EmptyState commands={emptyDataCommands} message="No paper account snapshot is available." title="No account data" />
@@ -68,6 +77,11 @@ export function PortfolioPage() {
                 { key: "qty", header: "Qty", align: "right", render: (row) => formatNumber(getPrimitive(row, "quantity")) },
                 { key: "avg", header: "Average cost", align: "right", render: (row) => formatInr(getPrimitive(row, "average_cost_inr")) },
                 { key: "last", header: "Last price", align: "right", render: (row) => formatInr(getPrimitive(row, "last_price_inr")) },
+                { key: "quote", header: "Quote LTP", align: "right", render: (row) => formatInr(getPrimitive(row, "latest_quote_ltp_inr")) },
+                { key: "sl", header: "SL price", align: "right", render: (row) => formatInr(getPrimitive(row, "stop_loss_price_inr")) },
+                { key: "slDist", header: "To SL", align: "right", render: (row) => formatInr(getPrimitive(row, "distance_to_stop_loss_inr")) },
+                { key: "tp", header: "TP price", align: "right", render: (row) => formatInr(getPrimitive(row, "take_profit_price_inr")) },
+                { key: "tpDist", header: "To TP", align: "right", render: (row) => formatInr(getPrimitive(row, "distance_to_take_profit_inr")) },
                 { key: "value", header: "Market value", align: "right", render: (row) => formatInr(getPrimitive(row, "market_value_inr")) },
                 { key: "realized", header: "Realized P&L", align: "right", render: (row) => formatInr(getPrimitive(row, "realized_pnl_inr")) },
                 { key: "unrealized", header: "Unrealized P&L", align: "right", render: (row) => formatInr(getPrimitive(row, "unrealized_pnl_inr")) },

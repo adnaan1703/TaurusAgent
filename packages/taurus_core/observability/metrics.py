@@ -239,6 +239,36 @@ GRAPH_AGENT_FAILURES = Counter(
     ["agent_name", "symbol", "error_type"],
 )
 
+POSITION_MONITOR_ITERATIONS = Counter(
+    "taurus_position_monitor_iterations_total",
+    "Market-hours position monitor iterations.",
+    ["status"],
+)
+
+POSITION_MONITOR_QUOTE_FETCH_FAILURES = Counter(
+    "taurus_position_monitor_quote_fetch_failures_total",
+    "Quote fetch failures observed by the position monitor.",
+    ["provider", "symbol"],
+)
+
+POSITION_MONITOR_TRIGGERS = Counter(
+    "taurus_position_monitor_triggers_total",
+    "Stop-loss and take-profit triggers detected by the position monitor.",
+    ["trigger", "symbol"],
+)
+
+POSITION_MONITOR_PROPOSALS = Counter(
+    "taurus_position_monitor_proposals_created_total",
+    "Trader proposals created by the position monitor.",
+    ["trigger", "action", "symbol"],
+)
+
+POSITION_MONITOR_PAPER_ROUTES = Counter(
+    "taurus_position_monitor_paper_routes_total",
+    "Paper exits and reductions routed from monitor-generated final decisions.",
+    ["action", "symbol", "order_status"],
+)
+
 
 def configure_runtime_metrics(settings: Settings) -> None:
     APP_INFO.labels(
@@ -281,6 +311,42 @@ def record_llm_failure(
         agent_name=agent_name,
         symbol=symbol.upper(),
         error_type=error_type,
+    ).inc()
+
+
+def record_position_monitor_iteration(*, status: str) -> None:
+    POSITION_MONITOR_ITERATIONS.labels(status=status).inc()
+
+
+def record_position_monitor_quote_failure(*, provider: str, symbol: str) -> None:
+    POSITION_MONITOR_QUOTE_FETCH_FAILURES.labels(
+        provider=provider,
+        symbol=symbol.upper(),
+    ).inc()
+
+
+def record_position_monitor_trigger(*, trigger: str, symbol: str) -> None:
+    POSITION_MONITOR_TRIGGERS.labels(trigger=trigger, symbol=symbol.upper()).inc()
+
+
+def record_position_monitor_proposal(*, trigger: str, action: str, symbol: str) -> None:
+    POSITION_MONITOR_PROPOSALS.labels(
+        trigger=trigger,
+        action=action,
+        symbol=symbol.upper(),
+    ).inc()
+
+
+def record_position_monitor_paper_route(
+    *,
+    action: str,
+    symbol: str,
+    order_status: str,
+) -> None:
+    POSITION_MONITOR_PAPER_ROUTES.labels(
+        action=action,
+        symbol=symbol.upper(),
+        order_status=order_status,
     ).inc()
 
 

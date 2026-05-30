@@ -107,6 +107,10 @@ Taurus is a local, observable paper-trading simulator for Indian cash equities. 
   lifecycle review.
 - `make paper-loop-start PAPER_LOOP_ITERATIONS=5`: repeated local loop.
 - `make paper-loop-dashboard`: Kite-backed run plus React dashboard.
+- `make position-monitor POSITION_MONITOR_ITERATIONS=1`: polls open paper
+  positions with Kite latest quote snapshots and creates paper-only
+  `market_hours` stop-loss/take-profit lifecycle decisions when thresholds are
+  crossed.
 - `make taurus-smoke`: full MVP smoke test using existing Kite-imported market data and remaining non-market mocks.
 
 ### Replay And Ops
@@ -180,6 +184,18 @@ make ui
 
 Open `http://localhost:5173`.
 
+8. **Optional market-hours monitor:**
+
+```bash
+make position-monitor POSITION_MONITOR_ITERATIONS=1
+```
+
+The monitor is paper-only. It requires open positions in
+`TAURUS_PAPER_PORTFOLIO_ID`, persists Kite quote snapshots before evaluation,
+and routes triggered `EXIT`/`REDUCE` proposals through the same TraderAgent,
+RiskReview, PortfolioManagerAgent, and PaperBroker decision trail. It does not
+create broker-native stop-loss, OCO, or live broker orders.
+
 Do not mix old mock-market-data rows with Kite runs. Kite imports and Kite-backed paper loops fail fast if `daily_candles.source = "mock_market_data"` or old mock-backed paper-run summaries are present.
 
 For an explicit technical-only manual run, use the generic loop target instead
@@ -215,7 +231,7 @@ For the maintained component-by-component tracker, see
 - Fundamentals use a mock fallback if the fundamentals analyst is enabled and no Screener data exists.
 - `PaperBroker` is a simulator. It is expected paper execution, but not a real broker paper account.
 - Paper costs are placeholder bps settings.
-- Paper fills use latest daily candle open/close, not live order book or Kite LTP execution.
+- Paper fills use latest daily candle open/close, not live order book or Kite LTP execution. The position monitor uses Kite LTP only as auditable trigger evidence.
 
 ## Technical-Only Flow
 
@@ -381,14 +397,13 @@ TAURUS_GRAPH_CONCENTRATION_WARNING_FRACTION=0.80
 1. Remove mock news from real paper runs, or add a real/no-news mode. Right now mock news can affect risk even with technical/graph paper runs.
 2. Add a rule-only technical analyst path if no LLM should be required for
    technical-only paper runs. Runtime mock LLM has been removed.
-3. Add market-hours paper position monitoring for stop-loss/take-profit review; current lifecycle proposals are after-close only.
-4. Use a clean DB if legacy `mock_market_data` candles or old mock-backed paper-run summaries exist; Kite runs fail clearly rather than mixing sources.
-5. Make Kite-backed backtesting first-class. Current backtest script uses existing daily candles and no longer imports mock or CSV candles.
-6. Replace placeholder cost/slippage/fill assumptions with broker-calibrated paper execution assumptions.
-7. Add a real news/data provider if news/sentiment risk is enabled.
-8. Validate real Screener CSV if fundamentals will be used.
-9. Add dashboard/API auth before using beyond a trusted local machine.
-10. Implement broker order routing only after an explicit approved milestone; Kite execution is not implemented.
+3. Use a clean DB if legacy `mock_market_data` candles or old mock-backed paper-run summaries exist; Kite runs fail clearly rather than mixing sources.
+4. Make Kite-backed backtesting first-class. Current backtest script uses existing daily candles and no longer imports mock or CSV candles.
+5. Replace placeholder cost/slippage/fill assumptions with broker-calibrated paper execution assumptions.
+6. Add a real news/data provider if news/sentiment risk is enabled.
+7. Validate real Screener CSV if fundamentals will be used.
+8. Add dashboard/API auth before using beyond a trusted local machine.
+9. Implement broker order routing only after an explicit approved milestone; Kite execution is not implemented.
 
 ## Bottom Line
 
@@ -396,6 +411,8 @@ Taurus is usable today for local, observable, real-Kite-data paper simulation
 with graph intelligence on the canonical `paper-loop-kite` path when LM Studio
 or an explicit hosted LLM provider is configured and graph import/stats
 readiness passes. Final approval remains deterministic, with optional LLM
-explanations flowing through existing final-decision reason/model metadata. It
+explanations flowing through existing final-decision reason/model metadata.
+Market-hours stop-loss/take-profit monitoring now creates auditable paper-only
+`market_hours` lifecycle decisions for open long positions. It
 is not yet clean of mocks, and it is not broker-level paper trading. The biggest
 remaining mock contamination is mock news imported into risk context.

@@ -79,6 +79,41 @@ def order_rejection_event(order: PaperOrder) -> AlertEvent:
     )
 
 
+def position_monitor_trigger_event(
+    *,
+    run_id: str,
+    symbol: str,
+    trigger: str,
+    latest_price_inr: str,
+    threshold_price_inr: str,
+    source_id: str,
+    created_at: datetime,
+    payload: dict[str, object],
+) -> AlertEvent:
+    event_type = f"position_monitor_{trigger}"
+    severity = "critical" if trigger == "stop_loss" else "warning"
+    label = "stop-loss" if trigger == "stop_loss" else "take-profit"
+    return AlertEvent(
+        event_id=alert_event_id(
+            event_type=event_type,
+            run_id=run_id,
+            symbol=symbol,
+            source_id=source_id,
+        ),
+        event_type=event_type,
+        severity=severity,
+        message=(
+            f"Market-hours {label} trigger for {symbol.upper()}: latest "
+            f"{latest_price_inr} crossed {threshold_price_inr}."
+        ),
+        run_id=run_id,
+        symbol=symbol.upper(),
+        source_id=source_id,
+        created_at=created_at,
+        payload=payload,
+    )
+
+
 def risk_review_events(review: RiskReview) -> list[AlertEvent]:
     events: list[AlertEvent] = []
     for result in review.hard_rule_results:

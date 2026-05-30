@@ -81,6 +81,7 @@ already-fixed deterministic outcome.
 |---|---|---:|---|
 | Debate | `BullResearcherAgent`, `BearResearcherAgent`, `ResearchManagerAgent` | Yes | Bull, bear, and manager synthesis use the configured real LLM provider with deterministic score/confidence guardrails. |
 | Trader proposal | `TraderAgent` | Yes | Uses the configured real LLM provider for after-close lifecycle reasoning, then deterministic guardrails validate action, target exposure, and summaries. |
+| Position monitor | `PositionMonitorService`, `TraderAgent`, `RiskReviewService`, `PortfolioManagerAgent`, `PaperBroker` | Yes for triggered TraderAgent/final explanations | Uses Kite quote snapshots only; tests may inject local fake quote clients. Runtime mock quote providers are not configured. |
 | Risk review | `RiskyRiskAgent`, `NeutralRiskAgent`, `SafeRiskAgent`, `RiskEngine` | No | Can be influenced by mock news/events in the DB. |
 | Final approval | `PortfolioManagerAgent` | Optional | Uses the configured real LLM provider only to enrich `FinalDecision.reason` and bounded model metadata after deterministic status/action/sizing/routing fields are fixed. |
 | Paper execution | `ExecutionRouter`, `PaperBroker` | No | Simulated fills/costs/slippage only. |
@@ -98,6 +99,7 @@ already-fixed deterministic outcome.
 | `BearResearcherAgent` | Builds an LLM-assisted bear thesis from analyst evidence with deterministic guardrails | Yes | MUST | High | Completed in M26; challenge assumptions, surface downside, and identify invalidation risks without overriding downstream safeguards. |
 | `ResearchManagerAgent` | Builds LLM-assisted debate synthesis from analyst evidence plus bull/bear theses with deterministic guardrails | Yes | MUST | High | Completed in M27; synthesize bull/bear debate into consensus, confidence, and unresolved uncertainties without overriding downstream safeguards. |
 | `TraderAgent` | Builds position-aware lifecycle proposals with deterministic guardrails around advisory LLM output | Yes | MUST | High | Completed in M28; convert research consensus plus paper portfolio context into after-close BUY/HOLD/NO_TRADE/REDUCE/EXIT proposals. |
+| `PositionMonitorService` | Polls open long paper positions against stop-loss/take-profit thresholds using persisted Kite quote snapshots | Yes for triggered TraderAgent/final explanation flow | MUST | High | Completed in M30; create auditable `market_hours` EXIT/REDUCE lifecycle proposals without broker-native stop-loss/OCO/live routing. |
 | `RiskyRiskAgent` / `NeutralRiskAgent` / `SafeRiskAgent` | Risk persona rules | No | Optional | Medium | Provide advisory committee-style risk reasoning; hard risk rules remain authoritative. |
 | `RiskEngine` | Hard risk rules | No | Never | N/A | Keep deterministic: kill switch, caps, stale data, severe event block, graph concentration gates. |
 | `PortfolioManagerAgent` | Final approval rules plus optional LLM explanation | Optional | Optional | Low | Completed in M29; explain final approval/rejection/no-action while deterministic approval gates remain authoritative. |
@@ -153,6 +155,9 @@ The advisory risk personas can be upgraded after that. `RiskEngine`,
       runtime provider.
 - [x] Add optional LLM explanation to `PortfolioManagerAgent`; deterministic
       final approval gates remain authoritative.
+- [x] Add market-hours paper position monitoring for stop-loss/take-profit
+      lifecycle review using Kite latest quote snapshots and existing paper
+      decision flow.
 - [ ] Validate real Screener CSV exports and confirm they map cleanly to Taurus
       instruments before enabling fundamentals in production-like paper runs.
 - [ ] Review and calibrate paper brokerage, charges, slippage, and fill
@@ -185,14 +190,16 @@ Neo4j disabled
 The selected migration path is now tracked as M21-M30 in
 `docs/TAURUS_MILESTONE_TODO.md`. Docker Postgres-only persistence, real LLM
 providers, Kite-only runtime market data, and graph-enabled Kite paper loops are
-complete through the position-aware TraderAgent lifecycle migration. The next
-migration in the selected path is optional LLM final-decision explanation.
+complete through the market-hours position monitor migration. The selected
+M21-M30 functional MVP sequence is now implemented; remaining work is deferred
+outside that sequence.
 
 **The target workflow should become:**
 
 Analysts produce evidence
 Bull/Bear/Manager produce research view
 TraderAgent produces after-close entry/hold/reduce/exit proposal
+PositionMonitorService produces market-hours stop-loss/take-profit proposals
 RiskEngine applies hard gates
 PortfolioManagerAgent gives final approval
 PaperBroker executes simulated BUY/SELL

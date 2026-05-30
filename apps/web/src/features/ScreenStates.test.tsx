@@ -35,8 +35,21 @@ const runSummary = {
   order_status_counts: { FILLED: 1 },
 };
 
+const monitorStatus = {
+  enabled: false,
+  provider: "kite",
+  market_hours_only: true,
+  interval_seconds: 30,
+  max_iterations: 0,
+  latest_event_type: null,
+  latest_note: null,
+  last_iteration_time: null,
+  trigger_count_today: 0,
+};
+
 const emptyOverview = {
   safety,
+  monitor_status: monitorStatus,
   latest_account: null,
   latest_run: null,
   latest_final_decision: null,
@@ -48,6 +61,7 @@ const emptyOverview = {
 
 const overview = {
   safety,
+  monitor_status: { ...monitorStatus, enabled: true, trigger_count_today: 1 },
   latest_account: {
     account_id: "acct-1",
     run_id: "pr-test",
@@ -297,6 +311,7 @@ const risk = {
 
 const portfolio = {
   safety,
+  monitor_status: monitorStatus,
   latest_account: overview.latest_account,
   positions: overview.positions,
   orders: [overview.latest_order],

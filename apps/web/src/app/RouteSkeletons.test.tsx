@@ -37,6 +37,11 @@ const safety = {
 const payloads = {
   overview: {
     safety,
+    monitor_status: {
+      enabled: false,
+      provider: "kite",
+      trigger_count_today: 0,
+    },
     latest_account: null,
     latest_run: runSummary,
     latest_final_decision: null,
@@ -98,6 +103,11 @@ const payloads = {
   },
   portfolio: {
     safety,
+    monitor_status: {
+      enabled: false,
+      provider: "kite",
+      trigger_count_today: 0,
+    },
     latest_account: null,
     positions: [],
     orders: [],

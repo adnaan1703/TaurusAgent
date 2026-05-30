@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from collections import Counter
 from dataclasses import dataclass
+from datetime import datetime
 from decimal import Decimal
-from typing import cast
+from typing import Any, cast
 
 from sqlalchemy.orm import Session
 
@@ -162,6 +163,144 @@ class TraderAgent:
             )
         return proposal
 
+    def run_market_hours_trigger(
+        self,
+        *,
+        symbol: str,
+        run_id: str,
+        base_proposal: TraderProposal,
+        latest_price_inr: Decimal,
+        stop_loss_price_inr: Decimal,
+        take_profit_price_inr: Decimal,
+        trigger: LifecycleTrigger,
+        trigger_threshold_price_inr: Decimal,
+        market_session_date: str,
+        quote_snapshot_id: int | None,
+        quote_snapshot: dict[str, object],
+        as_of: datetime | None = None,
+    ) -> TraderProposal:
+        symbol = symbol.upper()
+        if trigger not in {"stop_loss", "take_profit"}:
+            raise ValueError("Market-hours monitor supports only stop_loss or take_profit triggers.")
+        if base_proposal.symbol != symbol:
+            raise ValueError("Base proposal symbol does not match market-hours trigger symbol.")
+
+        reports = self._load_reports(symbol=symbol, run_id=base_proposal.run_id)
+        debate = self._load_debate_by_id(base_proposal.debate_id)
+        portfolio = self._portfolio_context(symbol=symbol, latest_price_inr=latest_price_inr)
+        action = "EXIT" if trigger == "stop_loss" else "REDUCE"
+        target = self._target_for_action(action=action, debate=debate, portfolio=portfolio)
+        fallback = _ProposalDecision(
+            action=action,
+            confidence=base_proposal.confidence,
+            target_position_pct_nav=target,
+            lifecycle_trigger=trigger,
+            reason_summary=(
+                f"Market-hours monitor detected {trigger.replace('_', ' ')} for {symbol}: "
+                f"latest quote {latest_price_inr} crossed threshold "
+                f"{trigger_threshold_price_inr}."
+            ),
+            invalid_if=[
+                "Risk committee rejects or resizes the market-hours lifecycle proposal.",
+                "Paper-safe broker settings change before execution.",
+                "Quote snapshot is superseded before final approval.",
+            ],
+            position_management_summary=(
+                f"Market-hours threshold monitor selected {action} for {trigger}; "
+                f"latest quote {latest_price_inr}, stop-loss {stop_loss_price_inr}, "
+                f"take-profit {take_profit_price_inr}, current exposure "
+                f"{portfolio.current_position_pct_nav}% NAV, target {target}% NAV."
+            ),
+            model_version=f"{self.model_version}:market_hours_deterministic",
+        )
+        allowed_actions = self._allowed_actions(
+            trigger=trigger,
+            debate=debate,
+            portfolio=portfolio,
+        )
+        decision = self._advisory_llm_decision(
+            reports=reports,
+            debate=debate,
+            portfolio=portfolio,
+            allowed_actions=allowed_actions,
+            fallback=fallback,
+            evaluation_mode="market_hours",
+            market_hours_context={
+                "market_session_date": market_session_date,
+                "quote_snapshot_id": quote_snapshot_id,
+                "quote_snapshot": quote_snapshot,
+                "latest_price_inr": str(latest_price_inr),
+                "stop_loss_price_inr": str(stop_loss_price_inr),
+                "take_profit_price_inr": str(take_profit_price_inr),
+                "trigger_threshold_price_inr": str(trigger_threshold_price_inr),
+            },
+        )
+        source_report_ids = list(base_proposal.source_report_ids)
+        order_type = self._order_type(decision.action)
+        proposal = TraderProposal(
+            proposal_id=trader_proposal_id(
+                run_id=run_id,
+                symbol=symbol,
+                debate_id=base_proposal.debate_id,
+                source_report_ids=source_report_ids,
+            ),
+            run_id=run_id,
+            portfolio_id=portfolio.portfolio_id,
+            symbol=symbol,
+            debate_id=base_proposal.debate_id,
+            as_of=as_of or debate.as_of,
+            action=decision.action,
+            confidence=decision.confidence,
+            horizon=base_proposal.horizon,
+            requested_position_pct_nav=decision.target_position_pct_nav,
+            current_position_quantity=portfolio.current_quantity,
+            current_position_pct_nav=portfolio.current_position_pct_nav,
+            target_position_pct_nav=decision.target_position_pct_nav,
+            lifecycle_trigger=decision.lifecycle_trigger,
+            evaluation_mode="market_hours",
+            market_session_date=market_session_date,
+            quote_snapshot_id=quote_snapshot_id,
+            quote_snapshot=quote_snapshot,
+            latest_price_inr=latest_price_inr,
+            stop_loss_price_inr=stop_loss_price_inr,
+            take_profit_price_inr=take_profit_price_inr,
+            trigger_threshold_price_inr=trigger_threshold_price_inr,
+            trigger_evidence={
+                "trigger": trigger,
+                "latest_price_inr": str(latest_price_inr),
+                "threshold_price_inr": str(trigger_threshold_price_inr),
+                "market_session_date": market_session_date,
+            },
+            order_type=order_type,
+            entry_rule=self._entry_rule(decision.action, order_type),
+            stop_loss_pct=base_proposal.stop_loss_pct,
+            take_profit_pct=base_proposal.take_profit_pct,
+            reason_summary=decision.reason_summary,
+            invalid_if=decision.invalid_if,
+            position_management_summary=decision.position_management_summary,
+            source_report_ids=source_report_ids,
+            is_order=False,
+            requires_risk_approval=True,
+            model_version=decision.model_version,
+        )
+        ResearchRepository(self.session).replace_trader_proposal_for_run_symbol(proposal)
+        self.session.commit()
+        with bound_trace_context(
+            run_id=run_id,
+            debate_id=base_proposal.debate_id,
+            proposal_id=proposal.proposal_id,
+        ):
+            get_logger(__name__).info(
+                "trader.market_hours_proposal.created",
+                symbol=symbol,
+                portfolio_id=proposal.portfolio_id,
+                action=proposal.action,
+                lifecycle_trigger=proposal.lifecycle_trigger,
+                latest_price_inr=str(latest_price_inr),
+                trigger_threshold_price_inr=str(trigger_threshold_price_inr),
+            )
+        return proposal
+
     def _load_reports(self, *, symbol: str, run_id: str) -> list[AnalystReport]:
         rows = AnalystReportRepository(self.session).list_for_run_symbol(
             symbol=symbol,
@@ -182,7 +321,18 @@ class TraderAgent:
             )
         return DebateReport.model_validate(model.payload)
 
-    def _portfolio_context(self, *, symbol: str) -> _PortfolioContext:
+    def _load_debate_by_id(self, debate_id: str) -> DebateReport:
+        model = ResearchRepository(self.session).get_debate(debate_id)
+        if model is None:
+            raise ValueError(f"No debate found for debate_id={debate_id}.")
+        return DebateReport.model_validate(model.payload)
+
+    def _portfolio_context(
+        self,
+        *,
+        symbol: str,
+        latest_price_inr: Decimal | None = None,
+    ) -> _PortfolioContext:
         portfolio_id = self.settings.taurus_paper_portfolio_id
         execution_repo = ExecutionRepository(self.session)
         account_model = execution_repo.latest_account_by_portfolio(portfolio_id=portfolio_id)
@@ -192,7 +342,11 @@ class TraderAgent:
             symbol=symbol,
         )
         position = PaperPosition.model_validate(position_model.payload) if position_model else None
-        latest_close = self._latest_close(symbol=symbol)
+        latest_close = (
+            latest_price_inr.quantize(SCORE_QUANT)
+            if latest_price_inr is not None
+            else self._latest_close(symbol=symbol)
+        )
         quantity = position.quantity if position is not None else 0
         market_value = (
             _quantize_money(latest_close * Decimal(quantity))
@@ -365,6 +519,8 @@ class TraderAgent:
         portfolio: _PortfolioContext,
         allowed_actions: tuple[TraderAction, ...],
         fallback: _ProposalDecision,
+        evaluation_mode: str = "after_close",
+        market_hours_context: dict[str, object] | None = None,
     ) -> _ProposalDecision:
         if self.llm_provider is None:
             return self._fallback_decision(
@@ -381,6 +537,8 @@ class TraderAgent:
                     portfolio=portfolio,
                     allowed_actions=allowed_actions,
                     fallback=fallback,
+                    evaluation_mode=evaluation_mode,
+                    market_hours_context=market_hours_context,
                 ),
             )
         except (LLMProviderError, ValueError) as exc:
@@ -499,10 +657,12 @@ class TraderAgent:
         portfolio: _PortfolioContext,
         allowed_actions: tuple[TraderAction, ...],
         fallback: _ProposalDecision,
+        evaluation_mode: str = "after_close",
+        market_hours_context: dict[str, object] | None = None,
     ) -> dict[str, object]:
-        return {
+        context: dict[str, Any] = {
             "portfolio_id": portfolio.portfolio_id,
-            "evaluation_mode": "after_close",
+            "evaluation_mode": evaluation_mode,
             "lifecycle_trigger": fallback.lifecycle_trigger,
             "allowed_actions": list(allowed_actions),
             "target_position_bounds": {
@@ -538,6 +698,9 @@ class TraderAgent:
                 "position_management_summary": fallback.position_management_summary,
             },
         }
+        if market_hours_context is not None:
+            context["market_hours_trigger"] = market_hours_context
+        return context
 
     def _order_type(self, action: TraderAction) -> TraderOrderType:
         if action in {"BUY", "SELL", "REDUCE", "EXIT"}:

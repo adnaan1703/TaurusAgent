@@ -17,6 +17,11 @@ const overviewPayload = {
     llm_failure_count: 0,
     alert_provider: "mock",
   },
+  monitor_status: {
+    enabled: false,
+    provider: "kite",
+    trigger_count_today: 0,
+  },
   latest_account: null,
   latest_run: null,
   latest_final_decision: null,

@@ -177,3 +177,44 @@ quote update -> SL/TP trigger -> TraderProposal -> RiskReview -> FinalDecision -
 - The first market-hours implementation may use polling; true streaming can be
   added later if needed.
 - Runtime mock market-data and mock quote providers remain out of scope.
+
+## Completion Summary
+
+Status: Completed in M30.
+
+Implemented:
+
+- Added `PositionMonitorService`, `scripts/run_position_monitor.py`, and
+  `make position-monitor`.
+- Added monitor settings with disabled-by-default `.env.example` values and a
+  one-shot development path via `POSITION_MONITOR_ITERATIONS=1`.
+- Reused Kite latest OHLC/LTP snapshots and persisted each snapshot before
+  threshold evaluation.
+- Added `evaluation_mode="market_hours"` TraderAgent proposals with quote
+  evidence, stop-loss/take-profit threshold prices, session date, and
+  deduplication for same-symbol/trigger/threshold/session repeats.
+- Routed triggered proposals through TraderAgent, RiskReviewService,
+  PortfolioManagerAgent, ExecutionRouter, and PaperBroker.
+- Added monitor audit events, alerts, Prometheus counters, and dashboard/API
+  visibility in Overview, Portfolio, Decision Trail, and Risk.
+
+Verification:
+
+- `uv run pytest tests/unit/test_position_monitor.py -q`
+- Full milestone verification is recorded in `docs/TAURUS_COMMANDS.md`.
+
+Assumptions made:
+
+- NSE market-hours polling uses the configured paper timezone and a weekday
+  09:15-15:30 local-time window.
+- `PaperBroker` still fills with latest stored daily candle prices; Kite LTP is
+  trigger evidence, not execution price.
+
+Mocks created:
+
+- Test-local `FakeQuoteProvider` in `tests/unit/test_position_monitor.py`.
+
+Mocks used:
+
+- Test-local fake LLM provider from `tests/llm_fakes.py`.
+- Test-local fake quote provider in monitor unit tests.

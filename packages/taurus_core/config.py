@@ -265,6 +265,28 @@ class Settings(BaseSettings):
         default="daily_after_close",
         validation_alias="TAURUS_PAPER_SCHEDULE",
     )
+    taurus_position_monitor_enabled: bool = Field(
+        default=False,
+        validation_alias="TAURUS_POSITION_MONITOR_ENABLED",
+    )
+    taurus_position_monitor_interval_seconds: int = Field(
+        default=30,
+        ge=1,
+        validation_alias="TAURUS_POSITION_MONITOR_INTERVAL_SECONDS",
+    )
+    taurus_position_monitor_provider: str = Field(
+        default="kite",
+        validation_alias="TAURUS_POSITION_MONITOR_PROVIDER",
+    )
+    taurus_position_monitor_market_hours_only: bool = Field(
+        default=True,
+        validation_alias="TAURUS_POSITION_MONITOR_MARKET_HOURS_ONLY",
+    )
+    taurus_position_monitor_max_iterations: int = Field(
+        default=0,
+        ge=0,
+        validation_alias="TAURUS_POSITION_MONITOR_MAX_ITERATIONS",
+    )
 
     taurus_llm_provider: str = Field(default="lmstudio", validation_alias="TAURUS_LLM_PROVIDER")
     taurus_llm_base_url: str = Field(default="", validation_alias="TAURUS_LLM_BASE_URL")
@@ -301,6 +323,11 @@ class Settings(BaseSettings):
         if self.taurus_market_data_provider not in set(SUPPORTED_MARKET_DATA_PROVIDERS):
             raise ValueError(
                 "Unsupported Taurus market data provider. Supported values: "
+                f"{', '.join(SUPPORTED_MARKET_DATA_PROVIDERS)}."
+            )
+        if self.taurus_position_monitor_provider not in set(SUPPORTED_MARKET_DATA_PROVIDERS):
+            raise ValueError(
+                "Unsupported Taurus position monitor provider. Supported values: "
                 f"{', '.join(SUPPORTED_MARKET_DATA_PROVIDERS)}."
             )
         if self.taurus_llm_provider not in set(SUPPORTED_LLM_PROVIDERS):

@@ -118,6 +118,7 @@ export type UiTimelineStage = {
 
 export type UiOverviewResponse = {
   safety: UiSafetyStatus;
+  monitor_status: JsonObject;
   latest_account?: JsonObject | null;
   latest_run?: UiRunSummary | null;
   latest_trader_proposal?: JsonObject | null;
@@ -174,6 +175,7 @@ export type UiRiskResponse = {
 
 export type UiPortfolioResponse = {
   safety: UiSafetyStatus;
+  monitor_status: JsonObject;
   latest_account?: JsonObject | null;
   positions: JsonObject[];
   orders: JsonObject[];

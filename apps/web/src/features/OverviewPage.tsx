@@ -50,7 +50,7 @@ export function OverviewPage() {
           <SafetyBanner safety={overviewQuery.data.safety} />
           <WarningsPanel warnings={overviewQuery.data.warnings} />
 
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
             <MetricCard
               label="Latest run"
               supportingText={
@@ -82,6 +82,24 @@ export function OverviewPage() {
                   <StatusBadge status={getString(overviewQuery.data.latest_final_decision, "status")} />
                 ) : (
                   "None"
+                )
+              }
+            />
+            <MetricCard
+              label="Monitor"
+              supportingText={
+                getString(overviewQuery.data.monitor_status, "last_iteration_time")
+                  ? `Last ${formatTimestamp(getString(overviewQuery.data.monitor_status, "last_iteration_time"))}`
+                  : "No monitor iteration"
+              }
+              value={
+                getPrimitive(overviewQuery.data.monitor_status, "enabled") ? (
+                  <StatusBadge
+                    label={`${formatNumber(getPrimitive(overviewQuery.data.monitor_status, "trigger_count_today"))} trigger(s) today`}
+                    status="APPROVED"
+                  />
+                ) : (
+                  <StatusBadge label="Disabled" status="missing" />
                 )
               }
             />
@@ -232,6 +250,9 @@ export function OverviewPage() {
                 { key: "quantity", header: "Qty", align: "right", render: (row) => formatNumber(getPrimitive(row, "quantity")) },
                 { key: "avg", header: "Average cost", align: "right", render: (row) => formatInr(getPrimitive(row, "average_cost_inr")) },
                 { key: "last", header: "Last price", align: "right", render: (row) => formatInr(getPrimitive(row, "last_price_inr")) },
+                { key: "quote", header: "Quote LTP", align: "right", render: (row) => formatInr(getPrimitive(row, "latest_quote_ltp_inr")) },
+                { key: "sl", header: "SL price", align: "right", render: (row) => formatInr(getPrimitive(row, "stop_loss_price_inr")) },
+                { key: "tp", header: "TP price", align: "right", render: (row) => formatInr(getPrimitive(row, "take_profit_price_inr")) },
                 { key: "value", header: "Market value", align: "right", render: (row) => formatInr(getPrimitive(row, "market_value_inr")) },
                 { key: "pnl", header: "Unrealized P&L", align: "right", render: (row) => formatInr(getPrimitive(row, "unrealized_pnl_inr")) },
               ]}

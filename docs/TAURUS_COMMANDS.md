@@ -388,6 +388,29 @@ Production paper-run and final-approval script paths build the configured real
 provider with `build_llm_provider(settings)` when explanation is enabled. Tests
 use test-only fake providers; runtime mock LLM providers remain unsupported.
 
+## M30 Commands Used
+
+```bash
+make position-monitor POSITION_MONITOR_ITERATIONS=1
+uv run pytest tests/unit/test_position_monitor.py -q
+make test-ui
+make test
+make lint
+rg -n "MockLLMProvider|mock LLM|mock_llm|LLM mock" packages apps scripts
+rg -n "MockMarketDataProvider|mock market|mock_market|CSVMarketDataProvider|market-data mock|quote mock" packages apps scripts
+git diff --check
+sed -n '/# END MY CUSTOM ADDITION/,$p' /Users/adnaan/.codex/rules/default.rules
+sed -n '1,260p' .codex/rules/default.rules
+```
+
+`make position-monitor` enables `TAURUS_POSITION_MONITOR_ENABLED=true` for the
+invocation, keeps provider `kite`, and runs `scripts/run_position_monitor.py`.
+Use `POSITION_MONITOR_ITERATIONS=1` for one local/dev pass; omit it or set `0`
+for continuous polling until stopped. The monitor is paper-only and creates
+`market_hours` stop-loss/take-profit lifecycle proposals from persisted Kite
+quote snapshots before routing through TraderAgent, RiskReview,
+PortfolioManagerAgent, and PaperBroker.
+
 ## M28 Commands Used
 
 ```bash
@@ -964,6 +987,7 @@ prefix_rule(pattern=["make", "import-market-data"], decision="allow")
 prefix_rule(pattern=["make", "kite-ltp-smoke"], decision="allow")
 prefix_rule(pattern=["make", "paper-loop-start"], decision="allow")
 prefix_rule(pattern=["make", "paper-loop-once"], decision="allow")
+prefix_rule(pattern=["make", "position-monitor"], decision="allow")
 prefix_rule(pattern=["make", "alert-smoke"], decision="allow")
 prefix_rule(pattern=["make", "replay-decision"], decision="allow")
 prefix_rule(pattern=["make", "backup-local"], decision="allow")

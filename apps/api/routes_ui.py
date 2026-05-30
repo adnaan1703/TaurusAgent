@@ -6,9 +6,11 @@ from datetime import date, datetime, timezone
 from decimal import Decimal
 from pathlib import Path
 from typing import Any, Literal
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from taurus_core.config import Settings
@@ -20,6 +22,7 @@ from taurus_core.db.models import (
     FinalDecisionModel,
     HalalStockComplianceModel,
     HalalStockImportModel,
+    MarketPriceSnapshotModel,
     PaperFillModel,
     PaperOrderModel,
     PaperRunModel,
@@ -168,6 +171,7 @@ class UiTimelineStage(BaseModel):
 
 class UiOverviewResponse(BaseModel):
     safety: UiSafetyStatus
+    monitor_status: dict[str, Any]
     latest_account: dict[str, Any] | None
     latest_run: UiRunSummary | None
     latest_trader_proposal: dict[str, Any] | None
@@ -224,6 +228,7 @@ class UiRiskResponse(BaseModel):
 
 class UiPortfolioResponse(BaseModel):
     safety: UiSafetyStatus
+    monitor_status: dict[str, Any]
     latest_account: dict[str, Any] | None
     positions: list[dict[str, Any]]
     orders: list[dict[str, Any]]
@@ -330,12 +335,13 @@ def get_overview(
         portfolio_id=settings.taurus_paper_portfolio_id,
         limit=1,
     )
-    positions = [
-        _payload(position)
-        for position in execution_repo.latest_open_positions_by_portfolio(
+    positions = _monitor_enriched_positions(
+        session,
+        settings=settings,
+        positions=execution_repo.latest_open_positions_by_portfolio(
             portfolio_id=settings.taurus_paper_portfolio_id,
-        )
-    ]
+        ),
+    )
 
     warnings = _overview_warnings(
         run_rows=run_rows,
@@ -344,6 +350,7 @@ def get_overview(
     )
     return UiOverviewResponse(
         safety=_safety(settings),
+        monitor_status=_monitor_status(session, settings),
         latest_account=latest_account_payload,
         latest_run=latest_run,
         latest_trader_proposal=_payload(latest_proposal[0]) if latest_proposal else None,
@@ -511,12 +518,13 @@ def get_ui_portfolio(
     )
     account_payload = _payload(account) if account is not None else None
     run_id = account.run_id if account is not None else None
-    positions = [
-        _payload(row)
-        for row in execution_repo.latest_open_positions_by_portfolio(
+    positions = _monitor_enriched_positions(
+        session,
+        settings=settings,
+        positions=execution_repo.latest_open_positions_by_portfolio(
             portfolio_id=settings.taurus_paper_portfolio_id,
-        )
-    ]
+        ),
+    )
     orders = [
         _payload(row)
         for row in execution_repo.list_orders(
@@ -535,6 +543,7 @@ def get_ui_portfolio(
     ]
     return UiPortfolioResponse(
         safety=_safety(settings),
+        monitor_status=_monitor_status(session, settings),
         latest_account=account_payload,
         positions=positions,
         orders=orders,
@@ -1177,6 +1186,116 @@ def _payload(row: Any) -> dict[str, Any]:
     return _json_safe(dict(row.payload or {}))
 
 
+def _monitor_status(session: Session, settings: Settings) -> dict[str, Any]:
+    latest = session.scalar(
+        select(AuditLogModel)
+        .where(AuditLogModel.event_type.like("position_monitor.%"))
+        .order_by(AuditLogModel.created_at.desc(), AuditLogModel.id.desc())
+        .limit(1)
+    )
+    today = datetime.now(timezone.utc).astimezone(
+        _timezone(settings.taurus_paper_timezone)
+    ).date().isoformat()
+    trigger_count = int(
+        session.scalar(
+            select(func.count())
+            .select_from(AuditLogModel)
+            .where(
+                AuditLogModel.event_type == "position_monitor.trigger_detected",
+                AuditLogModel.payload["market_session_date"].as_string() == today,
+            )
+        )
+        or 0
+    )
+    return _json_safe(
+        {
+            "enabled": settings.taurus_position_monitor_enabled,
+            "provider": settings.taurus_position_monitor_provider,
+            "market_hours_only": settings.taurus_position_monitor_market_hours_only,
+            "interval_seconds": settings.taurus_position_monitor_interval_seconds,
+            "max_iterations": settings.taurus_position_monitor_max_iterations,
+            "latest_event_type": latest.event_type if latest is not None else None,
+            "latest_note": latest.note if latest is not None else None,
+            "last_iteration_time": latest.created_at if latest is not None else None,
+            "trigger_count_today": trigger_count,
+        }
+    )
+
+
+def _monitor_enriched_positions(
+    session: Session,
+    *,
+    settings: Settings,
+    positions: list[Any],
+) -> list[dict[str, Any]]:
+    research_repo = ResearchRepository(session)
+    enriched: list[dict[str, Any]] = []
+    for position in positions:
+        payload = _payload(position)
+        latest_snapshot = session.scalar(
+            select(MarketPriceSnapshotModel)
+            .where(
+                MarketPriceSnapshotModel.provider == settings.taurus_position_monitor_provider,
+                MarketPriceSnapshotModel.symbol == position.symbol,
+            )
+            .order_by(
+                MarketPriceSnapshotModel.fetched_at.desc(),
+                MarketPriceSnapshotModel.id.desc(),
+            )
+            .limit(1)
+        )
+        proposals = research_repo.list_trader_proposals(
+            portfolio_id=settings.taurus_paper_portfolio_id,
+            symbol=position.symbol,
+            limit=20,
+        )
+        base_payload = None
+        for proposal in proposals:
+            candidate = _payload(proposal)
+            if candidate.get("evaluation_mode") != "market_hours":
+                base_payload = candidate
+                break
+        stop_loss_pct = _decimal_or_none(
+            base_payload.get("stop_loss_pct") if base_payload else None
+        )
+        take_profit_pct = _decimal_or_none(
+            base_payload.get("take_profit_pct") if base_payload else None
+        )
+        average_cost = _decimal_or_none(payload.get("average_cost_inr"))
+        latest_price = (
+            latest_snapshot.last_price
+            if latest_snapshot is not None
+            else _decimal_or_none(payload.get("last_price_inr"))
+        )
+        monitor_payload: dict[str, Any] = {
+            "latest_quote_id": latest_snapshot.id if latest_snapshot is not None else None,
+            "latest_quote_ltp_inr": latest_price,
+            "latest_quote_fetched_at": latest_snapshot.fetched_at
+            if latest_snapshot is not None
+            else None,
+            "stop_loss_pct": stop_loss_pct,
+            "take_profit_pct": take_profit_pct,
+        }
+        if average_cost is not None and stop_loss_pct is not None and take_profit_pct is not None:
+            stop_loss_price = average_cost * (Decimal("1") - stop_loss_pct / Decimal("100"))
+            take_profit_price = average_cost * (Decimal("1") + take_profit_pct / Decimal("100"))
+            monitor_payload.update(
+                {
+                    "stop_loss_price_inr": stop_loss_price,
+                    "take_profit_price_inr": take_profit_price,
+                    "distance_to_stop_loss_inr": latest_price - stop_loss_price
+                    if latest_price is not None
+                    else None,
+                    "distance_to_take_profit_inr": take_profit_price - latest_price
+                    if latest_price is not None
+                    else None,
+                }
+            )
+        payload.update(_json_safe(monitor_payload))
+        enriched.append(payload)
+    return enriched
+
+
 def _risk_review_payload(session: Session, review: RiskReviewModel) -> dict[str, Any]:
     payload = _payload(review)
     proposal = ResearchRepository(session).get_trader_proposal(review.proposal_id)
@@ -1190,6 +1309,11 @@ def _risk_review_payload(session: Session, review: RiskReviewModel) -> dict[str,
                 "current_position_quantity": proposal_payload.get("current_position_quantity"),
                 "current_position_pct_nav": proposal_payload.get("current_position_pct_nav"),
                 "target_position_pct_nav": proposal_payload.get("target_position_pct_nav"),
+                "latest_price_inr": proposal_payload.get("latest_price_inr"),
+                "trigger_threshold_price_inr": proposal_payload.get(
+                    "trigger_threshold_price_inr"
+                ),
+                "market_session_date": proposal_payload.get("market_session_date"),
                 "position_management_summary": proposal_payload.get(
                     "position_management_summary"
                 ),
@@ -1284,6 +1408,22 @@ def _optional_int(value: Any) -> int | None:
         return int(value)
     except (TypeError, ValueError):
         return None
+
+
+def _decimal_or_none(value: Any) -> Decimal | None:
+    if value is None:
+        return None
+    try:
+        return Decimal(str(value))
+    except Exception:
+        return None
+
+
+def _timezone(name: str) -> ZoneInfo:
+    try:
+        return ZoneInfo(name)
+    except Exception:
+        return ZoneInfo("UTC")
 
 
 def _symbol_errors(run: PaperRunModel, symbol: str) -> list[str]:
@@ -1496,6 +1636,14 @@ def _proposal_metrics(proposal: TraderProposalModel | None) -> dict[str, Any]:
         "order_type": proposal.order_type,
         "stop_loss_pct": _decimal_to_number(proposal.stop_loss_pct),
         "take_profit_pct": _decimal_to_number(proposal.take_profit_pct),
+        "latest_price_inr": _payload(proposal).get("latest_price_inr"),
+        "stop_loss_price_inr": _payload(proposal).get("stop_loss_price_inr"),
+        "take_profit_price_inr": _payload(proposal).get("take_profit_price_inr"),
+        "trigger_threshold_price_inr": _payload(proposal).get(
+            "trigger_threshold_price_inr"
+        ),
+        "market_session_date": _payload(proposal).get("market_session_date"),
+        "quote_snapshot_id": _payload(proposal).get("quote_snapshot_id"),
         "position_management_summary": proposal.position_management_summary,
     }
 
