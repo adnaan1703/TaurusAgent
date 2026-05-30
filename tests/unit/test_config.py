@@ -5,7 +5,7 @@ from decimal import Decimal
 import pytest
 from pydantic import ValidationError
 
-from taurus_core.config import Settings
+from taurus_core.config import DEFAULT_DATABASE_URL, Settings
 
 
 def test_default_settings_are_safe() -> None:
@@ -15,7 +15,7 @@ def test_default_settings_are_safe() -> None:
     assert settings.taurus_mode == "paper"
     assert settings.live_trading_enabled is False
     assert settings.broker_provider == "paper"
-    assert settings.database_url == "sqlite:///./taurus.db"
+    assert settings.database_url == DEFAULT_DATABASE_URL
     assert settings.taurus_graph_enabled is False
     assert settings.taurus_graph_risk_enabled is False
     assert settings.taurus_graph_auto_promote_edges is False
@@ -63,6 +63,13 @@ def test_non_paper_broker_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("BROKER_PROVIDER", "live")
 
     with pytest.raises(ValidationError, match="paper broker provider"):
+        Settings()
+
+
+def test_sqlite_database_url_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("DATABASE_URL", "sqlite:///./taurus.db")
+
+    with pytest.raises(ValidationError, match="SQLite database URLs"):
         Settings()
 
 

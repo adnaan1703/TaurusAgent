@@ -16,7 +16,7 @@ from taurus_core.db.session import build_session_factory, create_engine_from_url
 from taurus_core.domain.instruments import Instrument
 
 
-def test_migrations_create_graph_tables_on_sqlite(tmp_path: Path) -> None:
+def test_migrations_create_graph_tables_on_postgres(tmp_path: Path) -> None:
     settings = _settings_for_temp_db(tmp_path)
 
     run_migrations(settings)
@@ -209,4 +209,4 @@ def test_graph_node_and_edge_upserts_are_idempotent(tmp_path: Path) -> None:
 
 
 def _settings_for_temp_db(tmp_path: Path) -> Settings:
-    return Settings(database_url=f"sqlite:///{tmp_path / 'taurus.db'}")
+    return Settings()

@@ -171,7 +171,6 @@ def _settings_for_temp_db(
     enabled_analysts: str = "technical",
 ) -> Settings:
     return Settings(
-        database_url=f"sqlite:///{tmp_path / 'taurus.db'}",
         taurus_paper_partial_fill_threshold=1,
         taurus_enabled_analysts=enabled_analysts,
     )

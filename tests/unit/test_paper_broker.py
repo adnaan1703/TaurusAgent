@@ -225,6 +225,5 @@ def _latest_final_decision(session, symbol: str) -> FinalDecision:
 
 def _settings_for_temp_db(tmp_path: Path) -> Settings:
     return Settings(
-        database_url=f"sqlite:///{tmp_path / 'taurus.db'}",
         taurus_paper_partial_fill_threshold=1,
     )

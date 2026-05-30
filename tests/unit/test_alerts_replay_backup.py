@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
@@ -111,22 +112,42 @@ def test_scheduled_job_failure_alert_is_recorded(tmp_path: Path) -> None:
     assert alert_count == 1
 
 
-def test_sqlite_backup_and_restore_round_trip(tmp_path: Path) -> None:
+def test_postgres_backup_manifest_is_created(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     settings = _settings_for_temp_db(tmp_path)
-    run_migrations(settings)
-    db_path = tmp_path / "taurus.db"
+
+    def fake_backup_postgres(database_url: str, backup_dir: Path) -> Path:
+        artifact = backup_dir / "taurus-postgres.dump"
+        artifact.write_bytes(b"postgres dump")
+        return artifact
+
+    monkeypatch.setattr(backup_module, "_backup_postgres", fake_backup_postgres)
 
     backup = create_backup(settings, output_root=tmp_path / "backups")
-    assert backup.database_kind == "sqlite"
+
+    assert backup.database_kind == "postgresql"
     assert backup.artifact_path.exists()
     assert backup.manifest_path.exists()
 
-    db_path.unlink()
-    restored = restore_backup(settings, backup=backup.backup_dir)
 
-    assert db_path.exists()
-    assert restored.database_kind == "sqlite"
-    assert restored.pre_restore_backup is None
+def test_postgres_restore_requires_explicit_confirmation(tmp_path: Path) -> None:
+    settings = _settings_for_temp_db(tmp_path)
+    backup_dir = tmp_path / "backups" / "taurus-test"
+    backup_dir.mkdir(parents=True)
+    (backup_dir / "taurus-postgres.dump").write_bytes(b"postgres dump")
+    (backup_dir / "manifest.json").write_text(
+        (
+            '{"artifact": "taurus-postgres.dump", '
+            '"database_kind": "postgresql", '
+            '"database_url": "postgresql+psycopg://taurus:***@localhost:5432/taurus"}\n'
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="RESTORE_CONFIRM"):
+        restore_backup(settings, backup=backup_dir)
 
 
 def test_postgres_backup_uses_docker_compose_when_pg_dump_is_missing(
@@ -176,7 +197,6 @@ def test_postgres_backup_uses_docker_compose_when_pg_dump_is_missing(
 
 def _settings_for_temp_db(tmp_path: Path) -> Settings:
     return Settings(
-        database_url=f"sqlite:///{tmp_path / 'taurus.db'}",
         taurus_alert_provider="mock",
         taurus_enabled_analysts=FULL_ANALYST_ROSTER,
         taurus_paper_partial_fill_threshold=1,

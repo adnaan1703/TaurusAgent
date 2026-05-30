@@ -1,6 +1,8 @@
 # Taurus Command Reference
 
 This file lists commands used during M0 and commands expected across later Taurus milestones.
+M21 made Docker Postgres the canonical database; command examples should use
+the default Postgres URL or an explicit Postgres `DATABASE_URL`, not SQLite.
 
 ## M0 Commands Used
 
@@ -60,9 +62,9 @@ make dev-down
 ```bash
 make test
 make lint
-DATABASE_URL=sqlite:////private/tmp/taurus-m4.db make import-mock-news
-DATABASE_URL=sqlite:////private/tmp/taurus-m4.db make run-analysts-mock SYMBOL=INFY
-DATABASE_URL=sqlite:////private/tmp/taurus-m4.db make api
+make import-mock-news
+make run-analysts-mock SYMBOL=INFY
+make api
 curl http://localhost:8000/events
 curl "http://localhost:8000/agent-reports?symbol=INFY"
 ```
@@ -72,8 +74,8 @@ curl "http://localhost:8000/agent-reports?symbol=INFY"
 ```bash
 make test
 make lint
-DATABASE_URL=sqlite:////private/tmp/taurus-m6.db make risk-review-mock SYMBOL=INFY
-DATABASE_URL=sqlite:////private/tmp/taurus-m6.db make final-approval-mock SYMBOL=INFY
+make risk-review-mock SYMBOL=INFY
+make final-approval-mock SYMBOL=INFY
 ```
 
 ## M7 Commands Used
@@ -81,8 +83,8 @@ DATABASE_URL=sqlite:////private/tmp/taurus-m6.db make final-approval-mock SYMBOL
 ```bash
 make test
 make lint
-DATABASE_URL=sqlite:////private/tmp/taurus-m7-deterministic-20260519.db make paper-once-mock SYMBOL=INFY
-DATABASE_URL=sqlite:////private/tmp/taurus-m7-verify-20260519.db make api
+make paper-once-mock SYMBOL=INFY
+make api
 curl http://127.0.0.1:8000/paper/orders
 curl http://127.0.0.1:8000/paper/fills
 curl http://127.0.0.1:8000/paper/positions
@@ -113,10 +115,10 @@ pkill -f "streamlit run apps/dashboard/main.py"
 ```bash
 make test
 make lint
-DATABASE_URL=sqlite:////private/tmp/taurus-m10-verify-20260519.db make import-price-csv
-DATABASE_URL=sqlite:////private/tmp/taurus-m10-verify-20260519.db make backtest-real-data
-DATABASE_URL=sqlite:////private/tmp/taurus-m10-mock-verify-20260519.db make backtest-mock
-DATABASE_URL=sqlite:////private/tmp/taurus-m10-verify-20260519.db make api
+make import-price-csv
+make backtest-real-data
+make backtest-mock
+make api
 curl "http://localhost:8000/data/candles?symbol=INFY&timeframe=1d"
 pkill -f "uvicorn apps.api.main:app"
 ```
@@ -126,11 +128,11 @@ pkill -f "uvicorn apps.api.main:app"
 ```bash
 make test
 make lint
-DATABASE_URL=sqlite:////private/tmp/taurus-m11-verify-20260520.db make paper-loop-mock
-DATABASE_URL=sqlite:////private/tmp/taurus-m11-verify-20260520.db make api
+make paper-loop-mock
+make api
 curl http://localhost:8000/runs
 curl http://localhost:8000/runs/pr-edecbedf6614c240
-DATABASE_URL=sqlite:////private/tmp/taurus-m11-verify-20260520.db make dashboard
+make dashboard
 curl http://127.0.0.1:8501/_stcore/health
 ```
 
@@ -139,11 +141,11 @@ curl http://127.0.0.1:8501/_stcore/health
 ```bash
 make test
 make lint
-DATABASE_URL=sqlite:////private/tmp/taurus-m12-verify-20260520.db make alert-smoke
-DATABASE_URL=sqlite:////private/tmp/taurus-m12-verify-20260520.db make replay-decision DECISION_ID=sample
-DATABASE_URL=sqlite:////private/tmp/taurus-m12-verify-20260520.db BACKUP_DIR=/private/tmp/taurus-m12-backups make backup-local
-DATABASE_URL=sqlite:////private/tmp/taurus-m12-verify-20260520.db BACKUP_DIR=/private/tmp/taurus-m12-backups make backup-db
-DATABASE_URL=sqlite:////private/tmp/taurus-m12-verify-20260520.db BACKUP=/private/tmp/taurus-m12-backups/taurus-20260520T105647138364Z make restore-local
+make alert-smoke
+make replay-decision DECISION_ID=sample
+BACKUP_DIR=/private/tmp/taurus-m12-backups make backup-local
+BACKUP_DIR=/private/tmp/taurus-m12-backups make backup-db
+BACKUP=/private/tmp/taurus-m12-backups/taurus-20260520T105647138364Z make restore-local
 ```
 
 ## M13 Commands Used
@@ -185,8 +187,8 @@ curl -L '<stitch-html-url>' -o docs/stitch/paper-trade-event-monitor/assets/<scr
 ```bash
 make test
 make lint
-DATABASE_URL=sqlite:////private/tmp/taurus-m16-api-20260521.db make paper-loop-mock
-DATABASE_URL=sqlite:////private/tmp/taurus-m16-api-20260521.db make api
+make paper-loop-mock
+make api
 curl -sS -o /private/tmp/taurus-m16-ui-overview.json -w '%{http_code}' http://127.0.0.1:8000/ui/overview
 curl -sS -o /private/tmp/taurus-m16-ui-history.json -w '%{http_code}' http://127.0.0.1:8000/ui/history
 curl -sS -o /private/tmp/taurus-m16-ui-run.json -w '%{http_code}' http://127.0.0.1:8000/ui/runs/pr-75fdbb0381152d57
@@ -216,8 +218,8 @@ make test-ui
 make build-ui
 make test
 make lint
-DATABASE_URL=sqlite:////private/tmp/taurus-m16-ui-20260521.db make paper-loop-mock
-DATABASE_URL=sqlite:////private/tmp/taurus-m16-ui-20260521.db make api
+make paper-loop-mock
+make api
 make ui
 curl -sS -o /private/tmp/taurus-m16-ui-overview-smoke.json -w '%{http_code}' http://127.0.0.1:8000/ui/overview
 curl -sS -o /private/tmp/taurus-m16-ui-run-smoke.json -w '%{http_code}' http://127.0.0.1:8000/ui/runs/pr-03c57d458f851eaf
@@ -239,8 +241,8 @@ make dev-up
 docker compose ps
 docker compose up -d postgres redis
 make taurus-smoke
-DATABASE_URL=sqlite:////private/tmp/taurus-m16-final-smoke-20260521.db BACKUP_DIR=/private/tmp/taurus-m16-final-backups make taurus-smoke
-DATABASE_URL=sqlite:////private/tmp/taurus-m16-final-smoke-20260521.db make api
+BACKUP_DIR=/private/tmp/taurus-m16-final-backups make taurus-smoke
+make api
 make ui
 curl -sS -o /private/tmp/taurus-m16-final-ui-overview.json -w '%{http_code}' http://127.0.0.1:8000/ui/overview
 curl -sS -o /private/tmp/taurus-m16-final-ui-run.json -w '%{http_code}' http://127.0.0.1:8000/ui/runs/pr-16216828cc03acfe
@@ -288,11 +290,11 @@ uv run pytest tests/unit/test_kite_market_data.py tests/unit/test_config.py test
 uv run pytest tests/unit/test_kite_market_data.py
 make test
 make lint
-DATABASE_URL=sqlite:////private/tmp/taurus-kite-plan-smoke.db make paper-loop-mock
-DATABASE_URL=sqlite:////private/tmp/taurus-kite-real-smoke.db make kite-sync-instruments
-DATABASE_URL=sqlite:////private/tmp/taurus-kite-real-smoke.db make import-kite-candles
-DATABASE_URL=sqlite:////private/tmp/taurus-kite-real-smoke.db make kite-ltp-smoke
-DATABASE_URL=sqlite:////private/tmp/taurus-kite-real-smoke.db make paper-loop-kite
+make paper-loop-mock
+make kite-sync-instruments
+make import-kite-candles
+make kite-ltp-smoke
+make paper-loop-kite
 date '+%Y-%m-%d %H:%M %Z'
 ```
 
@@ -318,18 +320,18 @@ uv add 'beautifulsoup4>=4,<5'
 uv run pytest tests/unit/test_halal_stock_compliance.py
 make test
 make lint
-DATABASE_URL=sqlite:////private/tmp/taurus-halal.db make sync-halal-stocks
+make sync-halal-stocks
 uv run python - <<'PY'
 from taurus_core.data.universe import load_market_data_universe
 u = load_market_data_universe('configs/market_data/halal_nse_cash.yaml')
 print(u.universe_name, len(u.symbols), u.enabled_symbols()[:5], u.enabled_symbols()[-5:])
 PY
-DATABASE_URL=sqlite:////private/tmp/taurus-halal.db PYTHONPATH=packages:. uv run python - <<'PY'
+PYTHONPATH=packages:. uv run python - <<'PY'
 from sqlalchemy import func, select
 from taurus_core.config import Settings
 from taurus_core.db.models import HalalStockComplianceModel, HalalStockImportModel
 from taurus_core.db.session import build_session_factory
-s = Settings(database_url='sqlite:////private/tmp/taurus-halal.db')
+s = Settings()
 f = build_session_factory(s)
 with f() as session:
     print('imports', session.scalar(select(func.count()).select_from(HalalStockImportModel)))
@@ -389,8 +391,8 @@ head -n 1 configs/taurus_data/company_edges.csv
 head -n 1 configs/taurus_data/edge_candidates.csv
 head -n 1 configs/taurus_data/source_evidence.csv
 uv run pytest tests/unit/test_graph_importer.py
-DATABASE_URL=sqlite:////tmp/taurus-graph-m20-2.db make import-taurus-graph
-DATABASE_URL=sqlite:////tmp/taurus-graph-m20-2.db make import-taurus-graph
+make import-taurus-graph
+make import-taurus-graph
 uv run pytest tests/unit/test_graph_repository.py tests/unit/test_graph_importer.py
 make test
 make lint
@@ -438,9 +440,9 @@ make test-ui
 make build-ui
 make test
 make lint
-DATABASE_URL=sqlite:////private/tmp/taurus-m20-4-ui.db make migrate
-DATABASE_URL=sqlite:////private/tmp/taurus-m20-4-ui.db make import-taurus-graph DATA_DIR=configs/taurus_data
-DATABASE_URL=sqlite:////private/tmp/taurus-m20-4-ui.db TAURUS_GRAPH_ENABLED=true make api
+make migrate
+make import-taurus-graph DATA_DIR=configs/taurus_data
+TAURUS_GRAPH_ENABLED=true make api
 make ui
 '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' --headless=new --disable-gpu --hide-scrollbars --window-size=1440,1000 --virtual-time-budget=5000 --dump-dom http://127.0.0.1:5173/graph
 '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' --headless=new --disable-gpu --hide-scrollbars --window-size=1440,1000 --virtual-time-budget=5000 --dump-dom http://127.0.0.1:5173/graph/company/INFY
@@ -465,7 +467,7 @@ sed -n '1,240p' docker-compose.yml
 sed -n '1,220p' .env.example
 uv add 'neo4j>=6,<7'
 uv run pytest tests/unit/test_config.py tests/unit/test_graph_api.py tests/unit/test_neo4j_projection.py
-DATABASE_URL=sqlite:////private/tmp/taurus-m20-5-disabled.db make project-neo4j-graph
+make project-neo4j-graph
 make test
 make lint
 docker compose --profile neo4j config --services
@@ -486,10 +488,10 @@ sed -n '320,560p' packages/taurus_core/db/models.py
 sed -n '1334,1765p' packages/taurus_core/db/repositories.py
 uv run pytest tests/unit/test_config.py tests/unit/test_graph_stats.py
 uv run pytest tests/unit/test_graph_repository.py tests/unit/test_graph_importer.py tests/unit/test_graph_api.py tests/unit/test_neo4j_projection.py tests/unit/test_graph_stats.py tests/unit/test_config.py
-DATABASE_URL=sqlite:////private/tmp/taurus-m20-6-stats.db make migrate
-DATABASE_URL=sqlite:////private/tmp/taurus-m20-6-stats.db make seed-mock
-DATABASE_URL=sqlite:////private/tmp/taurus-m20-6-stats.db make import-taurus-graph DATA_DIR=configs/taurus_data
-DATABASE_URL=sqlite:////private/tmp/taurus-m20-6-stats.db make compute-graph-stats AS_OF=2024-12-17
+make migrate
+make seed-mock
+make import-taurus-graph DATA_DIR=configs/taurus_data
+make compute-graph-stats AS_OF=2024-12-17
 make test
 make lint
 sed -n '1,360p' /Users/adnaan/.codex/rules/default.rules
@@ -598,6 +600,31 @@ git diff --check
 sed -n '/# END MY CUSTOM ADDITION/,$p' /Users/adnaan/.codex/rules/default.rules
 sed -n '1,260p' .codex/rules/default.rules
 sed -n '1,260p' /Users/adnaan/.codex/rules/default.rules
+```
+
+## M21 Commands Used
+
+```bash
+docker compose up -d postgres
+uv run pytest tests/unit/test_config.py tests/unit/test_alerts_replay_backup.py tests/unit/test_graph_repository.py -q
+make test
+make lint
+docker compose ps
+docker compose exec -T postgres psql -U taurus -d taurus -Atc "SELECT 'instruments', count(*) FROM instruments UNION ALL SELECT 'daily_candles', count(*) FROM daily_candles UNION ALL SELECT 'graph_nodes', count(*) FROM graph_nodes UNION ALL SELECT 'graph_edges', count(*) FROM graph_edges UNION ALL SELECT 'graph_edge_evidence', count(*) FROM graph_edge_evidence UNION ALL SELECT 'halal_stock_compliance', count(*) FROM halal_stock_compliance;"
+docker compose --profile neo4j up -d neo4j
+TAURUS_NEO4J_ENABLED=true make project-neo4j-graph
+docker compose exec -T neo4j cypher-shell -u neo4j -p taurus-neo4j-local "MATCH (n:TaurusGraphNode) RETURN count(n) AS taurus_graph_nodes;"
+docker compose exec -T neo4j cypher-shell -u neo4j -p taurus-neo4j-local "MATCH ()-[r:TAURUS_EDGE]->() RETURN count(r) AS taurus_edges;"
+docker compose build api
+docker compose up -d api prometheus grafana
+curl http://localhost:8000/health
+curl http://localhost:8000/ready
+curl http://localhost:8000/metrics
+rg -n "sqlite|sqlite3|taurus\\.db|DATABASE_URL=sqlite" .
+find . -type f \( -name '*.db' -o -name '*.sqlite' -o -name '*.sqlite3' \) -print
+find /private/tmp -maxdepth 2 -type f -name 'taurus*.db' -print
+sed -n '/# END MY CUSTOM ADDITION/,$p' /Users/adnaan/.codex/rules/default.rules
+sed -n '1,260p' .codex/rules/default.rules
 ```
 
 ## Current Make Targets
@@ -803,21 +830,12 @@ prefix_rule(pattern=["make", "trader-proposal-mock"], decision="allow")
 prefix_rule(pattern=["make", "risk-review-mock"], decision="allow")
 prefix_rule(pattern=["make", "final-approval-mock"], decision="allow")
 prefix_rule(pattern=["make", "paper-once-mock"], decision="allow")
-prefix_rule(pattern=["/bin/zsh", "-lc", "DATABASE_URL=sqlite:////private/tmp/taurus-optional-analysts-default-20260523.db make paper-once-mock SYMBOL=INFY"], decision="allow")
-prefix_rule(pattern=["/bin/zsh", "-lc", "DATABASE_URL=sqlite:////private/tmp/taurus-m7-verify-20260519.db make paper-once-mock SYMBOL=INFY"], decision="allow")
-prefix_rule(pattern=["/bin/zsh", "-lc", "DATABASE_URL=sqlite:////private/tmp/taurus-m7-verify-20260519.db make api"], decision="allow")
-prefix_rule(pattern=["/bin/zsh", "-lc", "DATABASE_URL=sqlite:////private/tmp/taurus-m7-deterministic-20260519.db TAURUS_LLM_PROVIDER=mock SYMBOL=INFY PYTHONPATH=packages:. uv run python scripts/run_paper_once.py"], decision="allow")
-prefix_rule(pattern=["/bin/zsh", "-lc", "DATABASE_URL=sqlite:////private/tmp/taurus-m7-deterministic-20260519.db make paper-once-mock SYMBOL=INFY"], decision="allow")
-prefix_rule(pattern=["/bin/zsh", "-lc", "DATABASE_URL=sqlite:////private/tmp/taurus-m9-verify-20260519.db make import-screener CSV=tests/fixtures/screener_sample.csv"], decision="allow")
-prefix_rule(pattern=["/bin/zsh", "-lc", "DATABASE_URL=sqlite:////private/tmp/taurus-m9-verify-20260519.db make run-analysts-mock SYMBOL=INFY"], decision="allow")
-prefix_rule(pattern=["/bin/zsh", "-lc", "DATABASE_URL=sqlite:////private/tmp/taurus-m9-verify-20260519.db make api"], decision="allow")
-prefix_rule(pattern=["/bin/zsh", "-lc", "DATABASE_URL=sqlite:////private/tmp/taurus-m10-verify-20260519.db make import-price-csv"], decision="allow")
-prefix_rule(pattern=["/bin/zsh", "-lc", "DATABASE_URL=sqlite:////private/tmp/taurus-m10-verify-20260519.db make backtest-real-data"], decision="allow")
-prefix_rule(pattern=["/bin/zsh", "-lc", "DATABASE_URL=sqlite:////private/tmp/taurus-m10-mock-verify-20260519.db make backtest-mock"], decision="allow")
-prefix_rule(pattern=["/bin/zsh", "-lc", "DATABASE_URL=sqlite:////private/tmp/taurus-m10-verify-20260519.db make api"], decision="allow")
 prefix_rule(pattern=["make", "dashboard"], decision="allow")
 prefix_rule(pattern=["make", "import-screener"], decision="allow")
 prefix_rule(pattern=["make", "import-price-csv"], decision="allow")
+prefix_rule(pattern=["make", "import-taurus-graph"], decision="allow")
+prefix_rule(pattern=["make", "compute-graph-stats"], decision="allow")
+prefix_rule(pattern=["make", "project-neo4j-graph"], decision="allow")
 prefix_rule(pattern=["make", "sync-halal-stocks"], decision="allow")
 prefix_rule(pattern=["make", "kite-login-url"], decision="allow")
 prefix_rule(pattern=["make", "kite-exchange-token"], decision="allow")
@@ -827,11 +845,6 @@ prefix_rule(pattern=["make", "kite-ltp-smoke"], decision="allow")
 prefix_rule(pattern=["make", "paper-loop-start"], decision="allow")
 prefix_rule(pattern=["make", "paper-loop-once"], decision="allow")
 prefix_rule(pattern=["make", "paper-loop-mock"], decision="allow")
-prefix_rule(pattern=["/bin/zsh", "-lc", "DATABASE_URL=sqlite:////private/tmp/taurus-m11-verify-20260520.db make paper-loop-mock"], decision="allow")
-prefix_rule(pattern=["/bin/zsh", "-lc", "DATABASE_URL=sqlite:////private/tmp/taurus-m11-verify-20260520.db make api"], decision="allow")
-prefix_rule(pattern=["/bin/zsh", "-lc", "DATABASE_URL=sqlite:////private/tmp/taurus-m11-verify-20260520.db make dashboard"], decision="allow")
-prefix_rule(pattern=["/bin/zsh", "-lc", "DATABASE_URL=sqlite:////private/tmp/taurus-m16-api-20260521.db make paper-loop-mock"], decision="allow")
-prefix_rule(pattern=["/bin/zsh", "-lc", "DATABASE_URL=sqlite:////private/tmp/taurus-m16-api-20260521.db make api"], decision="allow")
 prefix_rule(pattern=["make", "alert-smoke"], decision="allow")
 prefix_rule(pattern=["make", "replay-decision"], decision="allow")
 prefix_rule(pattern=["make", "backup-local"], decision="allow")

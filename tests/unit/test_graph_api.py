@@ -148,7 +148,6 @@ def test_graph_edge_review_endpoints_require_graph_enabled(tmp_path: Path) -> No
 
 def _settings_for_temp_db(tmp_path: Path, *, graph_enabled: bool) -> Settings:
     return Settings(
-        database_url=f"sqlite:///{tmp_path / 'taurus.db'}",
         taurus_graph_enabled=graph_enabled,
     )
 

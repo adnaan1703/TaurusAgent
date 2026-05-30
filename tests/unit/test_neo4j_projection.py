@@ -18,7 +18,6 @@ from taurus_core.graph.neo4j_projection import build_neo4j_driver, rebuild_neo4j
 
 def test_neo4j_projection_is_skipped_when_disabled(tmp_path: Path) -> None:
     settings = Settings(
-        database_url=f"sqlite:///{tmp_path / 'taurus.db'}",
         taurus_neo4j_enabled=False,
         taurus_neo4j_uri="bolt://neo4j:secret@localhost:7687",
     )
@@ -107,7 +106,6 @@ def test_live_neo4j_projection_skips_cleanly_when_service_is_absent(
 
 def _settings_for_temp_db(tmp_path: Path, *, neo4j_enabled: bool) -> Settings:
     return Settings(
-        database_url=f"sqlite:///{tmp_path / 'taurus.db'}",
         taurus_neo4j_enabled=neo4j_enabled,
     )
 

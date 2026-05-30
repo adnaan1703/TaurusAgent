@@ -242,7 +242,6 @@ def test_ui_cors_allows_local_vite_origin(tmp_path: Path) -> None:
 
 def _settings_for_temp_db(tmp_path: Path) -> Settings:
     return Settings(
-        database_url=f"sqlite:///{tmp_path / 'taurus.db'}",
         taurus_alert_provider="mock",
         taurus_llm_provider="mock",
         taurus_paper_partial_fill_threshold=1,

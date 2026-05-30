@@ -17,7 +17,6 @@ def test_taurus_smoke_covers_paper_mvp_release_flow(
 ) -> None:
     monkeypatch.setenv("BACKUP_DIR", str(tmp_path / "backups"))
     settings = Settings(
-        database_url=f"sqlite:///{tmp_path / 'taurus.db'}",
         taurus_alert_provider="mock",
         taurus_enabled_analysts=FULL_ANALYST_ROSTER,
         taurus_llm_provider="mock",

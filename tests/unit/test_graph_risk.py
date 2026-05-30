@@ -132,7 +132,6 @@ def test_graph_risk_reduces_correlated_cluster_only_when_stats_exist(tmp_path: P
 
 def _settings_for_temp_db(tmp_path: Path, **overrides: object) -> Settings:
     values = {
-        "database_url": f"sqlite:///{tmp_path / 'taurus.db'}",
         "taurus_graph_risk_enabled": True,
         **overrides,
     }

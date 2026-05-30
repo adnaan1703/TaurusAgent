@@ -235,3 +235,56 @@ clearly obsolete historical notes, if any are intentionally retained.
 - SQLite files should be deleted directly after verification, not archived.
 - Neo4j remains disposable unless a future milestone adds a named Neo4j volume.
 - Later migration plans should not add SQLite-compatible runtime paths back.
+
+## M21 Completion Summary
+
+Completed: 2026-05-30
+
+- Docker Postgres is now the default `Settings.database_url`.
+- SQLite database URLs are rejected during settings validation.
+- SQLAlchemy engine creation no longer carries SQLite-specific connection
+  arguments.
+- Backup/restore behavior is Postgres-only.
+- Pytest uses isolated Docker Postgres databases and no longer creates local
+  SQLite database files.
+- Docker API image now includes `scripts/` so Compose API startup succeeds with
+  current route imports.
+- Project-local command approvals no longer include SQLite-prefixed Taurus
+  commands.
+- `/Users/adnaan/.codex/rules/default.rules` was inspected; no Taurus-specific
+  approvals appeared after `# END MY CUSTOM ADDITION`.
+- Confirmed local SQLite files were deleted after Postgres and Neo4j data checks:
+  `./taurus.db` and `/private/tmp/taurus-graph-alignment-20260528.db`.
+
+Verification:
+
+- `uv run pytest tests/unit/test_config.py tests/unit/test_alerts_replay_backup.py tests/unit/test_graph_repository.py -q` passed.
+- `make test` passed: `133 passed, 1 skipped`.
+- `make lint` passed.
+- `make migrate` passed against Docker Postgres.
+- Docker Postgres counts matched or exceeded the plan expectations:
+  `daily_candles=2520`, `graph_nodes=1941`, `graph_edges=20576`,
+  `graph_edge_evidence=988`, `halal_stock_compliance=5310`, `instruments=205`.
+- `TAURUS_NEO4J_ENABLED=true make project-neo4j-graph` projected
+  `1941` nodes and `20576` edges.
+- Direct Neo4j checks returned `1941` `TaurusGraphNode` nodes and `20576`
+  `TAURUS_EDGE` relationships.
+- API health, readiness, metrics, UI overview/history/portfolio, graph overview,
+  and Shariah endpoints returned successfully from the Docker API service.
+- Repo/file scans found no remaining SQLite database files.
+
+Assumptions made:
+
+- Docker Postgres volume `taurusagent_postgres_data` remains the canonical local
+  data store and must not be removed with `docker compose down -v`.
+- Remaining `sqlite` text in this plan, the explicit config rejection test, and
+  the config rejection implementation is intentional.
+
+Mocks created:
+
+- None.
+
+Mocks used:
+
+- Existing deterministic mock market-data, analyst, LLM, alert, and paper
+  trading providers used by the existing test suite.

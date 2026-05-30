@@ -19,7 +19,7 @@ from taurus_core.domain.market_data import DailyCandle
 
 
 def test_backtest_engine_stores_deterministic_run_artifacts(tmp_path: Path) -> None:
-    settings = Settings(database_url=f"sqlite:///{tmp_path / 'taurus.db'}")
+    settings = Settings()
     run_migrations(settings)
     session_factory = build_session_factory(settings)
     with session_factory() as session:
@@ -67,7 +67,7 @@ def test_backtest_engine_stores_deterministic_run_artifacts(tmp_path: Path) -> N
 
 
 def test_backtest_engine_aligns_candles_by_common_trade_date(tmp_path: Path) -> None:
-    settings = Settings(database_url=f"sqlite:///{tmp_path / 'taurus.db'}")
+    settings = Settings()
     run_migrations(settings)
     session_factory = build_session_factory(settings)
     with session_factory() as session:
@@ -111,7 +111,7 @@ def test_backtest_engine_aligns_candles_by_common_trade_date(tmp_path: Path) -> 
 
 
 def test_feature_snapshots_are_persisted_without_lookahead(tmp_path: Path) -> None:
-    settings = Settings(database_url=f"sqlite:///{tmp_path / 'taurus.db'}")
+    settings = Settings()
     run_migrations(settings)
     session_factory = build_session_factory(settings)
     with session_factory() as session:

@@ -2,7 +2,12 @@
 
 Operational scripts for local milestone workflows.
 
-- `migrate.py`: create or update local database tables.
+All database-backed scripts use Docker Postgres by default through
+`postgresql+psycopg://taurus:taurus@localhost:5432/taurus`. Start the Postgres
+service with `docker compose up -d postgres` or `make dev-up` before running
+database-backed scripts. SQLite database URLs are rejected.
+
+- `migrate.py`: create or update Postgres database tables.
 - `seed_mock_data.py`: load deterministic mock instruments and daily candles.
 - `import_price_csv.py`: import user-supplied or synthetic OHLCV CSV candles.
 - `kite_auth.py`: print Kite login URL and exchange a manual request token into local `.env`.
@@ -12,6 +17,6 @@ Operational scripts for local milestone workflows.
 - `run_analysts.py`, `run_research_debate.py`, `run_trader_proposal.py`: run mock analyst and research workflows.
 - `run_risk_review.py`, `run_final_approval.py`: run deterministic risk and portfolio-manager gates.
 - `run_paper_once.py`, `run_paper_loop.py`: run PaperBroker mock execution.
-- `replay_decision.py`, `backup_local.py`, `restore_local.py`: replay stored decisions and manage local backups.
+- `replay_decision.py`, `backup_local.py`, `restore_local.py`: replay stored decisions and manage Postgres backups.
 - `taurus_smoke.py`: run the M13 end-to-end paper MVP smoke check.
 - `llm_smoke.py`: optional LLM provider smoke check.

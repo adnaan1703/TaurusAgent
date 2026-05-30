@@ -14,7 +14,7 @@ def test_taurus_graph_importer_is_idempotent_and_preserves_edge_metadata(
     tmp_path: Path,
 ) -> None:
     data_dir = _write_graph_fixture(tmp_path / "taurus_data")
-    settings = Settings(database_url=f"sqlite:///{tmp_path / 'taurus.db'}")
+    settings = Settings()
     run_migrations(settings)
     session_factory = build_session_factory(settings)
 
@@ -72,7 +72,7 @@ def test_taurus_graph_importer_warns_for_missing_optional_csvs(tmp_path: Path) -
 test,company:INFY,company,INFY,Infosys Limited,company:TCS,company,TCS,Tata Consultancy Services,direct_competitor,bidirectional,negative,0,180,high,inferred_from_filings,Shared IT services demand drivers.,peer testing,fixture,0.72,True
 """,
     )
-    settings = Settings(database_url=f"sqlite:///{tmp_path / 'taurus.db'}")
+    settings = Settings()
     run_migrations(settings)
     session_factory = build_session_factory(settings)
 

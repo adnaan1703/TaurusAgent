@@ -32,7 +32,6 @@ FULL_ANALYST_ROSTER = ",".join(ANALYST_KEYS)
 
 def test_dashboard_queries_and_metrics_expose_m8_panels(tmp_path: Path) -> None:
     settings = Settings(
-        database_url=f"sqlite:///{tmp_path / 'taurus.db'}",
         taurus_enabled_analysts=FULL_ANALYST_ROSTER,
         taurus_paper_partial_fill_threshold=1,
     )

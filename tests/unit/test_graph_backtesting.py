@@ -132,7 +132,7 @@ def test_graph_aware_backtest_summarizes_performance_by_edge_type(tmp_path: Path
 
 
 def _settings_for_temp_db(tmp_path: Path) -> Settings:
-    return Settings(database_url=f"sqlite:///{tmp_path / 'taurus.db'}")
+    return Settings()
 
 
 def _seed_graph_fixture(

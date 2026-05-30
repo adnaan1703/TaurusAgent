@@ -2,13 +2,16 @@
 
 ## Current State
 
-- Backend tests: `make test` -> `112 passed, 1 skipped` after M20.6.
+- Backend tests: `make test` -> `133 passed, 1 skipped` after M21.
 - Frontend tests: not rerun in M20.6; latest `make test-ui` was `25 passed` after M20.4.
-- Compile check: `make lint` -> passed after M20.6.
+- Compile check: `make lint` -> passed after M21.
 - Frontend build: not rerun in M20.6; latest `make build-ui` passed after M20.4.
-- Git worktree contains M20.6 implementation changes until committed.
-- Docker Compose services are not currently running, but Docker volumes exist: `taurusagent_postgres_data`, `taurusagent_grafana_data`.
-- A local ignored SQLite file exists: `taurus.db`, containing `10` instruments and `2520` daily candles. This means not all local state is only in Docker.
+- Docker Postgres is the canonical Taurus database. Runtime, scripts, and tests
+  reject SQLite database URLs.
+- Docker Compose volumes exist for canonical Postgres data:
+  `taurusagent_postgres_data` and `taurusagent_grafana_data`.
+- Local SQLite database files were removed during M21 after Docker Postgres data
+  verification passed.
 - Local `.env` exists and contains only Kite keys. It does not set `DATABASE_URL`, `TAURUS_MARKET_DATA_PROVIDER`, or analyst settings.
 
 ## What Taurus Can Do Today
@@ -195,6 +198,8 @@ Your assumption is only partly true.
 **Docker-backed:**
 
 - Postgres data lives in Docker named volume `taurusagent_postgres_data`.
+- Taurus runtime, scripts, and tests use Postgres by default through
+  `postgresql+psycopg://taurus:taurus@localhost:5432/taurus`.
 - Grafana data lives in Docker named volume `taurusagent_grafana_data`.
 - These persist after `make dev-down`.
 - They are removed only if you remove volumes, e.g. `docker compose down -v`.
@@ -202,12 +207,13 @@ Your assumption is only partly true.
 **Local repo/filesystem:**
 
 - `.env` is local and ignored.
-- `taurus.db` exists locally and is ignored.
 - `backups/` exists locally and is ignored.
 - CSV imports, generated YAMLs, docs, and fixture files are local files.
 - Redis has no persistent volume in `docker-compose.yml`.
 
-> Important nuance: `make` targets default to Postgres at `localhost:5432`, but direct `uv run ...` without `DATABASE_URL` uses the code default SQLite database `sqlite:///./taurus.db`.
+Direct `uv run ...` commands now use the same Postgres default as `make`
+targets. Use `TAURUS_TEST_DATABASE_URL` only for isolated Postgres test
+databases; SQLite URLs are rejected.
 
 ## Graph Intelligence API
 

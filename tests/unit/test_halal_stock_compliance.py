@@ -222,7 +222,6 @@ def _prepare_db(settings: Settings):
 
 def _settings(tmp_path: Path, *, min_rows: int = 1) -> Settings:
     return Settings(
-        database_url=f"sqlite:///{tmp_path / 'taurus.db'}",
         taurus_halal_stock_min_rows=min_rows,
         taurus_halal_stock_universe_path=str(tmp_path / "halal_nse_cash.yaml"),
     )

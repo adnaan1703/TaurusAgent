@@ -21,7 +21,7 @@ from taurus_core.observability.metrics import metrics_response_body
 
 
 def test_metrics_endpoint_exposes_graph_observability(tmp_path: Path) -> None:
-    settings = Settings(database_url=f"sqlite:///{tmp_path / 'taurus.db'}")
+    settings = Settings()
     run_migrations(settings)
     _seed_graph_observability_fixture(settings)
 
@@ -90,7 +90,7 @@ def test_graph_failure_counters_are_observable(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    settings = Settings(database_url=f"sqlite:///{tmp_path / 'taurus.db'}")
+    settings = Settings()
     run_migrations(settings)
     session_factory = build_session_factory(settings)
     with session_factory() as session:

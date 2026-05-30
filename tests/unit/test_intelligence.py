@@ -80,4 +80,4 @@ def test_event_scoring_uses_direction_severity_confidence_and_time_decay() -> No
 
 
 def _settings_for_temp_db(tmp_path: Path) -> Settings:
-    return Settings(database_url=f"sqlite:///{tmp_path / 'taurus.db'}")
+    return Settings()

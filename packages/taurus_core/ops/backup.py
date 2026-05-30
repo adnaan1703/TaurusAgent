@@ -52,9 +52,7 @@ def create_backup(settings: Settings, *, output_root: Path | None = None) -> Bac
 
     url = make_url(settings.database_url)
     database_kind = _database_kind(url.drivername)
-    if database_kind == "sqlite":
-        artifact_path = _backup_sqlite(url.database, backup_dir)
-    elif database_kind == "postgresql":
+    if database_kind == "postgresql":
         artifact_path = _backup_postgres(settings.database_url, backup_dir)
     else:
         raise ValueError(f"Unsupported database for backup: {url.drivername}")
@@ -86,23 +84,6 @@ def restore_backup(
     database_kind = str(manifest["database_kind"])
     artifact_path = backup / str(manifest["artifact"]) if backup.is_dir() else backup
 
-    if database_kind == "sqlite":
-        target = _sqlite_path(make_url(settings.database_url).database)
-        target.parent.mkdir(parents=True, exist_ok=True)
-        pre_restore_backup = None
-        if target.exists():
-            pre_restore_backup = target.with_suffix(
-                f"{target.suffix}.pre-restore-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}"
-            )
-            shutil.copy2(target, pre_restore_backup)
-        shutil.copy2(artifact_path, target)
-        return RestoreResult(
-            database_kind=database_kind,
-            restored_from=artifact_path,
-            restored_to=str(target),
-            pre_restore_backup=pre_restore_backup,
-        )
-
     if database_kind == "postgresql":
         if not confirm_postgres:
             raise ValueError("Postgres restore requires RESTORE_CONFIRM=I_UNDERSTAND.")
@@ -114,15 +95,6 @@ def restore_backup(
         )
 
     raise ValueError(f"Unsupported backup database kind: {database_kind}")
-
-
-def _backup_sqlite(database: str | None, backup_dir: Path) -> Path:
-    source = _sqlite_path(database)
-    if not source.exists():
-        raise FileNotFoundError(f"SQLite database not found: {source}")
-    artifact_path = backup_dir / "taurus.sqlite3"
-    shutil.copy2(source, artifact_path)
-    return artifact_path
 
 
 def _backup_postgres(database_url: str, backup_dir: Path) -> Path:
@@ -215,17 +187,9 @@ def _load_manifest(backup: Path) -> dict[str, object]:
 
 
 def _database_kind(drivername: str) -> str:
-    if drivername.startswith("sqlite"):
-        return "sqlite"
     if drivername.startswith("postgresql"):
         return "postgresql"
     return drivername
-
-
-def _sqlite_path(database: str | None) -> Path:
-    if not database or database == ":memory:":
-        raise ValueError("File-backed SQLite database is required for backup and restore.")
-    return Path(database).expanduser()
 
 
 def _pg_cli_url(database_url: str) -> str:

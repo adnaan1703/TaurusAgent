@@ -116,4 +116,4 @@ def _prepare_db(settings: Settings):
 
 
 def _settings_for_temp_db(tmp_path: Path) -> Settings:
-    return Settings(database_url=f"sqlite:///{tmp_path / 'taurus.db'}")
+    return Settings()

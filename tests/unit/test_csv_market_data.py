@@ -54,7 +54,7 @@ def test_csv_market_data_provider_reads_synthetic_fixture() -> None:
 
 
 def test_csv_market_data_import_records_source_and_available_time(tmp_path: Path) -> None:
-    settings = Settings(database_url=f"sqlite:///{tmp_path / 'taurus.db'}")
+    settings = Settings()
     run_migrations(settings)
     session_factory = build_session_factory(settings)
     provider = CSVMarketDataProvider(csv_path=PRICE_FIXTURE)
@@ -88,7 +88,7 @@ def test_csv_market_data_import_records_source_and_available_time(tmp_path: Path
 
 
 def test_backtest_can_run_after_csv_import(tmp_path: Path) -> None:
-    settings = Settings(database_url=f"sqlite:///{tmp_path / 'taurus.db'}")
+    settings = Settings()
     run_migrations(settings)
     session_factory = build_session_factory(settings)
     with session_factory() as session:

@@ -12,6 +12,9 @@ from taurus_core import __version__
 from taurus_core.agents.roster import DEFAULT_ENABLED_ANALYSTS, parse_enabled_analysts
 
 
+DEFAULT_DATABASE_URL = "postgresql+psycopg://taurus:taurus@localhost:5432/taurus"
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -32,7 +35,7 @@ class Settings(BaseSettings):
     )
     broker_provider: str = Field(default="paper", validation_alias="BROKER_PROVIDER")
     database_url: str = Field(
-        default="sqlite:///./taurus.db",
+        default=DEFAULT_DATABASE_URL,
         validation_alias="DATABASE_URL",
     )
     taurus_graph_enabled: bool = Field(
@@ -281,6 +284,8 @@ class Settings(BaseSettings):
             raise ValueError("Live trading is disabled and cannot be enabled.")
         if self.broker_provider != "paper":
             raise ValueError("Taurus currently supports only the paper broker provider.")
+        if urlsplit(self.database_url).scheme.lower().startswith("sqlite"):
+            raise ValueError("SQLite database URLs are no longer supported; use Docker Postgres.")
         if self.taurus_market_data_provider not in {"mock", "csv", "kite", "external"}:
             raise ValueError("Unsupported Taurus market data provider.")
         if self.taurus_llm_provider not in {"mock", "lmstudio", "openai"}:

@@ -201,7 +201,7 @@ def test_kite_provider_paces_historical_requests_with_injected_sleeper(tmp_path:
 
 
 def test_kite_sync_persists_provider_mappings(tmp_path: Path) -> None:
-    settings = _settings(tmp_path, database_url=f"sqlite:///{tmp_path / 'sync.db'}")
+    settings = _settings(tmp_path)
     run_migrations(settings)
     provider = KiteMarketDataProvider(
         settings,
@@ -223,7 +223,7 @@ def test_kite_sync_persists_provider_mappings(tmp_path: Path) -> None:
 
 
 def test_fake_kite_client_maps_ohlc_snapshots_and_repository_latest(tmp_path: Path) -> None:
-    settings = _settings(tmp_path, database_url=f"sqlite:///{tmp_path / 'taurus.db'}")
+    settings = _settings(tmp_path)
     run_migrations(settings)
     provider = KiteMarketDataProvider(
         settings,
@@ -250,7 +250,7 @@ def test_fake_kite_client_maps_ohlc_snapshots_and_repository_latest(tmp_path: Pa
 
 
 def test_data_api_returns_latest_persisted_quote_snapshot(tmp_path: Path) -> None:
-    settings = _settings(tmp_path, database_url=f"sqlite:///{tmp_path / 'quotes.db'}")
+    settings = _settings(tmp_path)
     run_migrations(settings)
     provider = KiteMarketDataProvider(
         settings,

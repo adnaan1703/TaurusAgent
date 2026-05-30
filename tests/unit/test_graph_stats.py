@@ -115,7 +115,7 @@ def test_graph_stats_auto_promote_only_when_explicitly_enabled(tmp_path: Path) -
 
 
 def _settings_for_temp_db(tmp_path: Path, **overrides: object) -> Settings:
-    values = {"database_url": f"sqlite:///{tmp_path / 'taurus.db'}", **overrides}
+    values = {**overrides}
     return Settings(**values)
 
 

@@ -158,7 +158,7 @@ class FailingLLMProvider:
 
 
 def _settings_for_temp_db(tmp_path: Path) -> Settings:
-    return Settings(database_url=f"sqlite:///{tmp_path / 'taurus.db'}")
+    return Settings()
 
 
 def _seed_instruments(settings: Settings, symbols: list[str]) -> None:

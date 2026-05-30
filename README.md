@@ -83,6 +83,10 @@ Start the local stack:
 make dev-up
 ```
 
+Taurus uses Docker Postgres as its canonical database. The default database URL
+is `postgresql+psycopg://taurus:taurus@localhost:5432/taurus`; SQLite URLs are
+rejected in runtime and tests.
+
 Create the schema and seed deterministic mock data:
 
 ```bash
@@ -143,7 +147,7 @@ Stop the local stack:
 make dev-down
 ```
 
-Run the API directly without Docker:
+Run the API with the Docker Postgres service available:
 
 ```bash
 make api

@@ -111,4 +111,4 @@ def test_data_api_returns_seeded_instruments_and_candles(tmp_path: Path) -> None
 
 
 def _settings_for_temp_db(tmp_path: Path) -> Settings:
-    return Settings(database_url=f"sqlite:///{tmp_path / 'taurus.db'}")
+    return Settings()
