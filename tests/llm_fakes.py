@@ -3,7 +3,11 @@ from __future__ import annotations
 from decimal import Decimal
 
 from taurus_core.agents.schemas import LLMAnalystOutput, stance_from_score
-from taurus_core.llm.base import LLMBearThesisOutput, LLMBullThesisOutput
+from taurus_core.llm.base import (
+    LLMBearThesisOutput,
+    LLMBullThesisOutput,
+    LLMResearchManagerOutput,
+)
 
 
 class FakeLLMProvider:
@@ -101,6 +105,39 @@ class FakeLLMProvider:
             ],
             risk_flags=[
                 f"{agent}: downside risk remains active while {source_id} evidence persists."
+            ],
+            model_version=self.model_version,
+        )
+
+    def complete_research_manager_summary(
+        self,
+        *,
+        agent_name: str,
+        symbol: str,
+        context: dict[str, object],
+    ) -> LLMResearchManagerOutput:
+        baseline = context.get("deterministic_baseline")
+        if not isinstance(baseline, dict):
+            baseline = {}
+        baseline_score = _decimal_context(baseline, "consensus_score", Decimal("0"))
+        baseline_confidence = _decimal_context(baseline, "confidence", Decimal("0.55"))
+        reports = context.get("analyst_reports")
+        first_report = reports[0] if isinstance(reports, list) and reports else {}
+        if not isinstance(first_report, dict):
+            first_report = {}
+        agent = str(first_report.get("agent_name") or agent_name)
+        source_ids = first_report.get("source_ids")
+        source_id = source_ids[0] if isinstance(source_ids, list) and source_ids else "test-source"
+        return LLMResearchManagerOutput(
+            consensus_label=str(baseline.get("consensus_label") or "neutral"),
+            consensus_score=max(Decimal("-1"), min(Decimal("1"), baseline_score + Decimal("0.0500"))),
+            confidence=max(
+                Decimal("0"),
+                min(Decimal("1"), baseline_confidence + Decimal("0.0500")),
+            ),
+            summary=f"{agent}: manager consensus remains tied to {source_id} for {symbol.upper()}.",
+            unresolved_uncertainties=[
+                f"{agent}: manager uncertainty remains tied to {source_id} for {symbol.upper()}."
             ],
             model_version=self.model_version,
         )

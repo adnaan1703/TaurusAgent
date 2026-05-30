@@ -33,7 +33,7 @@ The access token is a short-lived manual Kite Connect login artifact. If Kite
 commands fail with an expired-token message, generate a fresh token locally and
 update `.env`; do not put credentials in tracked files or command references.
 
-LLM-backed analyst and bull-research debate workflows use real providers only.
+LLM-backed analyst and research-debate workflows use real providers only.
 The default is LM Studio:
 
 ```bash
@@ -129,9 +129,10 @@ make backup-local
 These analyst, debate, trader-proposal, and paper-loop commands call the
 configured real LLM provider. `BullResearcherAgent` uses the provider for
 evidence-bound bullish research, and `BearResearcherAgent` uses the same
-provider for evidence-bound bearish research. Deterministic risk and
-paper-broker safeguards remain authoritative. For local no-cost paper runs,
-keep LM Studio running or explicitly configure a hosted provider and model.
+provider for evidence-bound bearish research. `ResearchManagerAgent` uses it
+for bounded debate synthesis and consensus management. Deterministic risk and
+paper-broker safeguards remain authoritative. For local no-cost paper runs, keep
+LM Studio running or explicitly configure a hosted provider and model.
 
 Run data-only Kite market-data commands after adding a valid local
 `KITE_ACCESS_TOKEN`:

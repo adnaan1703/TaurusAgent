@@ -11,15 +11,19 @@ from taurus_core.llm.base import (
     ANALYST_OUTPUT_JSON_SCHEMA,
     BEAR_THESIS_OUTPUT_JSON_SCHEMA,
     BULL_THESIS_OUTPUT_JSON_SCHEMA,
+    RESEARCH_MANAGER_OUTPUT_JSON_SCHEMA,
     LLMBearThesisOutput,
     LLMBullThesisOutput,
+    LLMResearchManagerOutput,
     LLMProviderError,
     analyst_output_system_prompt,
     bear_thesis_system_prompt,
     bull_thesis_system_prompt,
+    research_manager_system_prompt,
     parse_bear_thesis_output,
     parse_bull_thesis_output,
     parse_llm_output,
+    parse_research_manager_output,
 )
 
 
@@ -233,3 +237,78 @@ class GeminiProvider:
         except (KeyError, IndexError, TypeError) as exc:
             raise LLMProviderError("Gemini response did not include generated JSON text") from exc
         return parse_bear_thesis_output(str(content), fallback_model_version=self.model_version)
+
+    def complete_research_manager_summary(
+        self,
+        *,
+        agent_name: str,
+        symbol: str,
+        context: dict[str, object],
+    ) -> LLMResearchManagerOutput:
+        payload = {
+            "systemInstruction": {
+                "parts": [{"text": research_manager_system_prompt()}],
+            },
+            "contents": [
+                {
+                    "role": "user",
+                    "parts": [
+                        {
+                            "text": json.dumps(
+                                {
+                                    "agent_name": agent_name,
+                                    "symbol": symbol.upper(),
+                                    "context": context,
+                                    "output_schema": {
+                                        "consensus_label": (
+                                            "bullish|mild_bullish|neutral|"
+                                            "mild_bearish|bearish"
+                                        ),
+                                        "consensus_score": (
+                                            "number -1..1; Taurus clamps final "
+                                            "adjustment to +/-0.1000"
+                                        ),
+                                        "confidence": (
+                                            "number 0..1; Taurus clamps final "
+                                            "adjustment to +/-0.1000"
+                                        ),
+                                        "summary": "evidence-bound string",
+                                        "unresolved_uncertainties": (
+                                            "non-empty evidence-bound string array"
+                                        ),
+                                        "model_version": "provider/model identifier string",
+                                    },
+                                },
+                                sort_keys=True,
+                                default=str,
+                            )
+                        }
+                    ],
+                }
+            ],
+            "generationConfig": {
+                "temperature": 0,
+                "responseMimeType": "application/json",
+                "responseJsonSchema": RESEARCH_MANAGER_OUTPUT_JSON_SCHEMA,
+            },
+        }
+        request = Request(
+            f"{self.base_url}/models/{quote(self.model, safe='')}:generateContent",
+            data=json.dumps(payload).encode("utf-8"),
+            headers={
+                "Content-Type": "application/json",
+                "x-goog-api-key": self.api_key,
+            },
+            method="POST",
+        )
+        try:
+            with urlopen(request, timeout=self.timeout_seconds) as response:
+                response_payload = json.loads(response.read().decode("utf-8"))
+        except (HTTPError, URLError, TimeoutError, json.JSONDecodeError) as exc:
+            raise LLMProviderError("Gemini request failed") from exc
+
+        try:
+            content = response_payload["candidates"][0]["content"]["parts"][0]["text"]
+        except (KeyError, IndexError, TypeError) as exc:
+            raise LLMProviderError("Gemini response did not include generated JSON text") from exc
+        return parse_research_manager_output(str(content), fallback_model_version=self.model_version)

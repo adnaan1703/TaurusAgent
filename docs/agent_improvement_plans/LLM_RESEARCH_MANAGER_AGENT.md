@@ -182,3 +182,32 @@ Hard rules:
   tests, but production debate should use a real provider.
 - Mocks created: test-only fake LLM provider outputs.
 - Mocks used: test-only fake LLM provider outputs only.
+
+## Completion Summary
+
+Status: Completed in M27 on 2026-05-30.
+
+- Implementation: `ResearchManagerAgent` now accepts an injected LLM provider,
+  keeps the previous deterministic implementation as `_run_rules`, builds a
+  compact manager context from analyst reports, bull/bear theses, transcript
+  rounds, and the deterministic baseline, then applies bounded LLM synthesis.
+- Provider contract: LM Studio, OpenAI, and Gemini implement
+  `complete_research_manager_summary(...)` with a dedicated strict JSON schema
+  and the ResearchManagerAgent system prompt. Runtime debate wiring injects
+  `build_llm_provider(settings)` through `ResearchDebateService`; missing
+  provider or provider/schema failures increment `taurus_llm_failures_total`
+  and fail clearly.
+- Guardrails: final consensus score and confidence can move by at most
+  `0.1000` from the deterministic baseline, the consensus label is recomputed
+  from the adjusted score, empty/repetitive/non-evidence-bound LLM text falls
+  back to rule text, and data-quality warnings from legacy mock or incomplete
+  real-data coverage are preserved.
+- Compatibility: `ResearchManagerAgent.run(...)` still returns
+  `ResearchManagerSummary`; `DebateReport`, `/debates`, dashboard, and
+  `TraderAgent` payload shapes remain unchanged.
+- Verification: focused manager/provider/debate/trader tests, `make test`,
+  `make lint`, runtime LLM mock guard search, and `git diff --check` passed.
+- Assumptions made: LM Studio remains the default real provider; M27 remains a
+  one-shot manager synthesis flow, not moderated multi-round dialogue.
+- Mocks created: test-only fake LLM provider output for manager synthesis.
+- Mocks used: test-only fake LLM provider outputs only.

@@ -10,15 +10,19 @@ from taurus_core.llm.base import (
     ANALYST_OUTPUT_JSON_SCHEMA,
     BEAR_THESIS_OUTPUT_JSON_SCHEMA,
     BULL_THESIS_OUTPUT_JSON_SCHEMA,
+    RESEARCH_MANAGER_OUTPUT_JSON_SCHEMA,
     LLMBearThesisOutput,
     LLMBullThesisOutput,
+    LLMResearchManagerOutput,
     LLMProviderError,
     analyst_output_system_prompt,
     bear_thesis_system_prompt,
     bull_thesis_system_prompt,
+    research_manager_system_prompt,
     parse_bear_thesis_output,
     parse_bull_thesis_output,
     parse_llm_output,
+    parse_research_manager_output,
 )
 
 
@@ -99,6 +103,26 @@ class LMStudioProvider:
             symbol=symbol,
             baseline=baseline,
             evidence_pack=evidence_pack,
+            timeout_seconds=self.timeout_seconds,
+            response_format={"type": "json_object"},
+            provider_name="LM Studio",
+        )
+
+    def complete_research_manager_summary(
+        self,
+        *,
+        agent_name: str,
+        symbol: str,
+        context: dict[str, object],
+    ) -> LLMResearchManagerOutput:
+        return _openai_compatible_research_manager_completion(
+            base_url=self.base_url,
+            api_key="lmstudio",
+            model=self.model,
+            model_version=self.model_version,
+            agent_name=agent_name,
+            symbol=symbol,
+            context=context,
             timeout_seconds=self.timeout_seconds,
             response_format={"type": "json_object"},
             provider_name="LM Studio",
@@ -213,6 +237,44 @@ def _openai_compatible_bear_thesis_completion(
     return parse_bear_thesis_output(str(content), fallback_model_version=model_version)
 
 
+def _openai_compatible_research_manager_completion(
+    *,
+    base_url: str,
+    api_key: str,
+    model: str,
+    model_version: str,
+    agent_name: str,
+    symbol: str,
+    context: dict[str, object],
+    timeout_seconds: int,
+    response_format: dict[str, object] | None = None,
+    provider_name: str = "LLM provider",
+) -> LLMResearchManagerOutput:
+    content = _openai_compatible_chat_content(
+        base_url=base_url,
+        api_key=api_key,
+        model=model,
+        system_prompt=research_manager_system_prompt(),
+        user_payload={
+            "agent_name": agent_name,
+            "symbol": symbol.upper(),
+            "context": context,
+            "output_schema": {
+                "consensus_label": "bullish|mild_bullish|neutral|mild_bearish|bearish",
+                "consensus_score": "number -1..1; Taurus clamps final adjustment to +/-0.1000",
+                "confidence": "number 0..1; Taurus clamps final adjustment to +/-0.1000",
+                "summary": "evidence-bound string",
+                "unresolved_uncertainties": "non-empty evidence-bound string array",
+                "model_version": "provider/model identifier string",
+            },
+        },
+        timeout_seconds=timeout_seconds,
+        response_format=response_format,
+        provider_name=provider_name,
+    )
+    return parse_research_manager_output(str(content), fallback_model_version=model_version)
+
+
 def _openai_compatible_chat_content(
     *,
     base_url: str,
@@ -295,5 +357,16 @@ def openai_bear_thesis_json_schema_response_format() -> dict[str, object]:
             "name": "LLMBearThesisOutput",
             "strict": True,
             "schema": BEAR_THESIS_OUTPUT_JSON_SCHEMA,
+        },
+    }
+
+
+def openai_research_manager_json_schema_response_format() -> dict[str, object]:
+    return {
+        "type": "json_schema",
+        "json_schema": {
+            "name": "LLMResearchManagerOutput",
+            "strict": True,
+            "schema": RESEARCH_MANAGER_OUTPUT_JSON_SCHEMA,
         },
     }

@@ -75,6 +75,34 @@ BEAR_THESIS_OUTPUT_JSON_SCHEMA: dict[str, object] = {
     "additionalProperties": False,
 }
 
+RESEARCH_MANAGER_OUTPUT_JSON_SCHEMA: dict[str, object] = {
+    "type": "object",
+    "properties": {
+        "consensus_label": {
+            "type": "string",
+            "enum": ["bullish", "mild_bullish", "neutral", "mild_bearish", "bearish"],
+        },
+        "consensus_score": {"type": "number", "minimum": -1, "maximum": 1},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "summary": {"type": "string", "minLength": 1},
+        "unresolved_uncertainties": {
+            "type": "array",
+            "items": {"type": "string"},
+            "minItems": 1,
+        },
+        "model_version": {"type": "string"},
+    },
+    "required": [
+        "consensus_label",
+        "consensus_score",
+        "confidence",
+        "summary",
+        "unresolved_uncertainties",
+        "model_version",
+    ],
+    "additionalProperties": False,
+}
+
 
 class LLMBullThesisOutput(BaseModel):
     model_config = ConfigDict(frozen=True)
@@ -104,6 +132,35 @@ class LLMBearThesisOutput(BaseModel):
     model_version: str
 
     @field_validator("key_points", "risk_flags")
+    @classmethod
+    def remove_empty_items(cls, value: list[str]) -> list[str]:
+        cleaned = [item.strip() for item in value if item.strip()]
+        if not cleaned:
+            raise ValueError("at least one non-empty item is required")
+        return cleaned
+
+
+class LLMResearchManagerOutput(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    consensus_label: str = Field(
+        pattern="^(bullish|mild_bullish|neutral|mild_bearish|bearish)$"
+    )
+    consensus_score: Decimal = Field(ge=Decimal("-1"), le=Decimal("1"))
+    confidence: Decimal = Field(ge=Decimal("0"), le=Decimal("1"))
+    summary: str = Field(min_length=1)
+    unresolved_uncertainties: list[str] = Field(min_length=1)
+    model_version: str
+
+    @field_validator("summary")
+    @classmethod
+    def clean_summary(cls, value: str) -> str:
+        cleaned = " ".join(value.split())
+        if not cleaned:
+            raise ValueError("summary must not be empty")
+        return cleaned
+
+    @field_validator("unresolved_uncertainties")
     @classmethod
     def remove_empty_items(cls, value: list[str]) -> list[str]:
         cleaned = [item.strip() for item in value if item.strip()]
@@ -160,6 +217,26 @@ def bear_thesis_system_prompt() -> str:
     )
 
 
+def research_manager_system_prompt() -> str:
+    return (
+        "You are Taurus ResearchManagerAgent, the debate facilitator and synthesis agent\n"
+        "for a local paper-trading research workflow. Your job is to synthesize analyst\n"
+        "reports plus bull and bear theses into one evidence-bound consensus summary.\n\n"
+        "Hard rules:\n"
+        "- Synthesize research only. Do not place trades, size positions, route orders,\n"
+        "  or override deterministic risk controls.\n"
+        "- Use only supplied analyst reports, bull thesis, bear thesis, source IDs,\n"
+        "  scores, confidence, risks, and the deterministic baseline.\n"
+        "- Preserve material disagreement and unresolved uncertainty instead of forcing\n"
+        "  false consensus.\n"
+        "- Do not invent facts, source IDs, prices, filings, news, broker actions, or\n"
+        "  order instructions.\n"
+        "- Taurus recomputes the final consensus label from the final score; your label\n"
+        "  must be consistent with the evidence.\n"
+        "- Return valid JSON matching the requested schema and no prose outside JSON."
+    )
+
+
 class LLMProvider(Protocol):
     @property
     def model_version(self) -> str:
@@ -192,6 +269,15 @@ class LLMProvider(Protocol):
         baseline: dict[str, object],
         evidence_pack: list[dict[str, object]],
     ) -> LLMBearThesisOutput:
+        ...
+
+    def complete_research_manager_summary(
+        self,
+        *,
+        agent_name: str,
+        symbol: str,
+        context: dict[str, object],
+    ) -> LLMResearchManagerOutput:
         ...
 
 
@@ -240,3 +326,20 @@ def parse_bear_thesis_output(
         return LLMBearThesisOutput.model_validate(payload)
     except ValidationError as exc:
         raise LLMProviderError("LLM bear thesis response failed schema validation") from exc
+
+
+def parse_research_manager_output(
+    raw_content: str,
+    *,
+    fallback_model_version: str,
+) -> LLMResearchManagerOutput:
+    try:
+        payload = json.loads(raw_content)
+    except json.JSONDecodeError as exc:
+        raise LLMProviderError("LLM research manager response was not valid JSON") from exc
+    if isinstance(payload, dict) and "model_version" not in payload:
+        payload["model_version"] = fallback_model_version
+    try:
+        return LLMResearchManagerOutput.model_validate(payload)
+    except ValidationError as exc:
+        raise LLMProviderError("LLM research manager response failed schema validation") from exc

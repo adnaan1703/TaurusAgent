@@ -70,13 +70,13 @@ providers may still be used inside unit tests.
 
 ## Non-Analyst Agents And Services
 
-These are "agents" in code structure, but they are not currently LLM agents.
-Today, they are deterministic rule agents that consume analyst reports and other
-stored artifacts.
+These are "agents" in code structure. Debate synthesis now uses the configured
+real LLM provider with deterministic guardrails; later workflow stages remain
+rule-based consumers of analyst reports and other stored artifacts.
 
 | Workflow | Agents/services | Requires LLM provider? | Current mock exposure |
 |---|---|---:|---|
-| Debate | `BullResearcherAgent`, `BearResearcherAgent`, `ResearchManagerAgent` | Yes, for `BullResearcherAgent` and `BearResearcherAgent` | Bull and bear theses use the configured real LLM provider with deterministic score/confidence guardrails; manager remains rules-only until a later milestone. |
+| Debate | `BullResearcherAgent`, `BearResearcherAgent`, `ResearchManagerAgent` | Yes | Bull, bear, and manager synthesis use the configured real LLM provider with deterministic score/confidence guardrails. |
 | Trader proposal | `TraderAgent` | No | Consumes debate output; inherits upstream analyst/data limitations. |
 | Risk review | `RiskyRiskAgent`, `NeutralRiskAgent`, `SafeRiskAgent`, `RiskEngine` | No | Can be influenced by mock news/events in the DB. |
 | Final approval | `PortfolioManagerAgent` | No | Consumes risk review; no direct LLM use. |
@@ -93,7 +93,7 @@ stored artifacts.
 | `GraphAnalystAgent` | Fully deterministic graph scoring | No | Optional | Low | Explain graph evidence; scoring should remain deterministic. |
 | `BullResearcherAgent` | Builds an LLM-assisted bull thesis from analyst evidence with deterministic guardrails | Yes | MUST | High | Completed in M25; keep downstream trader/risk/final/PaperBroker safeguards authoritative. |
 | `BearResearcherAgent` | Builds an LLM-assisted bear thesis from analyst evidence with deterministic guardrails | Yes | MUST | High | Completed in M26; challenge assumptions, surface downside, and identify invalidation risks without overriding downstream safeguards. |
-| `ResearchManagerAgent` | Computes consensus from reports plus bull/bear theses | No | MUST | High | Synthesize bull/bear debate into consensus, confidence, and unresolved uncertainties. |
+| `ResearchManagerAgent` | Builds LLM-assisted debate synthesis from analyst evidence plus bull/bear theses with deterministic guardrails | Yes | MUST | High | Completed in M27; synthesize bull/bear debate into consensus, confidence, and unresolved uncertainties without overriding downstream safeguards. |
 | `TraderAgent` | Converts consensus into proposal using rules | No | MUST | High | Convert research consensus into trade thesis, entry logic, stop-loss, take-profit, hold/reduce/exit rationale. |
 | `RiskyRiskAgent` / `NeutralRiskAgent` / `SafeRiskAgent` | Risk persona rules | No | Optional | Medium | Provide advisory committee-style risk reasoning; hard risk rules remain authoritative. |
 | `RiskEngine` | Hard risk rules | No | Never | N/A | Keep deterministic: kill switch, caps, stale data, severe event block, graph concentration gates. |
@@ -103,8 +103,8 @@ stored artifacts.
 Current distinction:
 
 ```text
-Analyst agents = can call LLM provider
-Debate / trader / risk / portfolio agents = currently rule-based consumers of analyst outputs
+Analyst and debate agents = can call LLM provider
+Trader / risk / portfolio agents = currently rule-based consumers of analyst and debate outputs
 ```
 
 The selected functional-MVP sequence now tracks separate migrations for
@@ -144,8 +144,10 @@ The advisory risk personas can be upgraded after that. `RiskEngine`,
       default runtime provider and deterministic score/confidence guardrails.
 - [x] Add LLM-backed `BearResearcherAgent` debate output with LM Studio as the
       default runtime provider and deterministic score/confidence guardrails.
-- [ ] Add LLM-backed ResearchManager debate and position-aware `TraderAgent`
-      proposals with LM Studio as the default runtime provider.
+- [x] Add LLM-backed `ResearchManagerAgent` debate synthesis with LM Studio as
+      the default runtime provider and deterministic score/confidence guardrails.
+- [ ] Add position-aware `TraderAgent` proposals with LM Studio as the default
+      runtime provider.
 - [ ] Add optional LLM explanation to `PortfolioManagerAgent`; deterministic
       final approval gates remain authoritative.
 - [ ] Validate real Screener CSV exports and confirm they map cleanly to Taurus

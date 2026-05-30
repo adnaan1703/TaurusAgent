@@ -43,7 +43,7 @@ class ResearchDebateService:
         self.model_version = f"{self.model_version_prefix}:{self.llm_provider.model_version}"
         self.bull_researcher = BullResearcherAgent(llm_provider=self.llm_provider)
         self.bear_researcher = BearResearcherAgent(llm_provider=self.llm_provider)
-        self.research_manager = ResearchManagerAgent()
+        self.research_manager = ResearchManagerAgent(llm_provider=self.llm_provider)
 
     def run(
         self,
