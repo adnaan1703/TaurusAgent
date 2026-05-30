@@ -219,9 +219,9 @@ With `TAURUS_ENABLED_ANALYSTS=technical`:
 - It computes technical score from candles/features/signals.
 - It still calls the configured real LLM provider. The default is LM Studio;
   `openai` and `gemini` are explicit hosted-provider opt-ins.
-- If you continue into debate or paper-run workflows, `BullResearcherAgent` also
-  calls the configured real LLM provider and clamps its output to deterministic
-  bull scoring guardrails.
+- If you continue into debate or paper-run workflows, `BullResearcherAgent` and
+  `BearResearcherAgent` also call the configured real LLM provider and clamp
+  their output to deterministic scoring guardrails.
 - OpenAI uses API billing through `OPENAI_API_KEY`; ChatGPT subscriptions are
   not supported for Taurus backend inference.
 - Mock news is still imported into the DB.

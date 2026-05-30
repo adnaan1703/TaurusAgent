@@ -56,6 +56,25 @@ BULL_THESIS_OUTPUT_JSON_SCHEMA: dict[str, object] = {
     "additionalProperties": False,
 }
 
+BEAR_THESIS_OUTPUT_JSON_SCHEMA: dict[str, object] = {
+    "type": "object",
+    "properties": {
+        "score": {"type": "number", "minimum": -1, "maximum": 1},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "key_points": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+        "risk_flags": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+        "model_version": {"type": "string"},
+    },
+    "required": [
+        "score",
+        "confidence",
+        "key_points",
+        "risk_flags",
+        "model_version",
+    ],
+    "additionalProperties": False,
+}
+
 
 class LLMBullThesisOutput(BaseModel):
     model_config = ConfigDict(frozen=True)
@@ -67,6 +86,24 @@ class LLMBullThesisOutput(BaseModel):
     model_version: str
 
     @field_validator("key_points", "conditions")
+    @classmethod
+    def remove_empty_items(cls, value: list[str]) -> list[str]:
+        cleaned = [item.strip() for item in value if item.strip()]
+        if not cleaned:
+            raise ValueError("at least one non-empty item is required")
+        return cleaned
+
+
+class LLMBearThesisOutput(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    score: Decimal = Field(ge=Decimal("-1"), le=Decimal("1"))
+    confidence: Decimal = Field(ge=Decimal("0"), le=Decimal("1"))
+    key_points: list[str] = Field(min_length=1)
+    risk_flags: list[str] = Field(min_length=1)
+    model_version: str
+
+    @field_validator("key_points", "risk_flags")
     @classmethod
     def remove_empty_items(cls, value: list[str]) -> list[str]:
         cleaned = [item.strip() for item in value if item.strip()]
@@ -103,6 +140,26 @@ def bull_thesis_system_prompt() -> str:
     )
 
 
+def bear_thesis_system_prompt() -> str:
+    return (
+        "You are Taurus BearResearcherAgent, the skeptical research voice in a local\n"
+        "paper-trading decision workflow. Your job is to build the strongest\n"
+        "evidence-led bear case for the symbol from the supplied analyst reports.\n\n"
+        "Hard rules:\n"
+        "- Use only provided analyst evidence, scores, risks, source IDs, and report IDs.\n"
+        "- Challenge bullish assumptions and identify downside, invalidation, liquidity,\n"
+        "  data-quality, and concentration risks where the supplied evidence supports\n"
+        "  them.\n"
+        "- Do not invent facts, prices, filings, news, source IDs, broker actions, or\n"
+        "  order instructions.\n"
+        "- Do not decide trades or position sizes. TraderAgent and deterministic risk\n"
+        "  gates handle that later.\n"
+        "- Keep bearish score non-positive after Taurus guardrails and keep confidence\n"
+        "  grounded in evidence quality.\n"
+        "- Return valid JSON matching the requested schema and no prose outside JSON."
+    )
+
+
 class LLMProvider(Protocol):
     @property
     def model_version(self) -> str:
@@ -125,6 +182,16 @@ class LLMProvider(Protocol):
         baseline: dict[str, object],
         evidence_pack: list[dict[str, object]],
     ) -> LLMBullThesisOutput:
+        ...
+
+    def complete_bear_thesis(
+        self,
+        *,
+        agent_name: str,
+        symbol: str,
+        baseline: dict[str, object],
+        evidence_pack: list[dict[str, object]],
+    ) -> LLMBearThesisOutput:
         ...
 
 
@@ -156,3 +223,20 @@ def parse_bull_thesis_output(
         return LLMBullThesisOutput.model_validate(payload)
     except ValidationError as exc:
         raise LLMProviderError("LLM bull thesis response failed schema validation") from exc
+
+
+def parse_bear_thesis_output(
+    raw_content: str,
+    *,
+    fallback_model_version: str,
+) -> LLMBearThesisOutput:
+    try:
+        payload = json.loads(raw_content)
+    except json.JSONDecodeError as exc:
+        raise LLMProviderError("LLM bear thesis response was not valid JSON") from exc
+    if isinstance(payload, dict) and "model_version" not in payload:
+        payload["model_version"] = fallback_model_version
+    try:
+        return LLMBearThesisOutput.model_validate(payload)
+    except ValidationError as exc:
+        raise LLMProviderError("LLM bear thesis response failed schema validation") from exc

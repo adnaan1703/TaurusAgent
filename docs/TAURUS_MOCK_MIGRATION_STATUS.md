@@ -76,7 +76,7 @@ stored artifacts.
 
 | Workflow | Agents/services | Requires LLM provider? | Current mock exposure |
 |---|---|---:|---|
-| Debate | `BullResearcherAgent`, `BearResearcherAgent`, `ResearchManagerAgent` | Yes, for `BullResearcherAgent` | Bull thesis uses the configured real LLM provider with deterministic score/confidence guardrails; bear and manager remain rules-only until later milestones. |
+| Debate | `BullResearcherAgent`, `BearResearcherAgent`, `ResearchManagerAgent` | Yes, for `BullResearcherAgent` and `BearResearcherAgent` | Bull and bear theses use the configured real LLM provider with deterministic score/confidence guardrails; manager remains rules-only until a later milestone. |
 | Trader proposal | `TraderAgent` | No | Consumes debate output; inherits upstream analyst/data limitations. |
 | Risk review | `RiskyRiskAgent`, `NeutralRiskAgent`, `SafeRiskAgent`, `RiskEngine` | No | Can be influenced by mock news/events in the DB. |
 | Final approval | `PortfolioManagerAgent` | No | Consumes risk review; no direct LLM use. |
@@ -92,7 +92,7 @@ stored artifacts.
 | `FundamentalsAnalystAgent` | Builds fundamentals context, then calls LLM provider | Yes | MUST when enabled for real-data runs | High | Interpret Screener/financial metrics and surface business risks. |
 | `GraphAnalystAgent` | Fully deterministic graph scoring | No | Optional | Low | Explain graph evidence; scoring should remain deterministic. |
 | `BullResearcherAgent` | Builds an LLM-assisted bull thesis from analyst evidence with deterministic guardrails | Yes | MUST | High | Completed in M25; keep downstream trader/risk/final/PaperBroker safeguards authoritative. |
-| `BearResearcherAgent` | Computes bear thesis from analyst reports using rules | No | MUST | High | Challenge assumptions, surface downside, and identify invalidation risks. |
+| `BearResearcherAgent` | Builds an LLM-assisted bear thesis from analyst evidence with deterministic guardrails | Yes | MUST | High | Completed in M26; challenge assumptions, surface downside, and identify invalidation risks without overriding downstream safeguards. |
 | `ResearchManagerAgent` | Computes consensus from reports plus bull/bear theses | No | MUST | High | Synthesize bull/bear debate into consensus, confidence, and unresolved uncertainties. |
 | `TraderAgent` | Converts consensus into proposal using rules | No | MUST | High | Convert research consensus into trade thesis, entry logic, stop-loss, take-profit, hold/reduce/exit rationale. |
 | `RiskyRiskAgent` / `NeutralRiskAgent` / `SafeRiskAgent` | Risk persona rules | No | Optional | Medium | Provide advisory committee-style risk reasoning; hard risk rules remain authoritative. |
@@ -142,8 +142,10 @@ The advisory risk personas can be upgraded after that. `RiskEngine`,
       `gemini` as explicit hosted-provider opt-ins.
 - [x] Add LLM-backed `BullResearcherAgent` debate output with LM Studio as the
       default runtime provider and deterministic score/confidence guardrails.
-- [ ] Add LLM-backed Bear/ResearchManager debate and position-aware
-      `TraderAgent` proposals with LM Studio as the default runtime provider.
+- [x] Add LLM-backed `BearResearcherAgent` debate output with LM Studio as the
+      default runtime provider and deterministic score/confidence guardrails.
+- [ ] Add LLM-backed ResearchManager debate and position-aware `TraderAgent`
+      proposals with LM Studio as the default runtime provider.
 - [ ] Add optional LLM explanation to `PortfolioManagerAgent`; deterministic
       final approval gates remain authoritative.
 - [ ] Validate real Screener CSV exports and confirm they map cleanly to Taurus

@@ -8,8 +8,10 @@ from taurus_core.agents.schemas import LLMAnalystOutput
 from taurus_core.config import Settings
 from taurus_core.llm import GeminiProvider, LMStudioProvider, OpenAIProvider, build_llm_provider
 from taurus_core.llm.base import (
+    LLMBearThesisOutput,
     LLMBullThesisOutput,
     LLMProviderError,
+    parse_bear_thesis_output,
     parse_bull_thesis_output,
     parse_llm_output,
 )
@@ -114,6 +116,35 @@ def test_lmstudio_bull_thesis_request_uses_dedicated_prompt(monkeypatch: pytest.
     assert output.model_version == "lmstudio:local-model"
 
 
+def test_lmstudio_bear_thesis_request_uses_dedicated_prompt(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen: dict[str, object] = {}
+
+    def fake_urlopen(request, timeout: int):
+        seen["payload"] = json.loads(request.data.decode("utf-8"))
+        return _Response(
+            _chat_response(
+                "lmstudio:local-model",
+                payload=_bear_payload("lmstudio:local-model"),
+            )
+        )
+
+    monkeypatch.setattr("taurus_core.llm.lmstudio_provider.urlopen", fake_urlopen)
+    provider = LMStudioProvider()
+
+    output = provider.complete_bear_thesis(
+        agent_name="BearResearcherAgent",
+        symbol="infy",
+        baseline={"score": "-0.1", "confidence": "0.6"},
+        evidence_pack=[{"report_id": "ar-1", "source_ids": ["src-1"]}],
+    )
+
+    payload = seen["payload"]
+    assert "Taurus BearResearcherAgent" in payload["messages"][0]["content"]
+    assert payload["response_format"] == {"type": "json_object"}
+    assert '"risk_flags": "non-empty string array"' in payload["messages"][1]["content"]
+    assert output.model_version == "lmstudio:local-model"
+
+
 def test_openai_request_shape_uses_bearer_auth_and_json_schema(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -171,6 +202,36 @@ def test_openai_bull_thesis_request_uses_strict_json_schema(
     payload = seen["payload"]
     assert payload["response_format"]["type"] == "json_schema"
     assert payload["response_format"]["json_schema"]["name"] == "LLMBullThesisOutput"
+    assert output.model_version == "openai:gpt-5-mini"
+
+
+def test_openai_bear_thesis_request_uses_strict_json_schema(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    seen: dict[str, object] = {}
+
+    def fake_urlopen(request, timeout: int):
+        seen["payload"] = json.loads(request.data.decode("utf-8"))
+        return _Response(
+            _chat_response(
+                "openai:gpt-5-mini",
+                payload=_bear_payload("openai:gpt-5-mini"),
+            )
+        )
+
+    monkeypatch.setattr("taurus_core.llm.lmstudio_provider.urlopen", fake_urlopen)
+    provider = OpenAIProvider(api_key="sk-test")
+
+    output = provider.complete_bear_thesis(
+        agent_name="BearResearcherAgent",
+        symbol="INFY",
+        baseline={"score": "-0.1", "confidence": "0.6"},
+        evidence_pack=[{"report_id": "ar-1", "source_ids": ["src-1"]}],
+    )
+
+    payload = seen["payload"]
+    assert payload["response_format"]["type"] == "json_schema"
+    assert payload["response_format"]["json_schema"]["name"] == "LLMBearThesisOutput"
     assert output.model_version == "openai:gpt-5-mini"
 
 
@@ -257,6 +318,44 @@ def test_gemini_bull_thesis_request_uses_dedicated_schema(
     assert output.model_version == "gemini:gemini-2.5-flash"
 
 
+def test_gemini_bear_thesis_request_uses_dedicated_schema(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    seen: dict[str, object] = {}
+
+    def fake_urlopen(request, timeout: int):
+        seen["payload"] = json.loads(request.data.decode("utf-8"))
+        return _Response(
+            {
+                "candidates": [
+                    {
+                        "content": {
+                            "parts": [
+                                {"text": json.dumps(_bear_payload("gemini:gemini-2.5-flash"))}
+                            ]
+                        }
+                    }
+                ]
+            }
+        )
+
+    monkeypatch.setattr("taurus_core.llm.gemini_provider.urlopen", fake_urlopen)
+    provider = GeminiProvider(api_key="gemini-test")
+
+    output = provider.complete_bear_thesis(
+        agent_name="BearResearcherAgent",
+        symbol="infy",
+        baseline={"score": "-0.1", "confidence": "0.6"},
+        evidence_pack=[{"report_id": "ar-1", "source_ids": ["src-1"]}],
+    )
+
+    payload = seen["payload"]
+    assert "Taurus BearResearcherAgent" in payload["systemInstruction"]["parts"][0]["text"]
+    assert payload["generationConfig"]["responseJsonSchema"]["required"][-1] == "model_version"
+    assert '"symbol": "INFY"' in payload["contents"][0]["parts"][0]["text"]
+    assert output.model_version == "gemini:gemini-2.5-flash"
+
+
 def test_llm_output_parser_rejects_invalid_schema() -> None:
     with pytest.raises(LLMProviderError):
         parse_llm_output(
@@ -270,6 +369,14 @@ def test_bull_thesis_parser_rejects_invalid_schema() -> None:
     with pytest.raises(LLMProviderError):
         parse_bull_thesis_output(
             '{"score": 2, "confidence": 0.5, "key_points": ["x"], "conditions": ["y"]}',
+            fallback_model_version="bad",
+        )
+
+
+def test_bear_thesis_parser_rejects_invalid_schema() -> None:
+    with pytest.raises(LLMProviderError):
+        parse_bear_thesis_output(
+            '{"score": 2, "confidence": 0.5, "key_points": ["x"], "risk_flags": ["y"]}',
             fallback_model_version="bad",
         )
 
@@ -322,5 +429,15 @@ def _bull_payload(model_version: str) -> dict[str, object]:
         confidence="0.75",
         key_points=["TechnicalAnalystAgent: src-1 supports the bull thesis."],
         conditions=["TechnicalAnalystAgent: src-1 must remain supportive."],
+        model_version=model_version,
+    ).model_dump(mode="json")
+
+
+def _bear_payload(model_version: str) -> dict[str, object]:
+    return LLMBearThesisOutput(
+        score="-0.25",
+        confidence="0.75",
+        key_points=["NewsAnalystAgent: src-1 challenges the bull thesis."],
+        risk_flags=["NewsAnalystAgent: src-1 remains a downside risk."],
         model_version=model_version,
     ).model_dump(mode="json")

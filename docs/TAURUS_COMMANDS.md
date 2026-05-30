@@ -759,9 +759,9 @@ not use ChatGPT subscriptions, browser sessions, cookies, or OAuth workarounds
 for backend inference.
 
 `make debate-mock`, `make trader-proposal-mock`, and the paper-run commands now
-also require the configured real LLM provider because `BullResearcherAgent`
-builds its bullish thesis with provider output clamped to deterministic
-guardrails.
+also require the configured real LLM provider because `BullResearcherAgent` and
+`BearResearcherAgent` build their theses with provider output clamped to
+deterministic guardrails.
 
 ## Expected Project Commands By Milestone
 

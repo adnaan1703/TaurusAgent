@@ -9,11 +9,15 @@ from taurus_core.agents.schemas import LLMAnalystOutput
 from taurus_core.config import DEFAULT_GEMINI_BASE_URL, DEFAULT_GEMINI_MODEL
 from taurus_core.llm.base import (
     ANALYST_OUTPUT_JSON_SCHEMA,
+    BEAR_THESIS_OUTPUT_JSON_SCHEMA,
     BULL_THESIS_OUTPUT_JSON_SCHEMA,
+    LLMBearThesisOutput,
     LLMBullThesisOutput,
     LLMProviderError,
     analyst_output_system_prompt,
+    bear_thesis_system_prompt,
     bull_thesis_system_prompt,
+    parse_bear_thesis_output,
     parse_bull_thesis_output,
     parse_llm_output,
 )
@@ -161,3 +165,71 @@ class GeminiProvider:
         except (KeyError, IndexError, TypeError) as exc:
             raise LLMProviderError("Gemini response did not include generated JSON text") from exc
         return parse_bull_thesis_output(str(content), fallback_model_version=self.model_version)
+
+    def complete_bear_thesis(
+        self,
+        *,
+        agent_name: str,
+        symbol: str,
+        baseline: dict[str, object],
+        evidence_pack: list[dict[str, object]],
+    ) -> LLMBearThesisOutput:
+        payload = {
+            "systemInstruction": {
+                "parts": [{"text": bear_thesis_system_prompt()}],
+            },
+            "contents": [
+                {
+                    "role": "user",
+                    "parts": [
+                        {
+                            "text": json.dumps(
+                                {
+                                    "agent_name": agent_name,
+                                    "symbol": symbol.upper(),
+                                    "baseline": baseline,
+                                    "evidence_pack": evidence_pack,
+                                    "output_schema": {
+                                        "score": (
+                                            "number -1..1; Taurus guardrails force final "
+                                            "bear thesis <= 0"
+                                        ),
+                                        "confidence": "number 0..1",
+                                        "key_points": "non-empty string array",
+                                        "risk_flags": "non-empty string array",
+                                        "model_version": "provider/model identifier string",
+                                    },
+                                },
+                                sort_keys=True,
+                                default=str,
+                            )
+                        }
+                    ],
+                }
+            ],
+            "generationConfig": {
+                "temperature": 0,
+                "responseMimeType": "application/json",
+                "responseJsonSchema": BEAR_THESIS_OUTPUT_JSON_SCHEMA,
+            },
+        }
+        request = Request(
+            f"{self.base_url}/models/{quote(self.model, safe='')}:generateContent",
+            data=json.dumps(payload).encode("utf-8"),
+            headers={
+                "Content-Type": "application/json",
+                "x-goog-api-key": self.api_key,
+            },
+            method="POST",
+        )
+        try:
+            with urlopen(request, timeout=self.timeout_seconds) as response:
+                response_payload = json.loads(response.read().decode("utf-8"))
+        except (HTTPError, URLError, TimeoutError, json.JSONDecodeError) as exc:
+            raise LLMProviderError("Gemini request failed") from exc
+
+        try:
+            content = response_payload["candidates"][0]["content"]["parts"][0]["text"]
+        except (KeyError, IndexError, TypeError) as exc:
+            raise LLMProviderError("Gemini response did not include generated JSON text") from exc
+        return parse_bear_thesis_output(str(content), fallback_model_version=self.model_version)

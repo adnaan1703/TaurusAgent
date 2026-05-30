@@ -2,10 +2,12 @@ from __future__ import annotations
 
 from taurus_core.agents.schemas import LLMAnalystOutput
 from taurus_core.config import DEFAULT_OPENAI_BASE_URL, DEFAULT_OPENAI_MODEL
-from taurus_core.llm.base import LLMBullThesisOutput, LLMProviderError
+from taurus_core.llm.base import LLMBearThesisOutput, LLMBullThesisOutput, LLMProviderError
 from taurus_core.llm.lmstudio_provider import (
+    _openai_compatible_bear_thesis_completion,
     _openai_compatible_bull_thesis_completion,
     _openai_compatible_completion,
+    openai_bear_thesis_json_schema_response_format,
     openai_bull_thesis_json_schema_response_format,
     openai_json_schema_response_format,
 )
@@ -72,5 +74,27 @@ class OpenAIProvider:
             evidence_pack=evidence_pack,
             timeout_seconds=self.timeout_seconds,
             response_format=openai_bull_thesis_json_schema_response_format(),
+            provider_name="OpenAI",
+        )
+
+    def complete_bear_thesis(
+        self,
+        *,
+        agent_name: str,
+        symbol: str,
+        baseline: dict[str, object],
+        evidence_pack: list[dict[str, object]],
+    ) -> LLMBearThesisOutput:
+        return _openai_compatible_bear_thesis_completion(
+            base_url=self.base_url,
+            api_key=self.api_key,
+            model=self.model,
+            model_version=self.model_version,
+            agent_name=agent_name,
+            symbol=symbol,
+            baseline=baseline,
+            evidence_pack=evidence_pack,
+            timeout_seconds=self.timeout_seconds,
+            response_format=openai_bear_thesis_json_schema_response_format(),
             provider_name="OpenAI",
         )

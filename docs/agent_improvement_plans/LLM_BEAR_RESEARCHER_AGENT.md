@@ -163,3 +163,25 @@ Hard rules:
   but production debate should use a real provider.
 - Mocks created: test-only fake LLM provider outputs.
 - Mocks used: test-only fake LLM provider outputs only.
+
+## Completion Summary
+
+- Status: Completed in M26.
+- Implementation: `BearResearcherAgent` now receives an injected LLM provider,
+  keeps deterministic `_run_rules(...)` as the safety baseline, and calls a
+  dedicated bear-thesis completion path with evidence-bound key points and risk
+  flags. Final score/confidence movement is capped at `0.1000`, final bear score
+  remains non-positive, and Taurus-owned fields stay deterministic.
+- Provider wiring: LM Studio, OpenAI, and Gemini implement
+  `complete_bear_thesis(...)` using a strict JSON schema and the dedicated
+  BearResearcherAgent prompt. Runtime debate wiring injects
+  `build_llm_provider(settings)` into both bull and bear researchers, and
+  provider/schema failures increment `taurus_llm_failures_total` before failing
+  clearly.
+- Documentation: README, usage guide, command reference, mock migration status,
+  and milestone tracker now describe LLM-backed bearish research.
+- Assumptions made: LM Studio remains the default local real LLM provider;
+  M26 stays one-shot bearish research; downstream trader, risk, final approval,
+  and PaperBroker safeguards remain authoritative.
+- Mocks created: Test-only fake bear-thesis provider outputs in unit tests.
+- Mocks used: Test-only fake LLM provider outputs only.

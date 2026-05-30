@@ -128,9 +128,10 @@ make backup-local
 
 These analyst, debate, trader-proposal, and paper-loop commands call the
 configured real LLM provider. `BullResearcherAgent` uses the provider for
-evidence-bound bullish research, while deterministic risk and paper-broker
-safeguards remain authoritative. For local no-cost paper runs, keep LM Studio
-running or explicitly configure a hosted provider and model.
+evidence-bound bullish research, and `BearResearcherAgent` uses the same
+provider for evidence-bound bearish research. Deterministic risk and
+paper-broker safeguards remain authoritative. For local no-cost paper runs,
+keep LM Studio running or explicitly configure a hosted provider and model.
 
 Run data-only Kite market-data commands after adding a valid local
 `KITE_ACCESS_TOKEN`:
