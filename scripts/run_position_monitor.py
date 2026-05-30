@@ -7,6 +7,9 @@ from taurus_core.position_monitor import PositionMonitorService
 
 def main() -> None:
     settings = get_settings()
+    if not settings.taurus_position_monitor_enabled:
+        print("Position monitor is disabled.")
+        return
     run_migrations(settings)
     results = PositionMonitorService(settings).run()
     if not results:

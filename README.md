@@ -148,7 +148,6 @@ make kite-ltp-smoke
 make import-taurus-graph
 make compute-graph-stats
 make paper-loop-kite
-make position-monitor POSITION_MONITOR_ITERATIONS=1
 curl "http://localhost:8000/data/quotes/latest?symbol=INFY"
 ```
 
@@ -161,12 +160,15 @@ selection, graph concentration risk, and position-aware after-close lifecycle
 reviews while execution remains local `PaperBroker` simulation. Paper account
 state persists by `TAURUS_PAPER_PORTFOLIO_ID` across run IDs.
 
-`make position-monitor` polls open paper positions during market hours using
-Kite OHLC/LTP snapshots. It persists the quote snapshot, checks stored
-stop-loss and take-profit percentages from the active trade thesis, and creates
-`market_hours` `EXIT` or `REDUCE` lifecycle proposals through the same
-TraderAgent, RiskReview, PortfolioManagerAgent, and PaperBroker trail. It does
-not place real broker orders, broker-native stop-losses, or OCO orders.
+Market-hours monitoring is disabled by default. `make position-monitor` respects
+that default and exits without polling unless you opt in with
+`POSITION_MONITOR_ENABLED=true`. When enabled later, it polls open paper
+positions during market hours using Kite OHLC/LTP snapshots, persists the quote
+snapshot, checks stored stop-loss and take-profit percentages from the active
+trade thesis, and creates `market_hours` `EXIT` or `REDUCE` lifecycle proposals
+through the same TraderAgent, RiskReview, PortfolioManagerAgent, and PaperBroker
+trail. It does not place real broker orders, broker-native stop-losses, or OCO
+orders.
 
 Analysts are enabled with `TAURUS_ENABLED_ANALYSTS`. The config default is
 `technical`; add `news`, `sentiment`, `fundamentals`, and `graph` explicitly

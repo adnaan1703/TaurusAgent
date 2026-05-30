@@ -391,7 +391,7 @@ use test-only fake providers; runtime mock LLM providers remain unsupported.
 ## M30 Commands Used
 
 ```bash
-make position-monitor POSITION_MONITOR_ITERATIONS=1
+make position-monitor POSITION_MONITOR_ENABLED=true POSITION_MONITOR_ITERATIONS=1
 uv run pytest tests/unit/test_position_monitor.py -q
 make test-ui
 make test
@@ -403,13 +403,14 @@ sed -n '/# END MY CUSTOM ADDITION/,$p' /Users/adnaan/.codex/rules/default.rules
 sed -n '1,260p' .codex/rules/default.rules
 ```
 
-`make position-monitor` enables `TAURUS_POSITION_MONITOR_ENABLED=true` for the
-invocation, keeps provider `kite`, and runs `scripts/run_position_monitor.py`.
-Use `POSITION_MONITOR_ITERATIONS=1` for one local/dev pass; omit it or set `0`
-for continuous polling until stopped. The monitor is paper-only and creates
-`market_hours` stop-loss/take-profit lifecycle proposals from persisted Kite
-quote snapshots before routing through TraderAgent, RiskReview,
-PortfolioManagerAgent, and PaperBroker.
+`make position-monitor` respects the disabled default
+`POSITION_MONITOR_ENABLED=false`, keeps provider `kite`, and runs
+`scripts/run_position_monitor.py`. To opt in later, pass
+`POSITION_MONITOR_ENABLED=true`; use `POSITION_MONITOR_ITERATIONS=1` for one
+local/dev pass, or set it to `0` for continuous polling until stopped. The
+monitor is paper-only and creates `market_hours` stop-loss/take-profit lifecycle
+proposals from persisted Kite quote snapshots before routing through
+TraderAgent, RiskReview, PortfolioManagerAgent, and PaperBroker.
 
 ## M28 Commands Used
 

@@ -107,8 +107,9 @@ Taurus is a local, observable paper-trading simulator for Indian cash equities. 
   lifecycle review.
 - `make paper-loop-start PAPER_LOOP_ITERATIONS=5`: repeated local loop.
 - `make paper-loop-dashboard`: Kite-backed run plus React dashboard.
-- `make position-monitor POSITION_MONITOR_ITERATIONS=1`: polls open paper
-  positions with Kite latest quote snapshots and creates paper-only
+- `make position-monitor POSITION_MONITOR_ENABLED=true POSITION_MONITOR_ITERATIONS=1`:
+  later opt-in for polling open paper positions with Kite latest quote snapshots
+  and creating paper-only
   `market_hours` stop-loss/take-profit lifecycle decisions when thresholds are
   crossed.
 - `make taurus-smoke`: full MVP smoke test using existing Kite-imported market data and remaining non-market mocks.
@@ -184,13 +185,16 @@ make ui
 
 Open `http://localhost:5173`.
 
-8. **Optional market-hours monitor:**
+8. **Later opt-in market-hours monitor:**
 
 ```bash
-make position-monitor POSITION_MONITOR_ITERATIONS=1
+make position-monitor POSITION_MONITOR_ENABLED=true POSITION_MONITOR_ITERATIONS=1
 ```
 
-The monitor is paper-only. It requires open positions in
+End-of-day trading does not require this step. The monitor is disabled by
+default with `TAURUS_POSITION_MONITOR_ENABLED=false`; the Make target keeps that
+posture unless `POSITION_MONITOR_ENABLED=true` is passed explicitly. The monitor
+is paper-only. It requires open positions in
 `TAURUS_PAPER_PORTFOLIO_ID`, persists Kite quote snapshots before evaluation,
 and routes triggered `EXIT`/`REDUCE` proposals through the same TraderAgent,
 RiskReview, PortfolioManagerAgent, and PaperBroker decision trail. It does not
