@@ -19,6 +19,7 @@ from taurus_core.agents.runner import run_analyst_suite
 from taurus_core.agents.trader_agent import TraderAgent
 from taurus_core.config import Settings, get_settings
 from taurus_core.data.importers import MarketDataImportSummary, import_market_data
+from taurus_core.data.preflight import assert_kite_runtime_preflight
 from taurus_core.data.providers.factory import build_market_data_provider
 from taurus_core.db.models import AuditLogModel
 from taurus_core.db.repositories import (
@@ -76,8 +77,6 @@ class PaperRunService:
         *,
         symbols: Iterable[str],
         universe: PaperRunUniverse | None = None,
-        csv_path: str | Path | None = None,
-        directory: str | Path | None = None,
         strategy_config_path: str | Path | None = None,
     ) -> PaperRun:
         normalized_symbols = _normalize_symbols(symbols)
@@ -106,7 +105,7 @@ class PaperRunService:
         self._store_run(run, audit_event="paper_run.started")
 
         try:
-            market_data_summary = self._load_latest_inputs(csv_path=csv_path, directory=directory)
+            market_data_summary = self._load_latest_inputs()
             strategy_summary = self._generate_strategy_summary(
                 symbols=normalized_symbols,
                 strategy_config_path=strategy_config_path,
@@ -255,17 +254,10 @@ class PaperRunService:
             self.logger.info("paper_run.symbol.completed", **result)
         return result
 
-    def _load_latest_inputs(
-        self,
-        *,
-        csv_path: str | Path | None,
-        directory: str | Path | None,
-    ) -> dict[str, object]:
-        provider = build_market_data_provider(
-            self.settings,
-            csv_path=csv_path,
-            directory=directory,
-        )
+    def _load_latest_inputs(self) -> dict[str, object]:
+        provider = build_market_data_provider(self.settings)
+        with self.session_factory() as session:
+            assert_kite_runtime_preflight(session, include_paper_runs=True)
         with self.session_factory() as session:
             market_summary = import_market_data(session, provider)
         with self.session_factory() as session:
@@ -415,8 +407,6 @@ class SimplePaperScheduler:
         interval_seconds: float,
         iterations: int,
         universe: PaperRunUniverse | None = None,
-        csv_path: str | Path | None = None,
-        directory: str | Path | None = None,
         strategy_config_path: str | Path | None = None,
     ) -> None:
         if iterations < 1:
@@ -428,8 +418,6 @@ class SimplePaperScheduler:
         self.interval_seconds = interval_seconds
         self.iterations = iterations
         self.universe = universe
-        self.csv_path = csv_path
-        self.directory = directory
         self.strategy_config_path = strategy_config_path
 
     def run(self) -> list[PaperRun]:
@@ -439,8 +427,6 @@ class SimplePaperScheduler:
                 self.service.run_once(
                     symbols=self.symbols,
                     universe=self.universe,
-                    csv_path=self.csv_path,
-                    directory=self.directory,
                     strategy_config_path=self.strategy_config_path,
                 )
             )

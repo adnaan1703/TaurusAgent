@@ -262,6 +262,7 @@ def _candles(symbol: str, prices: list[int]) -> list[DailyCandle]:
             low=Decimal(price),
             close=Decimal(price),
             volume=1_000 + index,
+            source="test_fixture",
         )
         for index, price in enumerate(prices)
     ]

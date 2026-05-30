@@ -2,9 +2,9 @@
 
 ## Current State
 
-- Backend tests: `make test` -> `133 passed, 1 skipped` after M21.
-- Frontend tests: not rerun in M20.6; latest `make test-ui` was `25 passed` after M20.4.
-- Compile check: `make lint` -> passed after M21.
+- Backend tests: `uv run pytest` -> `139 passed, 1 skipped` during M23.
+- Frontend tests: `make test-ui` -> `25 passed` during M23.
+- Compile check: `make lint` -> passed during M23.
 - Frontend build: not rerun in M20.6; latest `make build-ui` passed after M20.4.
 - Docker Postgres is the canonical Taurus database. Runtime, scripts, and tests
   reject SQLite database URLs.
@@ -18,7 +18,7 @@
 
 Taurus is a local, observable paper-trading simulator for Indian cash equities. It can:
 
-- Import market data from deterministic mock data, CSV files, or Zerodha Kite daily candles.
+- Import runtime market data from Zerodha Kite daily candles.
 - Sync Kite instruments and import Kite historical daily candles.
 - Store latest Kite OHLC/LTP snapshots, but those snapshots are currently for visibility, not paper fills.
 - Compute technical indicators and strategy signals.
@@ -71,8 +71,7 @@ Taurus is a local, observable paper-trading simulator for Indian cash equities. 
 ### Database And Data
 
 - `make migrate`: creates/updates DB schema.
-- `make seed-mock`: seeds deterministic mock instruments/candles.
-- `make import-price-csv CSV=/path/file.csv`: imports user OHLCV CSV.
+- `make import-market-data`: imports Kite daily candles.
 - `make import-screener CSV=/path/file.csv`: imports Screener fundamentals.
 - `make import-taurus-graph DATA_DIR=configs/taurus_data`: imports TaurusData graph CSVs.
 - `make compute-graph-stats AS_OF=YYYY-MM-DD`: computes graph edge statistics
@@ -92,11 +91,10 @@ Taurus is a local, observable paper-trading simulator for Indian cash equities. 
 
 ### Paper Workflow
 
-- `make paper-loop-mock`: mock-data paper loop.
 - `make paper-loop-kite`: Kite-backed data import plus local `PaperBroker` simulation.
 - `make paper-loop-start PAPER_LOOP_ITERATIONS=5`: repeated local loop.
-- `make paper-loop-dashboard`: mock run plus React dashboard.
-- `make taurus-smoke`: full MVP smoke test using mocks.
+- `make paper-loop-dashboard`: Kite-backed run plus React dashboard.
+- `make taurus-smoke`: full MVP smoke test using existing Kite-imported market data and remaining non-market mocks.
 
 ### Replay And Ops
 
@@ -157,7 +155,7 @@ make ui
 
 Open `http://localhost:5173`.
 
-Do not run `make seed-mock` for a real-data paper DB unless you intentionally want mock instruments mixed into the database.
+Do not mix old mock-market-data rows with Kite runs. Kite imports and Kite-backed paper loops fail fast if `daily_candles.source = "mock_market_data"` or old mock-backed paper-run summaries are present.
 
 ## Mocks Still Used
 
@@ -168,7 +166,7 @@ For the maintained component-by-component tracker, see
 
 **Runtime mocks/defaults still present:**
 
-- Market data defaults to `mock` unless Kite/CSV is explicitly selected.
+- Market data defaults to `kite`; runtime `mock`, `csv`, and placeholder `external` providers are rejected.
 - LLM defaults to the real local `lmstudio` provider; LM Studio must be running
   before LLM-backed analyst workflows unless `openai` or `gemini` is explicitly
   configured.
@@ -299,7 +297,7 @@ correlation.
 
 ```bash
 make migrate
-make seed-mock
+make import-market-data
 make import-taurus-graph DATA_DIR=configs/taurus_data
 make compute-graph-stats AS_OF=2024-12-17
 ```
@@ -337,8 +335,8 @@ TAURUS_GRAPH_CONCENTRATION_WARNING_FRACTION=0.80
 2. Add a rule-only technical analyst path if no LLM should be required for
    technical-only paper runs. Runtime mock LLM has been removed.
 3. Add true portfolio continuity across paper runs. Current paper account state is run-scoped; it does not behave like one persistent paper account across days.
-4. Avoid mixed mock/Kite data in the same DB. Active mock instruments can remain after `seed-mock`; real paper runs should use a clean DB or provider-scoped universe handling.
-5. Make Kite-backed backtesting first-class. Current backtest script supports `mock`/`csv`/`external`, not Kite directly.
+4. Use a clean DB if legacy `mock_market_data` candles or old mock-backed paper-run summaries exist; Kite runs fail clearly rather than mixing sources.
+5. Make Kite-backed backtesting first-class. Current backtest script uses existing daily candles and no longer imports mock or CSV candles.
 6. Replace placeholder cost/slippage/fill assumptions with broker-calibrated paper execution assumptions.
 7. Add a real news/data provider if news/sentiment risk is enabled.
 8. Validate real Screener CSV if fundamentals will be used.

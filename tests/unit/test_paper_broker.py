@@ -12,12 +12,10 @@ from apps.api.main import create_app
 from scripts.import_mock_news import import_mock_news
 from scripts.migrate import run_migrations
 from scripts.run_final_approval import run_mock_final_approval
-from scripts.seed_mock_data import seed_mock_data
 from taurus_core.agents.portfolio_manager import PortfolioManagerAgent
 from taurus_core.agents.runner import DEFAULT_ANALYST_RUN_ID, run_analyst_suite
 from taurus_core.agents.trader_agent import TraderAgent
 from taurus_core.config import Settings
-from taurus_core.data.providers.mock_market_data import MockMarketDataProvider
 from taurus_core.db.models import (
     PaperAccountModel,
     PaperFillModel,
@@ -35,6 +33,7 @@ from taurus_core.research.debate_service import ResearchDebateService
 from taurus_core.research.schemas import TraderProposal
 from taurus_core.risk.review_service import RiskReviewService
 from taurus_core.risk.schemas import FinalDecision
+from tests.market_data_fixtures import seed_test_market_data
 
 
 @pytest.fixture(autouse=True)
@@ -49,6 +48,7 @@ def test_paper_broker_executes_approved_decision_and_api_returns_artifacts(
     tmp_path: Path,
 ) -> None:
     settings = _settings_for_temp_db(tmp_path)
+    _prepare_market_data_db(settings)
     run_mock_final_approval(symbol="INFY", settings=settings)
     session_factory = build_session_factory(settings)
 
@@ -100,6 +100,7 @@ def test_paper_broker_executes_approved_decision_and_api_returns_artifacts(
 
 def test_paper_execution_is_deterministic_and_not_duplicated(tmp_path: Path) -> None:
     settings = _settings_for_temp_db(tmp_path)
+    _prepare_market_data_db(settings)
     run_mock_final_approval(symbol="INFY", settings=settings)
     session_factory = build_session_factory(settings)
 
@@ -123,6 +124,7 @@ def test_execution_router_does_not_send_rejected_decision_to_paper_broker(
     tmp_path: Path,
 ) -> None:
     settings = _settings_for_temp_db(tmp_path)
+    _prepare_market_data_db(settings)
     run_mock_final_approval(symbol="INFY", settings=settings)
     session_factory = build_session_factory(settings)
 
@@ -168,8 +170,16 @@ def _prepare_paper_db(settings: Settings):
     run_migrations(settings)
     session_factory = build_session_factory(settings)
     with session_factory() as session:
-        seed_mock_data(session, MockMarketDataProvider(seed=42, candle_count=252))
+        seed_test_market_data(session, candle_count=252)
         import_mock_news(session, MockNewsProvider())
+    return session_factory
+
+
+def _prepare_market_data_db(settings: Settings):
+    run_migrations(settings)
+    session_factory = build_session_factory(settings)
+    with session_factory() as session:
+        seed_test_market_data(session, candle_count=252)
     return session_factory
 
 

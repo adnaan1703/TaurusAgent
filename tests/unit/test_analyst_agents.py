@@ -9,17 +9,16 @@ from sqlalchemy import func, select
 from apps.api.main import create_app
 from scripts.import_mock_news import import_mock_news
 from scripts.migrate import run_migrations
-from scripts.seed_mock_data import seed_mock_data
 from taurus_core.agents.runner import run_analyst_suite
 from taurus_core.agents.roster import ANALYST_KEYS
 from taurus_core.agents.schemas import LLMAnalystOutput
 from taurus_core.config import Settings
-from taurus_core.data.providers.mock_market_data import MockMarketDataProvider
 from taurus_core.db.models import AnalystReportModel, BacktestOrderModel
 from taurus_core.db.session import build_session_factory
 from taurus_core.intelligence.mock_news_provider import MockNewsProvider
 from taurus_core.llm.base import LLMProviderError
 from tests.llm_fakes import FakeLLMProvider
+from tests.market_data_fixtures import seed_test_market_data
 
 FULL_ANALYST_ROSTER = ANALYST_KEYS
 
@@ -165,7 +164,7 @@ def _prepare_intelligence_db(settings: Settings):
     run_migrations(settings)
     session_factory = build_session_factory(settings)
     with session_factory() as session:
-        seed_mock_data(session, MockMarketDataProvider(seed=42, candle_count=252))
+        seed_test_market_data(session, candle_count=252)
         import_mock_news(session, MockNewsProvider())
     return session_factory
 

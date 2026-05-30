@@ -7,15 +7,14 @@ from pathlib import Path
 from sqlalchemy import select
 
 from scripts.migrate import run_migrations
-from scripts.seed_mock_data import seed_mock_data
 from taurus_core.backtesting import BacktestConfig, BacktestEngine
 from taurus_core.config import Settings
-from taurus_core.data.providers.mock_market_data import MockMarketDataProvider
 from taurus_core.db.models import BacktestPositionModel, BacktestSignalModel, FeatureValueModel
 from taurus_core.db.repositories import BacktestRepository, CandleRepository, InstrumentRepository
 from taurus_core.db.session import build_session_factory
 from taurus_core.domain.instruments import Instrument
 from taurus_core.domain.market_data import DailyCandle
+from tests.market_data_fixtures import seed_test_market_data
 
 
 def test_backtest_engine_stores_deterministic_run_artifacts(tmp_path: Path) -> None:
@@ -23,7 +22,7 @@ def test_backtest_engine_stores_deterministic_run_artifacts(tmp_path: Path) -> N
     run_migrations(settings)
     session_factory = build_session_factory(settings)
     with session_factory() as session:
-        seed_mock_data(session, MockMarketDataProvider(seed=42, candle_count=252))
+        seed_test_market_data(session, candle_count=252)
 
     config = BacktestConfig(
         seed=42,
@@ -128,6 +127,7 @@ def test_feature_snapshots_are_persisted_without_lookahead(tmp_path: Path) -> No
                     low=price,
                     close=price,
                     volume=1_000 + index,
+                    source="test_fixture",
                 )
                 for index, price in enumerate(
                     [
@@ -209,6 +209,7 @@ def _increasing_candles(
                 low=price,
                 close=price,
                 volume=1_000,
+                source="test_fixture",
             )
         )
         current_date += timedelta(days=1)

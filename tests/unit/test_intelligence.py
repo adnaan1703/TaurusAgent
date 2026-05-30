@@ -7,14 +7,13 @@ from sqlalchemy import func, select
 
 from scripts.import_mock_news import import_mock_news
 from scripts.migrate import run_migrations
-from scripts.seed_mock_data import seed_mock_data
 from taurus_core.config import Settings
-from taurus_core.data.providers.mock_market_data import MockMarketDataProvider
 from taurus_core.db.models import CompanyEventModel, RawDocumentModel, SentimentScoreModel
 from taurus_core.db.session import build_session_factory
 from taurus_core.intelligence.entity_resolver import EntityResolver
 from taurus_core.intelligence.event_scoring import event_from_document, score_event
 from taurus_core.intelligence.mock_news_provider import MockNewsProvider
+from tests.market_data_fixtures import TEST_INSTRUMENTS, seed_test_market_data
 
 
 def test_mock_news_import_stores_documents_events_and_scores(tmp_path: Path) -> None:
@@ -22,7 +21,7 @@ def test_mock_news_import_stores_documents_events_and_scores(tmp_path: Path) -> 
     run_migrations(settings)
     session_factory = build_session_factory(settings)
     with session_factory() as session:
-        seed_mock_data(session, MockMarketDataProvider(seed=42, candle_count=252))
+        seed_test_market_data(session, candle_count=252)
         summary = import_mock_news(session, MockNewsProvider())
 
     with session_factory() as session:
@@ -49,7 +48,7 @@ def test_mock_news_import_stores_documents_events_and_scores(tmp_path: Path) -> 
 
 
 def test_entity_resolver_maps_company_names_symbols_and_text() -> None:
-    resolver = EntityResolver(MockMarketDataProvider(seed=42).list_instruments())
+    resolver = EntityResolver(TEST_INSTRUMENTS)
 
     assert resolver.resolve_symbol("infy").symbol == "INFY"  # type: ignore[union-attr]
     assert resolver.resolve_symbol("Infosys Ltd").symbol == "INFY"  # type: ignore[union-attr]

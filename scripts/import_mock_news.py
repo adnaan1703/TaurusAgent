@@ -6,9 +6,8 @@ from dataclasses import dataclass
 from sqlalchemy.orm import Session
 
 from scripts.migrate import run_migrations
-from scripts.seed_mock_data import seed_mock_data
 from taurus_core.config import Settings, get_settings
-from taurus_core.data.providers.mock_market_data import MockMarketDataProvider
+from taurus_core.data.preflight import assert_active_instruments_available
 from taurus_core.db.repositories import InstrumentRepository, IntelligenceRepository
 from taurus_core.db.session import build_session_factory
 from taurus_core.intelligence.entity_resolver import EntityResolver
@@ -80,14 +79,9 @@ def import_mock_news(
 def run_import(settings: Settings | None = None) -> MockNewsImportSummary:
     settings = settings or get_settings()
     run_migrations(settings)
-    provider = MockMarketDataProvider(
-        seed=settings.taurus_mock_seed,
-        candle_count=settings.taurus_mock_candle_count,
-    )
     session_factory = build_session_factory(settings)
     with session_factory() as session:
-        seed_mock_data(session, provider)
-    with session_factory() as session:
+        assert_active_instruments_available(session)
         return import_mock_news(session, MockNewsProvider())
 
 

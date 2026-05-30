@@ -22,7 +22,7 @@ from taurus_core.logging import get_logger
 from taurus_core.observability.metrics import record_agent_run, record_graph_agent_failure
 from taurus_core.observability.tracing import bound_trace_context
 
-DEFAULT_ANALYST_RUN_ID = "analyst-mock-latest"
+DEFAULT_ANALYST_RUN_ID = "analyst-latest"
 
 ANALYST_REGISTRY = {
     "technical": TechnicalAnalystAgent,
@@ -43,7 +43,10 @@ def run_analyst_suite(
 ) -> list[AnalystReport]:
     symbol = symbol.upper()
     if InstrumentRepository(session).get(symbol) is None:
-        raise ValueError(f"Instrument {symbol} is not available. Run make seed-mock first.")
+        raise ValueError(
+            f"Instrument {symbol} is not available. Run make kite-sync-instruments or "
+            "make import-market-data first."
+        )
 
     enabled_value = DEFAULT_ENABLED_ANALYSTS if enabled_analysts is None else enabled_analysts
     enabled_keys = parse_enabled_analysts(enabled_value)

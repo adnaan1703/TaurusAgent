@@ -10,9 +10,9 @@ type PageScaffoldProps = {
 
 export const emptyDataCommands = [
   "make migrate",
-  "make seed-mock",
+  "make import-market-data",
   "make import-mock-news",
-  "make paper-loop-mock",
+  "make paper-loop-kite",
 ];
 
 export function PageScaffold({

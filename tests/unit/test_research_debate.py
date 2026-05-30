@@ -8,15 +8,14 @@ from sqlalchemy import func, select
 from apps.api.main import create_app
 from scripts.import_mock_news import import_mock_news
 from scripts.migrate import run_migrations
-from scripts.seed_mock_data import seed_mock_data
 from taurus_core.agents.runner import DEFAULT_ANALYST_RUN_ID, run_analyst_suite
 from taurus_core.config import Settings
-from taurus_core.data.providers.mock_market_data import MockMarketDataProvider
 from taurus_core.db.models import BacktestOrderModel, DebateReportModel
 from taurus_core.db.session import build_session_factory
 from taurus_core.intelligence.mock_news_provider import MockNewsProvider
 from tests.llm_fakes import FakeLLMProvider
 from taurus_core.research.debate_service import ResearchDebateService
+from tests.market_data_fixtures import seed_test_market_data
 
 
 def test_research_debate_is_deterministic_and_does_not_create_orders(tmp_path: Path) -> None:
@@ -84,7 +83,7 @@ def _prepare_research_db(settings: Settings):
     run_migrations(settings)
     session_factory = build_session_factory(settings)
     with session_factory() as session:
-        seed_mock_data(session, MockMarketDataProvider(seed=42, candle_count=252))
+        seed_test_market_data(session, candle_count=252)
         import_mock_news(session, MockNewsProvider())
     return session_factory
 

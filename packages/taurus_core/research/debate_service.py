@@ -46,7 +46,10 @@ class ResearchDebateService:
 
         symbol = symbol.upper()
         if InstrumentRepository(self.session).get(symbol) is None:
-            raise ValueError(f"Instrument {symbol} is not available. Run make seed-mock first.")
+            raise ValueError(
+                f"Instrument {symbol} is not available. Run make kite-sync-instruments or "
+                "make import-market-data first."
+            )
 
         reports = self._load_reports(symbol=symbol, run_id=run_id)
         bull_thesis = self.bull_researcher.run(symbol=symbol, reports=reports)

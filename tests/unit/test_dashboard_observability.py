@@ -22,12 +22,14 @@ from apps.dashboard.data import (
     list_trader_proposals,
     overview_snapshot,
 )
+from scripts.migrate import run_migrations
 from scripts.run_backtest import run_mock_backtest
 from scripts.run_paper_once import run_mock_paper_once
 from taurus_core.agents.roster import ANALYST_KEYS
 from taurus_core.config import Settings
 from taurus_core.db.session import build_session_factory
 from tests.llm_fakes import FakeLLMProvider
+from tests.market_data_fixtures import seed_test_market_data
 
 FULL_ANALYST_ROSTER = ",".join(ANALYST_KEYS)
 
@@ -45,10 +47,13 @@ def test_dashboard_queries_and_metrics_expose_m8_panels(tmp_path: Path) -> None:
         taurus_enabled_analysts=FULL_ANALYST_ROSTER,
         taurus_paper_partial_fill_threshold=1,
     )
+    run_migrations(settings)
+    session_factory = build_session_factory(settings)
+    with session_factory() as session:
+        seed_test_market_data(session, candle_count=252)
     run_mock_backtest(settings)
     run_mock_paper_once(symbol="INFY", settings=settings)
 
-    session_factory = build_session_factory(settings)
     with session_factory() as session:
         snapshot = overview_snapshot(session, symbol="INFY")
         equity = list_backtest_equity(session)

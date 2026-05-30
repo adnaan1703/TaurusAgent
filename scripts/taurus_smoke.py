@@ -21,7 +21,6 @@ from scripts.run_paper_once import run_mock_paper_once
 from scripts.run_research_debate import run_mock_research_debate
 from scripts.run_risk_review import run_mock_risk_review
 from scripts.run_trader_proposal import run_mock_trader_proposal
-from scripts.seed_mock_data import run_seed
 from taurus_core.config import Settings, get_settings
 from taurus_core.db.models import (
     AnalystReportModel,
@@ -49,7 +48,6 @@ def run_taurus_smoke(
     _assert_paper_only(settings)
 
     run_migrations(settings)
-    seed = run_seed(settings)
     news = run_import(settings)
     backtest = run_mock_backtest(settings)
     reports = run_mock_analysts(symbol=symbol, settings=settings)
@@ -68,10 +66,6 @@ def run_taurus_smoke(
 
     _assert_outputs(
         symbol=symbol,
-        seed={
-            "instrument_count": seed.instrument_count,
-            "candle_count": seed.candle_count,
-        },
         news=news.to_dict(),
         backtest_run_id=backtest.run_id,
         reports=reports,
@@ -188,7 +182,6 @@ def _artifact_counts(settings: Settings) -> dict[str, int]:
 def _assert_outputs(
     *,
     symbol: str,
-    seed: dict[str, Any],
     news: dict[str, Any],
     backtest_run_id: str,
     reports: list[dict[str, Any]],
@@ -204,8 +197,6 @@ def _assert_outputs(
     counts: dict[str, int],
     expected_report_count: int,
 ) -> None:
-    if seed["instrument_count"] < 10 or seed["candle_count"] < 2520:
-        raise AssertionError("Mock seed did not produce the expected instrument/candle coverage.")
     if news["event_count"] < 1:
         raise AssertionError("Mock news import did not produce events.")
     if not backtest_run_id.startswith("bt-"):

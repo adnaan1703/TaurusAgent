@@ -13,7 +13,7 @@ broker order routing is not part of the current roadmap.
 TAURUS_MODE=paper
 LIVE_TRADING_ENABLED=false
 BROKER_PROVIDER=paper
-TAURUS_MARKET_DATA_PROVIDER=mock
+TAURUS_MARKET_DATA_PROVIDER=kite
 TAURUS_LLM_PROVIDER=lmstudio
 TAURUS_ALERT_PROVIDER=mock
 TAURUS_ENABLED_ANALYSTS=technical
@@ -28,7 +28,7 @@ TAURUS_NEO4J_ENABLED=false
 |---|---:|---:|---:|---|
 | Trading mode | `paper` | No | No | None for paper MVP. Live trading remains intentionally blocked. |
 | Broker | `paper` | No | No | Real broker order routing would require a new approved milestone. |
-| Market data | `mock` | No | No | Use `csv` or `kite`; avoid mixing mock/Kite data in the same DB. |
+| Market data | `kite` | No | No | Runtime provider is Kite-only; legacy mock candles fail Kite preflight. |
 | News data | Mock | Feeds `NewsAnalystAgent` / `SentimentAnalystAgent` | Yes, if those analysts are enabled | Add real news provider or explicit no-news mode. |
 | LLM provider | `lmstudio` default; `openai`/`gemini` opt-in | Used by analyst agents | Yes | Keep LM Studio running locally or configure hosted API keys/models. |
 | Alerts | `mock` | No | No | Use `telegram`; verify delivery with local credentials. |
@@ -118,9 +118,9 @@ The advisory risk personas can be upgraded after that. `RiskEngine`,
 
 - [ ] Complete the ordered functional-MVP sequence in
       `docs/TAURUS_MILESTONE_TODO.md`.
-- [ ] Switch market data defaults and runtime path from `mock` to `kite` for
+- [x] Switch market data defaults and runtime path from `mock` to `kite` for
       real-data paper runs.
-- [ ] Prevent mixed mock/Kite data in the same database, or make provider-scoped
+- [x] Prevent mixed mock/Kite data in the same database, or make provider-scoped
       universe handling explicit.
 - [ ] Remove unconditional `MockNewsProvider` import from paper runs, or add an
       explicit no-news mode.
@@ -147,13 +147,13 @@ The advisory risk personas can be upgraded after that. `RiskEngine`,
 
 ## Bottom Line
 
-Taurus is a local paper-trading simulator with a complete decision workflow, but
-it is still mock-default. The active default path is:
+Taurus is a local paper-trading simulator with a complete decision workflow. The
+market-data default is now Kite-only; remaining mocks are non-market components:
 
 ```text
 paper mode
 paper broker simulator
-mock market data
+Kite market data
 real LLM provider defaulting to LM Studio
 mock alerts
 technical analyst only
@@ -163,9 +163,9 @@ Neo4j disabled
 ```
 
 The selected migration path is now tracked as M21-M30 in
-`docs/TAURUS_MILESTONE_TODO.md`. The first implementation step is Docker
-Postgres-only persistence and the real LLM provider migration are complete. The
-next migration in the selected path is Kite-only market data.
+`docs/TAURUS_MILESTONE_TODO.md`. Docker Postgres-only persistence, real LLM
+providers, and Kite-only runtime market data are complete. The next migration in
+the selected path is graph-enabled real-data paper loops.
 
 **The target workflow should become:**
 

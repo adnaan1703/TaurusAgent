@@ -1,4 +1,4 @@
-.PHONY: setup setup-ui dev-up dev-down api ui build-ui test-ui dashboard migrate seed-mock backtest-mock backtest-real-data import-mock-news import-screener import-price-csv import-taurus-graph compute-graph-stats project-neo4j-graph sync-halal-stocks kite-login-url kite-exchange-token kite-sync-instruments import-kite-candles kite-ltp-smoke run-analysts-mock debate-mock trader-proposal-mock risk-review-mock final-approval-mock paper-once-mock paper-loop-mock paper-loop-once paper-loop-start paper-loop-kite paper-loop-dashboard alert-smoke alert-test-telegram replay-decision backup-local backup-db restore-local taurus-smoke llm-smoke test lint
+.PHONY: setup setup-ui dev-up dev-down api ui build-ui test-ui dashboard migrate backtest-mock import-mock-news import-screener import-market-data import-taurus-graph compute-graph-stats project-neo4j-graph sync-halal-stocks kite-login-url kite-exchange-token kite-sync-instruments import-kite-candles kite-ltp-smoke run-analysts-mock debate-mock trader-proposal-mock risk-review-mock final-approval-mock paper-once-mock paper-loop-once paper-loop-start paper-loop-kite paper-loop-dashboard alert-smoke alert-test-telegram replay-decision backup-local backup-db restore-local taurus-smoke llm-smoke test lint
 
 UV ?= uv
 PNPM ?= pnpm
@@ -10,10 +10,8 @@ ROUNDS ?= 2
 PAPER_LOOP_ITERATIONS ?= 1
 PAPER_LOOP_INTERVAL_SECONDS ?= 60
 FULL_ANALYST_ROSTER ?= technical,news,sentiment,fundamentals,graph
-PRICE_CSV ?= mock/market_data/prices_sample.csv
 DATA_DIR ?= configs/taurus_data
 AS_OF ?=
-REAL_DATA_STRATEGY ?= configs/strategies/csv_market_data_smoke_v1.yaml
 DECISION_ID ?= sample
 BACKUP_DIR ?= backups
 
@@ -38,9 +36,9 @@ ui:
 paper-loop-dashboard:
 	$(MAKE) dev-up
 	$(MAKE) migrate
-	$(MAKE) seed-mock
+	$(MAKE) import-market-data
 	$(MAKE) import-mock-news
-	$(MAKE) paper-loop-mock
+	$(MAKE) paper-loop-kite
 	$(MAKE) ui
 
 build-ui:
@@ -55,14 +53,8 @@ dashboard:
 migrate:
 	DATABASE_URL="$(DATABASE_URL)" PYTHONPATH=packages:. $(UV) run python scripts/migrate.py
 
-seed-mock:
-	DATABASE_URL="$(DATABASE_URL)" PYTHONPATH=packages:. $(UV) run python scripts/seed_mock_data.py
-
 backtest-mock:
 	DATABASE_URL="$(DATABASE_URL)" STRATEGY="$(STRATEGY)" PYTHONPATH=packages:. $(UV) run python scripts/run_backtest.py
-
-backtest-real-data:
-	DATABASE_URL="$(DATABASE_URL)" TAURUS_MARKET_DATA_PROVIDER=csv CSV="$(if $(CSV),$(CSV),$(PRICE_CSV))" STRATEGY="$(REAL_DATA_STRATEGY)" PYTHONPATH=packages:. $(UV) run python scripts/run_backtest.py
 
 import-mock-news:
 	DATABASE_URL="$(DATABASE_URL)" PYTHONPATH=packages:. $(UV) run python scripts/import_mock_news.py
@@ -70,8 +62,7 @@ import-mock-news:
 import-screener:
 	DATABASE_URL="$(DATABASE_URL)" CSV="$(CSV)" PYTHONPATH=packages:. $(UV) run python scripts/import_screener.py
 
-import-price-csv:
-	DATABASE_URL="$(DATABASE_URL)" CSV="$(if $(CSV),$(CSV),$(PRICE_CSV))" DIR="$(DIR)" PYTHONPATH=packages:. $(UV) run python scripts/import_price_csv.py
+import-market-data: import-kite-candles
 
 import-taurus-graph:
 	DATABASE_URL="$(DATABASE_URL)" DATA_DIR="$(DATA_DIR)" PYTHONPATH=packages:. $(UV) run python scripts/import_taurus_graph.py
@@ -117,9 +108,6 @@ final-approval-mock:
 
 paper-once-mock:
 	DATABASE_URL="$(DATABASE_URL)" SYMBOL="$(SYMBOL)" PYTHONPATH=packages:. $(UV) run python scripts/run_paper_once.py
-
-paper-loop-mock:
-	DATABASE_URL="$(DATABASE_URL)" SYMBOLS="$(SYMBOLS)" PAPER_LOOP_ITERATIONS=1 PYTHONPATH=packages:. $(UV) run python scripts/run_paper_loop.py
 
 paper-loop-once:
 	DATABASE_URL="$(DATABASE_URL)" SYMBOLS="$(SYMBOLS)" PAPER_LOOP_ITERATIONS=1 PYTHONPATH=packages:. $(UV) run python scripts/run_paper_loop.py

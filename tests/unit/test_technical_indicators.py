@@ -91,6 +91,7 @@ def _candles(
             low=low,
             close=close,
             volume=volume,
+            source="test_fixture",
         )
         for index, (open_price, high, low, close, volume) in enumerate(rows)
     ]

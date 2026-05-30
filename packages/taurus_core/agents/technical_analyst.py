@@ -81,6 +81,7 @@ class TechnicalAnalystAgent(BaseAnalystAgent):
                 low=candle.low,
                 close=candle.close,
                 volume=candle.volume,
+                source=candle.source,
                 timeframe=candle.timeframe,
             )
             for candle in candles

@@ -20,6 +20,7 @@ from taurus_core.ops import backup as backup_module
 from taurus_core.ops.backup import create_backup, restore_backup
 from taurus_core.risk.schemas import HardRuleResult, RiskPersonaReview, RiskReview
 from tests.llm_fakes import FakeLLMProvider
+from tests.market_data_fixtures import seed_test_market_data
 
 FULL_ANALYST_ROSTER = ",".join(ANALYST_KEYS)
 
@@ -36,6 +37,10 @@ def test_mock_alerts_are_stored_and_replay_api_reconstructs_decision_path(
     tmp_path: Path,
 ) -> None:
     settings = _settings_for_temp_db(tmp_path)
+    run_migrations(settings)
+    session_factory = build_session_factory(settings)
+    with session_factory() as session:
+        seed_test_market_data(session, candle_count=252)
     payload = run_mock_paper_once(symbol="INFY", settings=settings)
     decision_id = str(payload["final_decision"]["decision_id"])
 

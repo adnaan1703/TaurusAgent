@@ -12,6 +12,7 @@ from taurus_core.compliance import import_halal_stock_compliance, parse_halal_st
 from taurus_core.config import Settings
 from taurus_core.paper_trading.service import PaperRunService
 from tests.llm_fakes import FakeLLMProvider
+from tests.market_data_fixtures import FakeKiteMarketDataProvider
 
 
 EXPECTED_TRAIL_STAGES = [
@@ -32,6 +33,10 @@ def fake_llm_provider(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "taurus_core.paper_trading.service.build_llm_provider",
         lambda settings: FakeLLMProvider(),
+    )
+    monkeypatch.setattr(
+        "taurus_core.paper_trading.service.build_market_data_provider",
+        lambda settings: FakeKiteMarketDataProvider(),
     )
 
 

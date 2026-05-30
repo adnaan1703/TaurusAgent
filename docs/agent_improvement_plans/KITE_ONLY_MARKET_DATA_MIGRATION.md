@@ -207,3 +207,14 @@ summary:
   clients if new ones were added.
 - Mocks used: should be `None` for runtime verification; mention test-only fake
   Kite clients or synthetic repository fixtures if used in tests.
+
+## M23 Completion Summary
+
+- Assumptions made: Kite remains data-only, execution stays on `PaperBroker`,
+  and local databases with legacy `mock_market_data` rows should be cleaned or
+  recreated rather than automatically migrated into Kite provenance.
+- Mocks created: None for runtime code. Test-only fake Kite market-data
+  providers were added inside unit tests to exercise paper-loop flows without
+  live Kite credentials.
+- Mocks used: None for runtime verification. Unit tests use existing fake Kite
+  clients and synthetic repository fixtures with explicit non-runtime sources.

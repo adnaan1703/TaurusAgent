@@ -38,9 +38,7 @@ def test_default_settings_are_safe() -> None:
     assert settings.taurus_neo4j_user == "neo4j"
     assert settings.taurus_neo4j_password == "taurus-neo4j-local"
     assert settings.taurus_neo4j_database == "neo4j"
-    assert settings.taurus_mock_seed == 42
-    assert settings.taurus_mock_candle_count == 252
-    assert settings.taurus_market_data_provider == "mock"
+    assert settings.taurus_market_data_provider == "kite"
     assert settings.taurus_market_data_universe_path == "configs/market_data/kite_nse_cash.yaml"
     assert settings.taurus_market_data_lookback_days == 400
     assert settings.taurus_kite_exchange == "NSE"
@@ -85,10 +83,15 @@ def test_unknown_market_data_provider_is_rejected(monkeypatch: pytest.MonkeyPatc
         Settings()
 
 
-def test_kite_market_data_provider_is_allowed(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("TAURUS_MARKET_DATA_PROVIDER", "kite")
+@pytest.mark.parametrize("provider", ["mock", "csv", "external"])
+def test_runtime_market_data_mocks_and_placeholders_are_rejected(
+    monkeypatch: pytest.MonkeyPatch,
+    provider: str,
+) -> None:
+    monkeypatch.setenv("TAURUS_MARKET_DATA_PROVIDER", provider)
 
-    assert Settings().taurus_market_data_provider == "kite"
+    with pytest.raises(ValidationError, match="market data provider"):
+        Settings()
 
 
 def test_mock_llm_provider_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -20,6 +20,7 @@ DEFAULT_OPENAI_MODEL = "gpt-5-mini"
 DEFAULT_GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
 DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
 SUPPORTED_LLM_PROVIDERS = ("lmstudio", "openai", "gemini")
+SUPPORTED_MARKET_DATA_PROVIDERS = ("kite",)
 
 
 class Settings(BaseSettings):
@@ -161,7 +162,7 @@ class Settings(BaseSettings):
     taurus_universe: str = Field(default="NIFTY_100", validation_alias="TAURUS_UNIVERSE")
     taurus_timeframe: str = Field(default="1d", validation_alias="TAURUS_TIMEFRAME")
     taurus_market_data_provider: str = Field(
-        default="mock",
+        default="kite",
         validation_alias="TAURUS_MARKET_DATA_PROVIDER",
     )
     taurus_market_data_universe_path: str = Field(
@@ -189,14 +190,6 @@ class Settings(BaseSettings):
         default=400,
         ge=1,
         validation_alias="TAURUS_MARKET_DATA_LOOKBACK_DAYS",
-    )
-    taurus_price_csv_path: str = Field(default="", validation_alias="TAURUS_PRICE_CSV_PATH")
-    taurus_price_csv_dir: str = Field(default="", validation_alias="TAURUS_PRICE_CSV_DIR")
-    taurus_mock_seed: int = Field(default=42, validation_alias="TAURUS_MOCK_SEED")
-    taurus_mock_candle_count: int = Field(
-        default=252,
-        ge=252,
-        validation_alias="TAURUS_MOCK_CANDLE_COUNT",
     )
     taurus_initial_capital_inr: int = Field(
         default=1_000_000,
@@ -300,8 +293,11 @@ class Settings(BaseSettings):
             raise ValueError("Taurus currently supports only the paper broker provider.")
         if urlsplit(self.database_url).scheme.lower().startswith("sqlite"):
             raise ValueError("SQLite database URLs are no longer supported; use Docker Postgres.")
-        if self.taurus_market_data_provider not in {"mock", "csv", "kite", "external"}:
-            raise ValueError("Unsupported Taurus market data provider.")
+        if self.taurus_market_data_provider not in set(SUPPORTED_MARKET_DATA_PROVIDERS):
+            raise ValueError(
+                "Unsupported Taurus market data provider. Supported values: "
+                f"{', '.join(SUPPORTED_MARKET_DATA_PROVIDERS)}."
+            )
         if self.taurus_llm_provider not in set(SUPPORTED_LLM_PROVIDERS):
             raise ValueError(
                 "Unsupported Taurus LLM provider. Supported values: "

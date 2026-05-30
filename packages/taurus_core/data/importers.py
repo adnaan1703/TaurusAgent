@@ -5,6 +5,7 @@ from datetime import date
 
 from sqlalchemy.orm import Session
 
+from taurus_core.data.preflight import assert_no_legacy_mock_candles
 from taurus_core.db.repositories import CandleRepository, InstrumentRepository
 from taurus_core.domain.market_data import MarketDataProvider
 
@@ -21,6 +22,9 @@ class MarketDataImportSummary:
 
 
 def import_market_data(session: Session, provider: MarketDataProvider) -> MarketDataImportSummary:
+    if provider.provider_name == "kite":
+        assert_no_legacy_mock_candles(session)
+
     instrument_repo = InstrumentRepository(session)
     candle_repo = CandleRepository(session)
     instruments = provider.list_instruments()

@@ -19,6 +19,7 @@ from taurus_core.db.models import (
 from taurus_core.db.session import build_session_factory
 from taurus_core.paper_trading.service import PaperRunService
 from tests.llm_fakes import FakeLLMProvider
+from tests.market_data_fixtures import FakeKiteMarketDataProvider
 
 
 @pytest.fixture(autouse=True)
@@ -26,6 +27,10 @@ def fake_llm_provider(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "taurus_core.paper_trading.service.build_llm_provider",
         lambda settings: FakeLLMProvider(),
+    )
+    monkeypatch.setattr(
+        "taurus_core.paper_trading.service.build_market_data_provider",
+        lambda settings: FakeKiteMarketDataProvider(),
     )
 
 
@@ -38,7 +43,7 @@ def test_paper_run_service_executes_full_chain_and_api_returns_runs(tmp_path: Pa
     assert run.succeeded_symbols == ["INFY"]
     assert run.failed_symbols == []
     assert run.completed_at is not None
-    assert run.market_data_summary["provider_name"] == "mock"
+    assert run.market_data_summary["provider_name"] == "kite"
     assert run.market_data_summary["candle_count"] >= 252
     assert run.artifacts["strategy"]["strategy_name"]
     assert run.artifacts["symbols"]["INFY"]["final_status"] == "APPROVED_FOR_PAPER"
@@ -165,7 +170,7 @@ def test_paper_loop_records_manual_symbol_universe_provenance(
 
     universe = payload[0]["universe"]
     assert universe["source"] == "manual_symbols"
-    assert universe["provider"] == "mock"
+    assert universe["provider"] == "kite"
     assert universe["selected_symbol_count"] == 1
     assert universe["symbols"] == ["INFY"]
 

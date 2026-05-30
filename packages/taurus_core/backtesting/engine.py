@@ -67,7 +67,7 @@ class BacktestEngine:
         candles_by_symbol = self._load_candles()
         if not candles_by_symbol:
             raise ValueError(
-                "No daily candles are available. Run make seed-mock or make import-price-csv first."
+                "No daily candles are available. Run make import-market-data first."
             )
 
         symbols = sorted(candles_by_symbol)

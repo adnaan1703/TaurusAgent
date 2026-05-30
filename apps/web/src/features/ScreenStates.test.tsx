@@ -30,7 +30,7 @@ const runSummary = {
   succeeded_symbols: ["INFY"],
   failed_symbols: [],
   error_count: 0,
-  market_provider: "mock_market_data",
+  market_provider: "kite",
   final_status_counts: { APPROVED_FOR_PAPER: 1 },
   order_status_counts: { FILLED: 1 },
 };
@@ -99,11 +99,11 @@ const stages = [
     label: "Inputs",
     status: "complete",
     timestamp: "2026-05-21T15:00:00Z",
-    summary: "Market provider mock_market_data; 252 candles; 1 event.",
-    metrics: { market_provider: "mock_market_data", candle_count: 252, event_count: 1 },
+    summary: "Market provider kite; 252 candles; 1 event.",
+    metrics: { market_provider: "kite", candle_count: 252, event_count: 1 },
     artifact_ids: ["pr-test"],
-    artifacts: [{ run_id: "pr-test", provider: "mock_market_data" }],
-    raw: { provider: "mock_market_data" },
+    artifacts: [{ run_id: "pr-test", provider: "kite" }],
+    raw: { provider: "kite" },
   },
   {
     id: "analyst_reports",
@@ -242,8 +242,8 @@ const runDetail = {
       errors: [],
     },
   ],
-  market_data_summary: { provider_name: "mock_market_data", candle_count: 252 },
-  strategy_summary: { strategy_name: "mock_momentum", signal_count: 1 },
+  market_data_summary: { provider_name: "kite", candle_count: 252 },
+  strategy_summary: { strategy_name: "blended_score", signal_count: 1 },
   errors: [],
   artifacts: {},
   warnings: [],
@@ -331,7 +331,7 @@ describe("M16.4 screen states", () => {
     renderRoute("/");
 
     expect(await screen.findByText("No run data")).toBeInTheDocument();
-    expect(screen.getByText("make paper-loop-mock")).toBeInTheDocument();
+    expect(screen.getByText("make paper-loop-kite")).toBeInTheDocument();
   });
 
   it("renders API unavailable guidance", async () => {

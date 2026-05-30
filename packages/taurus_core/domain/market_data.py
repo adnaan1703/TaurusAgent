@@ -17,8 +17,8 @@ class DailyCandle:
     low: Decimal
     close: Decimal
     volume: int
+    source: str
     timeframe: str = "1d"
-    source: str = "mock_market_data"
     data_available_time: datetime | None = None
 
 

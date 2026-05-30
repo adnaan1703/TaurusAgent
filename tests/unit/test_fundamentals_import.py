@@ -10,15 +10,14 @@ from sqlalchemy import func, select
 from apps.api.main import create_app
 from apps.dashboard.data import data_freshness, list_fundamental_scores, list_fundamental_snapshots
 from scripts.migrate import run_migrations
-from scripts.seed_mock_data import seed_mock_data
 from taurus_core.agents.fundamentals_analyst import FundamentalsAnalystAgent
 from taurus_core.config import Settings
-from taurus_core.data.providers.mock_market_data import MockMarketDataProvider
 from taurus_core.db.models import FundamentalScoreModel, FundamentalSnapshotModel
 from taurus_core.db.repositories import FundamentalsRepository
 from taurus_core.db.session import build_session_factory
 from taurus_core.fundamentals import ScreenerImportError, import_screener_csv
 from tests.llm_fakes import FakeLLMProvider
+from tests.market_data_fixtures import seed_test_market_data
 
 FIXTURE = Path("tests/fixtures/screener_sample.csv")
 AVAILABLE_AT = datetime(2026, 5, 19, 15, 30, tzinfo=timezone.utc)
@@ -111,7 +110,7 @@ def _prepare_db(settings: Settings):
     run_migrations(settings)
     session_factory = build_session_factory(settings)
     with session_factory() as session:
-        seed_mock_data(session, MockMarketDataProvider(seed=42, candle_count=252))
+        seed_test_market_data(session, candle_count=252)
     return session_factory
 
 

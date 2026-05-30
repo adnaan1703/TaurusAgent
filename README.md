@@ -2,7 +2,7 @@
 
 Taurus is an observable, paper-trading-first algo trading MVP for Indian cash equities.
 
-The paper-trading MVP is complete, and the React run-loop observability dashboard is the primary local UI. Taurus can run the local mock-data flow end to end: market data seeding, news/events, backtests, analyst reports, bull/bear debate, trader proposal, risk review, final approval, PaperBroker execution, scheduled paper loop, replay, backup, API, React dashboard, Streamlit fallback dashboard, Prometheus metrics, and Grafana dashboards.
+The paper-trading MVP is complete, and the React run-loop observability dashboard is the primary local UI. Runtime market data is Kite-only: Taurus can sync Kite instruments, import Kite daily candles, run news/events, backtests, analyst reports, bull/bear debate, trader proposal, risk review, final approval, PaperBroker execution, scheduled paper loop, replay, backup, API, React dashboard, Streamlit fallback dashboard, Prometheus metrics, and Grafana dashboards.
 
 Broker order routing is not part of the current roadmap. Taurus remains a local paper simulator unless a future milestone explicitly changes that direction.
 Kite Connect support is data-only: it can sync instruments, import historical
@@ -102,11 +102,11 @@ Taurus uses Docker Postgres as its canonical database. The default database URL
 is `postgresql+psycopg://taurus:taurus@localhost:5432/taurus`; SQLite URLs are
 rejected in runtime and tests.
 
-Create the schema and seed deterministic mock data:
+Create the schema and import Kite market data:
 
 ```bash
 make migrate
-make seed-mock
+make import-market-data
 make import-mock-news
 ```
 
@@ -120,7 +120,7 @@ make trader-proposal-mock SYMBOL=INFY
 make risk-review-mock SYMBOL=INFY
 make final-approval-mock SYMBOL=INFY
 make paper-once-mock SYMBOL=INFY
-make paper-loop-mock
+make paper-loop-kite
 make replay-decision DECISION_ID=sample
 make backup-local
 ```
@@ -135,6 +135,7 @@ Run data-only Kite market-data commands after adding a valid local
 ```bash
 make kite-sync-instruments
 make import-kite-candles
+make import-market-data
 make kite-ltp-smoke
 make paper-loop-kite
 curl "http://localhost:8000/data/quotes/latest?symbol=INFY"

@@ -10,12 +10,10 @@ from sqlalchemy import func, select
 from apps.api.main import create_app
 from scripts.import_mock_news import import_mock_news
 from scripts.migrate import run_migrations
-from scripts.seed_mock_data import seed_mock_data
 from taurus_core.agents.portfolio_manager import PortfolioManagerAgent
 from taurus_core.agents.runner import DEFAULT_ANALYST_RUN_ID, run_analyst_suite
 from taurus_core.agents.trader_agent import TraderAgent
 from taurus_core.config import Settings
-from taurus_core.data.providers.mock_market_data import MockMarketDataProvider
 from taurus_core.db.models import BacktestOrderModel, FinalDecisionModel, RiskReviewModel
 from taurus_core.db.repositories import IntelligenceRepository
 from taurus_core.db.session import build_session_factory
@@ -27,6 +25,7 @@ from taurus_core.research.schemas import TraderProposal
 from taurus_core.risk.engine import RiskEngine
 from taurus_core.risk.review_service import RiskReviewService
 from taurus_core.risk.schemas import decision_id_for_proposal, risk_review_id
+from tests.market_data_fixtures import seed_test_market_data
 
 
 def test_risk_review_is_deterministic_stores_rules_and_does_not_create_orders(
@@ -173,7 +172,7 @@ def _prepare_approval_db(settings: Settings):
     run_migrations(settings)
     session_factory = build_session_factory(settings)
     with session_factory() as session:
-        seed_mock_data(session, MockMarketDataProvider(seed=42, candle_count=252))
+        seed_test_market_data(session, candle_count=252)
         import_mock_news(session, MockNewsProvider())
     return session_factory
 

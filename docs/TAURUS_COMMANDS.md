@@ -3,6 +3,9 @@
 This file lists commands used during M0 and commands expected across later Taurus milestones.
 M21 made Docker Postgres the canonical database; command examples should use
 the default Postgres URL or an explicit Postgres `DATABASE_URL`, not SQLite.
+M23 retired runtime mock/CSV market-data entry points. Historical sections may
+still show the commands that were used at the time, but current workflows should
+use Kite commands and `make import-market-data`.
 
 ## M0 Commands Used
 
@@ -286,16 +289,27 @@ make dev-down
 uv add 'kiteconnect>=5,<6' 'PyYAML>=6,<7'
 make kite-login-url
 uv run pytest tests/unit/test_kite_auth.py
-uv run pytest tests/unit/test_kite_market_data.py tests/unit/test_config.py tests/unit/test_mock_market_data.py tests/unit/test_csv_market_data.py
+uv run pytest tests/unit/test_kite_market_data.py tests/unit/test_config.py
 uv run pytest tests/unit/test_kite_market_data.py
 make test
 make lint
-make paper-loop-mock
 make kite-sync-instruments
 make import-kite-candles
+make import-market-data
 make kite-ltp-smoke
 make paper-loop-kite
 date '+%Y-%m-%d %H:%M %Z'
+```
+
+## M23 Commands Used
+
+```bash
+uv run pytest tests/unit/test_kite_market_data.py tests/unit/test_config.py
+uv run pytest
+make test-ui
+make lint
+git diff --check
+sed -n '/# END MY CUSTOM ADDITION/,$p' /Users/adnaan/.codex/rules/default.rules
 ```
 
 Manual real-credential Kite commands, after a fresh local `KITE_ACCESS_TOKEN` is added to ignored `.env`:
@@ -590,7 +604,7 @@ head -n 5 configs/taurus_data/company_edges.csv
 head -n 5 configs/taurus_data/source_evidence.csv
 head -n 5 configs/taurus_data/edge_candidates.csv
 uv run pytest tests/unit/test_graph_backtesting.py
-uv run pytest tests/unit/test_backtest_engine.py tests/unit/test_csv_market_data.py
+uv run pytest tests/unit/test_graph_backtesting.py tests/unit/test_backtest_engine.py
 uv run pytest tests/unit/test_graph_repository.py tests/unit/test_graph_analyst.py tests/unit/test_graph_risk.py tests/unit/test_graph_stats.py
 uv run pytest tests/unit/test_graph_repository.py tests/unit/test_graph_importer.py tests/unit/test_graph_api.py tests/unit/test_neo4j_projection.py tests/unit/test_graph_stats.py tests/unit/test_graph_analyst.py tests/unit/test_graph_risk.py tests/unit/test_graph_observability.py tests/unit/test_graph_backtesting.py
 uv run pytest tests/unit/test_graph_backtesting.py tests/unit/test_backtest_engine.py
@@ -639,12 +653,10 @@ make ui
 make build-ui
 make test-ui
 make migrate
-make seed-mock
 make backtest-mock
-make backtest-real-data
 make import-mock-news
 make import-screener CSV=/path/to/screener.csv
-make import-price-csv CSV=mock/market_data/prices_sample.csv
+make import-market-data
 make import-taurus-graph DATA_DIR=configs/taurus_data
 make compute-graph-stats AS_OF=YYYY-MM-DD
 make project-neo4j-graph
@@ -660,7 +672,6 @@ make trader-proposal-mock SYMBOL=INFY
 make risk-review-mock SYMBOL=INFY
 make final-approval-mock SYMBOL=INFY
 make paper-once-mock SYMBOL=INFY
-make paper-loop-mock
 make paper-loop-once
 make paper-loop-start
 make paper-loop-kite
@@ -717,7 +728,6 @@ make setup-ui
 make ui
 make build-ui
 make test-ui
-make seed-mock
 make backtest-mock
 make import-mock-news
 make run-analysts-mock SYMBOL=INFY
@@ -729,8 +739,7 @@ make final-approval-mock SYMBOL=INFY
 make paper-once-mock SYMBOL=INFY
 make dashboard
 make import-screener CSV=/path/to/screener.csv
-make import-price-csv CSV=/path/to/prices.csv
-make import-price-csv DIR=/path/to/price_csvs
+make import-market-data
 make import-taurus-graph DATA_DIR=configs/taurus_data
 make sync-halal-stocks
 make compute-graph-stats AS_OF=YYYY-MM-DD
@@ -740,8 +749,6 @@ make kite-exchange-token REQUEST_TOKEN=<request_token_from_redirect_url>
 make kite-sync-instruments
 make import-kite-candles
 make kite-ltp-smoke
-make backtest-real-data
-make paper-loop-mock
 make paper-loop-start
 make paper-loop-once
 make paper-loop-kite
@@ -842,7 +849,6 @@ prefix_rule(pattern=["make", "test-ui"], decision="allow")
 prefix_rule(pattern=["uv", "run"], decision="allow")
 prefix_rule(pattern=["graphify", "update", "."], decision="allow")
 prefix_rule(pattern=["make", "migrate"], decision="allow")
-prefix_rule(pattern=["make", "seed-mock"], decision="allow")
 prefix_rule(pattern=["make", "backtest-mock"], decision="allow")
 prefix_rule(pattern=["make", "import-mock-news"], decision="allow")
 prefix_rule(pattern=["make", "run-analysts-mock"], decision="allow")
@@ -854,7 +860,7 @@ prefix_rule(pattern=["make", "final-approval-mock"], decision="allow")
 prefix_rule(pattern=["make", "paper-once-mock"], decision="allow")
 prefix_rule(pattern=["make", "dashboard"], decision="allow")
 prefix_rule(pattern=["make", "import-screener"], decision="allow")
-prefix_rule(pattern=["make", "import-price-csv"], decision="allow")
+prefix_rule(pattern=["make", "import-market-data"], decision="allow")
 prefix_rule(pattern=["make", "import-taurus-graph"], decision="allow")
 prefix_rule(pattern=["make", "compute-graph-stats"], decision="allow")
 prefix_rule(pattern=["make", "project-neo4j-graph"], decision="allow")
@@ -863,10 +869,10 @@ prefix_rule(pattern=["make", "kite-login-url"], decision="allow")
 prefix_rule(pattern=["make", "kite-exchange-token"], decision="allow")
 prefix_rule(pattern=["make", "kite-sync-instruments"], decision="allow")
 prefix_rule(pattern=["make", "import-kite-candles"], decision="allow")
+prefix_rule(pattern=["make", "import-market-data"], decision="allow")
 prefix_rule(pattern=["make", "kite-ltp-smoke"], decision="allow")
 prefix_rule(pattern=["make", "paper-loop-start"], decision="allow")
 prefix_rule(pattern=["make", "paper-loop-once"], decision="allow")
-prefix_rule(pattern=["make", "paper-loop-mock"], decision="allow")
 prefix_rule(pattern=["make", "alert-smoke"], decision="allow")
 prefix_rule(pattern=["make", "replay-decision"], decision="allow")
 prefix_rule(pattern=["make", "backup-local"], decision="allow")

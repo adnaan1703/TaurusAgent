@@ -24,8 +24,6 @@ def run_paper_loop(
     iterations: int = 1,
     interval_seconds: float = 0,
     universe: PaperRunUniverse | None = None,
-    csv_path: str | None = None,
-    directory: str | None = None,
     strategy_config_path: str | None = None,
 ) -> list[dict[str, object]]:
     settings = settings or get_settings()
@@ -41,8 +39,6 @@ def run_paper_loop(
         iterations=iterations,
         interval_seconds=interval_seconds,
         universe=universe,
-        csv_path=csv_path,
-        directory=directory,
         strategy_config_path=strategy_config_path,
     )
     return [run.model_dump(mode="json") for run in scheduler.run()]
@@ -67,7 +63,7 @@ def _symbols_from_env(settings: Settings) -> list[str]:
 
 def _resolve_symbols_from_env(settings: Settings) -> ResolvedPaperLoopSymbols:
     raw = _non_empty_env("SYMBOLS") or _non_empty_env("SYMBOL")
-    if raw is None and settings.taurus_market_data_provider == "kite":
+    if raw is None:
         universe = load_market_data_universe(settings.taurus_market_data_universe_path)
         symbols = universe.enabled_symbols()
         return ResolvedPaperLoopSymbols(
@@ -116,8 +112,6 @@ if __name__ == "__main__":
         iterations=iterations,
         interval_seconds=interval_seconds,
         universe=resolved.universe,
-        csv_path=os.environ.get("CSV") or None,
-        directory=os.environ.get("DIR") or None,
         strategy_config_path=os.environ.get("STRATEGY") or None,
     )
     print(
