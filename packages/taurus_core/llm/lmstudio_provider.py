@@ -34,6 +34,17 @@ from taurus_core.llm.base import (
 )
 
 
+def _lmstudio_schema_response_format(name: str, schema: dict[str, object]) -> dict[str, object]:
+    return {
+        "type": "json_schema",
+        "json_schema": {
+            "name": name,
+            "strict": True,
+            "schema": schema,
+        },
+    }
+
+
 class LMStudioProvider:
     """OpenAI-compatible local provider for local real-model inference."""
 
@@ -68,7 +79,10 @@ class LMStudioProvider:
             symbol=symbol,
             context=context,
             timeout_seconds=self.timeout_seconds,
-            response_format={"type": "json_object"},
+            response_format=_lmstudio_schema_response_format(
+                "taurus_analyst_report",
+                ANALYST_OUTPUT_JSON_SCHEMA,
+            ),
             provider_name="LM Studio",
         )
 
@@ -90,7 +104,10 @@ class LMStudioProvider:
             baseline=baseline,
             evidence_pack=evidence_pack,
             timeout_seconds=self.timeout_seconds,
-            response_format={"type": "json_object"},
+            response_format=_lmstudio_schema_response_format(
+                "taurus_bull_thesis",
+                BULL_THESIS_OUTPUT_JSON_SCHEMA,
+            ),
             provider_name="LM Studio",
         )
 
@@ -112,7 +129,10 @@ class LMStudioProvider:
             baseline=baseline,
             evidence_pack=evidence_pack,
             timeout_seconds=self.timeout_seconds,
-            response_format={"type": "json_object"},
+            response_format=_lmstudio_schema_response_format(
+                "taurus_bear_thesis",
+                BEAR_THESIS_OUTPUT_JSON_SCHEMA,
+            ),
             provider_name="LM Studio",
         )
 
@@ -132,7 +152,10 @@ class LMStudioProvider:
             symbol=symbol,
             context=context,
             timeout_seconds=self.timeout_seconds,
-            response_format={"type": "json_object"},
+            response_format=_lmstudio_schema_response_format(
+                "taurus_research_manager",
+                RESEARCH_MANAGER_OUTPUT_JSON_SCHEMA,
+            ),
             provider_name="LM Studio",
         )
 
@@ -152,7 +175,10 @@ class LMStudioProvider:
             symbol=symbol,
             context=context,
             timeout_seconds=self.timeout_seconds,
-            response_format={"type": "json_object"},
+            response_format=_lmstudio_schema_response_format(
+                "taurus_trader",
+                TRADER_OUTPUT_JSON_SCHEMA,
+            ),
             provider_name="LM Studio",
         )
 
@@ -172,7 +198,10 @@ class LMStudioProvider:
             symbol=symbol,
             context=context,
             timeout_seconds=self.timeout_seconds,
-            response_format={"type": "json_object"},
+            response_format=_lmstudio_schema_response_format(
+                "taurus_final_decision",
+                FINAL_DECISION_EXPLANATION_JSON_SCHEMA,
+            ),
             provider_name="LM Studio",
         )
 
