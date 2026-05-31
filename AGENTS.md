@@ -2,14 +2,16 @@
 
 ## Project Structure & Module Organization
 
-Taurus is a Python monorepo for an observable, paper-trading-first algo trading MVP. Keep milestone work scoped to `docs/TAURUS_MILESTONE_TODO.md`.
+Taurus is a Python and React monorepo for an observable, paper-trading-first algo trading MVP. Keep milestone work scoped to `docs/TAURUS_MILESTONE_TODO.md`.
 
 - `apps/api/`: FastAPI app and route modules.
-- `apps/dashboard/`: Streamlit dashboard placeholder; dashboard work starts in later milestones.
-- `packages/taurus_core/`: shared core package for config, logging, observability, and future trading domains.
+- `apps/web/`: primary React run-loop observability dashboard.
+- `apps/dashboard/`: Streamlit fallback dashboard.
+- `packages/taurus_core/`: shared core package for config, logging, observability, database access, Kite market data, analysts, research, risk, execution, paper trading, graph intelligence, alerts, replay, and ops.
+- `configs/`: strategy YAMLs, market-data universes, and Taurus graph data inputs.
 - `tests/unit/`: pytest unit tests.
 - `infra/prometheus/` and `infra/grafana/`: observability config and dashboard assets.
-- `scripts/`: operational scripts added by later milestones.
+- `scripts/`: operational scripts for migration, Kite auth/data sync, graph import/stats/projection, backtests, analyst/research/risk/final approval, paper runs, position monitoring, alerts, replay, backup, and smoke checks.
 - `docs/`: specs, milestone prompts, command reference, and tracker.
 
 ## Build, Test, and Development Commands
@@ -19,11 +21,18 @@ Taurus is a Python monorepo for an observable, paper-trading-first algo trading 
   - add or remove dependencies with `uv add`, `uv remove`, or `uv sync`
   - install one-off packages inside the project environment with `uv pip install` or `uv run python -m pip` only when a package doc requires `pip` syntax
 - `make setup`: install dependencies with `uv sync --dev`.
+- `make setup-ui`: install React dependencies with `pnpm`.
 - `make test`: run the pytest suite.
+- `make test-ui`: run the React Vitest suite.
 - `make lint`: compile-check Python files.
 - `make api`: run the FastAPI dev server on port `8000`.
+- `make ui`: run the React dev server on port `5173`.
+- `make build-ui`: build the React app.
+- `make migrate`: create/update the Postgres schema.
 - `make dev-up`: start API, Postgres, Redis, Prometheus, and Grafana with Docker Compose.
 - `make dev-down`: stop the local Docker Compose stack.
+- `make paper-loop-kite`: run the canonical Kite-backed, graph-enabled local paper loop.
+- `make position-monitor POSITION_MONITOR_ENABLED=true`: opt in to market-hours paper position monitoring.
 
 Smoke checks:
 
@@ -35,7 +44,7 @@ curl http://localhost:8000/metrics
 
 ## Coding Style & Naming Conventions
 
-Use Python 3.11+ and type annotations for new code. Prefer small modules with explicit names such as `routes_health.py`, `config.py`, and `metrics.py`. Use four-space indentation, snake_case for functions/modules, PascalCase for classes, and UPPER_SNAKE_CASE only for constants. Keep comments sparse and useful. Do not add trading, broker, LLM, or data features before their milestone.
+Use Python 3.11+ and type annotations for new code. Prefer small modules with explicit names such as `routes_health.py`, `config.py`, and `metrics.py`. Use four-space indentation, snake_case for functions/modules, PascalCase for classes, and UPPER_SNAKE_CASE only for constants. Keep comments sparse and useful. Do not add live broker order routing or broaden real-money execution without a new explicit approved milestone.
 
 ## Testing Guidelines
 

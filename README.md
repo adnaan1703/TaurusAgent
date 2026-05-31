@@ -2,7 +2,7 @@
 
 Taurus is an observable, paper-trading-first algo trading MVP for Indian cash equities.
 
-The paper-trading MVP is complete, and the React run-loop observability dashboard is the primary local UI. Runtime market data is Kite-only: Taurus can sync Kite instruments, import Kite daily candles, run news/events, graph-aware backtests, analyst reports, bull/bear debate, trader proposal, risk review, final approval, PaperBroker execution, scheduled paper loop, market-hours position monitoring, replay, backup, API, React dashboard, Streamlit fallback dashboard, Prometheus metrics, and Grafana dashboards.
+The paper-trading MVP and the M21-M30 functional migration sequence are complete. The React run-loop observability dashboard is the primary local UI. Runtime market data is Kite-only: Taurus can sync Kite instruments, import Kite daily candles, persist latest OHLC/LTP quote snapshots, run graph-aware backtests, analyst reports, bull/bear debate, position-aware trader proposals, deterministic risk review, final approval with optional LLM explanations, PaperBroker execution, scheduled paper loops, opt-in market-hours position monitoring, replay, backup/restore, API, React dashboard, Streamlit fallback dashboard, Prometheus metrics, and Grafana dashboards.
 
 Broker order routing is not part of the current roadmap. Taurus remains a local paper simulator unless a future milestone explicitly changes that direction.
 Kite Connect support is data-only: it can sync instruments, import historical
@@ -19,7 +19,8 @@ LIVE_TRADING_ENABLED=false
 BROKER_PROVIDER=paper
 ```
 
-Do not commit real API keys, broker credentials, or tokens. Use `.env` locally if needed later; it is ignored by Git.
+Do not commit real API keys, broker credentials, Telegram tokens, Kite tokens,
+or user CSV exports. Use `.env` locally if needed later; it is ignored by Git.
 
 Kite credentials, when used, also stay local:
 
@@ -48,6 +49,9 @@ trader-proposal, final-approval, or paper-loop workflows. Hosted providers are
 explicit opt-ins: `openai` requires `OPENAI_API_KEY` API billing, and `gemini`
 requires `GEMINI_API_KEY`. Taurus does not use ChatGPT subscriptions, browser
 sessions, cookies, or OAuth workarounds for backend inference.
+
+If `TAURUS_LLM_MODEL` is blank, Taurus uses the provider default from
+`packages/taurus_core/config.py`.
 
 Generate and store the access token locally:
 
@@ -111,7 +115,9 @@ make import-market-data
 make import-mock-news
 ```
 
-Run the paper MVP workflow:
+Run the paper MVP workflow. Several command names still include `mock` for
+historical compatibility, but they now use Postgres, Kite-imported candles, and
+the configured real LLM provider where the workflow calls an LLM:
 
 ```bash
 make backtest-mock
@@ -162,7 +168,7 @@ state persists by `TAURUS_PAPER_PORTFOLIO_ID` across run IDs.
 
 Market-hours monitoring is disabled by default. `make position-monitor` respects
 that default and exits without polling unless you opt in with
-`POSITION_MONITOR_ENABLED=true`. When enabled later, it polls open paper
+`POSITION_MONITOR_ENABLED=true`. When enabled, it polls open paper
 positions during market hours using Kite OHLC/LTP snapshots, persists the quote
 snapshot, checks stored stop-loss and take-profit percentages from the active
 trade thesis, and creates `market_hours` `EXIT` or `REDUCE` lifecycle proposals
@@ -237,7 +243,8 @@ make paper-loop-dashboard
 ```
 
 This target starts the Docker stack, imports market data and graph prerequisites,
-runs one paper loop, then starts the React dev server in the foreground.
+imports mock news for the current risk/news context, runs one paper loop, then
+starts the React dev server in the foreground.
 
 Run the Streamlit fallback dashboard:
 

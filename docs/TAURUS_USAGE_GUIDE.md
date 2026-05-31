@@ -1,60 +1,79 @@
 # Taurus Usage Guide
 
+Last verified: 2026-06-01
+
 ## Current State
 
-- Backend tests: `make test` -> `181 passed, 1 skipped` during M28.
-- Frontend tests: `make test-ui` -> `25 passed` during M28.
-- Compile check: `make lint` -> passed during M28.
-- Frontend build: `make build-ui` -> passed during M28.
+- Backend tests: `make test` -> `193 passed, 1 skipped`.
+- Frontend tests: `make test-ui` -> `25 passed`.
+- Compile check: `make lint` -> passed.
+- Frontend build: `make build-ui` -> passed.
 - Docker Postgres is the canonical Taurus database. Runtime, scripts, and tests
   reject SQLite database URLs.
-- Docker Compose volumes exist for canonical Postgres data:
+- Docker Compose persists Postgres and Grafana data in named volumes:
   `taurusagent_postgres_data` and `taurusagent_grafana_data`.
-- Local SQLite database files were removed during M21 after Docker Postgres data
-  verification passed.
-- Local `.env` exists and contains only Kite keys. It does not set `DATABASE_URL`, `TAURUS_MARKET_DATA_PROVIDER`, or analyst settings.
+- Runtime market data is Kite-only. Legacy mock/CSV market-data providers are
+  rejected by config and preflight checks.
+- Runtime LLM providers are real providers only: `lmstudio` by default, with
+  `openai` and `gemini` as explicit opt-ins.
+- Execution remains local paper simulation through `PaperBroker`; Taurus does
+  not route live broker orders.
 
 ## What Taurus Can Do Today
 
 Taurus is a local, observable paper-trading simulator for Indian cash equities. It can:
 
-- Import runtime market data from Zerodha Kite daily candles.
-- Sync Kite instruments and import Kite historical daily candles.
-- Store latest Kite OHLC/LTP snapshots, but those snapshots are currently for visibility, not paper fills.
-- Compute technical indicators and strategy signals.
-- Run analyst reports with configurable analyst roster. Default is technical only.
-- Run bull/bear research debate, position-aware trader proposal, risk review,
-  and final approval.
-- Simulate orders, fills, positions, cash, costs, and slippage through `PaperBroker`.
+- Sync Zerodha Kite instruments and import Kite historical daily candles.
+- Persist latest Kite OHLC/LTP quote snapshots for visibility and position
+  monitor trigger evidence.
+- Compute technical indicators, strategy signals, and graph-aware target
+  selection.
+- Run backtests against existing imported daily candles using moving-average,
+  blended-score, or graph-aware strategy YAMLs.
+- Run configurable analyst reports. The config default is `technical`; the
+  canonical `make paper-loop-kite` profile runs `technical,graph`.
+- Run LLM-backed bull/bear research, debate synthesis, trader proposals, and
+  optional final-decision explanations through the configured provider.
+- Run deterministic risk review and final approval gates before paper routing.
+- Simulate orders, fills, positions, cash, costs, and slippage through
+  `PaperBroker`.
 - Preserve one local paper portfolio across run IDs with
-  `TAURUS_PAPER_PORTFOLIO_ID=local-paper`, while keeping `run_id` on artifacts
-  for audit.
-- Track paper runs with audit artifacts.
-- Expose FastAPI endpoints and React dashboard.
-- Provide replay, backup/restore, alerts, Prometheus metrics, and Grafana dashboards.
-- Sync HalalStock compliance data and generate a halal NSE universe YAML.
-- Import TaurusData graph CSVs, expose Postgres-backed graph API endpoints, and
-  browse/review graph data in the React dashboard.
+  `TAURUS_PAPER_PORTFOLIO_ID=local-paper`.
+- Run scheduled after-close paper loops and an opt-in market-hours position
+  monitor for stop-loss/take-profit lifecycle decisions.
+- Expose FastAPI endpoints, a primary React dashboard, and a Streamlit fallback
+  dashboard.
+- Provide replay, backup/restore, mock or Telegram alerts, Prometheus metrics,
+  and Grafana dashboards.
+- Sync HalalStock compliance data and generate halal NSE universe YAML.
+- Import TaurusData graph CSVs, compute graph edge statistics, review graph
+  candidate edges, expose graph APIs, and browse graph data in React.
 - Optionally rebuild a disposable Neo4j read-model projection from Postgres
   graph tables.
-- Compute graph edge validation statistics from daily candle data and persist
-  raw correlation, market-residual correlation, lead-lag score, stability score,
-  sample size, and insufficient-data reasons.
-- Run the canonical Kite paper loop with technical plus graph analysts,
-  graph-aware target selection, graph readiness preflight, and graph
-  concentration risk. Candidate edges remain review-only and do not influence
-  paper decisions until promoted to active.
 
-**Key files:**
+Key limitation: Taurus is not connected to a real broker paper account. Kite is
+data-only. Broker order routing is outside the current roadmap unless a future
+approved milestone changes that.
 
-- `Makefile`
-- `packages/taurus_core/config.py`
-- `packages/taurus_core/paper_trading/service.py`
-- `packages/taurus_core/brokers/paper_broker.py`
-- `packages/taurus_core/data/providers/kite_market_data.py`
-- `docs/TAURUS_USAGE_GUIDE.md`
+## Safety Defaults
 
-**Important limitation:** This is not connected to a real broker paper account. It is a local paper simulator. Kite is data-only. Broker order routing is not part of the current roadmap.
+```bash
+TAURUS_MODE=paper
+LIVE_TRADING_ENABLED=false
+BROKER_PROVIDER=paper
+TAURUS_MARKET_DATA_PROVIDER=kite
+TAURUS_LLM_PROVIDER=lmstudio
+TAURUS_ALERT_PROVIDER=mock
+TAURUS_ENABLED_ANALYSTS=technical
+TAURUS_GRAPH_ENABLED=false
+TAURUS_GRAPH_RISK_ENABLED=false
+TAURUS_NEO4J_ENABLED=false
+TAURUS_POSITION_MONITOR_ENABLED=false
+```
+
+Do not commit real API keys, broker credentials, Telegram tokens, Kite tokens,
+or user CSV exports. Safe defaults live in `.env.example`; local secrets belong
+in ignored `.env`.
 
 ## Main Commands
 
@@ -70,88 +89,116 @@ Taurus is a local, observable paper-trading simulator for Indian cash equities. 
 ### Local Stack
 
 - `make dev-up`: starts API, Postgres, Redis, Prometheus, and Grafana.
-  Neo4j is excluded by default and uses the explicit Compose `neo4j` profile.
-- `make dev-down`: stops stack.
+  Neo4j is excluded unless the explicit Compose `neo4j` profile is used.
+- `make dev-down`: stops the stack without deleting named volumes.
 - `make api`: runs FastAPI locally on port `8000`.
-- `make ui`: runs React dashboard on port `5173`.
-- `make dashboard`: runs the Streamlit fallback dashboard.
+- `make ui`: runs the React dashboard on port `5173`.
+- `make dashboard`: runs the Streamlit fallback dashboard on port `8501`.
 
 ### Database And Data
 
-- `make migrate`: creates/updates DB schema.
-- `make import-market-data`: imports Kite daily candles.
+- `make migrate`: creates/updates the Postgres schema.
+- `make import-market-data`: alias for Kite daily candle import.
 - `make import-screener CSV=/path/file.csv`: imports Screener fundamentals.
-- `make import-taurus-graph DATA_DIR=configs/taurus_data`: imports TaurusData graph CSVs.
+- `make sync-halal-stocks`: fetches HalalStock data and exports halal NSE YAML.
+- `make import-taurus-graph DATA_DIR=configs/taurus_data`: imports TaurusData
+  graph CSVs.
 - `make compute-graph-stats AS_OF=YYYY-MM-DD`: computes graph edge statistics
-  from existing daily candles. `AS_OF` is optional and defaults to the latest
-  candle date.
-- `make project-neo4j-graph`: rebuilds the optional Neo4j graph projection
-  when `TAURUS_NEO4J_ENABLED=true`; otherwise exits with a skipped summary.
-- `make sync-halal-stocks`: fetches HalalStock data and exports halal NSE universe YAML.
+  from existing daily candles. `AS_OF` is optional.
+- `make project-neo4j-graph`: rebuilds the optional Neo4j projection when
+  `TAURUS_NEO4J_ENABLED=true`; otherwise it prints a skipped summary.
 
 ### Kite
 
-- `make kite-login-url`: prints Kite login URL.
-- `make kite-exchange-token REQUEST_TOKEN=...`: exchanges request token into local `.env`.
+- `make kite-login-url`: prints the Kite login URL.
+- `make kite-exchange-token REQUEST_TOKEN=...`: exchanges a request token into
+  local `.env`.
 - `make kite-sync-instruments`: syncs Kite instrument mappings.
 - `make import-kite-candles`: imports Kite daily candles.
 - `make kite-ltp-smoke`: stores latest Kite quote snapshots.
 
 ### Paper Workflow
 
-- `make paper-loop-kite`: Kite-backed data import plus graph-enabled local
-  `PaperBroker` simulation. This target sets `TAURUS_ENABLED_ANALYSTS=technical,graph`,
+Several command names still include `mock` for historical compatibility. In the
+current runtime they use Postgres, Kite-imported candles, and the configured
+real LLM provider where the workflow calls an LLM.
+
+- `make backtest-mock`: runs a backtest against existing imported daily candles.
+- `make run-analysts-mock SYMBOL=INFY`: runs the configured analyst roster.
+- `make debate-mock SYMBOL=INFY`: runs bull/bear/manager research debate.
+- `make trader-proposal-mock SYMBOL=INFY`: creates a position-aware proposal.
+- `make risk-review-mock SYMBOL=INFY`: runs deterministic risk review.
+- `make final-approval-mock SYMBOL=INFY`: runs final approval with optional LLM
+  explanation.
+- `make paper-once-mock SYMBOL=INFY`: routes one approved decision through
+  local `PaperBroker`.
+- `make paper-loop-once SYMBOLS=INFY,TCS`: runs one scheduled loop for explicit
+  symbols.
+- `make paper-loop-start PAPER_LOOP_ITERATIONS=5`: runs repeated local loops.
+- `make paper-loop-kite`: runs the canonical Kite-backed, graph-enabled paper
+  loop. It sets `TAURUS_ENABLED_ANALYSTS=technical,graph`,
   `TAURUS_GRAPH_ENABLED=true`, `TAURUS_GRAPH_RISK_ENABLED=true`, and
-  `STRATEGY=configs/strategies/graph_aware_score_v1.yaml`. Open positions from
-  the configured paper portfolio are automatically included for after-close
-  lifecycle review.
-- `make paper-loop-start PAPER_LOOP_ITERATIONS=5`: repeated local loop.
-- `make paper-loop-dashboard`: Kite-backed run plus React dashboard.
+  `STRATEGY=configs/strategies/graph_aware_score_v1.yaml`.
+- `make paper-loop-dashboard`: starts the stack, imports market data, graph
+  prerequisites, and mock news, runs one Kite paper loop, then starts the React
+  dashboard.
+- `make taurus-smoke`: full MVP smoke test using existing Kite-imported market
+  data and remaining non-market mocks.
+- `make llm-smoke`: checks the configured real LLM provider.
+
+### Position Monitor
+
+- `make position-monitor`: exits without polling because the monitor is disabled
+  by default.
 - `make position-monitor POSITION_MONITOR_ENABLED=true POSITION_MONITOR_ITERATIONS=1`:
-  later opt-in for polling open paper positions with Kite latest quote snapshots
-  and creating paper-only
-  `market_hours` stop-loss/take-profit lifecycle decisions when thresholds are
-  crossed.
-- `make taurus-smoke`: full MVP smoke test using existing Kite-imported market data and remaining non-market mocks.
+  polls open long paper positions during market hours with Kite latest quote
+  snapshots, checks stored stop-loss/take-profit thresholds, and creates
+  paper-only `market_hours` `EXIT` or `REDUCE` lifecycle decisions when a
+  threshold is crossed.
+
+The monitor does not create broker-native stop-losses, OCO orders, or live
+broker orders.
 
 ### Replay And Ops
 
 - `make replay-decision DECISION_ID=...`
 - `make backup-local`
-- `make restore-local BACKUP=...`
+- `make restore-local BACKUP=... RESTORE_CONFIRM=I_UNDERSTAND`
 - `make alert-smoke`
 - `make alert-test-telegram`
 
 ## How To Start Real-Data Paper Trading
 
-Use this if "actual paper trading" means real Kite market data plus local simulated paper execution.
+Use this when "actual paper trading" means real Kite market data plus local
+simulated paper execution.
 
-1. **Start infrastructure:**
+1. Start infrastructure and create the schema:
 
 ```bash
 make dev-up
 make migrate
 ```
 
-2. **Run API for Kite callback in one terminal:**
+2. Run the API for the Kite callback in one terminal:
 
 ```bash
 make api
 ```
 
-3. **In another terminal, generate Kite token:**
+3. In another terminal, generate a Kite token:
 
 ```bash
 make kite-login-url
 ```
 
-Complete Kite login. If callback works, Taurus stores `KITE_ACCESS_TOKEN` in ignored `.env`. If not:
+Complete Kite login. If callback works, Taurus stores `KITE_ACCESS_TOKEN` in
+ignored `.env`. If the callback was not running, exchange manually:
 
 ```bash
 make kite-exchange-token REQUEST_TOKEN=<request_token_from_redirect_url>
 ```
 
-4. **Import real Kite data:**
+4. Import real Kite data:
 
 ```bash
 make kite-sync-instruments
@@ -159,25 +206,54 @@ make import-kite-candles
 make kite-ltp-smoke
 ```
 
-5. **Prepare graph data for the real-data paper profile:**
+5. Prepare graph data for the canonical real-data paper profile:
 
 ```bash
 make import-taurus-graph
 make compute-graph-stats
 ```
 
-Graph readiness checks require company nodes, active edges, latest edge stats,
-usable validated graph signals, and valid graph risk limits. If any are missing,
-`make paper-loop-kite` fails before the analyst/debate/trader/risk/final/PaperBroker
-pipeline and points back to the import/stat commands.
+Graph readiness requires company nodes, reviewed active edges, latest edge
+stats, usable validated graph signals, and valid graph risk limits. If any are
+missing, `make paper-loop-kite` fails before analyst/debate/trader/risk/final
+approval/PaperBroker routing and points back to the import/stat commands.
 
-6. **Run one graph-enabled Kite paper loop:**
+6. Start an LLM provider.
+
+Default local setup:
+
+```bash
+TAURUS_LLM_PROVIDER=lmstudio
+TAURUS_LLM_BASE_URL=http://localhost:1234/v1
+```
+
+Start a compatible LM Studio server. Hosted alternatives require explicit API
+keys and billing:
+
+```bash
+TAURUS_LLM_PROVIDER=openai OPENAI_API_KEY=...
+TAURUS_LLM_PROVIDER=gemini GEMINI_API_KEY=...
+```
+
+7. Run one graph-enabled Kite paper loop:
 
 ```bash
 make paper-loop-kite
 ```
 
-7. **Observe:**
+For a manual graph-enabled subset:
+
+```bash
+make paper-loop-kite SYMBOLS=INFY,TCS
+```
+
+For an explicit technical-only manual loop:
+
+```bash
+TAURUS_ENABLED_ANALYSTS=technical SYMBOLS=INFY make paper-loop-start
+```
+
+8. Observe in React:
 
 ```bash
 make ui
@@ -185,111 +261,80 @@ make ui
 
 Open `http://localhost:5173`.
 
-8. **Later opt-in market-hours monitor:**
+9. Optionally enable market-hours monitoring:
 
 ```bash
 make position-monitor POSITION_MONITOR_ENABLED=true POSITION_MONITOR_ITERATIONS=1
 ```
 
-End-of-day trading does not require this step. The monitor is disabled by
-default with `TAURUS_POSITION_MONITOR_ENABLED=false`; the Make target keeps that
-posture unless `POSITION_MONITOR_ENABLED=true` is passed explicitly. The monitor
-is paper-only. It requires open positions in
-`TAURUS_PAPER_PORTFOLIO_ID`, persists Kite quote snapshots before evaluation,
-and routes triggered `EXIT`/`REDUCE` proposals through the same TraderAgent,
-RiskReview, PortfolioManagerAgent, and PaperBroker decision trail. It does not
-create broker-native stop-loss, OCO, or live broker orders.
+End-of-day paper trading does not require this step.
 
-Do not mix old mock-market-data rows with Kite runs. Kite imports and Kite-backed paper loops fail fast if `daily_candles.source = "mock_market_data"` or old mock-backed paper-run summaries are present.
+Do not mix old mock-market-data rows with Kite runs. Kite imports and Kite-backed
+paper loops fail fast if `daily_candles.source = "mock_market_data"` or old
+mock-backed paper-run summaries are present.
 
-For an explicit technical-only manual run, use the generic loop target instead
-of the canonical graph-enabled Kite profile:
+## FastAPI Surface
+
+Health and observability:
 
 ```bash
-TAURUS_ENABLED_ANALYSTS=technical SYMBOLS=INFY make paper-loop-start
+curl http://localhost:8000/health
+curl http://localhost:8000/ready
+curl http://localhost:8000/metrics
 ```
 
-For an explicit graph-enabled Kite subset, keep the canonical target and pass
-symbols on the make command line:
+Data:
 
 ```bash
-make paper-loop-kite SYMBOLS=INFY,TCS
+curl http://localhost:8000/data/instruments
+curl http://localhost:8000/data/instruments/INFY
+curl "http://localhost:8000/data/candles?symbol=INFY&timeframe=1d"
+curl "http://localhost:8000/data/quotes/latest?symbol=INFY"
 ```
 
-## Mocks Still Used
+Workflow artifacts:
 
-Yes.
+```bash
+curl http://localhost:8000/events
+curl "http://localhost:8000/agent-reports?symbol=INFY"
+curl http://localhost:8000/fundamentals
+curl http://localhost:8000/fundamentals/imports
+curl http://localhost:8000/debates
+curl http://localhost:8000/debates/{debate_id}
+curl http://localhost:8000/trader-proposals
+curl http://localhost:8000/risk-reviews
+curl http://localhost:8000/risk-reviews/{risk_check_id}
+curl http://localhost:8000/final-decisions
+curl http://localhost:8000/final-decisions/{final_decision_id}
+curl http://localhost:8000/paper/orders
+curl http://localhost:8000/paper/fills
+curl http://localhost:8000/paper/positions
+curl http://localhost:8000/paper/account
+curl http://localhost:8000/runs
+curl http://localhost:8000/runs/{run_id}
+curl http://localhost:8000/replay/{decision_id}
+```
 
-For the maintained component-by-component tracker, see
-`docs/TAURUS_MOCK_MIGRATION_STATUS.md`.
+Alerts:
 
-**Runtime mocks/defaults still present:**
+```bash
+curl -X POST http://localhost:8000/alerts/test
+```
 
-- Market data defaults to `kite`; runtime `mock`, `csv`, and placeholder `external` providers are rejected.
-- LLM defaults to the real local `lmstudio` provider; LM Studio must be running
-  before LLM-backed analyst, research-debate, trader-proposal, final-approval,
-  and paper-run workflows unless `openai` or `gemini` is explicitly configured.
-- `PaperRunService` imports `MockNewsProvider` on every paper run, even with technical-only analysts.
-- Alerts default to `MockAlertAdapter`.
-- `/alerts/test` always uses mock alert delivery.
-- Fundamentals use a mock fallback if the fundamentals analyst is enabled and no Screener data exists.
-- `PaperBroker` is a simulator. It is expected paper execution, but not a real broker paper account.
-- Paper costs are placeholder bps settings.
-- Paper fills use latest daily candle open/close, not live order book or Kite LTP execution. The position monitor uses Kite LTP only as auditable trigger evidence.
+React aggregate API:
 
-## Technical-Only Flow
+```bash
+curl http://localhost:8000/ui/overview
+curl http://localhost:8000/ui/runs/{run_id}
+curl http://localhost:8000/ui/runs/{run_id}/symbols/INFY/decision-trail
+curl http://localhost:8000/ui/replay/{decision_id}
+curl http://localhost:8000/ui/risk
+curl http://localhost:8000/ui/portfolio
+curl http://localhost:8000/ui/history
+curl http://localhost:8000/ui/shariah
+```
 
-With `TAURUS_ENABLED_ANALYSTS=technical`:
-
-- Only `TechnicalAnalystAgent` runs.
-- It computes technical score from candles/features/signals.
-- It still calls the configured real LLM provider. The default is LM Studio;
-  `openai` and `gemini` are explicit hosted-provider opt-ins.
-- If you continue into debate or paper-run workflows, `BullResearcherAgent`,
-  `BearResearcherAgent`, `ResearchManagerAgent`, and `TraderAgent` also call
-  the configured real LLM provider and clamp their output to deterministic
-  scoring and lifecycle guardrails.
-- `PortfolioManagerAgent` may call the configured real LLM provider only after
-  deterministic final approval fields are fixed, and only to enrich
-  `FinalDecision.reason` plus bounded model metadata.
-- OpenAI uses API billing through `OPENAI_API_KEY`; ChatGPT subscriptions are
-  not supported for Taurus backend inference.
-- Mock news is still imported into the DB.
-- Risk engine still checks severe events in the DB, so mock news can still influence risk blocks if matching active instruments.
-- News, sentiment, fundamentals, and graph analyst reports are skipped.
-
-So: technical-only does reduce the analyst roster, but it does not fully eliminate mocks.
-
-## DB And Data Storage
-
-Your assumption is only partly true.
-
-**Docker-backed:**
-
-- Postgres data lives in Docker named volume `taurusagent_postgres_data`.
-- Taurus runtime, scripts, and tests use Postgres by default through
-  `postgresql+psycopg://taurus:taurus@localhost:5432/taurus`.
-- Grafana data lives in Docker named volume `taurusagent_grafana_data`.
-- These persist after `make dev-down`.
-- They are removed only if you remove volumes, e.g. `docker compose down -v`.
-
-**Local repo/filesystem:**
-
-- `.env` is local and ignored.
-- `backups/` exists locally and is ignored.
-- CSV imports, generated YAMLs, docs, and fixture files are local files.
-- Redis has no persistent volume in `docker-compose.yml`.
-
-Direct `uv run ...` commands now use the same Postgres default as `make`
-targets. Use `TAURUS_TEST_DATABASE_URL` only for isolated Postgres test
-databases; SQLite URLs are rejected.
-
-## Graph Intelligence API
-
-M20 graph APIs read from the Postgres/SQLAlchemy graph tables. Neo4j is not
-required for the current API/dashboard slice.
-
-Useful local endpoints after `make import-taurus-graph` and `make api`:
+Graph API:
 
 ```bash
 curl http://localhost:8000/graph/overview
@@ -297,69 +342,48 @@ curl http://localhost:8000/graph/company/INFY
 curl http://localhost:8000/graph/candidate-edges
 curl http://localhost:8000/graph/signals
 curl http://localhost:8000/graph/bullish-candidates
-```
-
-Edge detail and evidence endpoints use the stable `edge_key` returned by graph
-responses:
-
-```bash
 curl http://localhost:8000/graph/edges/{edge_key}
 curl http://localhost:8000/graph/edges/{edge_key}/evidence
 ```
 
-Candidate edge review endpoints are local-dashboard oriented and require
-`TAURUS_GRAPH_ENABLED=true`:
+Candidate edge review requires `TAURUS_GRAPH_ENABLED=true`:
 
 ```bash
 curl -X POST http://localhost:8000/graph/edges/{edge_key}/promote
 curl -X POST http://localhost:8000/graph/edges/{edge_key}/reject
 ```
 
-## React Graph Dashboard
+## React Dashboard
 
-After importing graph data and starting the API/UI, open:
+Primary routes:
 
 ```text
+http://localhost:5173/
+http://localhost:5173/runs/{run_id}
+http://localhost:5173/runs/{run_id}/symbols/{symbol}
+http://localhost:5173/replay/{decision_id}
+http://localhost:5173/risk
+http://localhost:5173/portfolio
+http://localhost:5173/shariah
 http://localhost:5173/graph
-http://localhost:5173/graph/company/INFY
+http://localhost:5173/graph/company/{symbol}
 http://localhost:5173/graph/edges/review
 http://localhost:5173/graph/signals
+http://localhost:5173/history
 ```
 
-The review route can promote or reject graph candidate edges only when the API
-is started with `TAURUS_GRAPH_ENABLED=true`. This mutates graph edge status
-metadata only; it does not route orders or bypass the existing paper-trading
-risk/final-approval flow.
+The run-loop views are read-only. The graph edge review route mutates graph edge
+review status only when the API is started with `TAURUS_GRAPH_ENABLED=true`; it
+does not route orders or bypass risk/final approval.
 
-## Optional Neo4j Projection
+## Graph Intelligence
 
-Neo4j is a disposable read model. It is disabled by default, excluded from
-`make dev-up`, and can always be rebuilt from Postgres graph tables. Taurus
-does not write Neo4j data back into Postgres.
-
-Start only the optional service:
-
-```bash
-docker compose --profile neo4j up -d neo4j
-```
-
-Prepare source data and rebuild the projection:
-
-```bash
-make migrate
-make import-taurus-graph DATA_DIR=configs/taurus_data
-TAURUS_NEO4J_ENABLED=true make project-neo4j-graph
-```
-
-Running `make project-neo4j-graph` without `TAURUS_NEO4J_ENABLED=true` is a
-safe no-op that prints a skipped JSON summary.
-
-## Graph Statistical Validation
+Postgres is the canonical graph store. Neo4j is optional and disposable.
 
 Graph stats use Postgres graph edges and existing `daily_candles`. The job
-computes close-to-close return correlations across configured windows, using an
-equal-weight market proxy from available daily candle returns for residual
-correlation.
+computes close-to-close return correlations across configured windows, market
+residual correlation, lead-lag score, stability score, sample size, and
+insufficient-data reasons.
 
 ```bash
 make migrate
@@ -368,23 +392,23 @@ make import-taurus-graph DATA_DIR=configs/taurus_data
 make compute-graph-stats AS_OF=2024-12-17
 ```
 
-Default windows are controlled by `TAURUS_GRAPH_STATS_WINDOWS=60,120,252`.
-Candidate auto-promotion remains disabled by default through
-`TAURUS_GRAPH_AUTO_PROMOTE_EDGES=false`; enabling it only updates graph edge
-review status metadata and still does not route orders.
+Default windows are controlled by:
 
-## Optional Graph Risk Checks
+```bash
+TAURUS_GRAPH_STATS_WINDOWS=60,120,252
+```
 
-Graph-aware concentration checks remain disabled by config default through
-`TAURUS_GRAPH_RISK_ENABLED=false`, but the canonical `make paper-loop-kite`
-target enables them for the real-data Kite paper path after readiness passes.
-When enabled, the risk engine adds hard-rule results for basic industry, product group, customer industry,
-raw material/dependency, risk category, and statistically validated correlated
-graph clusters. A graph concentration can warn, reduce the approved paper size,
-or reject the proposed long entry; it still cannot route orders or bypass final
-approval.
+Automatic graph candidate promotion remains disabled by default:
 
-The default maximum exposures are controlled by:
+```bash
+TAURUS_GRAPH_AUTO_PROMOTE_EDGES=false
+```
+
+Graph concentration risk is disabled by config default but enabled by
+`make paper-loop-kite`. It can warn, reduce approved paper size, or reject a
+proposed long entry. It cannot route orders or bypass final approval.
+
+Default graph risk limits:
 
 ```bash
 TAURUS_GRAPH_MAX_BASIC_INDUSTRY_EXPOSURE_PCT=25.0
@@ -396,27 +420,86 @@ TAURUS_GRAPH_MAX_CORRELATED_CLUSTER_EXPOSURE_PCT=35.0
 TAURUS_GRAPH_CONCENTRATION_WARNING_FRACTION=0.80
 ```
 
-## Main Gaps Before It Is "Super Ready"
+Optional Neo4j projection:
 
-1. Remove mock news from real paper runs, or add a real/no-news mode. Right now mock news can affect risk even with technical/graph paper runs.
+```bash
+docker compose --profile neo4j up -d neo4j
+TAURUS_NEO4J_ENABLED=true make project-neo4j-graph
+```
+
+## Mocks And Simulations Still Used
+
+For the maintained component-by-component tracker, see
+`docs/TAURUS_MOCK_MIGRATION_STATUS.md`.
+
+- Market data defaults to `kite`; runtime `mock`, `csv`, and placeholder
+  `external` providers are rejected.
+- LLM defaults to the real local `lmstudio` provider. Runtime mock LLM support
+  has been removed, though tests use fakes.
+- `PaperRunService` imports `MockNewsProvider` on every paper run, even with
+  technical/graph analysts only.
+- Alerts default to `MockAlertAdapter`; `/alerts/test` always uses mock alert
+  delivery.
+- Fundamentals use a mock fallback if the fundamentals analyst is enabled and
+  no Screener data exists.
+- `PaperBroker` is the intended simulator. It is paper execution, not a real
+  broker paper account.
+- Paper costs, slippage, and fill assumptions are placeholder bps settings.
+- Paper fills use daily-candle prices, not live order book or Kite LTP
+  execution. The position monitor uses Kite LTP only as trigger evidence.
+
+## Technical-Only Flow
+
+With `TAURUS_ENABLED_ANALYSTS=technical`:
+
+- Only `TechnicalAnalystAgent` runs.
+- It computes technical score from candles/features/signals.
+- It still calls the configured real LLM provider for bounded explanation.
+- Debate and paper-run workflows still call the configured real LLM provider
+  through bull/bear/manager/trader/final explanation components.
+- Mock news is still imported into the DB during paper runs, and severe stored
+  events can still affect deterministic risk blocks.
+- News, sentiment, fundamentals, and graph analyst reports are skipped.
+
+## Data Storage
+
+Docker-backed:
+
+- Postgres data lives in Docker named volume `taurusagent_postgres_data`.
+- Grafana data lives in Docker named volume `taurusagent_grafana_data`.
+- These persist after `make dev-down`.
+- Remove them only with a volume-removing command such as
+  `docker compose down -v`.
+
+Local repo/filesystem:
+
+- `.env` is local and ignored.
+- `backups/` is local and ignored.
+- Imported user CSVs, generated YAMLs, docs, and fixtures are local files.
+- Redis has no persistent volume in `docker-compose.yml`.
+
+Direct `uv run ...` commands use the same Postgres default as `make` targets.
+Use `TAURUS_TEST_DATABASE_URL` only for isolated Postgres test databases.
+
+## Main Gaps
+
+1. Remove mock news from real paper runs, or add a real/no-news mode.
 2. Add a rule-only technical analyst path if no LLM should be required for
-   technical-only paper runs. Runtime mock LLM has been removed.
-3. Use a clean DB if legacy `mock_market_data` candles or old mock-backed paper-run summaries exist; Kite runs fail clearly rather than mixing sources.
-4. Make Kite-backed backtesting first-class. Current backtest script uses existing daily candles and no longer imports mock or CSV candles.
-5. Replace placeholder cost/slippage/fill assumptions with broker-calibrated paper execution assumptions.
-6. Add a real news/data provider if news/sentiment risk is enabled.
-7. Validate real Screener CSV if fundamentals will be used.
-8. Add dashboard/API auth before using beyond a trusted local machine.
-9. Implement broker order routing only after an explicit approved milestone; Kite execution is not implemented.
+   technical-only paper runs.
+3. Rename historical `*-mock` command/function names where they now operate on
+   Kite data and real LLM providers.
+4. Replace placeholder cost/slippage/fill assumptions with broker-calibrated
+   paper execution assumptions.
+5. Add a real news provider before enabling news/sentiment in production-like
+   paper runs.
+6. Validate real Screener CSV exports before relying on fundamentals.
+7. Verify Telegram alerts with local-only credentials.
+8. Add dashboard/API auth before use beyond a trusted local machine.
+9. Implement broker order routing only after an explicit approved milestone.
 
 ## Bottom Line
 
 Taurus is usable today for local, observable, real-Kite-data paper simulation
-with graph intelligence on the canonical `paper-loop-kite` path when LM Studio
-or an explicit hosted LLM provider is configured and graph import/stats
-readiness passes. Final approval remains deterministic, with optional LLM
-explanations flowing through existing final-decision reason/model metadata.
-Market-hours stop-loss/take-profit monitoring now creates auditable paper-only
-`market_hours` lifecycle decisions for open long positions. It
-is not yet clean of mocks, and it is not broker-level paper trading. The biggest
-remaining mock contamination is mock news imported into risk context.
+with graph intelligence on the canonical `paper-loop-kite` path when Kite data,
+graph import/stats, and a configured real LLM provider are available. It remains
+paper-only, local, and intentionally guarded against live broker execution.
