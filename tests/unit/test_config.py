@@ -38,8 +38,11 @@ def test_default_settings_are_safe() -> None:
     assert settings.taurus_neo4j_user == "neo4j"
     assert settings.taurus_neo4j_password == "taurus-neo4j-local"
     assert settings.taurus_neo4j_database == "neo4j"
+    assert settings.taurus_universe == "NIFTY_500_SHARIAH"
     assert settings.taurus_market_data_provider == "kite"
-    assert settings.taurus_market_data_universe_path == "configs/market_data/kite_nse_cash.yaml"
+    assert settings.taurus_market_data_universe_path == (
+        "configs/market_data/nifty_500_shariah.yaml"
+    )
     assert settings.taurus_market_data_lookback_days == 400
     assert settings.taurus_kite_exchange == "NSE"
     assert settings.taurus_llm_provider == "lmstudio"

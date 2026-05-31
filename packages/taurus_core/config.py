@@ -159,14 +159,17 @@ class Settings(BaseSettings):
         validation_alias="TAURUS_NEO4J_DATABASE",
     )
 
-    taurus_universe: str = Field(default="NIFTY_100", validation_alias="TAURUS_UNIVERSE")
+    taurus_universe: str = Field(
+        default="NIFTY_500_SHARIAH",
+        validation_alias="TAURUS_UNIVERSE",
+    )
     taurus_timeframe: str = Field(default="1d", validation_alias="TAURUS_TIMEFRAME")
     taurus_market_data_provider: str = Field(
         default="kite",
         validation_alias="TAURUS_MARKET_DATA_PROVIDER",
     )
     taurus_market_data_universe_path: str = Field(
-        default="configs/market_data/kite_nse_cash.yaml",
+        default="configs/market_data/nifty_500_shariah.yaml",
         validation_alias="TAURUS_MARKET_DATA_UNIVERSE_PATH",
     )
     taurus_halal_stock_source_url: str = Field(

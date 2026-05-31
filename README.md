@@ -157,7 +157,7 @@ make paper-loop-kite
 curl "http://localhost:8000/data/quotes/latest?symbol=INFY"
 ```
 
-`configs/market_data/kite_nse_cash.yaml` defines the Kite-backed paper universe
+`configs/market_data/nifty_500_shariah.yaml` defines the default Kite-backed paper universe
 when `TAURUS_MARKET_DATA_PROVIDER=kite`. Use `make paper-loop-kite` to run that
 Kite-backed universe, or pass `SYMBOL=INFY` / `SYMBOLS=INFY,TCS` for an explicit
 graph-enabled manual subset. This real-data paper profile enables the technical
