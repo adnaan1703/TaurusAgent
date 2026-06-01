@@ -1,6 +1,6 @@
 # Taurus Milestone TODO
 
-Last updated: 2026-05-30
+Last updated: 2026-06-01
 
 This is the active tracker for Taurus milestone work. Keep it concise. Detailed
 implementation instructions belong in the linked plan docs.
@@ -14,6 +14,8 @@ implementation instructions belong in the linked plan docs.
 - `docs/TAURUS_USAGE_GUIDE.md`: operator workflow.
 - `docs/TAURUS_COMMANDS.md`: command reference and project-local approvals.
 - `docs/TAURUS_GRAPH_INTELLIGENCE_PLAN.md`: completed M20 graph reference.
+- `docs/agent_improvement_plans/PAPER_MONEY_MANAGEMENT_SYSTEM.md`: planned
+  Shariah-only paper portfolio money-management sequence.
 - `docs/stitch/paper-trade-event-monitor/`: React dashboard visual reference
   assets.
 
@@ -30,6 +32,10 @@ implementation instructions belong in the linked plan docs.
 - Runtime LLM-backed components must use `build_llm_provider(settings)` and the
   default provider must be LM Studio unless an explicit hosted provider is
   configured.
+- Money-management and portfolio-construction work must remain long-only,
+  equity-only, and restricted to enabled symbols in
+  `configs/market_data/nifty_500_shariah.yaml` unless a later explicit
+  milestone changes the universe policy.
 - Any plan that changes API payloads or decision artifacts must include matching
   React dashboard updates in the same milestone.
 
@@ -72,6 +78,19 @@ start the next migration unless the user explicitly asks.
 | 8 | M28 | Done | `docs/agent_improvement_plans/PHASE_1_POSITION_AWARE_TRADER_AGENT.md` | Added cross-run portfolio continuity and after-close BUY/HOLD/NO_TRADE/REDUCE/EXIT lifecycle proposals. |
 | 9 | M29 | Done | `docs/agent_improvement_plans/LLM_PORTFOLIO_MANAGER_AGENT.md` | Added optional LLM explanations to deterministic final approval/rejection/no-action decisions. |
 | 10 | M30 | Done | `docs/agent_improvement_plans/PHASE_2_MARKET_HOURS_POSITION_MONITOR.md` | Added market-hours stop-loss/take-profit monitoring for open long paper positions. |
+
+## Planned Paper Money Management Sequence
+
+Execute these milestones in order. Each row should be run separately with fresh
+context, then documented with the standard completion summary before moving on.
+
+| Order | Milestone | Status | Plan | Purpose |
+|---:|---|---|---|---|
+| 11 | M31 | Planned | `docs/agent_improvement_plans/PAPER_MONEY_MANAGEMENT_SYSTEM.md` | Add money-management policy/config/state foundation without changing sizing behavior. |
+| 12 | M32 | Planned | `docs/agent_improvement_plans/PAPER_MONEY_MANAGEMENT_SYSTEM.md` | Deploy the 40% core sleeve as a conservative Shariah equity basket. |
+| 13 | M33 | Planned | `docs/agent_improvement_plans/PAPER_MONEY_MANAGEMENT_SYSTEM.md` | Add active-sleeve risk-budgeted, volatility-adjusted allocation. |
+| 14 | M34 | Planned | `docs/agent_improvement_plans/PAPER_MONEY_MANAGEMENT_SYSTEM.md` | Add diversifying/experimental sleeve governors and strategy-level allocation. |
+| 15 | M35 | Planned | `docs/agent_improvement_plans/PAPER_MONEY_MANAGEMENT_SYSTEM.md` | Add allocation dashboard surfaces and operator workflow docs. |
 
 ## Deferred Work
 
