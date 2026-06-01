@@ -1,0 +1,70 @@
+policy_version: money_management_v1
+shariah_universe_path: configs/market_data/nifty_500_shariah.yaml
+cash_buffer_target_pct: 5.0
+sleeves:
+  - sleeve_id: core_shariah
+    name: Core Shariah equity basket
+    target_weight_pct: 40.0
+    role: Conservative diversified equity anchor from the Shariah universe.
+    core_symbols:
+      - ASIANPAINT
+      - CIPLA
+      - DRREDDY
+      - HINDUNILVR
+      - INFY
+      - TCS
+  - sleeve_id: active_strategy
+    name: Active strategy
+    target_weight_pct: 35.0
+    role: Main alpha sleeve for graph-aware paper signals.
+  - sleeve_id: diversifying_strategy
+    name: Diversifying strategy
+    target_weight_pct: 15.0
+    role: Secondary style sleeve after backtest validation.
+  - sleeve_id: experimental_models
+    name: Experimental models
+    target_weight_pct: 5.0
+    role: Small-risk sleeve for new model candidates.
+  - sleeve_id: cash_buffer
+    name: Cash/risk buffer
+    target_weight_pct: 5.0
+    role: Operational cash, gap/drawdown protection, and new opportunity reserve.
+strategy_mappings:
+  - strategy_name: core_shariah_basket_v1
+    sleeve_id: core_shariah
+  - strategy_name: graph_aware_score_v1
+    sleeve_id: active_strategy
+  - strategy_name: moving_average_crossover_v1
+    sleeve_id: active_strategy
+  - strategy_name: blended_score_v1
+    sleeve_id: diversifying_strategy
+limits:
+  max_stock_pct_nav: 5.0
+  max_stock_hard_cap_pct_nav: 7.5
+  max_sector_pct_nav: 25.0
+  max_graph_cluster_pct_nav: 35.0
+  max_open_positions: 20
+trade_risk:
+  normal_trade_risk_pct_nav: 0.50
+  strong_trade_risk_pct_nav: 0.75
+  max_single_trade_risk_pct_nav: 1.00
+  max_total_open_trade_risk_pct_nav: 5.00
+drawdown_governors:
+  - name: portfolio_caution
+    drawdown_pct: 3.0
+    action: reduce_new_position_sizes_25_pct
+  - name: portfolio_defensive
+    drawdown_pct: 5.0
+    action: reduce_new_position_sizes_50_pct
+  - name: experimental_freeze
+    drawdown_pct: 8.0
+    action: stop_experimental_new_entries
+  - name: portfolio_freeze
+    drawdown_pct: 10.0
+    action: freeze_new_buys_allow_exits
+rebalance:
+  sleeve_drift_threshold_pct: 20.0
+  position_drift_threshold_pct: 20.0
+  min_rebalance_notional_inr: 5000
+  review_frequency: daily_after_close
+  core_rebalance_frequency: monthly

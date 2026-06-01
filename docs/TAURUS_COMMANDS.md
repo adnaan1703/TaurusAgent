@@ -412,6 +412,24 @@ monitor is paper-only and creates `market_hours` stop-loss/take-profit lifecycle
 proposals from persisted Kite quote snapshots before routing through
 TraderAgent, RiskReview, PortfolioManagerAgent, and PaperBroker.
 
+## M31 Commands Used
+
+```bash
+env TAURUS_GRAPH_ENABLED=false TAURUS_GRAPH_RISK_ENABLED=false TAURUS_GRAPH_AUTO_PROMOTE_EDGES=false TAURUS_NEO4J_ENABLED=false TAURUS_LLM_BASE_URL= TAURUS_LLM_MODEL= TAURUS_LLM_TIMEOUT_SECONDS=20 TAURUS_ENABLED_ANALYSTS=technical uv run pytest tests/unit/test_config.py tests/unit/test_ui_aggregate_api.py -q
+make lint
+git diff --check
+env TAURUS_GRAPH_ENABLED=false TAURUS_GRAPH_RISK_ENABLED=false TAURUS_GRAPH_AUTO_PROMOTE_EDGES=false TAURUS_NEO4J_ENABLED=false TAURUS_LLM_BASE_URL= TAURUS_LLM_MODEL= TAURUS_LLM_TIMEOUT_SECONDS=20 TAURUS_ENABLED_ANALYSTS=technical make test
+sed -n '/# END MY CUSTOM ADDITION/,$p' /Users/adnaan/.codex/rules/default.rules
+sed -n '1,260p' .codex/rules/default.rules
+```
+
+Money-management defaults remain disabled:
+`TAURUS_MONEY_MANAGEMENT_ENABLED=false` and
+`TAURUS_MONEY_MANAGEMENT_CONFIG_PATH=configs/portfolio/money_management_v1.yaml`.
+When enabled, `/ui/risk` and `/ui/portfolio` include read-only
+`money_management` metadata loaded from that policy file. M31 does not change
+paper order sizing.
+
 ## M28 Commands Used
 
 ```bash

@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from decimal import Decimal
+from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
 
 from taurus_core.config import DEFAULT_DATABASE_URL, Settings
+from taurus_core.portfolio import load_money_management_policy
 
 
 def test_default_settings_are_safe() -> None:
@@ -56,6 +58,10 @@ def test_default_settings_are_safe() -> None:
     assert settings.taurus_initial_capital_inr == 1_000_000
     assert settings.taurus_max_position_pct == 5
     assert settings.taurus_max_open_positions == 8
+    assert settings.taurus_money_management_enabled is False
+    assert settings.taurus_money_management_config_path == (
+        "configs/portfolio/money_management_v1.yaml"
+    )
 
 
 def test_live_trading_cannot_be_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -179,3 +185,155 @@ def test_database_url_password_is_redacted() -> None:
         settings.safe_dict()["database_url"]
         == "postgresql+psycopg://taurus:***REDACTED***@localhost:5432/taurus"
     )
+
+
+def test_money_management_policy_loads_default_config() -> None:
+    policy = load_money_management_policy("configs/portfolio/money_management_v1.yaml")
+
+    assert policy.policy_version == "money_management_v1"
+    assert policy.cash_buffer_target_pct == Decimal("5.0")
+    assert sum(sleeve.target_weight_pct for sleeve in policy.sleeves) == Decimal("100.0")
+    assert "INFY" in policy.core_symbols
+    assert policy.limits.max_stock_hard_cap_pct_nav >= policy.limits.max_stock_pct_nav
+
+
+@pytest.mark.parametrize(
+    ("override", "message"),
+    [
+        ("cash_buffer_target_pct: -1.0", "greater than or equal to 0"),
+        (
+            "sleeves:\n"
+            "  - sleeve_id: core_shariah\n"
+            "    name: Core\n"
+            "    target_weight_pct: 90.0\n"
+            "    role: Core sleeve\n",
+            "sleeve weights must sum to 100",
+        ),
+        (
+            "limits:\n"
+            "  max_stock_pct_nav: 8.0\n"
+            "  max_stock_hard_cap_pct_nav: 5.0\n"
+            "  max_sector_pct_nav: 25.0\n"
+            "  max_graph_cluster_pct_nav: 35.0\n"
+            "  max_open_positions: 20\n",
+            "hard cap must be greater than or equal",
+        ),
+    ],
+)
+def test_money_management_policy_validation_failures(
+    tmp_path: Path,
+    override: str,
+    message: str,
+) -> None:
+    policy_path = _write_money_management_policy(tmp_path, override=override)
+
+    with pytest.raises(ValueError, match=message):
+        load_money_management_policy(policy_path)
+
+
+def test_money_management_policy_enforces_core_symbol_shariah_universe_membership(
+    tmp_path: Path,
+) -> None:
+    universe_path = _write_universe(tmp_path, symbols=["INFY"])
+    policy_path = _write_money_management_policy(
+        tmp_path,
+        universe_path=universe_path,
+        core_symbols=["INFY", "NOTHALAL"],
+    )
+
+    with pytest.raises(ValueError, match="NOTHALAL"):
+        load_money_management_policy(policy_path)
+
+
+def _write_universe(tmp_path: Path, *, symbols: list[str]) -> Path:
+    entries = "\n".join(
+        f"  - symbol: {symbol}\n"
+        f"    name: {symbol} Ltd.\n"
+        "    enabled: true\n"
+        "    providers:\n"
+        "      kite:\n"
+        "        exchange: NSE\n"
+        f"        tradingsymbol: {symbol}\n"
+        for symbol in symbols
+    )
+    universe_path = tmp_path / "universe.yaml"
+    universe_path.write_text(
+        "universe_name: test_shariah\n"
+        "default_exchange: NSE\n"
+        "default_segment: EQUITY\n"
+        "symbols:\n"
+        f"{entries}",
+        encoding="utf-8",
+    )
+    return universe_path
+
+
+def _write_money_management_policy(
+    tmp_path: Path,
+    *,
+    universe_path: Path | None = None,
+    core_symbols: list[str] | None = None,
+    override: str | None = None,
+) -> Path:
+    universe_path = universe_path or _write_universe(tmp_path, symbols=["INFY"])
+    core_symbols = core_symbols or ["INFY"]
+    core_symbol_lines = "\n".join(f"      - {symbol}" for symbol in core_symbols)
+    base = (
+        "policy_version: test_policy\n"
+        f"shariah_universe_path: {universe_path}\n"
+        "cash_buffer_target_pct: 5.0\n"
+        "sleeves:\n"
+        "  - sleeve_id: core_shariah\n"
+        "    name: Core\n"
+        "    target_weight_pct: 95.0\n"
+        "    role: Core sleeve\n"
+        "    core_symbols:\n"
+        f"{core_symbol_lines}\n"
+        "  - sleeve_id: cash_buffer\n"
+        "    name: Cash\n"
+        "    target_weight_pct: 5.0\n"
+        "    role: Cash buffer\n"
+        "strategy_mappings:\n"
+        "  - strategy_name: core_shariah_basket_v1\n"
+        "    sleeve_id: core_shariah\n"
+        "limits:\n"
+        "  max_stock_pct_nav: 5.0\n"
+        "  max_stock_hard_cap_pct_nav: 7.5\n"
+        "  max_sector_pct_nav: 25.0\n"
+        "  max_graph_cluster_pct_nav: 35.0\n"
+        "  max_open_positions: 20\n"
+        "trade_risk:\n"
+        "  normal_trade_risk_pct_nav: 0.50\n"
+        "  strong_trade_risk_pct_nav: 0.75\n"
+        "  max_single_trade_risk_pct_nav: 1.00\n"
+        "  max_total_open_trade_risk_pct_nav: 5.00\n"
+        "drawdown_governors:\n"
+        "  - name: caution\n"
+        "    drawdown_pct: 3.0\n"
+        "    action: reduce\n"
+        "rebalance:\n"
+        "  sleeve_drift_threshold_pct: 20.0\n"
+        "  position_drift_threshold_pct: 20.0\n"
+        "  min_rebalance_notional_inr: 5000\n"
+        "  review_frequency: daily_after_close\n"
+        "  core_rebalance_frequency: monthly\n"
+    )
+    if override is not None:
+        key = override.split(":", maxsplit=1)[0]
+        lines = base.splitlines()
+        filtered = [line for line in lines if not line.startswith(f"{key}:")]
+        if key in {"sleeves", "limits"}:
+            start = next(index for index, line in enumerate(lines) if line.startswith(f"{key}:"))
+            end = next(
+                (
+                    index
+                    for index in range(start + 1, len(lines))
+                    if lines[index] and not lines[index].startswith(" ")
+                ),
+                len(lines),
+            )
+            filtered = lines[:start] + lines[end:]
+        base = "\n".join(filtered) + "\n" + override + "\n"
+    policy_path = tmp_path / "money_management.yaml"
+    policy_path.write_text(base, encoding="utf-8")
+    return policy_path

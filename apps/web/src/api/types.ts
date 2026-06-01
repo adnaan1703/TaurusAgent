@@ -166,6 +166,7 @@ export type UiReplayResponse = {
 
 export type UiRiskResponse = {
   safety: UiSafetyStatus;
+  money_management: JsonObject;
   latest_risk_reviews: JsonObject[];
   hard_rule_results: JsonObject[];
   persona_reviews: JsonObject[];
@@ -175,6 +176,7 @@ export type UiRiskResponse = {
 
 export type UiPortfolioResponse = {
   safety: UiSafetyStatus;
+  money_management: JsonObject;
   monitor_status: JsonObject;
   latest_account?: JsonObject | null;
   positions: JsonObject[];

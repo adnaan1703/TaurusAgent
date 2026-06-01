@@ -86,7 +86,7 @@ context, then documented with the standard completion summary before moving on.
 
 | Order | Milestone | Status | Plan | Purpose |
 |---:|---|---|---|---|
-| 11 | M31 | Planned | `docs/agent_improvement_plans/PAPER_MONEY_MANAGEMENT_SYSTEM.md` | Add money-management policy/config/state foundation without changing sizing behavior. |
+| 11 | M31 | Done | `docs/agent_improvement_plans/PAPER_MONEY_MANAGEMENT_SYSTEM.md` | Added money-management policy/config/state foundation without changing sizing behavior. |
 | 12 | M32 | Planned | `docs/agent_improvement_plans/PAPER_MONEY_MANAGEMENT_SYSTEM.md` | Deploy the 40% core sleeve as a conservative Shariah equity basket. |
 | 13 | M33 | Planned | `docs/agent_improvement_plans/PAPER_MONEY_MANAGEMENT_SYSTEM.md` | Add active-sleeve risk-budgeted, volatility-adjusted allocation. |
 | 14 | M34 | Planned | `docs/agent_improvement_plans/PAPER_MONEY_MANAGEMENT_SYSTEM.md` | Add diversifying/experimental sleeve governors and strategy-level allocation. |

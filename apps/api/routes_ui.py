@@ -42,6 +42,7 @@ from taurus_core.db.repositories import (
 )
 from taurus_core.data.universe import load_market_data_universe
 from taurus_core.observability.metrics import current_llm_failure_count
+from taurus_core.portfolio import money_management_metadata
 from taurus_core.replay.service import DecisionReplayService
 
 router = APIRouter(prefix="/ui", tags=["ui"])
@@ -219,6 +220,7 @@ class UiReplayResponse(BaseModel):
 
 class UiRiskResponse(BaseModel):
     safety: UiSafetyStatus
+    money_management: dict[str, Any]
     latest_risk_reviews: list[dict[str, Any]]
     hard_rule_results: list[dict[str, Any]]
     persona_reviews: list[dict[str, Any]]
@@ -228,6 +230,7 @@ class UiRiskResponse(BaseModel):
 
 class UiPortfolioResponse(BaseModel):
     safety: UiSafetyStatus
+    money_management: dict[str, Any]
     monitor_status: dict[str, Any]
     latest_account: dict[str, Any] | None
     positions: list[dict[str, Any]]
@@ -497,6 +500,7 @@ def get_ui_risk(
             )
     return UiRiskResponse(
         safety=_safety(settings),
+        money_management=money_management_metadata(settings),
         latest_risk_reviews=[_risk_review_payload(session, review) for review in reviews],
         hard_rule_results=hard_rules,
         persona_reviews=persona_reviews,
@@ -543,6 +547,7 @@ def get_ui_portfolio(
     ]
     return UiPortfolioResponse(
         safety=_safety(settings),
+        money_management=money_management_metadata(settings),
         monitor_status=_monitor_status(session, settings),
         latest_account=account_payload,
         positions=positions,

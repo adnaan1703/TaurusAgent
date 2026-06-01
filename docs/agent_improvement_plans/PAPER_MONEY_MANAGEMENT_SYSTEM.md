@@ -116,6 +116,29 @@ This gives later milestones stable APIs and observability.
 At completion, add a section to this document listing assumptions made, mocks
 created, and mocks used.
 
+### M31 Completion Summary
+
+- Status: Completed on 2026-06-01.
+- Implemented `configs/portfolio/money_management_v1.yaml` with Shariah
+  universe, sleeve targets, strategy mappings, cash buffer, concentration
+  limits, trade-risk defaults, drawdown governors, and rebalance thresholds.
+- Added disabled-by-default settings:
+  `TAURUS_MONEY_MANAGEMENT_ENABLED=false` and
+  `TAURUS_MONEY_MANAGEMENT_CONFIG_PATH=configs/portfolio/money_management_v1.yaml`.
+- Added Pydantic policy/state schemas and deterministic validation for sleeve
+  weights, cash buffer, stock caps, strategy sleeve references, and configured
+  core symbol membership in the Shariah universe.
+- Surfaced read-only money-management metadata in `/ui/risk` and
+  `/ui/portfolio`; no database table was added because M31 only needs current
+  config/state metadata and snapshot schemas, not durable historical querying.
+- Verified disabled mode does not add paper-run artifacts or change existing
+  paper execution behavior.
+- Assumptions made: M31 should include the 5% cash buffer as an explicit sleeve
+  so configured sleeve weights sum to 100%; durable allocation/sleeve snapshot
+  tables are deferred until later milestones need historical queries.
+- Mocks created: None.
+- Mocks used: Existing unit-test fake LLM and fake Kite market-data providers.
+
 ## M32: Core Shariah Equity Basket
 
 ### Goal

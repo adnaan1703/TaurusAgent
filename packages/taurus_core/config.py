@@ -215,6 +215,14 @@ class Settings(BaseSettings):
         gt=0,
         validation_alias="TAURUS_MAX_OPEN_POSITIONS",
     )
+    taurus_money_management_enabled: bool = Field(
+        default=False,
+        validation_alias="TAURUS_MONEY_MANAGEMENT_ENABLED",
+    )
+    taurus_money_management_config_path: str = Field(
+        default="configs/portfolio/money_management_v1.yaml",
+        validation_alias="TAURUS_MONEY_MANAGEMENT_CONFIG_PATH",
+    )
     taurus_kill_switch_enabled: bool = Field(
         default=False,
         validation_alias="TAURUS_KILL_SWITCH_ENABLED",

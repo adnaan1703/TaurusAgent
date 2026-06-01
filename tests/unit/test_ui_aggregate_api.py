@@ -101,11 +101,92 @@ def test_ui_aggregate_endpoints_return_completed_run_trail(tmp_path: Path) -> No
 
     assert risk.status_code == 200
     assert risk.json()["status_counts"] == {"APPROVED": 1}
+    assert risk.json()["money_management"] == {
+        "enabled": False,
+        "config_path": "configs/portfolio/money_management_v1.yaml",
+    }
 
     assert portfolio.status_code == 200
     assert portfolio.json()["latest_account"]["run_id"] == run.run_id
+    assert portfolio.json()["money_management"] == risk.json()["money_management"]
     assert len(portfolio.json()["orders"]) == 1
     assert len(portfolio.json()["fills"]) == 2
+
+
+def test_disabled_money_management_does_not_change_paper_run_artifacts(
+    tmp_path: Path,
+) -> None:
+    settings = Settings(
+        taurus_alert_provider="mock",
+        taurus_graph_enabled=False,
+        taurus_graph_risk_enabled=False,
+        taurus_enabled_analysts="technical",
+        taurus_llm_model="",
+        taurus_paper_partial_fill_threshold=1,
+        taurus_money_management_enabled=False,
+        taurus_money_management_config_path=str(tmp_path / "missing-policy.yaml"),
+    )
+
+    run = PaperRunService(settings).run_once(symbols=["INFY"])
+
+    assert set(run.artifacts) == {"strategy", "symbols"}
+    assert "money_management" not in run.artifacts
+    assert set(run.artifacts["symbols"]["INFY"]) == {
+        "symbol",
+        "report_ids",
+        "analyst_roster",
+        "debate_id",
+        "proposal_id",
+        "proposal_action",
+        "portfolio_id",
+        "lifecycle_trigger",
+        "evaluation_mode",
+        "current_position_quantity",
+        "current_position_pct_nav",
+        "target_position_pct_nav",
+        "position_management_summary",
+        "risk_check_id",
+        "final_decision_id",
+        "final_status",
+        "final_action",
+        "no_paper_order_expected",
+        "order_id",
+        "order_status",
+        "account_id",
+    }
+
+
+def test_ui_risk_and_portfolio_include_money_management_metadata_when_enabled(
+    tmp_path: Path,
+) -> None:
+    policy_path = _write_money_management_policy(tmp_path)
+    settings = Settings(
+        taurus_alert_provider="mock",
+        taurus_graph_enabled=False,
+        taurus_graph_risk_enabled=False,
+        taurus_enabled_analysts="technical",
+        taurus_llm_model="",
+        taurus_money_management_enabled=True,
+        taurus_money_management_config_path=str(policy_path),
+    )
+    run_migrations(settings)
+    client = TestClient(create_app(settings))
+
+    risk = client.get("/ui/risk")
+    portfolio = client.get("/ui/portfolio")
+
+    assert risk.status_code == 200
+    assert portfolio.status_code == 200
+    risk_money_management = risk.json()["money_management"]
+    assert risk_money_management == portfolio.json()["money_management"]
+    assert risk_money_management["enabled"] is True
+    assert risk_money_management["policy"]["policy_version"] == "ui_test_policy"
+    assert risk_money_management["policy"]["core_symbols"] == ["INFY"]
+    assert risk_money_management["state"] == {
+        "snapshot_source": "not_persisted",
+        "sleeve_snapshot_count": 0,
+        "allocation_decision_count": 0,
+    }
 
 
 def test_ui_aggregate_endpoints_show_partial_failure_and_404s(tmp_path: Path) -> None:
@@ -268,8 +349,73 @@ def test_ui_cors_allows_local_vite_origin(tmp_path: Path) -> None:
 def _settings_for_temp_db(tmp_path: Path) -> Settings:
     return Settings(
         taurus_alert_provider="mock",
+        taurus_graph_enabled=False,
+        taurus_graph_risk_enabled=False,
+        taurus_enabled_analysts="technical",
+        taurus_llm_model="",
         taurus_paper_partial_fill_threshold=1,
     )
+
+
+def _write_money_management_policy(tmp_path: Path) -> Path:
+    universe_path = tmp_path / "nifty_500_shariah.yaml"
+    universe_path.write_text(
+        "universe_name: test_shariah\n"
+        "default_exchange: NSE\n"
+        "default_segment: EQUITY\n"
+        "symbols:\n"
+        "  - symbol: INFY\n"
+        "    name: Infosys Ltd.\n"
+        "    enabled: true\n"
+        "    providers:\n"
+        "      kite:\n"
+        "        exchange: NSE\n"
+        "        tradingsymbol: INFY\n",
+        encoding="utf-8",
+    )
+    policy_path = tmp_path / "money_management.yaml"
+    policy_path.write_text(
+        "policy_version: ui_test_policy\n"
+        f"shariah_universe_path: {universe_path}\n"
+        "cash_buffer_target_pct: 5.0\n"
+        "sleeves:\n"
+        "  - sleeve_id: core_shariah\n"
+        "    name: Core\n"
+        "    target_weight_pct: 95.0\n"
+        "    role: Core sleeve\n"
+        "    core_symbols:\n"
+        "      - INFY\n"
+        "  - sleeve_id: cash_buffer\n"
+        "    name: Cash\n"
+        "    target_weight_pct: 5.0\n"
+        "    role: Cash buffer\n"
+        "strategy_mappings:\n"
+        "  - strategy_name: core_shariah_basket_v1\n"
+        "    sleeve_id: core_shariah\n"
+        "limits:\n"
+        "  max_stock_pct_nav: 5.0\n"
+        "  max_stock_hard_cap_pct_nav: 7.5\n"
+        "  max_sector_pct_nav: 25.0\n"
+        "  max_graph_cluster_pct_nav: 35.0\n"
+        "  max_open_positions: 20\n"
+        "trade_risk:\n"
+        "  normal_trade_risk_pct_nav: 0.50\n"
+        "  strong_trade_risk_pct_nav: 0.75\n"
+        "  max_single_trade_risk_pct_nav: 1.00\n"
+        "  max_total_open_trade_risk_pct_nav: 5.00\n"
+        "drawdown_governors:\n"
+        "  - name: caution\n"
+        "    drawdown_pct: 3.0\n"
+        "    action: reduce\n"
+        "rebalance:\n"
+        "  sleeve_drift_threshold_pct: 20.0\n"
+        "  position_drift_threshold_pct: 20.0\n"
+        "  min_rebalance_notional_inr: 5000\n"
+        "  review_frequency: daily_after_close\n"
+        "  core_rebalance_frequency: monthly\n",
+        encoding="utf-8",
+    )
+    return policy_path
 
 
 def _shariah_row(
