@@ -6,12 +6,7 @@ Last verified: 2026-06-02
 
 - Backend focused M35 tests:
   `uv run pytest tests/unit/test_ui_aggregate_api.py -q` -> `10 passed`.
-- Backend full suite: `make test` -> `209 passed, 1 skipped, 11 failed` in
-  the current local environment. The failures are the existing graph/LLM config
-  sensitivity noted in M33-M34: environment values enable graph and override LLM
-  defaults, LM Studio tests still expect `response_format={"type":
-  "json_object"}` while the provider emits JSON schema response format, and the
-  smoke test enables graph without imported graph company nodes.
+- Backend full suite: `make test` -> `220 passed, 1 skipped`.
 - Frontend tests: `make test-ui` -> `25 passed`.
 - Compile check: `make lint` -> passed.
 - Frontend build: `make build-ui` -> passed.

@@ -21,6 +21,22 @@ from taurus_core.llm.base import (
 )
 
 
+def _assert_lmstudio_response_format(
+    payload: dict[str, object],
+    *,
+    schema_name: str,
+) -> None:
+    response_format = payload["response_format"]
+    assert isinstance(response_format, dict)
+    assert response_format["type"] == "json_schema"
+
+    json_schema = response_format["json_schema"]
+    assert isinstance(json_schema, dict)
+    assert json_schema["name"] == schema_name
+    assert json_schema["strict"] is True
+    assert isinstance(json_schema["schema"], dict)
+
+
 def test_build_llm_provider_defaults_to_lmstudio() -> None:
     provider = build_llm_provider(Settings())
 
@@ -85,7 +101,7 @@ def test_lmstudio_request_shape_and_response(monkeypatch: pytest.MonkeyPatch) ->
     assert seen["headers"]["Authorization"] == "Bearer lmstudio"
     assert payload["model"] == "local-model"
     assert payload["temperature"] == 0
-    assert payload["response_format"] == {"type": "json_object"}
+    _assert_lmstudio_response_format(payload, schema_name="taurus_analyst_report")
     assert "Return JSON only" in payload["messages"][0]["content"]
     assert '"symbol": "INFY"' in payload["messages"][1]["content"]
     assert output.model_version == "lmstudio:local-model"
@@ -115,7 +131,7 @@ def test_lmstudio_bull_thesis_request_uses_dedicated_prompt(monkeypatch: pytest.
 
     payload = seen["payload"]
     assert "Taurus BullResearcherAgent" in payload["messages"][0]["content"]
-    assert payload["response_format"] == {"type": "json_object"}
+    _assert_lmstudio_response_format(payload, schema_name="taurus_bull_thesis")
     assert '"evidence_pack":' in payload["messages"][1]["content"]
     assert output.model_version == "lmstudio:local-model"
 
@@ -144,7 +160,7 @@ def test_lmstudio_bear_thesis_request_uses_dedicated_prompt(monkeypatch: pytest.
 
     payload = seen["payload"]
     assert "Taurus BearResearcherAgent" in payload["messages"][0]["content"]
-    assert payload["response_format"] == {"type": "json_object"}
+    _assert_lmstudio_response_format(payload, schema_name="taurus_bear_thesis")
     assert '"risk_flags": "non-empty string array"' in payload["messages"][1]["content"]
     assert output.model_version == "lmstudio:local-model"
 
@@ -174,7 +190,7 @@ def test_lmstudio_research_manager_request_uses_dedicated_prompt(
 
     payload = seen["payload"]
     assert "Taurus ResearchManagerAgent" in payload["messages"][0]["content"]
-    assert payload["response_format"] == {"type": "json_object"}
+    _assert_lmstudio_response_format(payload, schema_name="taurus_research_manager")
     assert '"deterministic_baseline":' in payload["messages"][1]["content"]
     assert output.model_version == "lmstudio:local-model"
 
@@ -204,7 +220,7 @@ def test_lmstudio_final_decision_explanation_uses_dedicated_prompt(
 
     payload = seen["payload"]
     assert "Taurus PortfolioManagerAgent" in payload["messages"][0]["content"]
-    assert payload["response_format"] == {"type": "json_object"}
+    _assert_lmstudio_response_format(payload, schema_name="taurus_final_decision")
     assert '"deterministic_decision":' in payload["messages"][1]["content"]
     assert output.model_version == "lmstudio:local-model"
 

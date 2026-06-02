@@ -10,13 +10,27 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 
 from scripts.migrate import run_migrations
-from taurus_core.config import DEFAULT_DATABASE_URL, Settings
+from taurus_core.config import DEFAULT_DATABASE_URL, Settings, get_settings
+
+
+@pytest.fixture(autouse=True)
+def isolated_settings_environment(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    get_settings.cache_clear()
+    monkeypatch.setitem(Settings.model_config, "env_file", None)
+    for env_name in _settings_env_names():
+        monkeypatch.delenv(env_name, raising=False)
+
+    try:
+        yield
+    finally:
+        get_settings.cache_clear()
 
 
 @pytest.fixture(autouse=True)
 def postgres_test_settings(
     monkeypatch: pytest.MonkeyPatch,
     request: pytest.FixtureRequest,
+    isolated_settings_environment: None,
 ) -> Iterator[Settings | None]:
     if request.node.path.name == "test_config.py":
         yield None
@@ -58,3 +72,11 @@ def postgres_test_settings(
 def _test_database_name(test_name: str) -> str:
     slug = re.sub(r"[^a-zA-Z0-9_]+", "_", test_name).strip("_").lower()
     return f"taurus_test_{slug[:32]}_{uuid4().hex[:12]}"
+
+
+def _settings_env_names() -> set[str]:
+    names: set[str] = set()
+    for field in Settings.model_fields.values():
+        if isinstance(field.validation_alias, str):
+            names.add(field.validation_alias)
+    return names
