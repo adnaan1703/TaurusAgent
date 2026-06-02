@@ -515,6 +515,54 @@ smoke test enables graph without imported graph company nodes. M34-focused
 allocation, money-management config/API, paper-run integration, lint, and UI
 tests passed.
 
+## M35 Commands Used
+
+```bash
+uv run pytest tests/unit/test_ui_aggregate_api.py -q
+uv run pytest tests/unit/test_ui_aggregate_api.py::test_ui_risk_and_portfolio_include_money_management_metadata_when_enabled tests/unit/test_ui_aggregate_api.py::test_ui_decision_trail_includes_allocation_decision_when_enabled -q
+pnpm --dir apps/web exec vitest run src/features/ScreenStates.test.tsx src/app/RouteSkeletons.test.tsx
+make test
+make test-ui
+make build-ui
+git diff --check
+sed -n '/# END MY CUSTOM ADDITION/,$p' /Users/adnaan/.codex/rules/default.rules
+sed -n '1,260p' .codex/rules/default.rules
+```
+
+M35 adds read-only allocation surfaces to `/ui/overview`, `/ui/risk`,
+`/ui/portfolio`, and
+`/ui/runs/{run_id}/symbols/{symbol}/decision-trail`. The React dashboard shows
+sleeve allocation, core basket composition and drift, cash buffer, undeployed
+capacity, open risk used versus limit, latest allocation decisions with binding
+constraints, drawdown governor state, and per-position sleeve/strategy labels.
+
+Money management remains opt-in and paper-only:
+
+```bash
+TAURUS_MONEY_MANAGEMENT_ENABLED=true make paper-loop-kite
+TAURUS_MONEY_MANAGEMENT_CONFIG_PATH=configs/portfolio/money_management_v1.yaml
+TAURUS_MARKET_DATA_UNIVERSE_PATH=configs/market_data/nifty_500_shariah.yaml
+```
+
+When `SYMBOL` and `SYMBOLS` are omitted, `make paper-loop-kite` uses the
+configured market-data universe, which defaults to the Nifty 500 Shariah YAML.
+Inspect allocation reductions and rejected candidates through:
+
+```bash
+curl http://localhost:8000/ui/overview
+curl http://localhost:8000/ui/risk
+curl http://localhost:8000/ui/portfolio
+curl http://localhost:8000/ui/runs/{run_id}/symbols/{symbol}/decision-trail
+```
+
+The full `make test` pass remained blocked in the local environment by the
+same unrelated failures observed in M33-M34: environment values override graph
+and LLM defaults, LM Studio request-shape tests still expect
+`response_format={"type":"json_object"}` while the provider emits JSON schema
+response format, and the smoke test enables graph without imported graph
+company nodes. M35-focused API tests, UI tests, frontend build, lint, and
+`git diff --check` passed.
+
 ## M28 Commands Used
 
 ```bash

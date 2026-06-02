@@ -47,9 +47,115 @@ const monitorStatus = {
   trigger_count_today: 0,
 };
 
+const allocationDecision = {
+  symbol: "INFY",
+  action: "BUY",
+  strategy_name: "graph_aware_score_v1",
+  sleeve_id: "active_strategy",
+  sleeve_name: "Active Strategy",
+  status: "approved",
+  requested_position_pct_nav: 3,
+  approved_position_pct_nav: 2,
+  requested_notional_inr: 30000,
+  approved_notional_inr: 20000,
+  approved_quantity: 10,
+  allowed_risk_inr: 5000,
+  estimated_risk_inr: 1200,
+  governor_scale_factor: 1,
+  governor_reasons: [],
+  binding_constraint: "cash_buffer",
+};
+
+const allocation = {
+  enabled: true,
+  config_path: "configs/portfolio/money_management_v1.yaml",
+  policy_version: "ui_test_policy",
+  summary_metrics: [
+    { label: "Sleeves", value: 2, tone: "neutral" },
+    { label: "Cash buffer", value: 97, unit: "%", tone: "success" },
+    { label: "Undeployed capacity", value: 920000, unit: "INR", tone: "neutral" },
+    { label: "Open risk used", value: 24, unit: "%", tone: "neutral" },
+  ],
+  sleeves: [
+    {
+      sleeve_id: "active_strategy",
+      sleeve_name: "Active Strategy",
+      role: "Research strategy sleeve",
+      target_weight_pct: 20,
+      target_notional_inr: 200000,
+      current_weight_pct: 1.51,
+      current_exposure_inr: 15100,
+      drift_pct_nav: -18.49,
+      drift_notional_inr: -184900,
+      open_position_count: 1,
+      symbols: ["INFY"],
+      open_trade_risk_inr: 1200,
+    },
+  ],
+  cash: {
+    target_cash_pct_nav: 5,
+    target_cash_inr: 50000,
+    available_cash_inr: 970000,
+    current_cash_pct_nav: 97,
+    cash_surplus_inr: 920000,
+    undeployed_capacity_inr: 920000,
+  },
+  open_risk: {
+    used_risk_inr: 1200,
+    limit_risk_inr: 5000,
+    limit_pct_nav: 0.5,
+    remaining_risk_inr: 3800,
+    used_pct_limit: 24,
+  },
+  latest_decisions: [{ ...allocationDecision, run_id: "pr-test", proposal_id: "tp-1", as_of: "2026-05-21T15:00:20Z" }],
+  drawdown_governors: {
+    portfolio_drawdown_pct: 0,
+    portfolio_governor_reasons: [],
+    policy_thresholds: [{ name: "caution", drawdown_pct: 3, action: "reduce_new_position_sizes_25_pct" }],
+    sleeve_statuses: [
+      {
+        sleeve_id: "active_strategy",
+        sleeve_name: "Active Strategy",
+        drawdown_pct: 0,
+        new_entry_scale_factor: 1,
+        new_entries_frozen: false,
+      },
+    ],
+    latest_decision_governor_reasons: [],
+  },
+  core_basket: {
+    available: true,
+    run_id: "pr-test",
+    strategy_name: "core_shariah_basket_v1",
+    sleeve_id: "core_shariah",
+    selected_symbols: ["INFY"],
+    drift: {
+      sleeve_target_pct_nav: 40,
+      sleeve_current_pct_nav: 1.51,
+      sleeve_drift_pct_nav: 38.49,
+      sleeve_drift_notional_inr: 384900,
+    },
+    rebalance: {
+      should_rebalance: true,
+      rationale: ["monthly_core_rebalance_due"],
+    },
+    composition: [
+      {
+        symbol: "INFY",
+        target_weight_pct_nav: 5,
+        current_weight_pct_nav: 1.51,
+        drift_pct_nav: -3.49,
+        target_notional_inr: 50000,
+      },
+    ],
+    rejected_candidates: [{ symbol: "TCS", reasons: ["insufficient_daily_candle_history"] }],
+  },
+};
+
 const emptyOverview = {
   safety,
   monitor_status: monitorStatus,
+  allocation: { enabled: false, config_path: "configs/portfolio/money_management_v1.yaml" },
   latest_account: null,
   latest_run: null,
   latest_final_decision: null,
@@ -62,6 +168,7 @@ const emptyOverview = {
 const overview = {
   safety,
   monitor_status: { ...monitorStatus, enabled: true, trigger_count_today: 1 },
+  allocation,
   latest_account: {
     account_id: "acct-1",
     run_id: "pr-test",
@@ -102,6 +209,9 @@ const overview = {
       last_price_inr: 1510,
       market_value_inr: 15100,
       unrealized_pnl_inr: 100,
+      sleeve_id: "active_strategy",
+      sleeve_name: "Active Strategy",
+      strategy_name: "graph_aware_score_v1",
     },
   ],
   warnings: [],
@@ -155,7 +265,7 @@ const stages = [
     summary: "BUY proposal.",
     metrics: { action: "BUY", confidence: 0.7, requested_position_pct_nav: 0.03 },
     artifact_ids: ["tp-1"],
-    artifacts: [{ proposal_id: "tp-1", action: "BUY", requested_position_pct_nav: 0.03 }],
+    artifacts: [{ proposal_id: "tp-1", action: "BUY", requested_position_pct_nav: 0.03, allocation_decision: allocationDecision }],
     raw: [],
   },
   {
@@ -271,6 +381,7 @@ const trail = {
   final_status: "APPROVED_FOR_PAPER",
   final_action: "BUY",
   can_send_to_broker: true,
+  allocation_decision: allocationDecision,
   analyst_roster: runDetail.symbols[0].analyst_roster,
   selected_stage_id: "inputs",
   stages,
@@ -279,6 +390,8 @@ const trail = {
 
 const risk = {
   safety,
+  money_management: { enabled: true },
+  allocation,
   latest_risk_reviews: [
     {
       risk_check_id: "risk-1",
@@ -289,6 +402,11 @@ const risk = {
       requested_position_pct_nav: 0.03,
       approved_position_pct_nav: 0.02,
       can_send_to_broker: true,
+      sleeve_id: "active_strategy",
+      sleeve_name: "Active Strategy",
+      strategy_name: "graph_aware_score_v1",
+      binding_constraint: "cash_buffer",
+      estimated_risk_inr: 1200,
       as_of: "2026-05-21T15:00:30Z",
     },
     {
@@ -311,6 +429,8 @@ const risk = {
 
 const portfolio = {
   safety,
+  money_management: { enabled: true },
+  allocation,
   monitor_status: monitorStatus,
   latest_account: overview.latest_account,
   positions: overview.positions,
@@ -369,6 +489,8 @@ describe("M16.4 screen states", () => {
     renderRoute("/runs/pr-test/symbols/INFY");
 
     expect(await screen.findByText("Open replay")).toBeInTheDocument();
+    expect(screen.getByText("Allocation Decision")).toBeInTheDocument();
+    expect(screen.getAllByText("cash_buffer").length).toBeGreaterThan(0);
     expect(screen.getByText("Analyst Roster")).toBeInTheDocument();
     expect(screen.getByText("technical")).toBeInTheDocument();
     expect(screen.getByText("fundamentals")).toBeInTheDocument();
@@ -381,6 +503,8 @@ describe("M16.4 screen states", () => {
     renderRoute("/risk");
 
     expect(await screen.findByText("Risk And Controls")).toBeInTheDocument();
+    expect(await screen.findByText("Sleeve Allocation")).toBeInTheDocument();
+    expect(screen.getAllByText("Active Strategy").length).toBeGreaterThan(0);
     expect((await screen.findAllByText("Blocked")).length).toBeGreaterThan(0);
     expect((await screen.findAllByText("Reduced")).length).toBeGreaterThan(0);
   });
@@ -390,7 +514,9 @@ describe("M16.4 screen states", () => {
     renderRoute("/portfolio");
 
     expect(await screen.findByText("Latest Account")).toBeInTheDocument();
-    expect(screen.getByText("Positions")).toBeInTheDocument();
+    expect(screen.getByText("Core Basket Composition")).toBeInTheDocument();
+    expect(screen.getByText("TCS")).toBeInTheDocument();
+    expect(screen.getAllByText("Positions").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Orders").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Fills").length).toBeGreaterThan(0);
     expect(screen.getByText("fill-1")).toBeInTheDocument();

@@ -119,6 +119,7 @@ export type UiTimelineStage = {
 export type UiOverviewResponse = {
   safety: UiSafetyStatus;
   monitor_status: JsonObject;
+  allocation: JsonObject;
   latest_account?: JsonObject | null;
   latest_run?: UiRunSummary | null;
   latest_trader_proposal?: JsonObject | null;
@@ -148,6 +149,7 @@ export type UiDecisionTrailResponse = {
   final_status?: string | null;
   final_action?: string | null;
   can_send_to_broker?: boolean | null;
+  allocation_decision?: JsonObject | null;
   analyst_roster?: UiAnalystRoster | null;
   selected_stage_id: string;
   stages: UiTimelineStage[];
@@ -167,6 +169,7 @@ export type UiReplayResponse = {
 export type UiRiskResponse = {
   safety: UiSafetyStatus;
   money_management: JsonObject;
+  allocation: JsonObject;
   latest_risk_reviews: JsonObject[];
   hard_rule_results: JsonObject[];
   persona_reviews: JsonObject[];
@@ -177,6 +180,7 @@ export type UiRiskResponse = {
 export type UiPortfolioResponse = {
   safety: UiSafetyStatus;
   money_management: JsonObject;
+  allocation: JsonObject;
   monitor_status: JsonObject;
   latest_account?: JsonObject | null;
   positions: JsonObject[];

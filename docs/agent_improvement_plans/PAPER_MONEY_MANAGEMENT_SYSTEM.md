@@ -430,6 +430,31 @@ operator docs.
 
 At completion, add assumptions made, mocks created, and mocks used.
 
+### Completion Summary
+
+- Status: Completed on 2026-06-02.
+- Added read-only allocation payloads to `/ui/overview`, `/ui/risk`,
+  `/ui/portfolio`, and symbol decision trails, including sleeve utilization,
+  core basket drift, cash buffer, undeployed capacity, open risk used versus
+  limit, latest allocation decisions, and drawdown-governor state.
+- Added React allocation panels for Overview, Risk, Portfolio, and decision
+  trails, plus per-position sleeve/strategy labels and binding-constraint
+  visibility for allocation reductions or rejections.
+- Updated operator docs with the Shariah-only `paper-loop-kite` path, the
+  `TAURUS_MONEY_MANAGEMENT_ENABLED=true` workflow, and dashboard/API inspection
+  steps for sleeve utilization, allocation reductions, and rejected candidates.
+- Added focused API and UI coverage for enabled/disabled allocation payloads,
+  decision trail allocation decisions, allocation panels, and empty states.
+- Assumptions made: Position sleeve/strategy labels can be derived from the
+  latest stored allocation decision for a symbol, with a core Shariah fallback
+  for configured core symbols, until durable per-position sleeve attribution is
+  persisted; open-risk usage is a read-only dashboard estimate from recent
+  stored allocation decisions, not a new risk engine source of truth.
+- Mocks created: None.
+- Mocks used: Existing FastAPI/TestClient temporary database fixtures, existing
+  fake LLM provider, existing fake Kite market-data provider, and existing
+  React fetch fixtures in unit tests.
+
 ## Deferred Follow-Ups
 
 - Fractional Kelly sizing after at least 300-500 clean trades per strategy.

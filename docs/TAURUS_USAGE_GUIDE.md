@@ -1,10 +1,17 @@
 # Taurus Usage Guide
 
-Last verified: 2026-06-01
+Last verified: 2026-06-02
 
 ## Current State
 
-- Backend tests: `make test` -> `193 passed, 1 skipped`.
+- Backend focused M35 tests:
+  `uv run pytest tests/unit/test_ui_aggregate_api.py -q` -> `10 passed`.
+- Backend full suite: `make test` -> `209 passed, 1 skipped, 11 failed` in
+  the current local environment. The failures are the existing graph/LLM config
+  sensitivity noted in M33-M34: environment values enable graph and override LLM
+  defaults, LM Studio tests still expect `response_format={"type":
+  "json_object"}` while the provider emits JSON schema response format, and the
+  smoke test enables graph without imported graph company nodes.
 - Frontend tests: `make test-ui` -> `25 passed`.
 - Compile check: `make lint` -> passed.
 - Frontend build: `make build-ui` -> passed.
@@ -241,6 +248,10 @@ TAURUS_LLM_PROVIDER=gemini GEMINI_API_KEY=...
 make paper-loop-kite
 ```
 
+The canonical loop is Shariah-only when `SYMBOL` and `SYMBOLS` are omitted,
+because it selects from `TAURUS_MARKET_DATA_UNIVERSE_PATH`, which defaults to
+`configs/market_data/nifty_500_shariah.yaml`.
+
 For a manual graph-enabled subset:
 
 ```bash
@@ -253,15 +264,55 @@ For an explicit technical-only manual loop:
 TAURUS_ENABLED_ANALYSTS=technical SYMBOLS=INFY make paper-loop-start
 ```
 
-8. Observe in React:
+8. Enable money management for the same paper-only flow:
+
+```bash
+TAURUS_MONEY_MANAGEMENT_ENABLED=true make paper-loop-kite
+```
+
+By default this loads
+`TAURUS_MONEY_MANAGEMENT_CONFIG_PATH=configs/portfolio/money_management_v1.yaml`.
+It adds core Shariah basket review artifacts, strategy-sleeve allocation
+decisions, cash-buffer checks, open-risk usage, and drawdown-governor context.
+It still routes only through local `PaperBroker`; live broker execution remains
+disabled.
+
+9. Observe in React:
 
 ```bash
 make ui
 ```
 
-Open `http://localhost:5173`.
+Open:
 
-9. Optionally enable market-hours monitoring:
+```text
+http://localhost:5173/
+http://localhost:5173/risk
+http://localhost:5173/portfolio
+http://localhost:5173/runs/{run_id}/symbols/{symbol}
+```
+
+Use Overview for the sleeve allocation summary, latest allocation decisions,
+cash buffer, undeployed capacity, open risk used versus limit, drawdown
+governors, and latest core basket composition/drift. Use Risk to inspect
+allocation reductions or rejections beside risk-review rows; the
+`Binding constraint` column identifies the cap that controlled sizing, such as
+`cash_buffer`, `sleeve_capacity`, `total_open_trade_risk`,
+`portfolio_drawdown_freeze`, or `strategy_unmapped`. Use Portfolio to see
+per-position sleeve and strategy labels plus current sleeve utilization.
+
+To inspect rejected candidates, open the latest run detail or Overview core
+basket section and read `Core Basket Composition` -> rejected candidates. The
+raw API equivalent is:
+
+```bash
+curl http://localhost:8000/ui/overview
+curl http://localhost:8000/ui/risk
+curl http://localhost:8000/ui/portfolio
+curl http://localhost:8000/ui/runs/{run_id}/symbols/{symbol}/decision-trail
+```
+
+10. Optionally enable market-hours monitoring:
 
 ```bash
 make position-monitor POSITION_MONITOR_ENABLED=true POSITION_MONITOR_ITERATIONS=1
@@ -375,6 +426,12 @@ http://localhost:5173/history
 The run-loop views are read-only. The graph edge review route mutates graph edge
 review status only when the API is started with `TAURUS_GRAPH_ENABLED=true`; it
 does not route orders or bypass risk/final approval.
+
+When money management is enabled, Overview, Risk, Portfolio, and the symbol
+decision trail expose the same allocation context: sleeve utilization, core
+basket drift, cash buffer, undeployed capacity, open risk used versus limit,
+drawdown-governor state, latest allocation decisions with binding constraints,
+and per-position sleeve/strategy labels.
 
 ## Graph Intelligence
 

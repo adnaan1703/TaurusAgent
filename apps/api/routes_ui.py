@@ -173,6 +173,7 @@ class UiTimelineStage(BaseModel):
 class UiOverviewResponse(BaseModel):
     safety: UiSafetyStatus
     monitor_status: dict[str, Any]
+    allocation: dict[str, Any]
     latest_account: dict[str, Any] | None
     latest_run: UiRunSummary | None
     latest_trader_proposal: dict[str, Any] | None
@@ -202,6 +203,7 @@ class UiDecisionTrailResponse(BaseModel):
     final_status: str | None
     final_action: str | None
     can_send_to_broker: bool | None
+    allocation_decision: dict[str, Any] | None = None
     analyst_roster: UiAnalystRoster | None = None
     selected_stage_id: str
     stages: list[UiTimelineStage]
@@ -221,6 +223,7 @@ class UiReplayResponse(BaseModel):
 class UiRiskResponse(BaseModel):
     safety: UiSafetyStatus
     money_management: dict[str, Any]
+    allocation: dict[str, Any]
     latest_risk_reviews: list[dict[str, Any]]
     hard_rule_results: list[dict[str, Any]]
     persona_reviews: list[dict[str, Any]]
@@ -231,6 +234,7 @@ class UiRiskResponse(BaseModel):
 class UiPortfolioResponse(BaseModel):
     safety: UiSafetyStatus
     money_management: dict[str, Any]
+    allocation: dict[str, Any]
     monitor_status: dict[str, Any]
     latest_account: dict[str, Any] | None
     positions: list[dict[str, Any]]
@@ -354,6 +358,13 @@ def get_overview(
     return UiOverviewResponse(
         safety=_safety(settings),
         monitor_status=_monitor_status(session, settings),
+        allocation=_allocation_dashboard_payload(
+            session=session,
+            settings=settings,
+            account=latest_account_payload,
+            positions=positions,
+            latest_run=run_rows[0] if run_rows else None,
+        ),
         latest_account=latest_account_payload,
         latest_run=latest_run,
         latest_trader_proposal=_payload(latest_proposal[0]) if latest_proposal else None,
@@ -420,6 +431,7 @@ def get_decision_trail(
         can_send_to_broker=final_decision.can_send_to_broker
         if final_decision is not None
         else None,
+        allocation_decision=_latest_allocation_decision(context),
         analyst_roster=_analyst_roster(run=run, symbol=normalized_symbol),
         selected_stage_id=stages[0].id,
         stages=stages,
@@ -501,6 +513,7 @@ def get_ui_risk(
     return UiRiskResponse(
         safety=_safety(settings),
         money_management=money_management_metadata(settings),
+        allocation=_allocation_dashboard_payload(session=session, settings=settings),
         latest_risk_reviews=[_risk_review_payload(session, review) for review in reviews],
         hard_rule_results=hard_rules,
         persona_reviews=persona_reviews,
@@ -517,6 +530,7 @@ def get_ui_portfolio(
 ) -> UiPortfolioResponse:
     settings: Settings = request.app.state.settings
     execution_repo = ExecutionRepository(session)
+    latest_run_rows = PaperRunRepository(session).list(limit=1)
     account = execution_repo.latest_account_by_portfolio(
         portfolio_id=settings.taurus_paper_portfolio_id,
     )
@@ -548,6 +562,13 @@ def get_ui_portfolio(
     return UiPortfolioResponse(
         safety=_safety(settings),
         money_management=money_management_metadata(settings),
+        allocation=_allocation_dashboard_payload(
+            session=session,
+            settings=settings,
+            account=account_payload,
+            positions=positions,
+            latest_run=latest_run_rows[0] if latest_run_rows else None,
+        ),
         monitor_status=_monitor_status(session, settings),
         latest_account=account_payload,
         positions=positions,
@@ -1234,9 +1255,18 @@ def _monitor_enriched_positions(
     positions: list[Any],
 ) -> list[dict[str, Any]]:
     research_repo = ResearchRepository(session)
+    allocation_by_symbol = _latest_allocation_decisions_by_symbol(session, settings)
+    core_sleeve = _core_sleeve_metadata(settings)
     enriched: list[dict[str, Any]] = []
     for position in positions:
         payload = _payload(position)
+        payload.update(
+            _position_allocation_labels(
+                symbol=position.symbol,
+                allocation_decision=allocation_by_symbol.get(position.symbol.upper()),
+                core_sleeve=core_sleeve,
+            )
+        )
         latest_snapshot = session.scalar(
             select(MarketPriceSnapshotModel)
             .where(
@@ -1301,6 +1331,449 @@ def _monitor_enriched_positions(
     return enriched
 
 
+def _allocation_dashboard_payload(
+    *,
+    session: Session,
+    settings: Settings,
+    account: dict[str, Any] | None = None,
+    positions: list[dict[str, Any]] | None = None,
+    latest_run: PaperRunModel | None = None,
+) -> dict[str, Any]:
+    metadata = money_management_metadata(settings)
+    if not metadata.get("enabled"):
+        return {
+            "enabled": False,
+            "config_path": metadata.get("config_path"),
+            "summary_metrics": [],
+            "sleeves": [],
+            "core_basket": _empty_core_basket(),
+            "cash": {},
+            "open_risk": {},
+            "latest_decisions": [],
+            "drawdown_governors": {},
+        }
+
+    execution_repo = ExecutionRepository(session)
+    account_payload = account
+    if account_payload is None:
+        account_row = execution_repo.latest_account_by_portfolio(
+            portfolio_id=settings.taurus_paper_portfolio_id,
+        )
+        account_payload = _payload(account_row) if account_row is not None else None
+
+    position_payloads = positions
+    if position_payloads is None:
+        allocation_by_symbol = _latest_allocation_decisions_by_symbol(session, settings)
+        core_sleeve = _core_sleeve_metadata(settings)
+        position_payloads = []
+        for row in execution_repo.latest_open_positions_by_portfolio(
+            portfolio_id=settings.taurus_paper_portfolio_id,
+        ):
+            payload = _payload(row)
+            payload.update(
+                _position_allocation_labels(
+                    symbol=row.symbol,
+                    allocation_decision=allocation_by_symbol.get(row.symbol.upper()),
+                    core_sleeve=core_sleeve,
+                )
+            )
+            position_payloads.append(payload)
+
+    if latest_run is None:
+        latest_runs = PaperRunRepository(session).list(limit=1)
+        latest_run = latest_runs[0] if latest_runs else None
+
+    policy = metadata.get("policy") if isinstance(metadata.get("policy"), dict) else {}
+    nav_inr = _decimal_or_none(
+        account_payload.get("equity_inr") if account_payload else None
+    ) or Decimal(str(settings.taurus_initial_capital_inr))
+    available_cash = _decimal_or_none(
+        account_payload.get("available_cash_inr") if account_payload else None
+    ) or nav_inr
+    allocation_decisions = _latest_allocation_decisions(session, settings, limit=25)
+    sleeves = _sleeve_allocation_rows(
+        policy=policy,
+        nav_inr=nav_inr,
+        positions=position_payloads,
+        allocation_decisions=allocation_decisions,
+    )
+    cash = _cash_allocation_payload(
+        policy=policy,
+        nav_inr=nav_inr,
+        available_cash=available_cash,
+    )
+    open_risk = _open_risk_payload(
+        policy=policy,
+        nav_inr=nav_inr,
+        allocation_decisions=allocation_decisions,
+    )
+    core_basket = _core_basket_payload(latest_run, nav_inr=nav_inr)
+    drawdown_governors = _drawdown_governor_payload(
+        metadata=metadata,
+        allocation_decisions=allocation_decisions,
+    )
+    return _json_safe(
+        {
+            "enabled": True,
+            "config_path": metadata.get("config_path"),
+            "policy_version": policy.get("policy_version"),
+            "summary_metrics": [
+                {
+                    "label": "Sleeves",
+                    "value": len(sleeves),
+                    "tone": "neutral",
+                },
+                {
+                    "label": "Cash buffer",
+                    "value": cash.get("current_cash_pct_nav"),
+                    "unit": "%",
+                    "tone": "success"
+                    if _decimal_or_none(cash.get("cash_surplus_inr")) is not None
+                    and _decimal_or_none(cash.get("cash_surplus_inr")) >= 0
+                    else "caution",
+                },
+                {
+                    "label": "Undeployed capacity",
+                    "value": cash.get("undeployed_capacity_inr"),
+                    "unit": "INR",
+                    "tone": "neutral",
+                },
+                {
+                    "label": "Open risk used",
+                    "value": open_risk.get("used_pct_limit"),
+                    "unit": "%",
+                    "tone": "caution"
+                    if (_decimal_or_none(open_risk.get("used_pct_limit")) or Decimal("0"))
+                    > Decimal("80")
+                    else "neutral",
+                },
+            ],
+            "sleeves": sleeves,
+            "core_basket": core_basket,
+            "cash": cash,
+            "open_risk": open_risk,
+            "latest_decisions": allocation_decisions[:10],
+            "drawdown_governors": drawdown_governors,
+        }
+    )
+
+
+def _latest_allocation_decision(context: dict[str, Any]) -> dict[str, Any] | None:
+    for key in ("final_decision", "risk_review", "trader_proposal"):
+        row = context.get(key)
+        if row is None:
+            continue
+        decision = _allocation_decision_from_payload(_payload(row))
+        if decision is not None:
+            return decision
+    return None
+
+
+def _latest_allocation_decisions_by_symbol(
+    session: Session,
+    settings: Settings,
+) -> dict[str, dict[str, Any]]:
+    decisions: dict[str, dict[str, Any]] = {}
+    for decision in _latest_allocation_decisions(session, settings, limit=200):
+        symbol = str(decision.get("symbol") or "").upper()
+        if symbol and symbol not in decisions:
+            decisions[symbol] = decision
+    return decisions
+
+
+def _latest_allocation_decisions(
+    session: Session,
+    settings: Settings,
+    *,
+    limit: int,
+) -> list[dict[str, Any]]:
+    decisions: list[dict[str, Any]] = []
+    for proposal in ResearchRepository(session).list_trader_proposals(
+        portfolio_id=settings.taurus_paper_portfolio_id,
+        limit=limit,
+    ):
+        payload = _payload(proposal)
+        decision = _allocation_decision_from_payload(payload)
+        if decision is None:
+            continue
+        decisions.append(
+            _json_safe(
+                {
+                    **decision,
+                    "run_id": proposal.run_id,
+                    "proposal_id": proposal.proposal_id,
+                    "as_of": proposal.as_of,
+                    "lifecycle_trigger": proposal.lifecycle_trigger,
+                    "evaluation_mode": proposal.evaluation_mode,
+                }
+            )
+        )
+    return decisions
+
+
+def _allocation_decision_from_payload(payload: dict[str, Any]) -> dict[str, Any] | None:
+    raw = payload.get("allocation_decision")
+    if not isinstance(raw, dict):
+        return None
+    return _json_safe(raw)
+
+
+def _core_sleeve_metadata(settings: Settings) -> dict[str, Any] | None:
+    if not settings.taurus_money_management_enabled:
+        return None
+    metadata = money_management_metadata(settings)
+    policy = metadata.get("policy")
+    if not isinstance(policy, dict):
+        return None
+    core_symbols = {str(symbol).upper() for symbol in policy.get("core_symbols", [])}
+    for sleeve in policy.get("sleeves", []):
+        if isinstance(sleeve, dict) and sleeve.get("sleeve_id") == "core_shariah":
+            return {
+                "sleeve_id": "core_shariah",
+                "sleeve_name": sleeve.get("name"),
+                "strategy_name": "core_shariah_basket_v1",
+                "core_symbols": core_symbols,
+            }
+    return None
+
+
+def _position_allocation_labels(
+    *,
+    symbol: str,
+    allocation_decision: dict[str, Any] | None,
+    core_sleeve: dict[str, Any] | None,
+) -> dict[str, Any]:
+    if allocation_decision is not None:
+        return {
+            "sleeve_id": allocation_decision.get("sleeve_id"),
+            "sleeve_name": allocation_decision.get("sleeve_name"),
+            "strategy_name": allocation_decision.get("strategy_name"),
+            "allocation_status": allocation_decision.get("status"),
+            "binding_constraint": allocation_decision.get("binding_constraint"),
+        }
+    if core_sleeve is not None and symbol.upper() in core_sleeve.get("core_symbols", set()):
+        return {
+            "sleeve_id": core_sleeve.get("sleeve_id"),
+            "sleeve_name": core_sleeve.get("sleeve_name"),
+            "strategy_name": core_sleeve.get("strategy_name"),
+            "allocation_status": "core_position",
+            "binding_constraint": None,
+        }
+    return {
+        "sleeve_id": None,
+        "sleeve_name": None,
+        "strategy_name": None,
+        "allocation_status": "unassigned",
+        "binding_constraint": None,
+    }
+
+
+def _sleeve_allocation_rows(
+    *,
+    policy: dict[str, Any],
+    nav_inr: Decimal,
+    positions: list[dict[str, Any]],
+    allocation_decisions: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    sleeves = [sleeve for sleeve in policy.get("sleeves", []) if isinstance(sleeve, dict)]
+    estimated_risk_by_sleeve: dict[str, Decimal] = {}
+    for decision in allocation_decisions:
+        sleeve_id = str(decision.get("sleeve_id") or "")
+        if not sleeve_id:
+            continue
+        estimated_risk_by_sleeve[sleeve_id] = estimated_risk_by_sleeve.get(
+            sleeve_id,
+            Decimal("0"),
+        ) + (_decimal_or_none(decision.get("estimated_risk_inr")) or Decimal("0"))
+
+    for sleeve in sleeves:
+        sleeve_id = str(sleeve.get("sleeve_id") or "")
+        target_pct = _decimal_or_none(sleeve.get("target_weight_pct")) or Decimal("0")
+        sleeve_positions = [
+            position
+            for position in positions
+            if str(position.get("sleeve_id") or "") == sleeve_id
+        ]
+        current_exposure = sum(
+            (
+                _decimal_or_none(position.get("market_value_inr")) or Decimal("0")
+                for position in sleeve_positions
+            ),
+            Decimal("0"),
+        )
+        current_pct = _pct_of_nav(current_exposure, nav_inr)
+        target_notional = _pct_to_nav(target_pct, nav_inr)
+        drift_pct = (current_pct - target_pct).quantize(Decimal("0.0001"))
+        rows.append(
+            {
+                "sleeve_id": sleeve_id,
+                "sleeve_name": sleeve.get("name"),
+                "role": sleeve.get("role"),
+                "target_weight_pct": target_pct,
+                "target_notional_inr": target_notional,
+                "current_weight_pct": current_pct,
+                "current_exposure_inr": current_exposure,
+                "drift_pct_nav": drift_pct,
+                "drift_notional_inr": current_exposure - target_notional,
+                "open_position_count": len(sleeve_positions),
+                "symbols": sorted(
+                    str(position.get("symbol") or "").upper()
+                    for position in sleeve_positions
+                    if position.get("symbol")
+                ),
+                "open_trade_risk_inr": estimated_risk_by_sleeve.get(sleeve_id, Decimal("0")),
+                "new_entry_risk_cap_pct_nav": sleeve.get("new_entry_risk_cap_pct_nav"),
+            }
+        )
+    return rows
+
+
+def _cash_allocation_payload(
+    *,
+    policy: dict[str, Any],
+    nav_inr: Decimal,
+    available_cash: Decimal,
+) -> dict[str, Any]:
+    target_pct = _decimal_or_none(policy.get("cash_buffer_target_pct")) or Decimal("0")
+    target_cash = _pct_to_nav(target_pct, nav_inr)
+    surplus = available_cash - target_cash
+    return {
+        "target_cash_pct_nav": target_pct,
+        "target_cash_inr": target_cash,
+        "available_cash_inr": available_cash,
+        "current_cash_pct_nav": _pct_of_nav(available_cash, nav_inr),
+        "cash_surplus_inr": surplus,
+        "undeployed_capacity_inr": max(surplus, Decimal("0")),
+    }
+
+
+def _open_risk_payload(
+    *,
+    policy: dict[str, Any],
+    nav_inr: Decimal,
+    allocation_decisions: list[dict[str, Any]],
+) -> dict[str, Any]:
+    trade_risk = policy.get("trade_risk") if isinstance(policy.get("trade_risk"), dict) else {}
+    limit_pct = _decimal_or_none(
+        trade_risk.get("max_total_open_trade_risk_pct_nav")
+    ) or Decimal("0")
+    limit_inr = _pct_to_nav(limit_pct, nav_inr)
+    used_inr = sum(
+        (
+            _decimal_or_none(decision.get("estimated_risk_inr")) or Decimal("0")
+            for decision in allocation_decisions
+            if decision.get("status") != "rejected"
+        ),
+        Decimal("0"),
+    )
+    return {
+        "used_risk_inr": used_inr,
+        "limit_risk_inr": limit_inr,
+        "limit_pct_nav": limit_pct,
+        "remaining_risk_inr": max(limit_inr - used_inr, Decimal("0")),
+        "used_pct_limit": (used_inr * Decimal("100") / limit_inr).quantize(Decimal("0.0001"))
+        if limit_inr > 0
+        else Decimal("0"),
+    }
+
+
+def _core_basket_payload(
+    latest_run: PaperRunModel | None,
+    *,
+    nav_inr: Decimal,
+) -> dict[str, Any]:
+    if latest_run is None:
+        return _empty_core_basket()
+    artifacts = latest_run.artifacts or {}
+    money_management = artifacts.get("money_management")
+    if not isinstance(money_management, dict):
+        return _empty_core_basket()
+    core = money_management.get("core_shariah_basket")
+    if not isinstance(core, dict):
+        return _empty_core_basket()
+    target_weights = core.get("target_weights") if isinstance(core.get("target_weights"), dict) else {}
+    current_weights = core.get("current_weights") if isinstance(core.get("current_weights"), dict) else {}
+    symbols = sorted(
+        {
+            *[str(symbol).upper() for symbol in target_weights],
+            *[str(symbol).upper() for symbol in current_weights],
+        }
+    )
+    composition = []
+    for symbol in symbols:
+        target_pct = _decimal_or_none(target_weights.get(symbol)) or Decimal("0")
+        current_pct = _decimal_or_none(current_weights.get(symbol)) or Decimal("0")
+        composition.append(
+            {
+                "symbol": symbol,
+                "target_weight_pct_nav": target_pct,
+                "current_weight_pct_nav": current_pct,
+                "drift_pct_nav": (current_pct - target_pct).quantize(Decimal("0.0001")),
+                "target_notional_inr": _pct_to_nav(target_pct, nav_inr),
+                "current_notional_inr": _pct_to_nav(current_pct, nav_inr),
+            }
+        )
+    return _json_safe(
+        {
+            "available": True,
+            "run_id": latest_run.run_id,
+            "strategy_name": core.get("strategy_name"),
+            "sleeve_id": core.get("sleeve_id"),
+            "as_of_date": core.get("as_of_date"),
+            "selected_symbols": core.get("selected_symbols", []),
+            "candidate_count": core.get("candidate_count"),
+            "drift": core.get("drift", {}),
+            "rebalance": core.get("rebalance", {}),
+            "composition": composition,
+            "rejected_candidates": core.get("rejected_candidates", []),
+        }
+    )
+
+
+def _empty_core_basket() -> dict[str, Any]:
+    return {
+        "available": False,
+        "selected_symbols": [],
+        "composition": [],
+        "rejected_candidates": [],
+        "drift": {},
+        "rebalance": {},
+    }
+
+
+def _drawdown_governor_payload(
+    *,
+    metadata: dict[str, Any],
+    allocation_decisions: list[dict[str, Any]],
+) -> dict[str, Any]:
+    state = metadata.get("state") if isinstance(metadata.get("state"), dict) else {}
+    policy = metadata.get("policy") if isinstance(metadata.get("policy"), dict) else {}
+    latest_reasons: list[str] = []
+    for decision in allocation_decisions:
+        raw_reasons = decision.get("governor_reasons")
+        if isinstance(raw_reasons, list):
+            latest_reasons.extend(str(reason) for reason in raw_reasons)
+    return {
+        "portfolio_drawdown_pct": state.get("portfolio_drawdown_pct"),
+        "portfolio_governor_reasons": state.get("portfolio_governor_reasons", []),
+        "policy_thresholds": policy.get("drawdown_governors", []),
+        "sleeve_statuses": state.get("sleeve_statuses", []),
+        "latest_decision_governor_reasons": sorted(set(latest_reasons)),
+        "fractional_kelly": state.get("fractional_kelly", {}),
+    }
+
+
+def _pct_to_nav(percent: Decimal, nav_inr: Decimal) -> Decimal:
+    return (nav_inr * percent / Decimal("100")).quantize(Decimal("0.01"))
+
+
+def _pct_of_nav(notional_inr: Decimal, nav_inr: Decimal) -> Decimal:
+    if nav_inr <= 0:
+        return Decimal("0.0000")
+    return (notional_inr * Decimal("100") / nav_inr).quantize(Decimal("0.0001"))
+
+
 def _risk_review_payload(session: Session, review: RiskReviewModel) -> dict[str, Any]:
     payload = _payload(review)
     proposal = ResearchRepository(session).get_trader_proposal(review.proposal_id)
@@ -1324,6 +1797,23 @@ def _risk_review_payload(session: Session, review: RiskReviewModel) -> dict[str,
                 ),
             }
         )
+        allocation_decision = _allocation_decision_from_payload(proposal_payload)
+        if allocation_decision is not None:
+            payload.update(
+                {
+                    "allocation_decision": allocation_decision,
+                    "sleeve_id": allocation_decision.get("sleeve_id"),
+                    "sleeve_name": allocation_decision.get("sleeve_name"),
+                    "strategy_name": allocation_decision.get("strategy_name"),
+                    "allocation_status": allocation_decision.get("status"),
+                    "binding_constraint": allocation_decision.get("binding_constraint"),
+                    "estimated_risk_inr": allocation_decision.get("estimated_risk_inr"),
+                    "allowed_risk_inr": allocation_decision.get("allowed_risk_inr"),
+                    "governor_scale_factor": allocation_decision.get(
+                        "governor_scale_factor"
+                    ),
+                }
+            )
     return payload
 
 
@@ -1628,6 +2118,8 @@ def _proposal_summary(proposal: TraderProposalModel | None) -> str:
 def _proposal_metrics(proposal: TraderProposalModel | None) -> dict[str, Any]:
     if proposal is None:
         return {}
+    payload = _payload(proposal)
+    allocation_decision = _allocation_decision_from_payload(payload)
     return {
         "action": proposal.action,
         "portfolio_id": proposal.portfolio_id,
@@ -1641,15 +2133,26 @@ def _proposal_metrics(proposal: TraderProposalModel | None) -> dict[str, Any]:
         "order_type": proposal.order_type,
         "stop_loss_pct": _decimal_to_number(proposal.stop_loss_pct),
         "take_profit_pct": _decimal_to_number(proposal.take_profit_pct),
-        "latest_price_inr": _payload(proposal).get("latest_price_inr"),
-        "stop_loss_price_inr": _payload(proposal).get("stop_loss_price_inr"),
-        "take_profit_price_inr": _payload(proposal).get("take_profit_price_inr"),
-        "trigger_threshold_price_inr": _payload(proposal).get(
-            "trigger_threshold_price_inr"
-        ),
-        "market_session_date": _payload(proposal).get("market_session_date"),
-        "quote_snapshot_id": _payload(proposal).get("quote_snapshot_id"),
+        "latest_price_inr": payload.get("latest_price_inr"),
+        "stop_loss_price_inr": payload.get("stop_loss_price_inr"),
+        "take_profit_price_inr": payload.get("take_profit_price_inr"),
+        "trigger_threshold_price_inr": payload.get("trigger_threshold_price_inr"),
+        "market_session_date": payload.get("market_session_date"),
+        "quote_snapshot_id": payload.get("quote_snapshot_id"),
         "position_management_summary": proposal.position_management_summary,
+        "allocation_status": allocation_decision.get("status")
+        if allocation_decision
+        else None,
+        "sleeve_id": allocation_decision.get("sleeve_id") if allocation_decision else None,
+        "strategy_name": allocation_decision.get("strategy_name")
+        if allocation_decision
+        else None,
+        "binding_constraint": allocation_decision.get("binding_constraint")
+        if allocation_decision
+        else None,
+        "estimated_risk_inr": allocation_decision.get("estimated_risk_inr")
+        if allocation_decision
+        else None,
     }
 
 
@@ -1665,6 +2168,7 @@ def _risk_summary(review: RiskReviewModel | None) -> str:
 def _risk_metrics(review: RiskReviewModel | None) -> dict[str, Any]:
     if review is None:
         return {}
+    allocation_decision = _allocation_decision_from_payload(_payload(review))
     return {
         "status": review.status,
         "requested_position_pct_nav": _decimal_to_number(review.requested_position_pct_nav),
@@ -1672,6 +2176,16 @@ def _risk_metrics(review: RiskReviewModel | None) -> dict[str, Any]:
         "hard_rule_count": len(review.hard_rule_results),
         "persona_review_count": len(review.persona_reviews),
         "can_send_to_broker": review.can_send_to_broker,
+        "allocation_status": allocation_decision.get("status")
+        if allocation_decision
+        else None,
+        "sleeve_id": allocation_decision.get("sleeve_id") if allocation_decision else None,
+        "binding_constraint": allocation_decision.get("binding_constraint")
+        if allocation_decision
+        else None,
+        "estimated_risk_inr": allocation_decision.get("estimated_risk_inr")
+        if allocation_decision
+        else None,
     }
 
 
@@ -1687,12 +2201,20 @@ def _final_summary(decision: FinalDecisionModel | None) -> str:
 def _final_metrics(decision: FinalDecisionModel | None) -> dict[str, Any]:
     if decision is None:
         return {}
+    allocation_decision = _allocation_decision_from_payload(_payload(decision))
     return {
         "status": decision.status,
         "final_action": decision.final_action,
         "approved_quantity": decision.approved_quantity,
         "approved_position_pct_nav": _decimal_to_number(decision.approved_position_pct_nav),
         "can_send_to_broker": decision.can_send_to_broker,
+        "allocation_status": allocation_decision.get("status")
+        if allocation_decision
+        else None,
+        "sleeve_id": allocation_decision.get("sleeve_id") if allocation_decision else None,
+        "binding_constraint": allocation_decision.get("binding_constraint")
+        if allocation_decision
+        else None,
     }
 
 

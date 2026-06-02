@@ -25,6 +25,7 @@ import {
   jsonArray,
   objectEntries,
 } from "../utils/format";
+import { AllocationDecisionPanel } from "./AllocationPanels";
 import { PageScaffold } from "./PageScaffold";
 
 export function DecisionTrailPage() {
@@ -123,6 +124,8 @@ export function DecisionTrailPage() {
           </DataPanel>
 
           <AnalystRosterPanel roster={trailQuery.data.analyst_roster} />
+
+          <AllocationDecisionPanel allocationDecision={trailQuery.data.allocation_decision} />
 
           {selectedStage && <StageDetail stage={selectedStage} />}
 
@@ -295,6 +298,8 @@ function StageArtifactTable({ stage }: { stage: UiTimelineStage }) {
           { key: "action", header: "Action", render: (row) => getString(row, "action") || "-" },
           { key: "lifecycle", header: "Lifecycle", render: (row) => getString(row, "lifecycle_trigger") || "-" },
           { key: "mode", header: "Mode", render: (row) => getString(row, "evaluation_mode") || "-" },
+          { key: "sleeve", header: "Sleeve", render: (row) => getString(row, "sleeve_name") || getString(row, "sleeve_id") || "-" },
+          { key: "constraint", header: "Constraint", render: (row) => getString(row, "binding_constraint") || "None" },
           { key: "ltp", header: "Quote LTP", align: "right", render: (row) => formatInr(getPrimitive(row, "latest_price_inr")) },
           { key: "threshold", header: "Threshold", align: "right", render: (row) => formatInr(getPrimitive(row, "trigger_threshold_price_inr")) },
           { key: "qty", header: "Current qty", align: "right", render: (row) => formatNumber(getPrimitive(row, "current_position_quantity")) },

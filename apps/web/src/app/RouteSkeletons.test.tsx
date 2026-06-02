@@ -34,6 +34,11 @@ const safety = {
   alert_provider: "mock",
 };
 
+const disabledAllocation = {
+  enabled: false,
+  config_path: "configs/portfolio/money_management_v1.yaml",
+};
+
 const payloads = {
   overview: {
     safety,
@@ -42,6 +47,7 @@ const payloads = {
       provider: "kite",
       trigger_count_today: 0,
     },
+    allocation: disabledAllocation,
     latest_account: null,
     latest_run: runSummary,
     latest_final_decision: null,
@@ -80,6 +86,7 @@ const payloads = {
     final_status: "APPROVED_FOR_PAPER",
     final_action: "BUY",
     can_send_to_broker: true,
+    allocation_decision: null,
     selected_stage_id: "inputs",
     stages: [],
     warnings: [],
@@ -95,6 +102,8 @@ const payloads = {
   },
   risk: {
     safety,
+    money_management: { enabled: false },
+    allocation: disabledAllocation,
     latest_risk_reviews: [],
     hard_rule_results: [],
     persona_reviews: [],
@@ -103,6 +112,8 @@ const payloads = {
   },
   portfolio: {
     safety,
+    money_management: { enabled: false },
+    allocation: disabledAllocation,
     monitor_status: {
       enabled: false,
       provider: "kite",

@@ -13,12 +13,14 @@ import { ErrorState, LoadingState } from "../components/States";
 import { StatusBadge } from "../components/StatusBadge";
 import {
   formatId,
+  formatInr,
   formatNumber,
   formatPercent,
   formatTimestamp,
   getPrimitive,
   getString,
 } from "../utils/format";
+import { AllocationPanels } from "./AllocationPanels";
 import { emptyDataCommands, PageScaffold } from "./PageScaffold";
 
 export function RiskPage() {
@@ -54,6 +56,8 @@ export function RiskPage() {
             )}
           </div>
 
+          <AllocationPanels allocation={riskQuery.data.allocation} showCore={false} />
+
           {riskQuery.data.latest_risk_reviews.length === 0 ? (
             <EmptyState commands={emptyDataCommands} message="No risk reviews are available." title="No risk data" />
           ) : (
@@ -86,8 +90,11 @@ export function RiskPage() {
                   { key: "action", header: "Action", render: (row) => getString(row, "proposal_action") || "-" },
                   { key: "lifecycle", header: "Lifecycle", render: (row) => getString(row, "lifecycle_trigger") || "-" },
                   { key: "mode", header: "Mode", render: (row) => getString(row, "evaluation_mode") || "-" },
+                  { key: "sleeve", header: "Sleeve", render: (row) => getString(row, "sleeve_name") || getString(row, "sleeve_id") || "-" },
+                  { key: "constraint", header: "Constraint", render: (row) => getString(row, "binding_constraint") || "None" },
                   { key: "requested", header: "Requested", align: "right", render: (row) => formatPercent(getPrimitive(row, "requested_position_pct_nav")) },
                   { key: "approved", header: "Approved", align: "right", render: (row) => formatPercent(getPrimitive(row, "approved_position_pct_nav")) },
+                  { key: "risk", header: "Allocation risk", align: "right", render: (row) => formatInr(getPrimitive(row, "estimated_risk_inr")) },
                   { key: "broker", header: "Broker eligible", render: (row) => <StatusBadge label={getPrimitive(row, "can_send_to_broker") ? "Yes" : "No"} status={getPrimitive(row, "can_send_to_broker") ? "APPROVED" : "BLOCKED"} size="sm" /> },
                   { key: "asof", header: "As of", render: (row) => formatTimestamp(getString(row, "as_of")) },
                 ]}

@@ -57,6 +57,7 @@ def test_ui_aggregate_endpoints_return_completed_run_trail(tmp_path: Path) -> No
     assert overview.json()["safety"]["broker_provider"] == "paper"
     assert overview.json()["safety"]["llm_provider"] == "lmstudio"
     assert overview.json()["safety"]["llm_model_version"] == "lmstudio:local-model"
+    assert overview.json()["allocation"]["enabled"] is False
     assert overview.json()["latest_run"]["run_id"] == run.run_id
     assert overview.json()["latest_trader_proposal"]["evaluation_mode"] == "after_close"
     assert overview.json()["latest_trader_proposal"]["lifecycle_trigger"] == "new_entry"
@@ -105,10 +106,12 @@ def test_ui_aggregate_endpoints_return_completed_run_trail(tmp_path: Path) -> No
         "enabled": False,
         "config_path": "configs/portfolio/money_management_v1.yaml",
     }
+    assert risk.json()["allocation"]["enabled"] is False
 
     assert portfolio.status_code == 200
     assert portfolio.json()["latest_account"]["run_id"] == run.run_id
     assert portfolio.json()["money_management"] == risk.json()["money_management"]
+    assert portfolio.json()["allocation"]["enabled"] is False
     assert len(portfolio.json()["orders"]) == 1
     assert len(portfolio.json()["fills"]) == 2
 
@@ -174,9 +177,11 @@ def test_ui_risk_and_portfolio_include_money_management_metadata_when_enabled(
 
     risk = client.get("/ui/risk")
     portfolio = client.get("/ui/portfolio")
+    overview = client.get("/ui/overview")
 
     assert risk.status_code == 200
     assert portfolio.status_code == 200
+    assert overview.status_code == 200
     risk_money_management = risk.json()["money_management"]
     assert risk_money_management == portfolio.json()["money_management"]
     assert risk_money_management["enabled"] is True
@@ -192,6 +197,55 @@ def test_ui_risk_and_portfolio_include_money_management_metadata_when_enabled(
     assert state["sleeve_statuses"][0]["sleeve_id"] == "core_shariah"
     assert state["sleeve_statuses"][0]["governor_reasons"] == []
     assert state["sleeve_statuses"][0]["fractional_kelly_ready"] is False
+    allocation = risk.json()["allocation"]
+    assert allocation == portfolio.json()["allocation"]
+    assert overview.json()["allocation"]["enabled"] is True
+    assert allocation["enabled"] is True
+    assert allocation["policy_version"] == "ui_test_policy"
+    assert allocation["cash"]["target_cash_pct_nav"] == 5
+    assert allocation["cash"]["undeployed_capacity_inr"] == 950000
+    assert allocation["open_risk"]["limit_pct_nav"] == 5
+    assert allocation["open_risk"]["used_risk_inr"] == 0
+    assert allocation["sleeves"][0]["sleeve_id"] == "core_shariah"
+    assert allocation["sleeves"][0]["target_weight_pct"] == 95
+    assert allocation["sleeves"][0]["open_position_count"] == 0
+    assert allocation["core_basket"]["available"] is False
+    assert allocation["latest_decisions"] == []
+    assert allocation["drawdown_governors"]["portfolio_drawdown_pct"] == "0.0000"
+
+
+def test_ui_decision_trail_includes_allocation_decision_when_enabled(
+    tmp_path: Path,
+) -> None:
+    policy_path = _write_money_management_policy(tmp_path)
+    settings = Settings(
+        taurus_alert_provider="mock",
+        taurus_graph_enabled=False,
+        taurus_graph_risk_enabled=False,
+        taurus_enabled_analysts="technical",
+        taurus_llm_model="",
+        taurus_paper_partial_fill_threshold=1,
+        taurus_money_management_enabled=True,
+        taurus_money_management_config_path=str(policy_path),
+    )
+    run = PaperRunService(settings).run_once(symbols=["INFY"])
+    client = TestClient(create_app(settings))
+
+    overview = client.get("/ui/overview")
+    trail = client.get(f"/ui/runs/{run.run_id}/symbols/INFY/decision-trail")
+
+    assert overview.status_code == 200
+    assert overview.json()["allocation"]["enabled"] is True
+    assert overview.json()["allocation"]["latest_decisions"][0]["symbol"] == "INFY"
+    assert trail.status_code == 200
+    allocation_decision = trail.json()["allocation_decision"]
+    assert allocation_decision["symbol"] == "INFY"
+    assert allocation_decision["sleeve_id"] == "unmapped"
+    assert allocation_decision["status"] == "unchanged"
+    assert allocation_decision["binding_constraint"] == "strategy_unmapped"
+    proposal_stage = _find_stage(trail.json(), "trader_proposal")
+    assert proposal_stage["metrics"]["sleeve_id"] == "unmapped"
+    assert proposal_stage["metrics"]["binding_constraint"] == "strategy_unmapped"
 
 
 def test_ui_aggregate_endpoints_show_partial_failure_and_404s(tmp_path: Path) -> None:

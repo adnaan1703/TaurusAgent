@@ -21,6 +21,7 @@ import {
   getString,
   objectEntries,
 } from "../utils/format";
+import { AllocationPanels } from "./AllocationPanels";
 import { emptyDataCommands, PageScaffold } from "./PageScaffold";
 
 export function PortfolioPage() {
@@ -70,10 +71,14 @@ export function PortfolioPage() {
             <KeyValueGrid items={objectEntries(portfolioQuery.data.latest_account)} />
           </DataPanel>
 
+          <AllocationPanels allocation={portfolioQuery.data.allocation} />
+
           <DataPanel title="Positions">
             <DataTable
               columns={[
                 { key: "symbol", header: "Symbol", render: (row) => getString(row, "symbol") || "-" },
+                { key: "sleeve", header: "Sleeve", render: (row) => getString(row, "sleeve_name") || getString(row, "sleeve_id") || "-" },
+                { key: "strategy", header: "Strategy", render: (row) => getString(row, "strategy_name") || "-" },
                 { key: "qty", header: "Qty", align: "right", render: (row) => formatNumber(getPrimitive(row, "quantity")) },
                 { key: "avg", header: "Average cost", align: "right", render: (row) => formatInr(getPrimitive(row, "average_cost_inr")) },
                 { key: "last", header: "Last price", align: "right", render: (row) => formatInr(getPrimitive(row, "last_price_inr")) },
