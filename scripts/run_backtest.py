@@ -30,7 +30,8 @@ def run_mock_backtest(settings: Settings | None = None) -> BacktestResult:
         seed=42,
         initial_capital_inr=Decimal(settings.taurus_initial_capital_inr),
         max_open_positions=settings.taurus_max_open_positions,
-        target_positions=strategy_config.target_positions,
+        target_positions=strategy_config.target_positions
+        or settings.taurus_max_open_positions,
         lookback_days=strategy_config.lookback_days,
         rebalance_every_days=strategy_config.rebalance_every_days,
         timeframe=settings.taurus_timeframe,

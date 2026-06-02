@@ -95,7 +95,7 @@ class BacktestEngine:
             StrategyConfig(
                 strategy_name=self.config.strategy_name,
                 strategy_type=self.config.strategy_type,
-                target_positions=min(self.config.target_positions, self.config.max_open_positions),
+                target_positions=self.config.target_positions,
                 lookback_days=self.config.lookback_days,
                 rebalance_every_days=self.config.rebalance_every_days,
                 parameters=dict(self.config.strategy_parameters),
@@ -166,12 +166,20 @@ class BacktestEngine:
                         features_by_symbol=features_by_symbol,
                         current_positions=current_symbols,
                         graph_signals_by_symbol=graph_signals_by_symbol,
+                        target_limit=min(
+                            self.config.target_positions,
+                            self.config.max_open_positions,
+                        ),
                     )
                 else:
                     targets, generated_signals = strategy.select_targets(
                         trade_date=trade_date,
                         features_by_symbol=features_by_symbol,
                         current_positions=current_symbols,
+                        target_limit=min(
+                            self.config.target_positions,
+                            self.config.max_open_positions,
+                        ),
                     )
                 signals.extend(_signal_model(run_id, signal) for signal in generated_signals)
                 cash, new_orders, new_fills, new_closed_pnl = self._rebalance(

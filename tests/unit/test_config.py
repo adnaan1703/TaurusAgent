@@ -8,6 +8,7 @@ from pydantic import ValidationError
 
 from taurus_core.config import DEFAULT_DATABASE_URL, Settings
 from taurus_core.portfolio import load_money_management_policy
+from taurus_core.strategies.config import load_strategy_config
 
 
 def test_default_settings_are_safe() -> None:
@@ -198,6 +199,24 @@ def test_money_management_policy_loads_default_config() -> None:
     assert "core_symbols" not in metadata
     assert all("core_symbols" not in sleeve for sleeve in metadata["sleeves"])
     assert policy.limits.max_stock_hard_cap_pct_nav >= policy.limits.max_stock_pct_nav
+
+
+def test_missing_strategy_target_positions_stays_unset(tmp_path: Path) -> None:
+    path = tmp_path / "strategy.yaml"
+    path.write_text(
+        "strategy_name: ranking_test\n"
+        "strategy_type: moving_average_crossover\n"
+        "lookback_days: 60\n"
+        "rebalance_every_days: 21\n"
+        "parameters:\n"
+        "  fast_window: 1\n"
+        "  slow_window: 2\n",
+        encoding="utf-8",
+    )
+
+    config = load_strategy_config(path)
+
+    assert config.target_positions is None
 
 
 @pytest.mark.parametrize(

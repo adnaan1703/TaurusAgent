@@ -1,6 +1,5 @@
 strategy_name: moving_average_crossover_v1
 strategy_type: moving_average_crossover
-target_positions: 3
 lookback_days: 60
 rebalance_every_days: 21
 parameters:

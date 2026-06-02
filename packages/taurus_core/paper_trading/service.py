@@ -624,8 +624,14 @@ class PaperRunService:
                 "strategy_name": strategy_config.strategy_name,
                 "strategy_config_path": str(strategy_config.source_path),
                 "strategy_type": strategy_config.strategy_type,
+                "legacy_target_limit": strategy_config.target_positions
+                or self.settings.taurus_max_open_positions,
                 "targets": [],
                 "signals": [],
+                "ranked_candidates": [],
+                "eligible_symbol_count": 0,
+                "ranked_symbol_count": 0,
+                "strategy_score_by_symbol": {},
                 "feature_snapshot_count": 0,
                 "graph_enabled_profile": graph_profile_enabled,
                 "graph_risk_enabled": self.settings.taurus_graph_risk_enabled,
@@ -662,25 +668,43 @@ class PaperRunService:
         select_targets_with_graph_called = graph_profile_enabled and callable(
             select_targets_with_graph
         )
+        legacy_target_limit = (
+            strategy_config.target_positions or self.settings.taurus_max_open_positions
+        )
+        rankings = strategy.rank_universe(
+            trade_date=trade_date,
+            features_by_symbol=snapshots,
+            current_positions=current_positions,
+            graph_signals_by_symbol=graph_signals_by_symbol,
+        )
         if select_targets_with_graph_called:
             targets, signals = select_targets_with_graph(
                 trade_date=trade_date,
                 features_by_symbol=snapshots,
                 current_positions=current_positions,
                 graph_signals_by_symbol=graph_signals_by_symbol,
+                target_limit=legacy_target_limit,
             )
         else:
             targets, signals = strategy.select_targets(
                 trade_date=trade_date,
                 features_by_symbol=snapshots,
                 current_positions=current_positions,
+                target_limit=legacy_target_limit,
             )
         requested = set(symbols)
         selected_symbols = sorted(targets)
+        ranked_candidates = [ranking.to_dict() for ranking in rankings]
+        strategy_score_by_symbol = {
+            ranking.symbol: str(ranking.raw_strategy_score)
+            for ranking in rankings
+            if ranking.raw_strategy_score is not None
+        }
         return {
             "strategy_name": strategy_config.strategy_name,
             "strategy_config_path": str(strategy_config.source_path),
             "strategy_type": strategy_config.strategy_type,
+            "legacy_target_limit": legacy_target_limit,
             "targets": selected_symbols,
             "signals": [
                 {
@@ -694,6 +718,10 @@ class PaperRunService:
                 for signal in signals
                 if signal.symbol in requested or signal.symbol in targets
             ],
+            "ranked_candidates": ranked_candidates,
+            "eligible_symbol_count": sum(1 for ranking in rankings if ranking.is_eligible),
+            "ranked_symbol_count": sum(1 for ranking in rankings if ranking.rank is not None),
+            "strategy_score_by_symbol": strategy_score_by_symbol,
             "feature_snapshot_count": len(snapshots),
             "graph_enabled_profile": graph_profile_enabled,
             "graph_risk_enabled": self.settings.taurus_graph_risk_enabled,
@@ -1037,6 +1065,19 @@ def _strategy_signal_for_symbol(
             **signal,
             "score": score,
         }
+    score_by_symbol = strategy_summary.get("strategy_score_by_symbol")
+    if isinstance(score_by_symbol, dict):
+        raw_score = score_by_symbol.get(normalized)
+        try:
+            score = Decimal(str(raw_score))
+        except Exception:
+            score = None
+        if score is not None:
+            return {
+                "symbol": normalized,
+                "score": score,
+                "source": "strategy_score_by_symbol",
+            }
     return None
 
 

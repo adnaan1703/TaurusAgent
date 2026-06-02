@@ -7,9 +7,11 @@ from typing import Any, Mapping
 from taurus_core.features.store import FeatureSnapshot
 from taurus_core.strategies.base import (
     SignalExplanation,
+    StrategyRanking,
     StrategySignal,
     decimal_param,
     int_param,
+    ranked_symbols,
 )
 
 SCORE_VALUE = Decimal("0.00000001")
@@ -21,11 +23,9 @@ class GraphAwareScoreStrategy:
         self,
         *,
         name: str,
-        target_positions: int,
         parameters: dict[str, object],
     ) -> None:
         self._name = name
-        self.target_positions = target_positions
         self.fast_window = int_param(parameters, "fast_window", 10)
         self.slow_window = int_param(parameters, "slow_window", 30)
         self.technical_weight = decimal_param(parameters, "technical_weight", "1.0")
@@ -47,13 +47,113 @@ class GraphAwareScoreStrategy:
         trade_date: date,
         features_by_symbol: dict[str, FeatureSnapshot],
         current_positions: set[str],
+        target_limit: int | None = None,
     ) -> tuple[set[str], list[StrategySignal]]:
         return self.select_targets_with_graph(
             trade_date=trade_date,
             features_by_symbol=features_by_symbol,
             current_positions=current_positions,
             graph_signals_by_symbol={},
+            target_limit=target_limit,
         )
+
+    def rank_universe(
+        self,
+        *,
+        trade_date: date,
+        features_by_symbol: dict[str, FeatureSnapshot],
+        current_positions: set[str],
+        graph_signals_by_symbol: Mapping[str, Any] | None = None,
+    ) -> list[StrategyRanking]:
+        graph_by_symbol = {
+            key.upper(): value for key, value in (graph_signals_by_symbol or {}).items()
+        }
+        eligible: list[tuple[str, Decimal, FeatureSnapshot, Any | None, list[str]]] = []
+        ineligible: list[StrategyRanking] = []
+        for symbol, snapshot in features_by_symbol.items():
+            graph_signal = graph_by_symbol.get(symbol.upper())
+            score = self._combined_score(snapshot=snapshot, graph_signal=graph_signal)
+            if score is None:
+                ineligible.append(
+                    self._ranking(
+                        trade_date=trade_date,
+                        symbol=symbol,
+                        action_intent="SELL" if symbol in current_positions else "NO_TRADE",
+                        score=None,
+                        rank=None,
+                        eligibility_status="ineligible",
+                        snapshot=snapshot,
+                        graph_signal=graph_signal,
+                        reasons=["Missing technical features or required graph signal"],
+                    )
+                )
+                continue
+            return_20d = snapshot.get("return_20d") or ZERO
+            if score > self.min_combined_score and return_20d >= self.min_return_20d:
+                eligible.append(
+                    (
+                        symbol,
+                        score,
+                        snapshot,
+                        graph_signal,
+                        [
+                            "Graph-aware score passed filters",
+                            f"return_20d={return_20d}",
+                        ],
+                    )
+                )
+            else:
+                ineligible.append(
+                    self._ranking(
+                        trade_date=trade_date,
+                        symbol=symbol,
+                        action_intent="SELL" if symbol in current_positions else "NO_TRADE",
+                        score=score,
+                        rank=None,
+                        eligibility_status="ineligible",
+                        snapshot=snapshot,
+                        graph_signal=graph_signal,
+                        reasons=[
+                            f"combined_score={score}",
+                            f"return_20d={return_20d}",
+                            "Graph-aware filters were not met",
+                        ],
+                    )
+                )
+
+        ranked = sorted(eligible, key=lambda item: (-item[1], item[0]))
+        rankings = [
+            self._ranking(
+                trade_date=trade_date,
+                symbol=symbol,
+                action_intent="HOLD" if symbol in current_positions else "BUY",
+                score=score,
+                rank=index,
+                eligibility_status="eligible",
+                snapshot=snapshot,
+                graph_signal=graph_signal,
+                reasons=[*reasons, f"combined_score={score}"],
+            )
+            for index, (symbol, score, snapshot, graph_signal, reasons) in enumerate(
+                ranked,
+                start=1,
+            )
+        ]
+        for symbol in sorted(current_positions - set(features_by_symbol)):
+            rankings.append(
+                self._ranking(
+                    trade_date=trade_date,
+                    symbol=symbol,
+                    action_intent="SELL",
+                    score=None,
+                    rank=None,
+                    eligibility_status="ineligible",
+                    snapshot=None,
+                    graph_signal=graph_by_symbol.get(symbol.upper()),
+                    reasons=["Missing feature snapshot for current position"],
+                )
+            )
+        return [*rankings, *sorted(ineligible, key=lambda ranking: ranking.symbol)]
 
     def select_targets_with_graph(
         self,
@@ -62,22 +162,21 @@ class GraphAwareScoreStrategy:
         features_by_symbol: dict[str, FeatureSnapshot],
         current_positions: set[str],
         graph_signals_by_symbol: Mapping[str, Any],
+        target_limit: int | None = None,
     ) -> tuple[set[str], list[StrategySignal]]:
-        scored: list[tuple[str, Decimal]] = []
-        score_by_symbol: dict[str, Decimal] = {}
         graph_by_symbol = {key.upper(): value for key, value in graph_signals_by_symbol.items()}
-        for symbol, snapshot in features_by_symbol.items():
-            graph_signal = graph_by_symbol.get(symbol.upper())
-            score = self._combined_score(snapshot=snapshot, graph_signal=graph_signal)
-            if score is None:
-                continue
-            return_20d = snapshot.get("return_20d") or ZERO
-            if score > self.min_combined_score and return_20d >= self.min_return_20d:
-                score_by_symbol[symbol] = score
-                scored.append((symbol, score))
-
-        ranked = sorted(scored, key=lambda item: (-item[1], item[0]))
-        targets = {symbol for symbol, _score in ranked[: self.target_positions]}
+        rankings = self.rank_universe(
+            trade_date=trade_date,
+            features_by_symbol=features_by_symbol,
+            current_positions=current_positions,
+            graph_signals_by_symbol=graph_by_symbol,
+        )
+        targets = ranked_symbols(rankings, target_limit=target_limit)
+        score_by_symbol = {
+            ranking.symbol: ranking.raw_strategy_score
+            for ranking in rankings
+            if ranking.raw_strategy_score is not None
+        }
         return targets, self._signals(
             trade_date=trade_date,
             targets=targets,
@@ -150,10 +249,61 @@ class GraphAwareScoreStrategy:
                         score=score,
                         snapshot=snapshot,
                         graph_signal=graph_signal,
-                        reason="Graph-aware score fell outside target set",
+                        reason="Graph-aware score no longer selected by legacy target cap",
                     )
                 )
         return signals
+
+    def _ranking(
+        self,
+        *,
+        trade_date: date,
+        symbol: str,
+        action_intent: str,
+        score: Decimal | None,
+        rank: int | None,
+        eligibility_status: str,
+        snapshot: FeatureSnapshot | None,
+        graph_signal: Any | None,
+        reasons: list[str],
+    ) -> StrategyRanking:
+        snapshot_id = snapshot.snapshot_id if snapshot is not None else ""
+        technical_score = self._technical_score(snapshot) if snapshot is not None else None
+        graph_score = graph_signal.score if graph_signal is not None else ZERO
+        graph_confidence = graph_signal.confidence if graph_signal is not None else ZERO
+        edge_types = graph_signal.edge_types if graph_signal is not None else ()
+        metadata = {
+            "strategy_type": "graph_aware_score",
+            "technical_weight": str(self.technical_weight),
+            "graph_weight": str(self.graph_weight),
+            "technical_score": str(technical_score) if technical_score is not None else "0",
+            "graph_signal": graph_signal.to_dict() if graph_signal is not None else None,
+        }
+        if edge_types:
+            metadata["graph_edge_types"] = list(edge_types)
+        return StrategyRanking(
+            trade_date=trade_date,
+            symbol=symbol,
+            action_intent=action_intent,
+            raw_strategy_score=score,
+            normalized_score=None,
+            rank=rank,
+            eligibility_status=eligibility_status,
+            reasons=[
+                *reasons,
+                f"technical_score={technical_score if technical_score is not None else ZERO}",
+                f"graph_score={graph_score}",
+                f"graph_confidence={graph_confidence}",
+                f"feature_snapshot_id={snapshot_id}",
+            ],
+            invalidation_rules=[
+                f"combined_score <= {self.min_combined_score}",
+                f"return_20d < {self.min_return_20d}",
+                f"graph_confidence < {self.min_graph_confidence}",
+            ],
+            feature_snapshot_id=snapshot_id,
+            metadata=metadata,
+        )
 
     def _signal(
         self,

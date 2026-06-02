@@ -143,6 +143,23 @@ allocation, backtesting, and UI audit.
 At completion, add a section to this document listing assumptions made, mocks
 created, and mocks used.
 
+### M36 Completion Summary
+
+- Assumptions made:
+  - Existing paper-run symbol selection still needs legacy `targets` until the
+    later pipeline/allocation milestones remove that dependency.
+  - When a strategy YAML omits deprecated `target_positions`, old target-based
+    callers may use an explicit caller-owned fallback cap such as
+    `taurus_max_open_positions`; the strategy itself must not provide a hidden
+    top-3 default.
+  - Backtest `target_positions` remains an execution/backtest breadth control
+    until M42 aligns backtest summaries more deeply with ranking/allocation
+    separation.
+- Mocks created: None
+- Mocks used:
+  - Existing `MockMomentumStrategy` remains test/backtest-only and now exposes
+    ranking plus explicit-cap legacy target selection.
+
 ## M37: Paper Pipeline Decomposition
 
 ### Goal
@@ -476,4 +493,3 @@ At completion, add assumptions made, mocks created, and mocks used.
 - Additional portfolio optimization beyond deterministic sleeve/risk-budgeted
   selection.
 - New universe policies beyond Nifty 500 Shariah.
-

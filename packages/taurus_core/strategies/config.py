@@ -13,7 +13,7 @@ DEFAULT_STRATEGY_CONFIG_PATH = Path("configs/strategies/moving_average_crossover
 class StrategyConfig:
     strategy_name: str
     strategy_type: str
-    target_positions: int
+    target_positions: int | None
     lookback_days: int
     rebalance_every_days: int
     parameters: dict[str, object]
@@ -35,7 +35,7 @@ def load_strategy_config(path: str | Path) -> StrategyConfig:
     return StrategyConfig(
         strategy_name=strategy_name,
         strategy_type=strategy_type,
-        target_positions=_positive_int(raw, "target_positions", default=3, path=config_path),
+        target_positions=_optional_positive_int(raw, "target_positions", path=config_path),
         lookback_days=_positive_int(raw, "lookback_days", default=60, path=config_path),
         rebalance_every_days=_positive_int(
             raw,
@@ -63,6 +63,20 @@ def _positive_int(
     path: Path,
 ) -> int:
     value = int(raw.get(key, default))
+    if value <= 0:
+        raise ValueError(f"Strategy config {key} must be positive: {path}")
+    return value
+
+
+def _optional_positive_int(
+    raw: dict[str, Any],
+    key: str,
+    *,
+    path: Path,
+) -> int | None:
+    if key not in raw or raw.get(key) is None:
+        return None
+    value = int(raw[key])
     if value <= 0:
         raise ValueError(f"Strategy config {key} must be positive: {path}")
     return value

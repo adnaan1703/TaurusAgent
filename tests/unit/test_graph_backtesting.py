@@ -59,7 +59,6 @@ def test_graph_signal_loader_excludes_future_edges_and_evidence(tmp_path: Path) 
 def test_graph_aware_strategy_combines_technical_and_graph_scores() -> None:
     strategy = GraphAwareScoreStrategy(
         name="graph_aware_test",
-        target_positions=1,
         parameters={
             "fast_window": 1,
             "slow_window": 2,
@@ -76,6 +75,23 @@ def test_graph_aware_strategy_combines_technical_and_graph_scores() -> None:
         confidence=Decimal("0.90000000"),
         contributions=(),
     )
+    second_graph_signal = GraphBacktestSignal(
+        symbol="BBB",
+        as_of_date=date(2024, 1, 5),
+        score=Decimal("0.40000000"),
+        confidence=Decimal("0.90000000"),
+        contributions=(),
+    )
+
+    rankings = strategy.rank_universe(
+        trade_date=date(2024, 1, 5),
+        features_by_symbol={
+            "AAA": _feature_snapshot("AAA", sma_1=Decimal("101"), sma_2=Decimal("100")),
+            "BBB": _feature_snapshot("BBB", sma_1=Decimal("120"), sma_2=Decimal("100")),
+        },
+        current_positions=set(),
+        graph_signals_by_symbol={"AAA": graph_signal, "BBB": second_graph_signal},
+    )
 
     targets, signals = strategy.select_targets_with_graph(
         trade_date=date(2024, 1, 5),
@@ -84,9 +100,11 @@ def test_graph_aware_strategy_combines_technical_and_graph_scores() -> None:
             "BBB": _feature_snapshot("BBB", sma_1=Decimal("120"), sma_2=Decimal("100")),
         },
         current_positions=set(),
-        graph_signals_by_symbol={"AAA": graph_signal},
+        graph_signals_by_symbol={"AAA": graph_signal, "BBB": second_graph_signal},
+        target_limit=1,
     )
 
+    assert [ranking.symbol for ranking in rankings if ranking.is_eligible] == ["AAA", "BBB"]
     assert targets == {"AAA"}
     assert len(signals) == 1
     assert signals[0].score == Decimal("0.50000000")

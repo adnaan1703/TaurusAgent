@@ -6,8 +6,10 @@ from decimal import Decimal
 from taurus_core.features.store import FeatureSnapshot
 from taurus_core.strategies.base import (
     SignalExplanation,
+    StrategyRanking,
     StrategySignal,
     decimal_param,
+    ranked_symbols,
 )
 
 SCORE_VALUE = Decimal("0.00000001")
@@ -27,11 +29,9 @@ class BlendedScoreStrategy:
         self,
         *,
         name: str,
-        target_positions: int,
         parameters: dict[str, object],
     ) -> None:
         self._name = name
-        self.target_positions = target_positions
         raw_weights = parameters.get("weights", {})
         if not isinstance(raw_weights, dict):
             raise ValueError("weights must be a mapping")
@@ -47,31 +47,118 @@ class BlendedScoreStrategy:
     def name(self) -> str:
         return self._name
 
-    def select_targets(
+    def rank_universe(
         self,
         *,
         trade_date: date,
         features_by_symbol: dict[str, FeatureSnapshot],
         current_positions: set[str],
-    ) -> tuple[set[str], list[StrategySignal]]:
-        scored: list[tuple[str, Decimal]] = []
-        score_by_symbol: dict[str, Decimal] = {}
+        graph_signals_by_symbol: object | None = None,
+    ) -> list[StrategyRanking]:
+        eligible: list[tuple[str, Decimal, FeatureSnapshot, list[str]]] = []
+        ineligible: list[StrategyRanking] = []
         for symbol, snapshot in features_by_symbol.items():
             score = self._score(snapshot)
             rsi = snapshot.get("rsi_14")
             return_20d = snapshot.get("return_20d")
             if score is None or rsi is None or return_20d is None:
+                ineligible.append(
+                    self._ranking(
+                        trade_date=trade_date,
+                        symbol=symbol,
+                        action_intent="SELL" if symbol in current_positions else "NO_TRADE",
+                        score=score,
+                        rank=None,
+                        eligibility_status="ineligible",
+                        snapshot=snapshot,
+                        reasons=["Missing blended-score features"],
+                    )
+                )
                 continue
             if (
                 score > self.min_score
                 and return_20d >= self.min_return_20d
                 and self.min_rsi <= rsi <= self.max_rsi
             ):
-                score_by_symbol[symbol] = score
-                scored.append((symbol, score))
+                eligible.append(
+                    (
+                        symbol,
+                        score,
+                        snapshot,
+                        [
+                            "Blended technical score passed filters",
+                            f"return_20d={return_20d}",
+                            f"rsi_14={rsi}",
+                        ],
+                    )
+                )
+            else:
+                ineligible.append(
+                    self._ranking(
+                        trade_date=trade_date,
+                        symbol=symbol,
+                        action_intent="SELL" if symbol in current_positions else "NO_TRADE",
+                        score=score,
+                        rank=None,
+                        eligibility_status="ineligible",
+                        snapshot=snapshot,
+                        reasons=[
+                            f"score={score}",
+                            f"return_20d={return_20d}",
+                            f"rsi_14={rsi}",
+                            "Blended-score filters were not met",
+                        ],
+                    )
+                )
 
-        ranked = sorted(scored, key=lambda item: (-item[1], item[0]))
-        targets = {symbol for symbol, _score in ranked[: self.target_positions]}
+        ranked = sorted(eligible, key=lambda item: (-item[1], item[0]))
+        rankings = [
+            self._ranking(
+                trade_date=trade_date,
+                symbol=symbol,
+                action_intent="HOLD" if symbol in current_positions else "BUY",
+                score=score,
+                rank=index,
+                eligibility_status="eligible",
+                snapshot=snapshot,
+                reasons=[*reasons, f"score={score}"],
+            )
+            for index, (symbol, score, snapshot, reasons) in enumerate(ranked, start=1)
+        ]
+        for symbol in sorted(current_positions - set(features_by_symbol)):
+            rankings.append(
+                self._ranking(
+                    trade_date=trade_date,
+                    symbol=symbol,
+                    action_intent="SELL",
+                    score=None,
+                    rank=None,
+                    eligibility_status="ineligible",
+                    snapshot=None,
+                    reasons=["Missing feature snapshot for current position"],
+                )
+            )
+        return [*rankings, *sorted(ineligible, key=lambda ranking: ranking.symbol)]
+
+    def select_targets(
+        self,
+        *,
+        trade_date: date,
+        features_by_symbol: dict[str, FeatureSnapshot],
+        current_positions: set[str],
+        target_limit: int | None = None,
+    ) -> tuple[set[str], list[StrategySignal]]:
+        rankings = self.rank_universe(
+            trade_date=trade_date,
+            features_by_symbol=features_by_symbol,
+            current_positions=current_positions,
+        )
+        targets = ranked_symbols(rankings, target_limit=target_limit)
+        score_by_symbol = {
+            ranking.symbol: ranking.raw_strategy_score
+            for ranking in rankings
+            if ranking.raw_strategy_score is not None
+        }
         return targets, self._signals(
             trade_date=trade_date,
             targets=targets,
@@ -144,10 +231,44 @@ class BlendedScoreStrategy:
                         action="SELL",
                         score=score,
                         snapshot=snapshot,
-                        reason="Blended technical score fell outside target set",
+                        reason="Blended technical score no longer selected by legacy target cap",
                     )
                 )
         return signals
+
+    def _ranking(
+        self,
+        *,
+        trade_date: date,
+        symbol: str,
+        action_intent: str,
+        score: Decimal | None,
+        rank: int | None,
+        eligibility_status: str,
+        snapshot: FeatureSnapshot | None,
+        reasons: list[str],
+    ) -> StrategyRanking:
+        snapshot_id = snapshot.snapshot_id if snapshot is not None else ""
+        return StrategyRanking(
+            trade_date=trade_date,
+            symbol=symbol,
+            action_intent=action_intent,
+            raw_strategy_score=score,
+            normalized_score=None,
+            rank=rank,
+            eligibility_status=eligibility_status,
+            reasons=[*reasons, f"feature_snapshot_id={snapshot_id}"],
+            invalidation_rules=[
+                f"score <= {self.min_score}",
+                f"return_20d < {self.min_return_20d}",
+                f"rsi_14 outside [{self.min_rsi}, {self.max_rsi}]",
+            ],
+            feature_snapshot_id=snapshot_id,
+            metadata={
+                "strategy_type": "blended_score",
+                "weights": {key: str(value) for key, value in sorted(self.weights.items())},
+            },
+        )
 
     def _signal(
         self,

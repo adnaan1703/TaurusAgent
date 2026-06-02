@@ -266,6 +266,10 @@ def test_graph_enabled_kite_paper_run_uses_graph_roster_strategy_and_risk(
     assert "INFY" in strategy["symbols_with_graph_signals"]
     assert strategy["graph_strategy_config_path"] == "configs/strategies/graph_aware_score_v1.yaml"
     assert strategy["select_targets_with_graph_called"] is True
+    assert strategy["eligible_symbol_count"] >= 1
+    assert strategy["ranked_symbol_count"] >= 1
+    assert strategy["ranked_candidates"]
+    assert "INFY" in strategy["strategy_score_by_symbol"]
     assert strategy["symbol_selection"]["INFY"]["selection_source"] == "explicit_symbol"
     assert strategy["symbol_selection"]["INFY"]["has_graph_signal"] is True
     assert roster["enabled"] == ["technical", "graph"]

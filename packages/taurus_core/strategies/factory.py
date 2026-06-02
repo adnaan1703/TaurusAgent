@@ -11,19 +11,16 @@ def build_strategy(config: StrategyConfig) -> Strategy:
     if config.strategy_type == "moving_average_crossover":
         return MovingAverageCrossoverStrategy(
             name=config.strategy_name,
-            target_positions=config.target_positions,
             parameters=config.parameters,
         )
     if config.strategy_type == "blended_score":
         return BlendedScoreStrategy(
             name=config.strategy_name,
-            target_positions=config.target_positions,
             parameters=config.parameters,
         )
     if config.strategy_type == "graph_aware_score":
         return GraphAwareScoreStrategy(
             name=config.strategy_name,
-            target_positions=config.target_positions,
             parameters=config.parameters,
         )
     raise ValueError(f"Unsupported strategy_type: {config.strategy_type}")
