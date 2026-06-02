@@ -1,6 +1,6 @@
 # Taurus Milestone TODO
 
-Last updated: 2026-06-02
+Last updated: 2026-06-03
 
 This is the active tracker for Taurus milestone work. Keep it concise. Detailed
 implementation instructions belong in the linked plan docs.
@@ -16,6 +16,8 @@ implementation instructions belong in the linked plan docs.
 - `docs/TAURUS_GRAPH_INTELLIGENCE_PLAN.md`: completed M20 graph reference.
 - `docs/agent_improvement_plans/PAPER_MONEY_MANAGEMENT_SYSTEM.md`: planned
   Shariah-only paper portfolio money-management sequence.
+- `docs/agent_improvement_plans/FULL_UNIVERSE_DYNAMIC_ALLOCATION.md`: planned
+  full-universe analysis and dynamic run-level allocation sequence.
 - `docs/stitch/paper-trade-event-monitor/`: React dashboard visual reference
   assets.
 
@@ -93,6 +95,22 @@ context, then documented with the standard completion summary before moving on.
 | 15 | M35 | Done | `docs/agent_improvement_plans/PAPER_MONEY_MANAGEMENT_SYSTEM.md` | Added allocation dashboard surfaces and operator workflow docs. |
 | 16 | M35.1 | Done | User-provided money-management policy cleanup plan | Removed static core-symbol/cash/drift policy shortcuts; runtime core basket target weights are authoritative for attribution and labels. |
 | 17 | Ops progress UI | Done | User-provided Rich Progress UI plan | Added Rich/plain stderr terminal progress for Kite candle import, graph stats computation, and the graph-enabled Kite paper loop. |
+
+## Planned Full-Universe Dynamic Allocation Sequence
+
+Execute these milestones in order. Each row should be run separately with fresh
+context, then documented with the standard completion summary before moving on.
+
+| Order | Milestone | Status | Plan | Purpose |
+|---:|---|---|---|---|
+| 18 | M36 | Planned | `docs/agent_improvement_plans/FULL_UNIVERSE_DYNAMIC_ALLOCATION.md` | Replace fixed strategy target counts with full-universe ranking artifacts. |
+| 19 | M37 | Planned | `docs/agent_improvement_plans/FULL_UNIVERSE_DYNAMIC_ALLOCATION.md` | Decompose the paper loop into analysis, allocation, finalization, and execution phases without changing default behavior. |
+| 20 | M38 | Planned | `docs/agent_improvement_plans/FULL_UNIVERSE_DYNAMIC_ALLOCATION.md` | Add full-universe analysis mode through trader proposals while preserving safe execution behavior. |
+| 21 | M39 | Planned | `docs/agent_improvement_plans/FULL_UNIVERSE_DYNAMIC_ALLOCATION.md` | Add run-level dynamic allocation across all proposals, using money-management policy or settings fallback constraints. |
+| 22 | M40 | Planned | `docs/agent_improvement_plans/FULL_UNIVERSE_DYNAMIC_ALLOCATION.md` | Run risk/final decisions for every analyzed symbol and defer execution until allocated approved decisions are known. |
+| 23 | M41 | Planned | `docs/agent_improvement_plans/FULL_UNIVERSE_DYNAMIC_ALLOCATION.md` | Add API and React observability for full-universe counts, selection ledger, and allocation reasons. |
+| 24 | M42 | Planned | `docs/agent_improvement_plans/FULL_UNIVERSE_DYNAMIC_ALLOCATION.md` | Align backtests, replay, commands, and position-monitor boundaries with ranking/allocation separation. |
+| 25 | M43 | Planned | `docs/agent_improvement_plans/FULL_UNIVERSE_DYNAMIC_ALLOCATION.md` | Make full-universe analysis the canonical Kite paper-loop behavior after verification. |
 
 ## Deferred Work
 
