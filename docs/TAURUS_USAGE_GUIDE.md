@@ -119,6 +119,12 @@ in ignored `.env`.
 - `make import-kite-candles`: imports Kite daily candles.
 - `make kite-ltp-smoke`: stores latest Kite quote snapshots.
 
+`make import-kite-candles`, `make compute-graph-stats`, and
+`make paper-loop-kite` show terminal progress on stderr. The default
+`TAURUS_PROGRESS=auto` uses Rich in interactive terminals and plain stderr
+lines in CI/non-TTY logs. Use `TAURUS_PROGRESS=false` when only the final stdout
+summary is desired.
+
 ### Paper Workflow
 
 Several command names still include `mock` for historical compatibility. In the

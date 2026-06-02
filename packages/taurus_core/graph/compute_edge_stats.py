@@ -10,12 +10,14 @@ from taurus_core.db.session import build_session_factory
 from taurus_core.graph.stats import GraphStatsSummary, compute_graph_edge_stats
 from taurus_core.logging import configure_logging
 from taurus_core.observability.metrics import record_graph_job_failure
+from taurus_core.ops.progress import ProgressEventCallback, create_progress_reporter
 
 
 def run_compute_edge_stats(
     *,
     as_of_date: date | None = None,
     settings: Settings | None = None,
+    progress: ProgressEventCallback | None = None,
 ) -> GraphStatsSummary:
     settings = settings or get_settings()
     run_migrations(settings)
@@ -26,6 +28,7 @@ def run_compute_edge_stats(
                 session,
                 settings=settings,
                 as_of_date=as_of_date,
+                progress=progress,
             )
         except Exception as exc:
             record_graph_job_failure(job="stats", error_type=exc.__class__.__name__)
@@ -52,5 +55,9 @@ def _parse_as_of(value: str | None) -> date | None:
 if __name__ == "__main__":
     configure_logging()
     args = _parse_args()
-    summary = run_compute_edge_stats(as_of_date=_parse_as_of(args.as_of))
+    with create_progress_reporter("compute-graph-stats") as progress:
+        summary = run_compute_edge_stats(
+            as_of_date=_parse_as_of(args.as_of),
+            progress=progress,
+        )
     print(json.dumps(summary.to_dict(include_results=False), sort_keys=True))

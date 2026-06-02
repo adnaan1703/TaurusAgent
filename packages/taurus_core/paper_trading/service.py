@@ -41,6 +41,7 @@ from taurus_core.intelligence.mock_news_provider import MockNewsProvider
 from taurus_core.llm import build_llm_provider
 from taurus_core.logging import get_logger
 from taurus_core.observability.tracing import bound_trace_context
+from taurus_core.ops.progress import ProgressEventCallback, emit_progress
 from taurus_core.paper_trading.schemas import (
     PaperRun,
     PaperRunError,
@@ -77,6 +78,7 @@ class PaperRunService:
         schedule_name: str = "daily_after_close",
         run_after_market_close: bool | None = None,
         rounds_requested: int = DEFAULT_DEBATE_ROUNDS,
+        progress: ProgressEventCallback | None = None,
     ) -> None:
         self.settings = settings or get_settings()
         self.timezone_name = timezone_name or self.settings.taurus_paper_timezone
@@ -89,6 +91,31 @@ class PaperRunService:
         self.rounds_requested = rounds_requested
         self.session_factory = build_session_factory(self.settings)
         self.logger = get_logger(__name__)
+        self.progress = progress
+        self._progress_iteration = 1
+        self._progress_iterations = 1
+        self._progress_symbol_count = 1
+
+    def configure_progress_context(
+        self,
+        *,
+        iteration: int,
+        iterations: int,
+        symbol_count: int,
+    ) -> None:
+        self._progress_iteration = iteration
+        self._progress_iterations = iterations
+        self._progress_symbol_count = max(symbol_count, 1)
+
+    def _emit_progress(self, event: str, **payload: object) -> None:
+        emit_progress(
+            self.progress,
+            event,
+            iteration=self._progress_iteration,
+            iterations=self._progress_iterations,
+            symbol_count=self._progress_symbol_count,
+            **payload,
+        )
 
     def run_once(
         self,
@@ -101,9 +128,31 @@ class PaperRunService:
         if not requested_symbols:
             raise ValueError("At least one symbol is required for a paper run.")
 
+        self._progress_symbol_count = max(len(requested_symbols), 1)
+        self._emit_progress(
+            "paper.run.setup_started",
+            stage="migrations",
+            symbols=requested_symbols,
+        )
         run_migrations(self.settings)
+        self._emit_progress(
+            "paper.run.setup_completed",
+            stage="migrations",
+            symbols=requested_symbols,
+        )
+        self._emit_progress(
+            "paper.run.setup_started",
+            stage="open_positions",
+            symbols=requested_symbols,
+        )
         open_position_symbols = sorted(self._open_position_symbols())
         normalized_symbols = _normalize_symbols([*requested_symbols, *open_position_symbols])
+        self._progress_symbol_count = max(len(normalized_symbols), 1)
+        self._emit_progress(
+            "paper.run.setup_completed",
+            stage="open_positions",
+            symbols=normalized_symbols,
+        )
         started_at = _utc_now()
         run = PaperRun(
             run_id=paper_run_id(
@@ -122,21 +171,76 @@ class PaperRunService:
                 symbols=requested_symbols,
             ),
         )
+        self._emit_progress(
+            "paper.run.started",
+            run_id=run.run_id,
+            stage="run_created",
+            symbols=normalized_symbols,
+        )
         self._store_run(run, audit_event="paper_run.started")
 
         try:
+            self._emit_progress(
+                "paper.run.setup_started",
+                run_id=run.run_id,
+                stage="market_data",
+                symbols=normalized_symbols,
+            )
             market_data_summary = self._load_latest_inputs()
+            self._emit_progress(
+                "paper.run.setup_completed",
+                run_id=run.run_id,
+                stage="market_data",
+                symbols=normalized_symbols,
+            )
+            self._emit_progress(
+                "paper.run.setup_started",
+                run_id=run.run_id,
+                stage="strategy",
+                symbols=normalized_symbols,
+            )
             strategy_summary = self._generate_strategy_summary(
                 symbols=requested_symbols,
                 universe=run.universe,
                 strategy_config_path=strategy_config_path,
             )
+            self._emit_progress(
+                "paper.run.setup_completed",
+                run_id=run.run_id,
+                stage="strategy",
+                symbols=normalized_symbols,
+            )
+            self._emit_progress(
+                "paper.run.setup_started",
+                run_id=run.run_id,
+                stage="money_management",
+                symbols=normalized_symbols,
+            )
             money_management_summary = self._generate_money_management_summary()
+            self._emit_progress(
+                "paper.run.setup_completed",
+                run_id=run.run_id,
+                stage="money_management",
+                symbols=normalized_symbols,
+            )
             core_basket_symbols = _core_basket_symbols_from_summary(money_management_summary)
+            self._emit_progress(
+                "paper.run.setup_started",
+                run_id=run.run_id,
+                stage="symbol_selection",
+                symbols=normalized_symbols,
+            )
             normalized_symbols = _symbols_for_pipeline(
                 requested_symbols=requested_symbols,
                 universe=run.universe,
                 strategy_summary=strategy_summary,
+            )
+            self._progress_symbol_count = max(len(normalized_symbols), 1)
+            self._emit_progress(
+                "paper.run.setup_completed",
+                run_id=run.run_id,
+                stage="symbol_selection",
+                symbols=normalized_symbols,
             )
             run = _run_with_selected_symbols(run, normalized_symbols)
         except Exception as exc:
@@ -155,6 +259,14 @@ class PaperRunService:
                 }
             )
             self._log_failure(failed.run_id, error)
+            self._emit_progress(
+                "paper.run.failed",
+                run_id=failed.run_id,
+                stage=error.stage,
+                symbols=normalized_symbols,
+                error_type=error.error_type,
+                message=error.message,
+            )
             return self._store_run(failed, audit_event="paper_run.failed")
 
         artifacts: dict[str, Any] = {"strategy": strategy_summary, "symbols": {}}
@@ -171,15 +283,28 @@ class PaperRunService:
         )
         self._store_run(run)
 
-        for symbol in normalized_symbols:
+        for symbol_index, symbol in enumerate(normalized_symbols, start=1):
             try:
                 artifacts["symbols"][symbol] = self._run_symbol(
                     symbol=symbol,
                     run_id=run.run_id,
                     strategy_summary=strategy_summary,
                     core_basket_symbols=core_basket_symbols,
+                    symbol_index=symbol_index,
+                    succeeded_count=len(succeeded_symbols),
+                    failed_count=len(failed_symbols),
                 )
                 succeeded_symbols.append(symbol)
+                self._emit_progress(
+                    "paper.symbol.completed",
+                    run_id=run.run_id,
+                    symbols=normalized_symbols,
+                    symbol=symbol,
+                    symbol_index=symbol_index,
+                    stage="symbol_pipeline",
+                    succeeded_count=len(succeeded_symbols),
+                    failed_count=len(failed_symbols),
+                )
             except Exception as exc:
                 error = PaperRunError(
                     symbol=symbol,
@@ -190,6 +315,18 @@ class PaperRunService:
                 failed_symbols.append(symbol)
                 errors.append(error)
                 self._log_failure(run.run_id, error)
+                self._emit_progress(
+                    "paper.symbol.failed",
+                    run_id=run.run_id,
+                    symbols=normalized_symbols,
+                    symbol=symbol,
+                    symbol_index=symbol_index,
+                    stage=error.stage,
+                    succeeded_count=len(succeeded_symbols),
+                    failed_count=len(failed_symbols),
+                    error_type=error.error_type,
+                    message=error.message,
+                )
             finally:
                 partial_status = _status_for(succeeded_symbols, failed_symbols)
                 run = run.model_copy(
@@ -218,10 +355,25 @@ class PaperRunService:
         run_id: str,
         strategy_summary: dict[str, object],
         core_basket_symbols: set[str],
+        symbol_index: int,
+        succeeded_count: int,
+        failed_count: int,
     ) -> dict[str, object]:
+        def emit_stage(stage: str) -> None:
+            self._emit_progress(
+                "paper.symbol.stage_started",
+                run_id=run_id,
+                symbol=symbol,
+                symbol_index=symbol_index,
+                stage=stage,
+                succeeded_count=succeeded_count,
+                failed_count=failed_count,
+            )
+
         with bound_trace_context(run_id=run_id):
             self.logger.info("paper_run.symbol.started", symbol=symbol)
 
+        emit_stage("analysts")
         enabled_analysts = self.settings.enabled_analyst_keys
         llm_provider = build_llm_provider(self.settings)
         with self.session_factory() as session:
@@ -233,6 +385,7 @@ class PaperRunService:
                 enabled_analysts=enabled_analysts,
             )
 
+        emit_stage("debate")
         with self.session_factory() as session:
             debate = ResearchDebateService(
                 session,
@@ -244,6 +397,7 @@ class PaperRunService:
                 rounds_requested=self.rounds_requested,
             )
 
+        emit_stage("trader")
         with self.session_factory() as session:
             proposal = TraderAgent(
                 session,
@@ -251,6 +405,7 @@ class PaperRunService:
                 llm_provider=llm_provider,
             ).run(symbol=symbol, run_id=run_id, debate=debate)
 
+        emit_stage("allocation")
         proposal = self._apply_active_allocation(
             symbol=symbol,
             proposal=proposal,
@@ -258,6 +413,7 @@ class PaperRunService:
             core_basket_symbols=core_basket_symbols,
         )
 
+        emit_stage("risk")
         with self.session_factory() as session:
             execution_repo = ExecutionRepository(session)
             open_positions = execution_repo.latest_open_positions_by_portfolio(
@@ -276,6 +432,7 @@ class PaperRunService:
                 ),
             ).run(symbol=symbol, run_id=run_id, proposal=proposal)
 
+        emit_stage("portfolio_manager")
         with self.session_factory() as session:
             decision = PortfolioManagerAgent(
                 session,
@@ -287,6 +444,7 @@ class PaperRunService:
                 risk_review=review,
             )
 
+        emit_stage("execution")
         with self.session_factory() as session:
             order = ExecutionRouter(session, self.settings).route_decision(decision)
             repo = ExecutionRepository(session)
@@ -413,7 +571,7 @@ class PaperRunService:
         with self.session_factory() as session:
             assert_kite_runtime_preflight(session, include_paper_runs=True)
         with self.session_factory() as session:
-            market_summary = import_market_data(session, provider)
+            market_summary = import_market_data(session, provider, progress=self.progress)
         with self.session_factory() as session:
             import_mock_news(session, MockNewsProvider())
         return _market_summary_dict(market_summary)
@@ -709,6 +867,7 @@ class SimplePaperScheduler:
         iterations: int,
         universe: PaperRunUniverse | None = None,
         strategy_config_path: str | Path | None = None,
+        progress: ProgressEventCallback | None = None,
     ) -> None:
         if iterations < 1:
             raise ValueError("iterations must be at least 1")
@@ -720,19 +879,59 @@ class SimplePaperScheduler:
         self.iterations = iterations
         self.universe = universe
         self.strategy_config_path = strategy_config_path
+        self.progress = progress
 
     def run(self) -> list[PaperRun]:
         runs: list[PaperRun] = []
+        emit_progress(
+            self.progress,
+            "paper.loop.started",
+            iterations=self.iterations,
+            symbol_count=max(len(self.symbols), 1),
+            symbols=self.symbols,
+        )
         for index in range(self.iterations):
-            runs.append(
-                self.service.run_once(
-                    symbols=self.symbols,
-                    universe=self.universe,
-                    strategy_config_path=self.strategy_config_path,
-                )
+            iteration = index + 1
+            self.service.configure_progress_context(
+                iteration=iteration,
+                iterations=self.iterations,
+                symbol_count=max(len(self.symbols), 1),
+            )
+            emit_progress(
+                self.progress,
+                "paper.iteration.started",
+                iteration=iteration,
+                iterations=self.iterations,
+                symbol_count=max(len(self.symbols), 1),
+                symbols=self.symbols,
+            )
+            run = self.service.run_once(
+                symbols=self.symbols,
+                universe=self.universe,
+                strategy_config_path=self.strategy_config_path,
+            )
+            runs.append(run)
+            emit_progress(
+                self.progress,
+                "paper.iteration.completed",
+                iteration=iteration,
+                iterations=self.iterations,
+                symbol_count=max(len(run.symbols), 1),
+                symbols=list(run.symbols),
+                run_id=run.run_id,
+                status=run.status,
+                succeeded_count=len(run.succeeded_symbols),
+                failed_count=len(run.failed_symbols),
             )
             if index < self.iterations - 1 and self.interval_seconds > 0:
                 time.sleep(self.interval_seconds)
+        emit_progress(
+            self.progress,
+            "paper.loop.completed",
+            iterations=self.iterations,
+            symbol_count=max(len(runs[-1].symbols) if runs else len(self.symbols), 1),
+            symbols=list(runs[-1].symbols) if runs else self.symbols,
+        )
         return runs
 
 

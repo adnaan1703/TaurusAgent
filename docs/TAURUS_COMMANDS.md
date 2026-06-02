@@ -7,6 +7,27 @@ M23 retired runtime mock/CSV market-data entry points. Historical sections may
 still show the commands that were used at the time, but current workflows should
 use Kite commands and `make import-market-data`.
 
+## Terminal Progress Controls
+
+Long-running terminal commands show progress on stderr and keep their final
+machine-readable summary on stdout:
+
+- `make import-kite-candles`: current symbol, imported candles, cumulative
+  candle count, percent, elapsed time, and ETA.
+- `make compute-graph-stats`: current edge/window, source and target symbols,
+  validated/insufficient/promoted counts, percent, elapsed time, and ETA.
+- `make paper-loop-kite`: iteration, run ID, setup stage, selected symbols,
+  current symbol pipeline stage, succeeded/failed counts, elapsed time, and
+  approximate ETA.
+
+`TAURUS_PROGRESS=auto` is the default. Interactive terminals use Rich progress;
+CI and non-TTY logs use plain stderr lines. Set `TAURUS_PROGRESS=false` to
+disable terminal progress:
+
+```bash
+TAURUS_PROGRESS=false make compute-graph-stats
+```
+
 ## M0 Commands Used
 
 ```bash
@@ -1215,6 +1236,17 @@ prefix_rule(pattern=["curl", "http://127.0.0.1:8000/paper/account"], decision="a
 Do not broadly allow `python`, `python3`, `uv`, `rm`, unconstrained shell commands, or bare `curl`. Keep destructive commands manually approved.
 
 Codex prefix rules match argv tokens, not URL substrings. A rule such as `prefix_rule(pattern=["curl", "http://localhost:8000"], decision="allow")` does not cover `curl http://localhost:8000/health`, because the URL with its path is a different argv token. To avoid approving every endpoint one by one, prefer adding a project `make` smoke target for grouped API checks and allow that target. Use explicit `curl` rules only for stable one-off endpoints.
+
+## Ops Progress UI Commands Used
+
+```bash
+uv add 'rich>=13.7,<14'
+uv run pytest tests/unit/test_progress.py tests/unit/test_graph_stats.py tests/unit/test_paper_runs.py
+make test
+make lint
+git diff --check
+sed -n '/# END MY CUSTOM ADDITION/,$p' /Users/adnaan/.codex/rules/default.rules
+```
 
 ## Milestone Cleanup Rule
 

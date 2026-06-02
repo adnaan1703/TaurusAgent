@@ -114,6 +114,51 @@ def test_graph_stats_auto_promote_only_when_explicitly_enabled(tmp_path: Path) -
         assert edge.edge_metadata["latest_review"]["reviewed_by"] == "graph_stats_job"
 
 
+def test_graph_stats_emits_edge_window_progress_events(tmp_path: Path) -> None:
+    settings = _settings_for_temp_db(
+        tmp_path,
+        taurus_graph_stats_windows="6",
+        taurus_graph_min_edge_sample_size=3,
+    )
+    run_migrations(settings)
+    _seed_correlated_edge_fixture(settings)
+    session_factory = build_session_factory(settings)
+    events: list[tuple[str, dict[str, object]]] = []
+
+    with session_factory() as session:
+        summary = compute_graph_edge_stats(
+            session,
+            settings=settings,
+            as_of_date=date(2024, 1, 9),
+            progress=lambda event, payload: events.append((event, dict(payload))),
+        )
+
+    event_names = [event for event, _payload in events]
+    started = events[0][1]
+    completed = next(
+        payload for event, payload in events if event == "graph.stats.window_completed"
+    )
+    final = events[-1][1]
+
+    assert summary.stats_upserted == 1
+    assert event_names == [
+        "graph.stats.started",
+        "graph.stats.window_started",
+        "graph.stats.window_completed",
+        "graph.stats.completed",
+    ]
+    assert started["edge_count"] == 1
+    assert started["window_count"] == 1
+    assert completed["edge_key"] == "peer:AAA:BBB"
+    assert completed["source_symbol"] == "AAA"
+    assert completed["target_symbol"] == "BBB"
+    assert completed["window"] == "6d"
+    assert completed["validated_count"] == 1
+    assert completed["insufficient_count"] == 0
+    assert final["validated_count"] == 1
+    assert final["promoted_count"] == 0
+
+
 def _settings_for_temp_db(tmp_path: Path, **overrides: object) -> Settings:
     values = {**overrides}
     return Settings(**values)

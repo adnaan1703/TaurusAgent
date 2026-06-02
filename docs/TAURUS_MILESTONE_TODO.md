@@ -1,6 +1,6 @@
 # Taurus Milestone TODO
 
-Last updated: 2026-06-01
+Last updated: 2026-06-02
 
 This is the active tracker for Taurus milestone work. Keep it concise. Detailed
 implementation instructions belong in the linked plan docs.
@@ -92,6 +92,7 @@ context, then documented with the standard completion summary before moving on.
 | 14 | M34 | Done | `docs/agent_improvement_plans/PAPER_MONEY_MANAGEMENT_SYSTEM.md` | Added diversifying/experimental sleeve governors and strategy-level allocation. |
 | 15 | M35 | Done | `docs/agent_improvement_plans/PAPER_MONEY_MANAGEMENT_SYSTEM.md` | Added allocation dashboard surfaces and operator workflow docs. |
 | 16 | M35.1 | Done | User-provided money-management policy cleanup plan | Removed static core-symbol/cash/drift policy shortcuts; runtime core basket target weights are authoritative for attribution and labels. |
+| 17 | Ops progress UI | Done | User-provided Rich Progress UI plan | Added Rich/plain stderr terminal progress for Kite candle import, graph stats computation, and the graph-enabled Kite paper loop. |
 
 ## Deferred Work
 

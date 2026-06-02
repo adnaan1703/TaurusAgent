@@ -14,6 +14,7 @@ from taurus_core.config import Settings, get_settings
 from taurus_core.db.models import DailyCandleModel, GraphEdgeModel, GraphNodeModel
 from taurus_core.db.repositories import GraphRepository
 from taurus_core.observability.metrics import record_graph_stats_summary
+from taurus_core.ops.progress import ProgressEventCallback, emit_progress
 
 GRAPH_STATS_MODEL_VERSION = "graph_stats_v1"
 
@@ -97,6 +98,7 @@ def compute_graph_edge_stats(
     windows: Iterable[int] | None = None,
     edge_statuses: Iterable[str] = ("active", "candidate"),
     model_version: str = GRAPH_STATS_MODEL_VERSION,
+    progress: ProgressEventCallback | None = None,
 ) -> GraphStatsSummary:
     """Compute close-to-close statistical validation rows for graph edges."""
 
@@ -114,15 +116,39 @@ def compute_graph_edge_stats(
     results: list[GraphEdgeStatResult] = []
     promoted_edges: set[str] = set()
     warnings: list[str] = []
+    total_stats = len(edges) * len(resolved_windows)
+    validated_count = 0
+    insufficient_count = 0
+    emit_progress(
+        progress,
+        "graph.stats.started",
+        edge_count=len(edges),
+        window_count=len(resolved_windows),
+        total=total_stats,
+    )
 
-    for edge in edges:
+    for edge_index, edge in enumerate(edges, start=1):
         source_node = graph_repo.get_node_by_id(edge.source_node_id)
         target_node = graph_repo.get_node_by_id(edge.target_node_id)
         source_symbol = _node_symbol(source_node)
         target_symbol = _node_symbol(target_node)
 
-        for window in resolved_windows:
+        for window_index, window in enumerate(resolved_windows, start=1):
             stat_window = f"{window}d"
+            current = ((edge_index - 1) * len(resolved_windows)) + window_index
+            emit_progress(
+                progress,
+                "graph.stats.window_started",
+                current=current,
+                total=total_stats,
+                edge_key=edge.edge_key,
+                source_symbol=source_symbol,
+                target_symbol=target_symbol,
+                window=stat_window,
+                validated_count=validated_count,
+                insufficient_count=insufficient_count,
+                promoted_count=len(promoted_edges),
+            )
             stats = _compute_window_stats(
                 source_symbol=source_symbol,
                 target_symbol=target_symbol,
@@ -172,6 +198,10 @@ def compute_graph_edge_stats(
                 if promoted:
                     promoted_edges.add(edge.edge_key)
                     edge.status = "active"
+            if stats.insufficient_data_reason:
+                insufficient_count += 1
+            else:
+                validated_count += 1
 
             results.append(
                 GraphEdgeStatResult(
@@ -188,6 +218,19 @@ def compute_graph_edge_stats(
                     insufficient_data_reason=stats.insufficient_data_reason,
                     promoted=promoted,
                 )
+            )
+            emit_progress(
+                progress,
+                "graph.stats.window_completed",
+                current=current,
+                total=total_stats,
+                edge_key=edge.edge_key,
+                source_symbol=source_symbol,
+                target_symbol=target_symbol,
+                window=stat_window,
+                validated_count=validated_count,
+                insufficient_count=insufficient_count,
+                promoted_count=len(promoted_edges),
             )
 
     if not edges:
@@ -208,6 +251,15 @@ def compute_graph_edge_stats(
         results=tuple(results),
     )
     record_graph_stats_summary(summary)
+    emit_progress(
+        progress,
+        "graph.stats.completed",
+        total=total_stats,
+        stats_upserted=summary.stats_upserted,
+        validated_count=summary.stats_upserted - summary.insufficient_stats,
+        insufficient_count=summary.insufficient_stats,
+        promoted_count=len(summary.promoted_edges),
+    )
     return summary
 
 

@@ -25,6 +25,7 @@ from taurus_core.db.models import (
 from taurus_core.db.repositories import GraphRepository, InstrumentRepository
 from taurus_core.db.session import build_session_factory
 from taurus_core.domain.instruments import Instrument
+from taurus_core.paper_trading.schemas import PaperRunUniverse
 from taurus_core.paper_trading.service import (
     PaperRunService,
     _sleeve_snapshots_for_allocation,
@@ -374,6 +375,56 @@ def test_paper_loop_records_manual_symbol_universe_provenance(
     overview = client.get("/ui/overview")
     assert overview.status_code == 200
     assert overview.json()["latest_run"]["universe"]["source"] == "manual_symbols"
+
+
+def test_paper_loop_emits_iteration_and_symbol_stage_progress_events(
+    tmp_path: Path,
+) -> None:
+    settings = _settings_for_temp_db(tmp_path)
+    events: list[tuple[str, dict[str, object]]] = []
+
+    payload = run_paper_loop(
+        symbols=["INFY"],
+        settings=settings,
+        iterations=1,
+        universe=PaperRunUniverse(
+            source="manual_symbols",
+            provider="kite",
+            selected_symbol_count=1,
+            symbols=["INFY"],
+        ),
+        progress=lambda event, payload: events.append((event, dict(payload))),
+    )
+
+    event_names = [event for event, _payload in events]
+    stage_names = [
+        str(payload["stage"])
+        for event, payload in events
+        if event == "paper.symbol.stage_started"
+    ]
+    iteration_completed = next(
+        payload for event, payload in events if event == "paper.iteration.completed"
+    )
+
+    assert payload[0]["status"] == "COMPLETED"
+    assert "paper.loop.started" in event_names
+    assert "paper.iteration.started" in event_names
+    assert "paper.run.setup_started" in event_names
+    assert "paper.symbol.completed" in event_names
+    assert "paper.iteration.completed" in event_names
+    assert "paper.loop.completed" in event_names
+    assert stage_names == [
+        "analysts",
+        "debate",
+        "trader",
+        "allocation",
+        "risk",
+        "portfolio_manager",
+        "execution",
+    ]
+    assert iteration_completed["succeeded_count"] == 1
+    assert iteration_completed["failed_count"] == 0
+    assert iteration_completed["status"] == "COMPLETED"
 
 
 def _settings_for_temp_db(
