@@ -360,6 +360,37 @@ active, diversifying, and experimental sleeves.
 
 At completion, add assumptions made, mocks created, and mocks used.
 
+### Completion Summary
+
+- Status: Completed on 2026-06-02.
+- Reworked `PortfolioAllocationService` from hard-coded active strategy names
+  to config-driven strategy-to-sleeve routing for active, diversifying, and
+  experimental allocation sleeves.
+- Added sleeve runtime snapshots carrying starting NAV estimate, current
+  exposure, realized/unrealized PnL, drawdown, open positions, open trade risk,
+  and turnover, with paper runs feeding best-effort current exposure snapshots.
+- Added portfolio drawdown governors: 3% caution reduces new BUY sizing by
+  25%, 5% defensive reduces by 50%, 8% stops experimental new entries, and
+  10% freezes new BUY decisions while leaving lifecycle exits routable.
+- Added configurable sleeve drawdown reduce/freeze thresholds and an
+  experimental new-entry trade-risk cap; allocation decisions now include
+  governor scale, portfolio/sleeve drawdown, and governor reasons.
+- Expanded money-management API metadata with initial sleeve status,
+  governor reason placeholders, and deferred fractional-Kelly readiness fields
+  without adding Kelly sizing.
+- Added focused unit/API coverage for strategy mapping, portfolio and sleeve
+  drawdown governors, experimental risk caps, exit routing during freezes, and
+  UI aggregate money-management governor metadata.
+- Assumptions made: Durable sleeve PnL/turnover history is not available yet,
+  so paper runs estimate sleeve starting NAV from current NAV and configured
+  target weights; existing non-core open positions are attributed to the active
+  sleeve until durable allocation records can label each position by sleeve;
+  experimental strategies are identified by explicit policy mappings into the
+  `experimental_models` sleeve.
+- Mocks created: None.
+- Mocks used: Existing FastAPI/TestClient temporary database fixtures and
+  existing unit-test paper allocation fixtures.
+
 ## M35: Allocation Dashboard And Operator Workflow
 
 ### Goal

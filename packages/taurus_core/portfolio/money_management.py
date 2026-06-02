@@ -20,6 +20,26 @@ class SleevePolicy(BaseModel):
     target_weight_pct: Decimal = Field(ge=Decimal("0"), le=Decimal("100"))
     role: str = Field(min_length=1)
     core_symbols: tuple[str, ...] = Field(default_factory=tuple)
+    drawdown_reduce_threshold_pct: Decimal | None = Field(
+        default=None,
+        ge=Decimal("0"),
+        le=Decimal("100"),
+    )
+    drawdown_reduce_size_pct: Decimal = Field(
+        default=Decimal("50.0"),
+        ge=Decimal("0"),
+        le=Decimal("100"),
+    )
+    drawdown_freeze_threshold_pct: Decimal | None = Field(
+        default=None,
+        ge=Decimal("0"),
+        le=Decimal("100"),
+    )
+    new_entry_risk_cap_pct_nav: Decimal | None = Field(
+        default=None,
+        ge=Decimal("0"),
+        le=Decimal("100"),
+    )
 
     @field_validator("sleeve_id")
     @classmethod
@@ -165,7 +185,14 @@ class SleeveSnapshot(BaseModel):
     current_weight_pct: Decimal = Field(ge=Decimal("0"), le=Decimal("100"))
     nav_inr: Decimal = Field(ge=Decimal("0"))
     cash_inr: Decimal = Field(ge=Decimal("0"))
+    starting_nav_estimate_inr: Decimal = Field(default=Decimal("0"), ge=Decimal("0"))
+    current_exposure_inr: Decimal = Field(default=Decimal("0"), ge=Decimal("0"))
+    realized_pnl_inr: Decimal = Decimal("0")
+    unrealized_pnl_inr: Decimal = Decimal("0")
+    drawdown_pct: Decimal = Field(default=Decimal("0"), ge=Decimal("0"), le=Decimal("100"))
     open_position_count: int = Field(ge=0)
+    open_trade_risk_inr: Decimal = Field(default=Decimal("0"), ge=Decimal("0"))
+    turnover_inr: Decimal = Field(default=Decimal("0"), ge=Decimal("0"))
     symbols: tuple[str, ...] = Field(default_factory=tuple)
     metadata: dict[str, Any] = Field(default_factory=dict)
 
@@ -224,8 +251,55 @@ def money_management_metadata(settings: Any) -> dict[str, Any]:
         "snapshot_source": "not_persisted",
         "sleeve_snapshot_count": 0,
         "allocation_decision_count": 0,
+        "portfolio_drawdown_pct": "0.0000",
+        "portfolio_governor_reasons": [],
+        "sleeve_statuses": initial_sleeve_governor_statuses(
+            policy,
+            nav_inr=Decimal(str(settings.taurus_initial_capital_inr)),
+        ),
+        "fractional_kelly": {
+            "status": "deferred_pending_paper_trade_history",
+            "required_history_source": "allocation_decisions_and_sleeve_snapshots",
+        },
     }
     return metadata
+
+
+def initial_sleeve_governor_statuses(
+    policy: MoneyManagementPolicy,
+    *,
+    nav_inr: Decimal,
+) -> list[dict[str, Any]]:
+    statuses: list[dict[str, Any]] = []
+    for sleeve in policy.sleeves:
+        starting_nav = (nav_inr * sleeve.target_weight_pct / Decimal("100")).quantize(
+            Decimal("0.01")
+        )
+        statuses.append(
+            {
+                "sleeve_id": sleeve.sleeve_id,
+                "sleeve_name": sleeve.name,
+                "target_weight_pct": str(sleeve.target_weight_pct),
+                "starting_nav_estimate_inr": str(starting_nav),
+                "current_exposure_inr": "0.00",
+                "realized_pnl_inr": "0.00",
+                "unrealized_pnl_inr": "0.00",
+                "drawdown_pct": "0.0000",
+                "open_position_count": 0,
+                "open_trade_risk_inr": "0.00",
+                "turnover_inr": "0.00",
+                "new_entry_scale_factor": "1.0000",
+                "new_entries_frozen": False,
+                "governor_reasons": [],
+                "new_entry_risk_cap_pct_nav": (
+                    str(sleeve.new_entry_risk_cap_pct_nav)
+                    if sleeve.new_entry_risk_cap_pct_nav is not None
+                    else None
+                ),
+                "fractional_kelly_ready": False,
+            }
+        )
+    return statuses
 
 
 def _validate_core_symbols(policy: MoneyManagementPolicy) -> None:

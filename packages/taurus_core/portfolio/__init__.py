@@ -1,10 +1,13 @@
 from taurus_core.allocation_schemas import AllocationDecision
 from taurus_core.portfolio.active_allocation import (
     ACTIVE_SLEEVE_ID,
-    ACTIVE_STRATEGY_NAMES,
+    ALLOCATABLE_SLEEVE_IDS,
+    DIVERSIFYING_SLEEVE_ID,
+    EXPERIMENTAL_SLEEVE_ID,
     ActiveAllocationInput,
     ActiveAllocationPosition,
     PortfolioAllocationService,
+    SleeveAllocationSnapshot,
 )
 from taurus_core.portfolio.core_shariah_basket import (
     CORE_SLEEVE_ID,
@@ -32,12 +35,15 @@ from taurus_core.portfolio.money_management import (
 
 __all__ = [
     "ACTIVE_SLEEVE_ID",
-    "ACTIVE_STRATEGY_NAMES",
+    "ALLOCATABLE_SLEEVE_IDS",
     "CORE_SLEEVE_ID",
     "CORE_STRATEGY_NAME",
+    "DIVERSIFYING_SLEEVE_ID",
+    "EXPERIMENTAL_SLEEVE_ID",
     "AllocationDecision",
     "ActiveAllocationInput",
     "ActiveAllocationPosition",
+    "SleeveAllocationSnapshot",
     "CoreBasketPosition",
     "CoreBasketReviewInput",
     "CoreShariahBasketStrategy",

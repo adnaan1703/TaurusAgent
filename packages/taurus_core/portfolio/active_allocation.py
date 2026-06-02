@@ -7,11 +7,15 @@ from statistics import mean, pstdev
 
 from taurus_core.allocation_schemas import AllocationDecision
 from taurus_core.domain.market_data import DailyCandle
-from taurus_core.portfolio.money_management import MoneyManagementPolicy
+from taurus_core.portfolio.money_management import MoneyManagementPolicy, SleevePolicy
 from taurus_core.research.schemas import TraderProposal
 
 ACTIVE_SLEEVE_ID = "active_strategy"
-ACTIVE_STRATEGY_NAMES = frozenset({"graph_aware_score_v1", "moving_average_crossover_v1"})
+DIVERSIFYING_SLEEVE_ID = "diversifying_strategy"
+EXPERIMENTAL_SLEEVE_ID = "experimental_models"
+ALLOCATABLE_SLEEVE_IDS = frozenset(
+    {ACTIVE_SLEEVE_ID, DIVERSIFYING_SLEEVE_ID, EXPERIMENTAL_SLEEVE_ID}
+)
 SCORE_QUANT = Decimal("0.0001")
 MONEY_QUANT = Decimal("0.01")
 VOLATILITY_QUANT = Decimal("0.0001")
@@ -28,12 +32,42 @@ class ActiveAllocationPosition:
 
 
 @dataclass(frozen=True, slots=True)
+class SleeveAllocationSnapshot:
+    sleeve_id: str
+    starting_nav_estimate_inr: Decimal
+    current_exposure_inr: Decimal = Decimal("0")
+    realized_pnl_inr: Decimal = Decimal("0")
+    unrealized_pnl_inr: Decimal = Decimal("0")
+    open_position_count: int = 0
+    open_trade_risk_inr: Decimal = Decimal("0")
+    turnover_inr: Decimal = Decimal("0")
+
+    @property
+    def drawdown_pct(self) -> Decimal:
+        if self.starting_nav_estimate_inr <= 0:
+            return Decimal("0.0000")
+        current_nav = (
+            self.starting_nav_estimate_inr
+            + self.realized_pnl_inr
+            + self.unrealized_pnl_inr
+        )
+        drawdown = (
+            (self.starting_nav_estimate_inr - current_nav)
+            / self.starting_nav_estimate_inr
+            * Decimal("100")
+        )
+        return max(Decimal("0"), drawdown).quantize(SCORE_QUANT)
+
+
+@dataclass(frozen=True, slots=True)
 class ActiveAllocationInput:
     proposal: TraderProposal
     strategy_name: str
     nav_inr: Decimal
     available_cash_inr: Decimal
+    portfolio_starting_nav_estimate_inr: Decimal | None = None
     current_positions: tuple[ActiveAllocationPosition, ...] = ()
+    sleeve_snapshots: tuple[SleeveAllocationSnapshot, ...] = ()
     history: tuple[DailyCandle, ...] = ()
     strategy_score: Decimal | None = None
     sector_by_symbol: dict[str, str] | None = None
@@ -41,29 +75,38 @@ class ActiveAllocationInput:
     recent_sleeve_performance_score: Decimal | None = None
 
 
-class PortfolioAllocationService:
-    """Risk-budgeted active-sleeve sizing for paper BUY/increase proposals."""
+@dataclass(frozen=True, slots=True)
+class GovernorEvaluation:
+    scale_factor: Decimal = Decimal("1.0000")
+    portfolio_drawdown_pct: Decimal = Decimal("0.0000")
+    sleeve_drawdown_pct: Decimal = Decimal("0.0000")
+    governor_reasons: tuple[str, ...] = ()
+    frozen: bool = False
+    binding_constraint: str | None = None
 
-    model_version = "active_sleeve_allocation_v1"
+
+class PortfolioAllocationService:
+    """Risk-budgeted strategy-sleeve sizing for paper BUY/increase proposals."""
+
+    model_version = "strategy_sleeve_allocation_v1"
 
     def __init__(self, policy: MoneyManagementPolicy) -> None:
         self.policy = policy
-        self.sleeve = next(
-            (sleeve for sleeve in policy.sleeves if sleeve.sleeve_id == ACTIVE_SLEEVE_ID),
-            None,
-        )
-        if self.sleeve is None:
-            raise ValueError("Money-management policy requires an active_strategy sleeve.")
+        self.sleeves_by_id = {sleeve.sleeve_id: sleeve for sleeve in policy.sleeves}
         self.strategy_to_sleeve = {
             mapping.strategy_name: mapping.sleeve_id
             for mapping in policy.strategy_mappings
         }
 
+    def sleeve_id_for_strategy(self, strategy_name: str) -> str | None:
+        return self.strategy_to_sleeve.get(strategy_name)
+
     def allocate(self, allocation_input: ActiveAllocationInput) -> TraderProposal:
         proposal = allocation_input.proposal
         strategy_name = allocation_input.strategy_name
         mapped_sleeve = self.strategy_to_sleeve.get(strategy_name)
-        if mapped_sleeve != ACTIVE_SLEEVE_ID or strategy_name not in ACTIVE_STRATEGY_NAMES:
+        sleeve = self.sleeves_by_id.get(mapped_sleeve or "")
+        if sleeve is None or mapped_sleeve not in ALLOCATABLE_SLEEVE_IDS:
             return self._with_decision(
                 proposal,
                 AllocationDecision(
@@ -81,8 +124,12 @@ class PortfolioAllocationService:
                     ),
                     approved_notional_inr=Decimal("0"),
                     approved_quantity=0,
-                    binding_constraint="strategy_not_active_sleeve",
-                    rationale=("Strategy is outside M33 active-sleeve allocation scope.",),
+                    binding_constraint=(
+                        "strategy_unmapped"
+                        if mapped_sleeve is None
+                        else "strategy_not_allocatable_sleeve"
+                    ),
+                    rationale=("Strategy is outside M34 strategy-sleeve allocation scope.",),
                 ),
             )
 
@@ -93,8 +140,8 @@ class PortfolioAllocationService:
                     symbol=proposal.symbol,
                     action=proposal.action,
                     strategy_name=strategy_name,
-                    sleeve_id=ACTIVE_SLEEVE_ID,
-                    sleeve_name=self.sleeve.name,
+                    sleeve_id=sleeve.sleeve_id,
+                    sleeve_name=sleeve.name,
                     status="unchanged",
                     requested_position_pct_nav=proposal.requested_position_pct_nav,
                     approved_position_pct_nav=proposal.target_position_pct_nav,
@@ -106,9 +153,26 @@ class PortfolioAllocationService:
                     approved_quantity=0,
                     binding_constraint="lifecycle_action_not_new_risk",
                     rationale=(
-                        f"Lifecycle action {proposal.action} does not require new active risk.",
+                        f"Lifecycle action {proposal.action} does not require new sleeve risk.",
                     ),
                 ),
+            )
+
+        governor = _evaluate_governors(allocation_input, sleeve=sleeve, policy=self.policy)
+        if governor.frozen:
+            return self._rejected_buy(
+                allocation_input,
+                sleeve=sleeve,
+                governor=governor,
+                requested_notional=_requested_increase_notional(
+                    proposal=proposal,
+                    nav_inr=allocation_input.nav_inr,
+                ),
+                candidate_score=None,
+                score_band="governor_freeze",
+                volatility=None,
+                binding_constraint=governor.binding_constraint or "governor_freeze",
+                rationale=governor.governor_reasons,
             )
 
         latest_price = _latest_close(allocation_input.history)
@@ -127,13 +191,15 @@ class PortfolioAllocationService:
         if latest_price <= 0 or risk_per_share <= 0:
             return self._rejected_buy(
                 allocation_input,
+                sleeve=sleeve,
+                governor=governor,
                 requested_notional=requested_notional,
                 candidate_score=None,
                 score_band="invalid_stop_loss",
                 volatility=None,
                 binding_constraint="invalid_stop_loss_or_price",
                 rationale=(
-                    "Active BUY requires a positive latest price and stop-loss distance.",
+                    "Strategy-sleeve BUY requires a positive latest price and stop-loss distance.",
                 ),
             )
 
@@ -147,18 +213,22 @@ class PortfolioAllocationService:
         volatility = _realized_volatility(allocation_input.history)
         volatility_factor = _volatility_factor(volatility)
         allowed_risk = _pct_to_notional(base_risk_pct, allocation_input.nav_inr)
-        dampened_allowed_risk = (allowed_risk * volatility_factor).quantize(MONEY_QUANT)
+        dampened_allowed_risk = (
+            allowed_risk * volatility_factor * governor.scale_factor
+        ).quantize(MONEY_QUANT)
 
         if score_band == "reject":
             return self._rejected_buy(
                 allocation_input,
+                sleeve=sleeve,
+                governor=governor,
                 requested_notional=requested_notional,
                 candidate_score=candidate_score,
                 score_band=score_band,
                 volatility=volatility,
                 binding_constraint="candidate_score_below_60",
                 rationale=(
-                    f"Candidate score {candidate_score} is below the 60 active-entry floor.",
+                    f"Candidate score {candidate_score} is below the 60 strategy-sleeve entry floor.",
                     _score_parts_text(score_parts),
                 ),
             )
@@ -168,9 +238,16 @@ class PortfolioAllocationService:
             latest_price=latest_price,
             risk_per_share=risk_per_share,
         )
+        sleeve_snapshot = _sleeve_snapshot_for(allocation_input, sleeve.sleeve_id)
         caps = {
             "requested_notional": requested_notional,
             "trade_risk": trade_risk_notional,
+            "sleeve_trade_risk_cap": _sleeve_trade_risk_cap_room(
+                sleeve=sleeve,
+                nav_inr=allocation_input.nav_inr,
+                latest_price=latest_price,
+                risk_per_share=risk_per_share,
+            ),
             "stock_exposure": _stock_exposure_room(
                 proposal=proposal,
                 nav_inr=allocation_input.nav_inr,
@@ -182,7 +259,9 @@ class PortfolioAllocationService:
                 nav_inr=allocation_input.nav_inr,
                 positions=allocation_input.current_positions,
                 policy=self.policy,
-                active_sleeve_target_pct=self.sleeve.target_weight_pct,
+                sleeve_id=sleeve.sleeve_id,
+                sleeve_target_pct=sleeve.target_weight_pct,
+                sleeve_snapshot=sleeve_snapshot,
             ),
             "cash_buffer": _cash_buffer_room(allocation_input, self.policy),
             "total_open_trade_risk": _total_trade_risk_room(
@@ -220,8 +299,8 @@ class PortfolioAllocationService:
             symbol=proposal.symbol,
             action=proposal.action,
             strategy_name=strategy_name,
-            sleeve_id=ACTIVE_SLEEVE_ID,
-            sleeve_name=self.sleeve.name,
+            sleeve_id=sleeve.sleeve_id,
+            sleeve_name=sleeve.name,
             status=status,
             candidate_score=candidate_score,
             score_band=score_band,
@@ -233,10 +312,15 @@ class PortfolioAllocationService:
             allowed_risk_inr=dampened_allowed_risk,
             estimated_risk_inr=estimated_risk,
             volatility_used=volatility,
+            governor_scale_factor=governor.scale_factor,
+            portfolio_drawdown_pct=governor.portfolio_drawdown_pct,
+            sleeve_drawdown_pct=governor.sleeve_drawdown_pct,
+            governor_reasons=governor.governor_reasons,
             binding_constraint=binding_constraint,
             rationale=(
-                f"Active score band {score_band} allowed {dampened_allowed_risk} INR risk.",
+                f"Strategy-sleeve score band {score_band} allowed {dampened_allowed_risk} INR risk.",
                 f"Volatility factor {volatility_factor} applied to realized volatility {volatility}.",
+                f"Governor scale factor {governor.scale_factor} applied.",
                 _score_parts_text(score_parts),
             ),
         )
@@ -252,7 +336,7 @@ class PortfolioAllocationService:
                     "target_position_pct_nav": target_position,
                     "model_version": f"{proposal.model_version}+{self.model_version}",
                     "position_management_summary": (
-                        f"{proposal.position_management_summary} Active allocation approved "
+                        f"{proposal.position_management_summary} Strategy-sleeve allocation approved "
                         f"{approved_quantity} shares; binding constraint {binding_constraint}."
                     ),
                 }
@@ -264,6 +348,8 @@ class PortfolioAllocationService:
         self,
         allocation_input: ActiveAllocationInput,
         *,
+        sleeve: SleevePolicy,
+        governor: GovernorEvaluation,
         requested_notional: Decimal,
         candidate_score: Decimal | None,
         score_band: str,
@@ -276,8 +362,8 @@ class PortfolioAllocationService:
             symbol=proposal.symbol,
             action=proposal.action,
             strategy_name=allocation_input.strategy_name,
-            sleeve_id=ACTIVE_SLEEVE_ID,
-            sleeve_name=self.sleeve.name,
+            sleeve_id=sleeve.sleeve_id,
+            sleeve_name=sleeve.name,
             status="rejected",
             candidate_score=candidate_score,
             score_band=score_band,
@@ -289,6 +375,10 @@ class PortfolioAllocationService:
             allowed_risk_inr=Decimal("0"),
             estimated_risk_inr=Decimal("0"),
             volatility_used=volatility,
+            governor_scale_factor=governor.scale_factor,
+            portfolio_drawdown_pct=governor.portfolio_drawdown_pct,
+            sleeve_drawdown_pct=governor.sleeve_drawdown_pct,
+            governor_reasons=governor.governor_reasons,
             binding_constraint=binding_constraint,
             rationale=rationale,
         )
@@ -311,10 +401,10 @@ class PortfolioAllocationService:
                     "action": "HOLD",
                     "target_position_pct_nav": current_position_pct_nav.quantize(SCORE_QUANT),
                     "order_type": "NONE",
-                    "entry_rule": "Active allocation produced no incremental paper BUY quantity.",
+                    "entry_rule": "Strategy-sleeve allocation produced no incremental paper BUY quantity.",
                     "model_version": f"{proposal.model_version}+{self.model_version}",
                     "position_management_summary": (
-                        f"{proposal.position_management_summary} Active allocation produced no "
+                        f"{proposal.position_management_summary} Strategy-sleeve allocation produced no "
                         "incremental BUY quantity; existing paper position remains under HOLD."
                     ),
                 }
@@ -325,10 +415,10 @@ class PortfolioAllocationService:
                 "action": "NO_TRADE",
                 "target_position_pct_nav": Decimal("0.0000"),
                 "order_type": "NONE",
-                "entry_rule": "Active allocation rejected the new BUY before risk review.",
+                "entry_rule": "Strategy-sleeve allocation rejected the new BUY before risk review.",
                 "model_version": f"{proposal.model_version}+{self.model_version}",
                 "position_management_summary": (
-                    f"{proposal.position_management_summary} Active allocation rejected the "
+                    f"{proposal.position_management_summary} Strategy-sleeve allocation rejected the "
                     f"new BUY; binding constraint {decision.binding_constraint}."
                 ),
             }
@@ -341,6 +431,110 @@ class PortfolioAllocationService:
         decision: AllocationDecision,
     ) -> TraderProposal:
         return proposal.model_copy(update={"allocation_decision": decision})
+
+
+def _evaluate_governors(
+    allocation_input: ActiveAllocationInput,
+    *,
+    sleeve: SleevePolicy,
+    policy: MoneyManagementPolicy,
+) -> GovernorEvaluation:
+    portfolio_drawdown = _portfolio_drawdown_pct(allocation_input)
+    sleeve_snapshot = _sleeve_snapshot_for(allocation_input, sleeve.sleeve_id)
+    sleeve_drawdown = (
+        sleeve_snapshot.drawdown_pct if sleeve_snapshot is not None else Decimal("0.0000")
+    )
+    scale_factor = Decimal("1.0000")
+    frozen = False
+    binding_constraint: str | None = None
+    reasons: list[str] = []
+
+    for governor in sorted(policy.drawdown_governors, key=lambda item: item.drawdown_pct):
+        if portfolio_drawdown <= governor.drawdown_pct:
+            continue
+        action = governor.action.strip().lower()
+        reasons.append(
+            f"Portfolio drawdown {portfolio_drawdown}% exceeded {governor.name} "
+            f"threshold {governor.drawdown_pct}%."
+        )
+        if action == "reduce_new_position_sizes_25_pct":
+            scale_factor = min(scale_factor, Decimal("0.7500"))
+        elif action == "reduce_new_position_sizes_50_pct":
+            scale_factor = min(scale_factor, Decimal("0.5000"))
+        elif action == "stop_experimental_new_entries" and sleeve.sleeve_id == EXPERIMENTAL_SLEEVE_ID:
+            frozen = True
+            binding_constraint = "experimental_portfolio_drawdown_freeze"
+        elif action == "freeze_new_buys_allow_exits":
+            frozen = True
+            binding_constraint = "portfolio_drawdown_freeze"
+
+    if (
+        sleeve.drawdown_reduce_threshold_pct is not None
+        and sleeve_drawdown > sleeve.drawdown_reduce_threshold_pct
+    ):
+        reduction_factor = (
+            (Decimal("100") - sleeve.drawdown_reduce_size_pct) / Decimal("100")
+        ).quantize(SCORE_QUANT)
+        scale_factor = min(scale_factor, reduction_factor)
+        reasons.append(
+            f"Sleeve {sleeve.sleeve_id} drawdown {sleeve_drawdown}% exceeded reduce "
+            f"threshold {sleeve.drawdown_reduce_threshold_pct}%."
+        )
+
+    if (
+        sleeve.drawdown_freeze_threshold_pct is not None
+        and sleeve_drawdown > sleeve.drawdown_freeze_threshold_pct
+    ):
+        frozen = True
+        binding_constraint = "sleeve_drawdown_freeze"
+        reasons.append(
+            f"Sleeve {sleeve.sleeve_id} drawdown {sleeve_drawdown}% exceeded freeze "
+            f"threshold {sleeve.drawdown_freeze_threshold_pct}%."
+        )
+
+    return GovernorEvaluation(
+        scale_factor=scale_factor,
+        portfolio_drawdown_pct=portfolio_drawdown,
+        sleeve_drawdown_pct=sleeve_drawdown,
+        governor_reasons=tuple(reasons),
+        frozen=frozen,
+        binding_constraint=binding_constraint,
+    )
+
+
+def _portfolio_drawdown_pct(allocation_input: ActiveAllocationInput) -> Decimal:
+    starting_nav = allocation_input.portfolio_starting_nav_estimate_inr
+    if starting_nav is None:
+        starting_nav = sum(
+            (
+                snapshot.starting_nav_estimate_inr
+                for snapshot in allocation_input.sleeve_snapshots
+            ),
+            Decimal("0"),
+        )
+    if starting_nav <= 0:
+        return Decimal("0.0000")
+    drawdown = (
+        (starting_nav - allocation_input.nav_inr)
+        / starting_nav
+        * Decimal("100")
+    )
+    return max(Decimal("0"), drawdown).quantize(SCORE_QUANT)
+
+
+def _sleeve_snapshot_for(
+    allocation_input: ActiveAllocationInput,
+    sleeve_id: str,
+) -> SleeveAllocationSnapshot | None:
+    normalized = sleeve_id.strip().lower()
+    return next(
+        (
+            snapshot
+            for snapshot in allocation_input.sleeve_snapshots
+            if snapshot.sleeve_id.strip().lower() == normalized
+        ),
+        None,
+    )
 
 
 def _requested_increase_notional(*, proposal: TraderProposal, nav_inr: Decimal) -> Decimal:
@@ -520,8 +714,16 @@ def _sleeve_capacity_room(
     nav_inr: Decimal,
     positions: tuple[ActiveAllocationPosition, ...],
     policy: MoneyManagementPolicy,
-    active_sleeve_target_pct: Decimal,
+    sleeve_id: str,
+    sleeve_target_pct: Decimal,
+    sleeve_snapshot: SleeveAllocationSnapshot | None,
 ) -> Decimal:
+    if sleeve_snapshot is not None:
+        capacity = _pct_to_notional(sleeve_target_pct, nav_inr)
+        return max(Decimal("0"), capacity - sleeve_snapshot.current_exposure_inr).quantize(
+            MONEY_QUANT
+        )
+
     active_symbols = {position.symbol.upper() for position in positions}
     core_symbols = set(policy.core_symbols)
     current_active_notional = sum(
@@ -534,8 +736,27 @@ def _sleeve_capacity_room(
         ),
         Decimal("0"),
     )
-    capacity = _pct_to_notional(active_sleeve_target_pct, nav_inr)
+    capacity = _pct_to_notional(sleeve_target_pct, nav_inr)
+    if sleeve_id != ACTIVE_SLEEVE_ID:
+        current_active_notional = Decimal("0")
     return max(Decimal("0"), capacity - current_active_notional).quantize(MONEY_QUANT)
+
+
+def _sleeve_trade_risk_cap_room(
+    *,
+    sleeve: SleevePolicy,
+    nav_inr: Decimal,
+    latest_price: Decimal,
+    risk_per_share: Decimal,
+) -> Decimal:
+    if sleeve.new_entry_risk_cap_pct_nav is None:
+        return Decimal("999999999999.99")
+    allowed_risk = _pct_to_notional(sleeve.new_entry_risk_cap_pct_nav, nav_inr)
+    return _risk_to_notional(
+        allowed_risk_inr=allowed_risk,
+        latest_price=latest_price,
+        risk_per_share=risk_per_share,
+    )
 
 
 def _cash_buffer_room(

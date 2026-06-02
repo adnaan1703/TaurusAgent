@@ -182,11 +182,16 @@ def test_ui_risk_and_portfolio_include_money_management_metadata_when_enabled(
     assert risk_money_management["enabled"] is True
     assert risk_money_management["policy"]["policy_version"] == "ui_test_policy"
     assert risk_money_management["policy"]["core_symbols"] == ["INFY"]
-    assert risk_money_management["state"] == {
-        "snapshot_source": "not_persisted",
-        "sleeve_snapshot_count": 0,
-        "allocation_decision_count": 0,
-    }
+    state = risk_money_management["state"]
+    assert state["snapshot_source"] == "not_persisted"
+    assert state["sleeve_snapshot_count"] == 0
+    assert state["allocation_decision_count"] == 0
+    assert state["portfolio_drawdown_pct"] == "0.0000"
+    assert state["portfolio_governor_reasons"] == []
+    assert state["fractional_kelly"]["status"] == "deferred_pending_paper_trade_history"
+    assert state["sleeve_statuses"][0]["sleeve_id"] == "core_shariah"
+    assert state["sleeve_statuses"][0]["governor_reasons"] == []
+    assert state["sleeve_statuses"][0]["fractional_kelly_ready"] is False
 
 
 def test_ui_aggregate_endpoints_show_partial_failure_and_404s(tmp_path: Path) -> None:

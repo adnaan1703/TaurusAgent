@@ -9,6 +9,7 @@ from taurus_core.portfolio import (
     ActiveAllocationInput,
     ActiveAllocationPosition,
     PortfolioAllocationService,
+    SleeveAllocationSnapshot,
     load_money_management_policy,
 )
 from taurus_core.research.schemas import TraderProposal
@@ -247,6 +248,170 @@ def test_volatile_stock_receives_smaller_quantity_than_lower_vol_stock(
     assert high_vol.allocation_decision.approved_quantity < low_vol.allocation_decision.approved_quantity
 
 
+def test_strategy_to_sleeve_mapping_is_config_driven(tmp_path: Path) -> None:
+    policy_path = _write_policy(
+        tmp_path,
+        active_target_pct=Decimal("60.0"),
+        diversifying_target_pct=Decimal("15.0"),
+        experimental_target_pct=Decimal("5.0"),
+        max_stock_pct=Decimal("50.0"),
+    )
+    policy = load_money_management_policy(policy_path)
+    service = PortfolioAllocationService(policy)
+
+    assert service.sleeve_id_for_strategy("graph_aware_score_v1") == "active_strategy"
+    assert service.sleeve_id_for_strategy("blended_score_v1") == "diversifying_strategy"
+    assert service.sleeve_id_for_strategy("experimental_score_v1") == "experimental_models"
+
+    allocated = service.allocate(
+        _input(
+            target_pct=Decimal("10.0000"),
+            strategy_name="blended_score_v1",
+            sleeve_snapshots=(
+                SleeveAllocationSnapshot(
+                    sleeve_id="diversifying_strategy",
+                    starting_nav_estimate_inr=Decimal("150000.00"),
+                ),
+            ),
+        )
+    )
+
+    assert allocated.allocation_decision is not None
+    assert allocated.allocation_decision.sleeve_id == "diversifying_strategy"
+    assert allocated.action == "BUY"
+
+
+def test_portfolio_drawdown_governors_reduce_and_freeze_new_buys(tmp_path: Path) -> None:
+    policy_path = _write_policy(
+        tmp_path,
+        active_target_pct=Decimal("80.0"),
+        max_stock_pct=Decimal("50.0"),
+    )
+    caution = _allocate(
+        policy_path,
+        _input(
+            target_pct=Decimal("20.0000"),
+            nav=Decimal("960000"),
+            portfolio_starting_nav=Decimal("1000000"),
+        ),
+    )
+    defensive = _allocate(
+        policy_path,
+        _input(
+            target_pct=Decimal("20.0000"),
+            nav=Decimal("940000"),
+            portfolio_starting_nav=Decimal("1000000"),
+        ),
+    )
+    frozen = _allocate(
+        policy_path,
+        _input(
+            target_pct=Decimal("20.0000"),
+            nav=Decimal("890000"),
+            portfolio_starting_nav=Decimal("1000000"),
+        ),
+    )
+
+    assert caution.allocation_decision is not None
+    assert defensive.allocation_decision is not None
+    assert frozen.allocation_decision is not None
+    assert caution.allocation_decision.governor_scale_factor == Decimal("0.7500")
+    assert defensive.allocation_decision.governor_scale_factor == Decimal("0.5000")
+    assert defensive.allocation_decision.approved_quantity < caution.allocation_decision.approved_quantity
+    assert frozen.action == "NO_TRADE"
+    assert frozen.allocation_decision.binding_constraint == "portfolio_drawdown_freeze"
+    assert frozen.allocation_decision.governor_reasons
+
+
+def test_sleeve_drawdown_governor_freezes_only_that_sleeve(tmp_path: Path) -> None:
+    policy_path = _write_policy(
+        tmp_path,
+        active_target_pct=Decimal("60.0"),
+        diversifying_target_pct=Decimal("15.0"),
+        experimental_target_pct=Decimal("5.0"),
+        max_stock_pct=Decimal("50.0"),
+    )
+    frozen = _allocate(
+        policy_path,
+        _input(
+            target_pct=Decimal("10.0000"),
+            strategy_name="blended_score_v1",
+            sleeve_snapshots=(
+                SleeveAllocationSnapshot(
+                    sleeve_id="diversifying_strategy",
+                    starting_nav_estimate_inr=Decimal("150000.00"),
+                    unrealized_pnl_inr=Decimal("-13500.00"),
+                ),
+            ),
+        ),
+    )
+    active = _allocate(
+        policy_path,
+        _input(
+            target_pct=Decimal("10.0000"),
+            strategy_name="graph_aware_score_v1",
+            sleeve_snapshots=(
+                SleeveAllocationSnapshot(
+                    sleeve_id="diversifying_strategy",
+                    starting_nav_estimate_inr=Decimal("150000.00"),
+                    unrealized_pnl_inr=Decimal("-13500.00"),
+                ),
+            ),
+        ),
+    )
+
+    assert frozen.allocation_decision is not None
+    assert active.allocation_decision is not None
+    assert frozen.action == "NO_TRADE"
+    assert frozen.allocation_decision.binding_constraint == "sleeve_drawdown_freeze"
+    assert active.action == "BUY"
+
+
+def test_experimental_sleeve_risk_cap_limits_new_entry(tmp_path: Path) -> None:
+    policy_path = _write_policy(
+        tmp_path,
+        active_target_pct=Decimal("60.0"),
+        diversifying_target_pct=Decimal("15.0"),
+        experimental_target_pct=Decimal("5.0"),
+        max_stock_pct=Decimal("50.0"),
+    )
+    allocated = _allocate(
+        policy_path,
+        _input(
+            target_pct=Decimal("10.0000"),
+            strategy_name="experimental_score_v1",
+        ),
+    )
+
+    assert allocated.allocation_decision is not None
+    assert allocated.allocation_decision.sleeve_id == "experimental_models"
+    assert allocated.allocation_decision.binding_constraint == "sleeve_trade_risk_cap"
+    assert allocated.allocation_decision.estimated_risk_inr <= Decimal("1000.00")
+
+
+def test_exits_remain_routable_during_portfolio_freeze(tmp_path: Path) -> None:
+    policy_path = _write_policy(tmp_path, max_stock_pct=Decimal("50.0"))
+    exited = _allocate(
+        policy_path,
+        _input(
+            target_pct=Decimal("0.0000"),
+            portfolio_starting_nav=Decimal("1000000"),
+            nav=Decimal("890000"),
+            proposal=_proposal(
+                action="EXIT",
+                target_pct=Decimal("0.0000"),
+                current_quantity=10,
+                current_pct=Decimal("2.0000"),
+            ),
+        ),
+    )
+
+    assert exited.action == "EXIT"
+    assert exited.allocation_decision is not None
+    assert exited.allocation_decision.status == "unchanged"
+    assert exited.allocation_decision.binding_constraint == "lifecycle_action_not_new_risk"
+
+
 def _allocate(policy_path: Path, allocation_input: ActiveAllocationInput) -> TraderProposal:
     policy = load_money_management_policy(policy_path)
     return PortfolioAllocationService(policy).allocate(allocation_input)
@@ -258,8 +423,11 @@ def _input(
     proposal: TraderProposal | None = None,
     nav: Decimal = Decimal("1000000"),
     available_cash: Decimal = Decimal("1000000"),
+    portfolio_starting_nav: Decimal | None = None,
     positions: tuple[ActiveAllocationPosition, ...] = (),
+    sleeve_snapshots: tuple[SleeveAllocationSnapshot, ...] = (),
     history: tuple[DailyCandle, ...] | None = None,
+    strategy_name: str = "graph_aware_score_v1",
     sector_by_symbol: dict[str, str] | None = None,
     graph_cluster_by_symbol: dict[str, str] | None = None,
 ) -> ActiveAllocationInput:
@@ -278,10 +446,12 @@ def _input(
     )
     return ActiveAllocationInput(
         proposal=tagged,
-        strategy_name="graph_aware_score_v1",
+        strategy_name=strategy_name,
         nav_inr=nav,
         available_cash_inr=available_cash,
+        portfolio_starting_nav_estimate_inr=portfolio_starting_nav,
         current_positions=positions,
+        sleeve_snapshots=sleeve_snapshots,
         history=history or tuple(_candles(symbol=tagged.symbol, volatility="low")),
         strategy_score=Decimal("0.2000"),
         sector_by_symbol=sector_by_symbol,
@@ -355,11 +525,19 @@ def _write_policy(
     tmp_path: Path,
     *,
     active_target_pct: Decimal = Decimal("80.0"),
+    diversifying_target_pct: Decimal = Decimal("0.0"),
+    experimental_target_pct: Decimal = Decimal("0.0"),
     max_stock_pct: Decimal = Decimal("50.0"),
     max_open_positions: int = 20,
 ) -> Path:
     cash_pct = Decimal("5.0")
-    core_pct = Decimal("100.0") - active_target_pct - cash_pct
+    core_pct = (
+        Decimal("100.0")
+        - active_target_pct
+        - diversifying_target_pct
+        - experimental_target_pct
+        - cash_pct
+    )
     universe_path = tmp_path / "shariah.yaml"
     universe_path.write_text(
         "universe_name: active_test\n"
@@ -389,14 +567,21 @@ def _write_policy(
         "    name: Active\n"
         f"    target_weight_pct: {active_target_pct}\n"
         "    role: Active sleeve\n"
+        "    drawdown_reduce_threshold_pct: 6.0\n"
+        "    drawdown_freeze_threshold_pct: 10.0\n"
         "  - sleeve_id: diversifying_strategy\n"
         "    name: Diversifying\n"
-        "    target_weight_pct: 0.0\n"
+        f"    target_weight_pct: {diversifying_target_pct}\n"
         "    role: Diversifying sleeve\n"
+        "    drawdown_reduce_threshold_pct: 5.0\n"
+        "    drawdown_freeze_threshold_pct: 8.0\n"
         "  - sleeve_id: experimental_models\n"
         "    name: Experimental\n"
-        "    target_weight_pct: 0.0\n"
+        f"    target_weight_pct: {experimental_target_pct}\n"
         "    role: Experimental sleeve\n"
+        "    drawdown_reduce_threshold_pct: 2.0\n"
+        "    drawdown_freeze_threshold_pct: 4.0\n"
+        "    new_entry_risk_cap_pct_nav: 0.10\n"
         "  - sleeve_id: cash_buffer\n"
         "    name: Cash\n"
         f"    target_weight_pct: {cash_pct}\n"
@@ -406,6 +591,10 @@ def _write_policy(
         "    sleeve_id: active_strategy\n"
         "  - strategy_name: moving_average_crossover_v1\n"
         "    sleeve_id: active_strategy\n"
+        "  - strategy_name: blended_score_v1\n"
+        "    sleeve_id: diversifying_strategy\n"
+        "  - strategy_name: experimental_score_v1\n"
+        "    sleeve_id: experimental_models\n"
         "limits:\n"
         f"  max_stock_pct_nav: {max_stock_pct}\n"
         f"  max_stock_hard_cap_pct_nav: {max_stock_pct}\n"
@@ -417,6 +606,19 @@ def _write_policy(
         "  strong_trade_risk_pct_nav: 0.75\n"
         "  max_single_trade_risk_pct_nav: 1.00\n"
         "  max_total_open_trade_risk_pct_nav: 5.00\n"
+        "drawdown_governors:\n"
+        "  - name: portfolio_caution\n"
+        "    drawdown_pct: 3.0\n"
+        "    action: reduce_new_position_sizes_25_pct\n"
+        "  - name: portfolio_defensive\n"
+        "    drawdown_pct: 5.0\n"
+        "    action: reduce_new_position_sizes_50_pct\n"
+        "  - name: experimental_freeze\n"
+        "    drawdown_pct: 8.0\n"
+        "    action: stop_experimental_new_entries\n"
+        "  - name: portfolio_freeze\n"
+        "    drawdown_pct: 10.0\n"
+        "    action: freeze_new_buys_allow_exits\n"
         "rebalance:\n"
         "  sleeve_drift_threshold_pct: 20.0\n"
         "  position_drift_threshold_pct: 20.0\n"

@@ -33,6 +33,14 @@ class AllocationDecision(BaseModel):
     allowed_risk_inr: Decimal = Field(default=Decimal("0"), ge=Decimal("0"))
     estimated_risk_inr: Decimal = Field(default=Decimal("0"), ge=Decimal("0"))
     volatility_used: Decimal | None = Field(default=None, ge=Decimal("0"))
+    governor_scale_factor: Decimal = Field(
+        default=Decimal("1.0000"),
+        ge=Decimal("0"),
+        le=Decimal("1"),
+    )
+    portfolio_drawdown_pct: Decimal | None = Field(default=None, ge=Decimal("0"))
+    sleeve_drawdown_pct: Decimal | None = Field(default=None, ge=Decimal("0"))
+    governor_reasons: tuple[str, ...] = Field(default_factory=tuple)
     binding_constraint: str | None = None
     rationale: tuple[str, ...] = Field(default_factory=tuple)
 

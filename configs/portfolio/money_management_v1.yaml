@@ -17,14 +17,21 @@ sleeves:
     name: Active strategy
     target_weight_pct: 35.0
     role: Main alpha sleeve for graph-aware paper signals.
+    drawdown_reduce_threshold_pct: 6.0
+    drawdown_freeze_threshold_pct: 10.0
   - sleeve_id: diversifying_strategy
     name: Diversifying strategy
     target_weight_pct: 15.0
     role: Secondary style sleeve after backtest validation.
+    drawdown_reduce_threshold_pct: 5.0
+    drawdown_freeze_threshold_pct: 8.0
   - sleeve_id: experimental_models
     name: Experimental models
     target_weight_pct: 5.0
     role: Small-risk sleeve for new model candidates.
+    drawdown_reduce_threshold_pct: 2.0
+    drawdown_freeze_threshold_pct: 4.0
+    new_entry_risk_cap_pct_nav: 0.25
   - sleeve_id: cash_buffer
     name: Cash/risk buffer
     target_weight_pct: 5.0
@@ -38,6 +45,8 @@ strategy_mappings:
     sleeve_id: active_strategy
   - strategy_name: blended_score_v1
     sleeve_id: diversifying_strategy
+  - strategy_name: experimental_score_v1
+    sleeve_id: experimental_models
 limits:
   max_stock_pct_nav: 5.0
   max_stock_hard_cap_pct_nav: 7.5

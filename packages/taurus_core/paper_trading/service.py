@@ -53,7 +53,9 @@ from taurus_core.portfolio import (
     CoreBasketPosition,
     CoreBasketReviewInput,
     CoreShariahBasketStrategy,
+    MoneyManagementPolicy,
     PortfolioAllocationService,
+    SleeveAllocationSnapshot,
     load_money_management_policy_for_settings,
     severe_negative_symbols,
 )
@@ -377,7 +379,15 @@ class PaperRunService:
                     strategy_name=strategy_name,
                     nav_inr=nav_inr,
                     available_cash_inr=available_cash,
+                    portfolio_starting_nav_estimate_inr=Decimal(
+                        str(self.settings.taurus_initial_capital_inr)
+                    ),
                     current_positions=open_positions,
+                    sleeve_snapshots=_sleeve_snapshots_for_allocation(
+                        policy=policy,
+                        nav_inr=nav_inr,
+                        positions=open_positions,
+                    ),
                     history=history,
                     strategy_score=signal["score"] if signal is not None else None,
                     sector_by_symbol=sector_by_symbol,
@@ -1015,6 +1025,51 @@ def _position_exposures_pct_nav(
         for position in positions
         if position.market_value_inr > 0
     }
+
+
+def _sleeve_snapshots_for_allocation(
+    *,
+    policy: MoneyManagementPolicy,
+    nav_inr: Decimal,
+    positions: tuple[ActiveAllocationPosition, ...],
+) -> tuple[SleeveAllocationSnapshot, ...]:
+    core_symbols = set(policy.core_symbols)
+    snapshots: list[SleeveAllocationSnapshot] = []
+    for sleeve in policy.sleeves:
+        starting_nav = (nav_inr * sleeve.target_weight_pct / Decimal("100")).quantize(
+            Decimal("0.01")
+        )
+        if sleeve.sleeve_id == "core_shariah":
+            sleeve_positions = [
+                position
+                for position in positions
+                if position.symbol.upper() in core_symbols
+            ]
+        elif sleeve.sleeve_id == "active_strategy":
+            sleeve_positions = [
+                position
+                for position in positions
+                if position.symbol.upper() not in core_symbols
+            ]
+        else:
+            sleeve_positions = []
+        exposure = sum(
+            (position.market_value_inr for position in sleeve_positions),
+            Decimal("0"),
+        ).quantize(Decimal("0.01"))
+        open_trade_risk = (exposure * Decimal("6.0000") / Decimal("100")).quantize(
+            Decimal("0.01")
+        )
+        snapshots.append(
+            SleeveAllocationSnapshot(
+                sleeve_id=sleeve.sleeve_id,
+                starting_nav_estimate_inr=starting_nav,
+                current_exposure_inr=exposure,
+                open_position_count=len(sleeve_positions),
+                open_trade_risk_inr=open_trade_risk,
+            )
+        )
+    return tuple(snapshots)
 
 
 def _daily_candle_history(session: Session, symbol: str) -> list[DailyCandle]:

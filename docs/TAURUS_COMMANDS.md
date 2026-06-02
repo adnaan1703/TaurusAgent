@@ -481,6 +481,40 @@ tests expect `response_format={"type":"json_object"}` while the current
 provider emits JSON schema format, and the smoke test fails graph readiness
 when graph is enabled without imported graph nodes.
 
+## M34 Commands Used
+
+```bash
+uv run pytest tests/unit/test_active_allocation.py -q
+uv run pytest tests/unit/test_config.py::test_money_management_policy_loads_default_config tests/unit/test_ui_aggregate_api.py::test_ui_risk_and_portfolio_include_money_management_metadata_when_enabled -q
+uv run pytest tests/unit/test_active_allocation.py tests/unit/test_config.py::test_money_management_policy_loads_default_config tests/unit/test_ui_aggregate_api.py::test_ui_risk_and_portfolio_include_money_management_metadata_when_enabled -q
+make lint
+make test-ui
+make test
+git diff --check
+sed -n '/# END MY CUSTOM ADDITION/,$p' /Users/adnaan/.codex/rules/default.rules
+sed -n '1,260p' .codex/rules/default.rules
+```
+
+M34 strategy-sleeve allocation runs only when
+`TAURUS_MONEY_MANAGEMENT_ENABLED=true`. Strategy-to-sleeve routing now comes
+from `configs/portfolio/money_management_v1.yaml`; the default policy maps
+`graph_aware_score_v1` to active, `blended_score_v1` to diversifying, and
+explicit experimental configs to `experimental_models`.
+
+Portfolio drawdown governors reduce new BUY sizing over 3% and 5%, freeze
+experimental new entries over 8%, and freeze all new BUY entries over 10% while
+leaving REDUCE/EXIT lifecycle actions routable. Sleeve drawdown thresholds and
+experimental risk caps are configured per sleeve. Fractional Kelly remains
+deferred until durable paper-trade allocation history exists.
+
+The full `make test` pass remained blocked in the local environment by the
+same unrelated failures observed in M33: environment values override graph and
+LLM defaults, LM Studio tests still expect `response_format={"type":
+"json_object"}` while the provider emits JSON schema response format, and the
+smoke test enables graph without imported graph company nodes. M34-focused
+allocation, money-management config/API, paper-run integration, lint, and UI
+tests passed.
+
 ## M28 Commands Used
 
 ```bash
