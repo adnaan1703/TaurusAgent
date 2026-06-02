@@ -12,6 +12,7 @@ from apps.api.main import create_app
 from apps.dashboard.data import list_paper_runs
 from scripts.run_paper_loop import _resolve_symbols_from_env, run_paper_loop
 from taurus_core.config import Settings
+from taurus_core.data.universe import load_market_data_universe
 from taurus_core.db.models import (
     AnalystReportModel,
     AuditLogModel,
@@ -175,6 +176,32 @@ def test_paper_run_includes_open_position_symbols_across_runs(tmp_path: Path) ->
     assert second.artifacts["strategy"]["symbol_selection"]["TCS"]["requested_explicitly"] is True
 
 
+def test_money_management_paper_run_creates_shariah_equity_core_decisions(
+    tmp_path: Path,
+) -> None:
+    settings = _settings_for_temp_db(tmp_path, money_management_enabled=True)
+    run = PaperRunService(settings).run_once(symbols=["INFY"])
+    universe = load_market_data_universe("configs/market_data/nifty_500_shariah.yaml")
+    universe_by_symbol = {entry.symbol: entry for entry in universe.symbols}
+
+    core = run.artifacts["money_management"]["core_shariah_basket"]
+    decision_symbols = {decision["symbol"] for decision in core["decisions"]}
+
+    assert run.status == "COMPLETED"
+    assert core["strategy_name"] == "core_shariah_basket_v1"
+    assert set(core["selected_symbols"]).issubset(set(universe_by_symbol))
+    assert decision_symbols == set(core["target_weights"])
+    assert decision_symbols
+    for symbol in decision_symbols:
+        universe_symbol = universe_by_symbol[symbol]
+        assert universe_symbol.exchange == "NSE"
+        assert universe_symbol.segment == "EQUITY"
+    assert all(
+        Decimal(str(weight)) <= Decimal("7.5")
+        for weight in core["target_weights"].values()
+    )
+
+
 def test_graph_enabled_kite_paper_run_uses_graph_roster_strategy_and_risk(
     tmp_path: Path,
 ) -> None:
@@ -274,12 +301,14 @@ def _settings_for_temp_db(
     enabled_analysts: str = "technical",
     graph_enabled: bool = False,
     graph_risk_enabled: bool = False,
+    money_management_enabled: bool = False,
 ) -> Settings:
     return Settings(
         taurus_paper_partial_fill_threshold=1,
         taurus_enabled_analysts=enabled_analysts,
         taurus_graph_enabled=graph_enabled,
         taurus_graph_risk_enabled=graph_risk_enabled,
+        taurus_money_management_enabled=money_management_enabled,
     )
 
 

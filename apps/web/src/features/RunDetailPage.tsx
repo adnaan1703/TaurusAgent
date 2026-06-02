@@ -18,8 +18,14 @@ import { WarningsPanel } from "../components/WarningsPanel";
 import {
   formatDuration,
   formatId,
+  formatInr,
   formatNumber,
+  formatPercent,
   formatTimestamp,
+  getPrimitive,
+  getString,
+  isJsonObject,
+  jsonArray,
   objectEntries,
 } from "../utils/format";
 import { PageScaffold } from "./PageScaffold";
@@ -181,6 +187,8 @@ export function RunDetailPage() {
             </DataPanel>
           </div>
 
+          <CoreBasketPanel artifacts={runQuery.data.artifacts} />
+
           <DataPanel title="Run Errors">
             <DataTable
               columns={[
@@ -199,6 +207,92 @@ export function RunDetailPage() {
         </div>
       )}
     </PageScaffold>
+  );
+}
+
+function CoreBasketPanel({ artifacts }: { artifacts: UiRunDetailResponse["artifacts"] }) {
+  const moneyManagement = artifacts.money_management;
+  if (!isJsonObject(moneyManagement)) {
+    return null;
+  }
+  const core = moneyManagement.core_shariah_basket;
+  if (!isJsonObject(core)) {
+    return null;
+  }
+  const rebalance = isJsonObject(core.rebalance) ? core.rebalance : undefined;
+  const drift = isJsonObject(core.drift) ? core.drift : undefined;
+  const decisions = jsonArray(core.decisions);
+  const selectedSymbols = Array.isArray(core.selected_symbols)
+    ? core.selected_symbols.map((symbol) => String(symbol))
+    : [];
+
+  return (
+    <DataPanel title="Core Shariah Basket">
+      <div className="grid gap-4">
+        <KeyValueGrid
+          items={[
+            { label: "Strategy", value: getString(core, "strategy_name") },
+            { label: "Review date", value: getString(core, "as_of_date") },
+            {
+              label: "Rebalance",
+              value: getPrimitive(rebalance, "should_rebalance") ? "Yes" : "No",
+            },
+            {
+              label: "Sleeve target",
+              value: formatPercent(getPrimitive(drift, "sleeve_target_pct_nav")),
+            },
+            {
+              label: "Sleeve current",
+              value: formatPercent(getPrimitive(drift, "sleeve_current_pct_nav")),
+            },
+            {
+              label: "Drift notional",
+              value: formatInr(getPrimitive(drift, "sleeve_drift_notional_inr")),
+            },
+            {
+              label: "Selected",
+              value: selectedSymbols.length ? selectedSymbols.join(", ") : "-",
+            },
+          ]}
+        />
+        <DataTable
+          columns={[
+            { key: "symbol", header: "Symbol", render: (row) => getString(row, "symbol") },
+            {
+              key: "side",
+              header: "Side",
+              render: (row) => <StatusBadge status={getString(row, "side")} size="sm" />,
+            },
+            {
+              key: "status",
+              header: "Status",
+              render: (row) => <StatusBadge status={getString(row, "status")} size="sm" />,
+            },
+            {
+              key: "target",
+              header: "Target",
+              align: "right",
+              render: (row) => formatPercent(getPrimitive(row, "target_weight_pct_nav")),
+            },
+            {
+              key: "current",
+              header: "Current",
+              align: "right",
+              render: (row) => formatPercent(getPrimitive(row, "current_weight_pct_nav")),
+            },
+            {
+              key: "notional",
+              header: "Trade",
+              align: "right",
+              render: (row) => formatInr(getPrimitive(row, "trade_notional_inr")),
+            },
+          ]}
+          emptyLabel="No core decisions"
+          getRowKey={(row) => getString(row, "symbol")}
+          rows={decisions}
+        />
+      </div>
+    </DataPanel>
   );
 }
 

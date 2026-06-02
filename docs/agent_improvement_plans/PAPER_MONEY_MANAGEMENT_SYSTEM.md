@@ -190,6 +190,34 @@ equity basket.
 
 At completion, add assumptions made, mocks created, and mocks used.
 
+### Completion Summary
+
+- Status: Completed on 2026-06-02.
+- Added `CoreShariahBasketStrategy` to build a conservative long-only core
+  basket exclusively from enabled NSE equity symbols in
+  `configs/market_data/nifty_500_shariah.yaml`.
+- Added selection artifacts for selected symbols, rejected candidates and
+  reasons, score inputs, target/current weights, sleeve drift, rebalance gates,
+  and per-symbol core decisions.
+- Added inverse-volatility target weighting with configured normal/hard
+  single-stock caps, minimum rebalance notional filtering, and optional
+  sector/graph concentration caps when graph metadata exists.
+- Wired money-management-enabled paper runs to create read-only core basket
+  artifacts without routing core orders or changing live-trading defaults.
+- Added a React run-detail surface for core basket status, drift, selected
+  symbols, and decision rows.
+- Added unit coverage for Shariah membership, inverse-volatility caps, and
+  monthly/drift gates; added a paper-run integration test for Shariah NSE equity
+  core decisions.
+- Assumptions made: Core basket decisions are generated as paper-run artifacts
+  in M32 and are not broker-routed orders; if fewer than 12 eligible candidates
+  have fresh candle history, the basket remains smaller rather than violating
+  caps or minimum notional rules; prior monthly rebalance state can be inferred
+  from prior paper-run artifacts until a later durable allocation table exists.
+- Mocks created: None.
+- Mocks used: Existing unit-test fake LLM provider and fake Kite market-data
+  provider for the paper-run integration test.
+
 ## M33: Active Sleeve Risk-Budgeted Allocation
 
 ### Goal

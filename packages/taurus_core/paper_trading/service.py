@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import time
 from collections.abc import Iterable
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -26,6 +26,8 @@ from taurus_core.db.models import AuditLogModel
 from taurus_core.db.repositories import (
     CandleRepository,
     ExecutionRepository,
+    GraphRepository,
+    IntelligenceRepository,
     InstrumentRepository,
     PaperRunRepository,
 )
@@ -43,6 +45,13 @@ from taurus_core.paper_trading.schemas import (
     PaperRunError,
     PaperRunUniverse,
     paper_run_id,
+)
+from taurus_core.portfolio import (
+    CoreBasketPosition,
+    CoreBasketReviewInput,
+    CoreShariahBasketStrategy,
+    load_money_management_policy_for_settings,
+    severe_negative_symbols,
 )
 from taurus_core.research.debate_service import DEFAULT_DEBATE_ROUNDS, ResearchDebateService
 from taurus_core.risk.review_service import RiskReviewService
@@ -115,6 +124,7 @@ class PaperRunService:
                 universe=run.universe,
                 strategy_config_path=strategy_config_path,
             )
+            money_management_summary = self._generate_money_management_summary()
             normalized_symbols = _symbols_for_pipeline(
                 requested_symbols=requested_symbols,
                 universe=run.universe,
@@ -140,6 +150,8 @@ class PaperRunService:
             return self._store_run(failed, audit_event="paper_run.failed")
 
         artifacts: dict[str, Any] = {"strategy": strategy_summary, "symbols": {}}
+        if money_management_summary is not None:
+            artifacts["money_management"] = money_management_summary
         succeeded_symbols: list[str] = []
         failed_symbols: list[str] = []
         errors: list[PaperRunError] = []
@@ -444,6 +456,64 @@ class PaperRunService:
             ),
         }
 
+    def _generate_money_management_summary(self) -> dict[str, object] | None:
+        if not self.settings.taurus_money_management_enabled:
+            return None
+
+        policy = load_money_management_policy_for_settings(self.settings)
+        strategy = CoreShariahBasketStrategy(policy)
+        universe_symbols = set(strategy.universe_by_symbol)
+        with self.session_factory() as session:
+            histories_by_symbol = {
+                symbol: _daily_candle_history(session, symbol)
+                for symbol in sorted(universe_symbols)
+            }
+            execution_repo = ExecutionRepository(session)
+            account = execution_repo.latest_account_by_portfolio(
+                portfolio_id=self.settings.taurus_paper_portfolio_id,
+            )
+            current_positions = tuple(
+                CoreBasketPosition(
+                    symbol=position.symbol,
+                    market_value_inr=position.market_value_inr,
+                )
+                for position in execution_repo.latest_open_positions_by_portfolio(
+                    portfolio_id=self.settings.taurus_paper_portfolio_id,
+                )
+                if position.symbol.upper() in universe_symbols
+            )
+            events_by_symbol: dict[str, list[object]] = {}
+            for event in IntelligenceRepository(session).list_events(limit=None):
+                if event.symbol.upper() in universe_symbols:
+                    events_by_symbol.setdefault(event.symbol.upper(), []).append(event)
+            sector_by_symbol, graph_cluster_by_symbol = _core_concentration_groups(
+                session,
+                symbols=universe_symbols,
+            )
+            last_core_rebalance_date = _last_core_rebalance_date(
+                PaperRunRepository(session).list(limit=None)
+            )
+
+        nav_inr = (
+            account.equity_inr
+            if account is not None
+            else Decimal(str(self.settings.taurus_initial_capital_inr))
+        )
+        return {
+            "policy": policy.to_metadata(),
+            "core_shariah_basket": strategy.review(
+                CoreBasketReviewInput(
+                    histories_by_symbol=histories_by_symbol,
+                    nav_inr=nav_inr,
+                    current_positions=current_positions,
+                    last_core_rebalance_date=last_core_rebalance_date,
+                    severe_negative_symbols=severe_negative_symbols(events_by_symbol),
+                    sector_by_symbol=sector_by_symbol,
+                    graph_cluster_by_symbol=graph_cluster_by_symbol,
+                )
+            ),
+        }
+
     def _open_position_symbols(self) -> set[str]:
         with self.session_factory() as session:
             positions = ExecutionRepository(session).latest_open_positions_by_portfolio(
@@ -688,6 +758,107 @@ def _symbol_selection_metadata(
         }
         for symbol in output_symbols
     }
+
+
+def _last_core_rebalance_date(run_rows) -> date | None:
+    for run in run_rows:
+        artifacts = run.artifacts or {}
+        if not isinstance(artifacts, dict):
+            continue
+        money_management = artifacts.get("money_management")
+        if not isinstance(money_management, dict):
+            continue
+        core = money_management.get("core_shariah_basket")
+        if not isinstance(core, dict):
+            continue
+        rebalance = core.get("rebalance")
+        if not isinstance(rebalance, dict) or rebalance.get("should_rebalance") is not True:
+            continue
+        as_of_date = core.get("as_of_date")
+        if not isinstance(as_of_date, str):
+            continue
+        try:
+            return date.fromisoformat(as_of_date)
+        except ValueError:
+            continue
+    return None
+
+
+def _core_concentration_groups(
+    session: Session,
+    *,
+    symbols: set[str],
+) -> tuple[dict[str, str], dict[str, str]]:
+    graph_repo = GraphRepository(session)
+    sector_by_symbol: dict[str, str] = {}
+    company_node_by_symbol = {
+        symbol: graph_repo.get_node_by_key(f"company:{symbol}")
+        for symbol in sorted(symbols)
+    }
+    for symbol, node in company_node_by_symbol.items():
+        if node is None:
+            continue
+        for edge in graph_repo.list_edges_for_node(
+            node_key=node.node_key,
+            status="active",
+            limit=None,
+        ):
+            if edge.edge_type not in {"classified_as_sector", "classified_as_basic_industry"}:
+                continue
+            related_node_id = (
+                edge.target_node_id if edge.source_node_id == node.id else edge.source_node_id
+            )
+            related = graph_repo.get_node_by_id(related_node_id)
+            if related is not None and related.node_type in {"industry_sector", "basic_industry"}:
+                sector_by_symbol[symbol] = related.display_name
+                break
+
+    graph_cluster_by_symbol: dict[str, str] = {}
+    active_company_edges = []
+    for edge in graph_repo.list_edges(status="active", limit=None):
+        source = graph_repo.get_node_by_id(edge.source_node_id)
+        target = graph_repo.get_node_by_id(edge.target_node_id)
+        if source is None or target is None:
+            continue
+        if source.symbol in symbols and target.symbol in symbols:
+            active_company_edges.append((source.symbol, target.symbol))
+    components = _connected_components(symbols, active_company_edges)
+    for index, component in enumerate(components, start=1):
+        if len(component) < 2:
+            continue
+        for symbol in component:
+            graph_cluster_by_symbol[symbol] = f"graph_cluster_{index}"
+    return sector_by_symbol, graph_cluster_by_symbol
+
+
+def _connected_components(
+    symbols: set[str],
+    edges: list[tuple[str | None, str | None]],
+) -> list[set[str]]:
+    adjacency = {symbol: set() for symbol in symbols}
+    for source, target in edges:
+        if source is None or target is None:
+            continue
+        if source not in adjacency or target not in adjacency:
+            continue
+        adjacency[source].add(target)
+        adjacency[target].add(source)
+    components: list[set[str]] = []
+    seen: set[str] = set()
+    for symbol in sorted(adjacency):
+        if symbol in seen:
+            continue
+        stack = [symbol]
+        component: set[str] = set()
+        while stack:
+            item = stack.pop()
+            if item in seen:
+                continue
+            seen.add(item)
+            component.add(item)
+            stack.extend(sorted(adjacency[item] - seen))
+        components.append(component)
+    return components
 
 
 def _selection_source(

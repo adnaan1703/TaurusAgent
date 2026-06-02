@@ -430,6 +430,31 @@ When enabled, `/ui/risk` and `/ui/portfolio` include read-only
 `money_management` metadata loaded from that policy file. M31 does not change
 paper order sizing.
 
+## M32 Commands Used
+
+```bash
+uv run pytest tests/unit/test_core_shariah_basket.py tests/unit/test_paper_runs.py::test_money_management_paper_run_creates_shariah_equity_core_decisions -q
+cd apps/web && pnpm test -- --run RunDetailPage
+make test-ui
+make lint
+make test
+git diff --check
+sed -n '/# END MY CUSTOM ADDITION/,$p' /Users/adnaan/.codex/rules/default.rules
+sed -n '1,260p' .codex/rules/default.rules
+```
+
+To include M32 core basket artifacts in a local paper run, keep execution paper
+only and enable the existing policy flag:
+
+```bash
+TAURUS_MONEY_MANAGEMENT_ENABLED=true make paper-loop-kite
+```
+
+The core Shariah basket writes decisions to the paper-run
+`money_management.core_shariah_basket` artifact. It does not route core basket
+orders; runtime market data remains Kite-backed and broker routing remains
+PaperBroker-only.
+
 ## M28 Commands Used
 
 ```bash
