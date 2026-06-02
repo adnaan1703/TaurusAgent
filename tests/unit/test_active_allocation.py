@@ -66,6 +66,43 @@ def test_sleeve_capacity_cap_limits_active_buy(tmp_path: Path) -> None:
     assert decision.approved_position_pct_nav <= Decimal("4.0000")
 
 
+def test_active_capacity_excludes_runtime_core_basket_holdings(tmp_path: Path) -> None:
+    policy_path = _write_policy(
+        tmp_path,
+        active_target_pct=Decimal("10.0"),
+        max_stock_pct=Decimal("50.0"),
+    )
+    core_holding = ActiveAllocationPosition(
+        symbol="TCS",
+        quantity=3000,
+        market_value_inr=Decimal("300000.00"),
+    )
+    without_runtime_core = _allocate(
+        policy_path,
+        _input(
+            target_pct=Decimal("20.0000"),
+            positions=(core_holding,),
+        ),
+    )
+    with_runtime_core = _allocate(
+        policy_path,
+        _input(
+            target_pct=Decimal("20.0000"),
+            positions=(core_holding,),
+            core_basket_symbols=("TCS",),
+        ),
+    )
+
+    assert without_runtime_core.allocation_decision is not None
+    assert with_runtime_core.allocation_decision is not None
+    assert without_runtime_core.action == "NO_TRADE"
+    assert without_runtime_core.allocation_decision.binding_constraint == "sleeve_capacity"
+    assert with_runtime_core.action == "BUY"
+    assert with_runtime_core.allocation_decision.binding_constraint == "sleeve_capacity"
+    assert Decimal("0") < with_runtime_core.allocation_decision.approved_notional_inr
+    assert with_runtime_core.allocation_decision.approved_notional_inr <= Decimal("100000.00")
+
+
 def test_cash_buffer_cap_limits_active_buy(tmp_path: Path) -> None:
     policy_path = _write_policy(tmp_path, max_stock_pct=Decimal("50.0"))
     allocated = _allocate(
@@ -430,6 +467,7 @@ def _input(
     strategy_name: str = "graph_aware_score_v1",
     sector_by_symbol: dict[str, str] | None = None,
     graph_cluster_by_symbol: dict[str, str] | None = None,
+    core_basket_symbols: tuple[str, ...] = (),
 ) -> ActiveAllocationInput:
     base = proposal or _proposal(action="BUY", target_pct=target_pct)
     if proposal is None:
@@ -452,6 +490,7 @@ def _input(
         portfolio_starting_nav_estimate_inr=portfolio_starting_nav,
         current_positions=positions,
         sleeve_snapshots=sleeve_snapshots,
+        core_basket_symbols=core_basket_symbols,
         history=history or tuple(_candles(symbol=tagged.symbol, volatility="low")),
         strategy_score=Decimal("0.2000"),
         sector_by_symbol=sector_by_symbol,
@@ -557,7 +596,6 @@ def _write_policy(
     policy_path.write_text(
         "policy_version: active_test_policy\n"
         f"shariah_universe_path: {universe_path}\n"
-        "cash_buffer_target_pct: 5.0\n"
         "sleeves:\n"
         "  - sleeve_id: core_shariah\n"
         "    name: Core\n"
@@ -621,7 +659,6 @@ def _write_policy(
         "    action: freeze_new_buys_allow_exits\n"
         "rebalance:\n"
         "  sleeve_drift_threshold_pct: 20.0\n"
-        "  position_drift_threshold_pct: 20.0\n"
         "  min_rebalance_notional_inr: 5000\n"
         "  review_frequency: daily_after_close\n"
         "  core_rebalance_frequency: monthly\n",

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
@@ -10,9 +11,13 @@ from apps.api.main import create_app
 from scripts.migrate import run_migrations
 from taurus_core.compliance import import_halal_stock_compliance, parse_halal_stock_rows
 from taurus_core.config import Settings
+from taurus_core.db.repositories import ExecutionRepository, PaperRunRepository
+from taurus_core.db.session import build_session_factory
+from taurus_core.execution.schemas import PaperAccount, PaperPosition, paper_account_id
+from taurus_core.paper_trading.schemas import PaperRun
 from taurus_core.paper_trading.service import PaperRunService
 from tests.llm_fakes import FakeLLMProvider
-from tests.market_data_fixtures import FakeKiteMarketDataProvider
+from tests.market_data_fixtures import FakeKiteMarketDataProvider, seed_test_market_data
 
 
 EXPECTED_TRAIL_STAGES = [
@@ -186,7 +191,7 @@ def test_ui_risk_and_portfolio_include_money_management_metadata_when_enabled(
     assert risk_money_management == portfolio.json()["money_management"]
     assert risk_money_management["enabled"] is True
     assert risk_money_management["policy"]["policy_version"] == "ui_test_policy"
-    assert risk_money_management["policy"]["core_symbols"] == ["INFY"]
+    assert "core_symbols" not in risk_money_management["policy"]
     state = risk_money_management["state"]
     assert state["snapshot_source"] == "not_persisted"
     assert state["sleeve_snapshot_count"] == 0
@@ -212,6 +217,97 @@ def test_ui_risk_and_portfolio_include_money_management_metadata_when_enabled(
     assert allocation["core_basket"]["available"] is False
     assert allocation["latest_decisions"] == []
     assert allocation["drawdown_governors"]["portfolio_drawdown_pct"] == "0.0000"
+
+
+def test_ui_portfolio_labels_core_positions_from_latest_runtime_basket(
+    tmp_path: Path,
+) -> None:
+    policy_path = _write_money_management_policy(tmp_path)
+    settings = Settings(
+        taurus_alert_provider="mock",
+        taurus_graph_enabled=False,
+        taurus_graph_risk_enabled=False,
+        taurus_enabled_analysts="technical",
+        taurus_llm_model="",
+        taurus_money_management_enabled=True,
+        taurus_money_management_config_path=str(policy_path),
+    )
+    run_migrations(settings)
+    session_factory = build_session_factory(settings)
+    as_of = datetime(2024, 5, 20, tzinfo=timezone.utc)
+    run = PaperRun(
+        run_id="pr-core-runtime-label",
+        schedule_name="daily_after_close",
+        status="COMPLETED",
+        started_at=as_of,
+        completed_at=as_of,
+        symbols=["INFY"],
+        succeeded_symbols=["INFY"],
+        artifacts={
+            "money_management": {
+                "core_shariah_basket": {
+                    "strategy_name": "core_shariah_basket_v1",
+                    "sleeve_id": "core_shariah",
+                    "as_of_date": "2024-05-20",
+                    "selected_symbols": ["INFY", "TCS"],
+                    "target_weights": {"INFY": "5.0000"},
+                    "current_weights": {"INFY": "5.0000", "TCS": "2.0000"},
+                    "drift": {},
+                    "rebalance": {},
+                    "rejected_candidates": [],
+                }
+            }
+        },
+    )
+    account = PaperAccount(
+        account_id=paper_account_id(
+            portfolio_id=settings.taurus_paper_portfolio_id,
+            run_id=run.run_id,
+        ),
+        run_id=run.run_id,
+        portfolio_id=settings.taurus_paper_portfolio_id,
+        starting_cash_inr=Decimal("1000000.00"),
+        available_cash_inr=Decimal("950000.00"),
+        reserved_cash_inr=Decimal("0.00"),
+        realized_pnl_inr=Decimal("0.00"),
+        unrealized_pnl_inr=Decimal("0.00"),
+        gross_exposure_inr=Decimal("50000.00"),
+        equity_inr=Decimal("1000000.00"),
+        updated_at=as_of,
+    )
+    position = PaperPosition(
+        run_id=run.run_id,
+        portfolio_id=settings.taurus_paper_portfolio_id,
+        symbol="INFY",
+        quantity=100,
+        average_cost_inr=Decimal("500.00"),
+        last_price_inr=Decimal("500.00"),
+        market_value_inr=Decimal("50000.00"),
+        realized_pnl_inr=Decimal("0.00"),
+        unrealized_pnl_inr=Decimal("0.00"),
+        updated_at=as_of,
+    )
+    with session_factory() as session:
+        seed_test_market_data(session)
+        PaperRunRepository(session).upsert(run)
+        ExecutionRepository(session).replace_account_state(
+            run_id=run.run_id,
+            portfolio_id=settings.taurus_paper_portfolio_id,
+            account=account,
+            positions=[position],
+        )
+        session.commit()
+
+    response = TestClient(create_app(settings)).get("/ui/portfolio")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["positions"][0]["sleeve_id"] == "core_shariah"
+    assert payload["positions"][0]["allocation_status"] == "core_position"
+    assert payload["allocation"]["core_basket"]["symbols"] == ["INFY"]
+    assert [row["symbol"] for row in payload["allocation"]["core_basket"]["composition"]] == [
+        "INFY"
+    ]
 
 
 def test_ui_decision_trail_includes_allocation_decision_when_enabled(
@@ -436,14 +532,11 @@ def _write_money_management_policy(tmp_path: Path) -> Path:
     policy_path.write_text(
         "policy_version: ui_test_policy\n"
         f"shariah_universe_path: {universe_path}\n"
-        "cash_buffer_target_pct: 5.0\n"
         "sleeves:\n"
         "  - sleeve_id: core_shariah\n"
         "    name: Core\n"
         "    target_weight_pct: 95.0\n"
         "    role: Core sleeve\n"
-        "    core_symbols:\n"
-        "      - INFY\n"
         "  - sleeve_id: cash_buffer\n"
         "    name: Cash\n"
         "    target_weight_pct: 5.0\n"
@@ -465,10 +558,9 @@ def _write_money_management_policy(tmp_path: Path) -> Path:
         "drawdown_governors:\n"
         "  - name: caution\n"
         "    drawdown_pct: 3.0\n"
-        "    action: reduce\n"
+        "    action: reduce_new_position_sizes_25_pct\n"
         "rebalance:\n"
         "  sleeve_drift_threshold_pct: 20.0\n"
-        "  position_drift_threshold_pct: 20.0\n"
         "  min_rebalance_notional_inr: 5000\n"
         "  review_frequency: daily_after_close\n"
         "  core_rebalance_frequency: monthly\n",

@@ -563,6 +563,29 @@ response format, and the smoke test enables graph without imported graph
 company nodes. M35-focused API tests, UI tests, frontend build, lint, and
 `git diff --check` passed.
 
+## M35.1 Commands Used
+
+```bash
+uv run pytest tests/unit/test_config.py tests/unit/test_active_allocation.py tests/unit/test_core_shariah_basket.py tests/unit/test_paper_runs.py tests/unit/test_ui_aggregate_api.py tests/unit/test_risk_approval.py -q
+make lint
+make test-ui
+make test
+git diff --check
+sed -n '/# END MY CUSTOM ADDITION/,$p' /Users/adnaan/.codex/rules/default.rules
+sed -n '1,260p' .codex/rules/default.rules
+```
+
+M35.1 removes static money-management shortcuts. The policy no longer carries
+`core_symbols`, `cash_buffer_target_pct`, or
+`rebalance.position_drift_threshold_pct`. Runtime core basket membership comes
+from `money_management.core_shariah_basket.target_weights` keys, the cash target
+comes from the `cash_buffer` sleeve target, and money-management-enabled risk
+caps come from policy `limits`.
+
+Verification passed: focused money-management/API/risk tests, `make lint`,
+`make test-ui`, `make test` (`223 passed, 1 skipped`), `git diff --check`, and
+the required global/project Codex rules audit.
+
 ## M28 Commands Used
 
 ```bash

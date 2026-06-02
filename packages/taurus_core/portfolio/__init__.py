@@ -22,6 +22,7 @@ from taurus_core.portfolio.money_management import (
     ExposureLimitsPolicy,
     MoneyManagementPolicy,
     PortfolioPolicy,
+    PositionLimitPolicy,
     RebalanceThresholdPolicy,
     SleevePolicy,
     SleeveSnapshot,
@@ -31,6 +32,7 @@ from taurus_core.portfolio.money_management import (
     load_money_management_policy,
     load_money_management_policy_for_settings,
     money_management_metadata,
+    position_limits_for_settings,
 )
 
 __all__ = [
@@ -52,6 +54,7 @@ __all__ = [
     "MoneyManagementPolicy",
     "PortfolioPolicy",
     "PortfolioAllocationService",
+    "PositionLimitPolicy",
     "RebalanceThresholdPolicy",
     "SleevePolicy",
     "SleeveSnapshot",
@@ -61,5 +64,6 @@ __all__ = [
     "load_money_management_policy",
     "load_money_management_policy_for_settings",
     "money_management_metadata",
+    "position_limits_for_settings",
     "severe_negative_symbols",
 ]

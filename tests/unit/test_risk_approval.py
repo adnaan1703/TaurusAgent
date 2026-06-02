@@ -90,6 +90,61 @@ def test_risk_engine_reduces_oversized_positions(tmp_path: Path) -> None:
     )
 
 
+def test_risk_engine_uses_money_management_position_limits_when_enabled(
+    tmp_path: Path,
+) -> None:
+    policy_path = _write_money_management_policy(
+        tmp_path,
+        max_stock_pct=Decimal("3.0"),
+        max_open_positions=1,
+    )
+    settings = Settings(
+        taurus_money_management_enabled=True,
+        taurus_money_management_config_path=str(policy_path),
+        taurus_max_position_pct=9,
+        taurus_max_open_positions=99,
+    )
+    session_factory = _prepare_approval_db(settings)
+    oversized = _build_trader_proposal(session_factory).model_copy(
+        update={
+            "action": "BUY",
+            "requested_position_pct_nav": Decimal("6.0000"),
+            "target_position_pct_nav": Decimal("6.0000"),
+        }
+    )
+    new_position = oversized.model_copy(
+        update={
+            "requested_position_pct_nav": Decimal("2.0000"),
+            "target_position_pct_nav": Decimal("2.0000"),
+        }
+    )
+
+    with session_factory() as session:
+        reduced = RiskEngine(session, settings).evaluate(
+            proposal=oversized,
+            decision_id=_decision_id(oversized),
+            risk_check_id=_risk_check_id(oversized),
+        )
+    with session_factory() as session:
+        rejected = RiskEngine(
+            session,
+            settings,
+            current_open_positions=1,
+        ).evaluate(
+            proposal=new_position,
+            decision_id=_decision_id(new_position),
+            risk_check_id=_risk_check_id(new_position),
+        )
+
+    assert reduced.status == "APPROVED_WITH_REDUCTION"
+    assert reduced.approved_position_pct_nav == Decimal("3.0000")
+    assert rejected.status == "REJECTED"
+    assert any(
+        rule.rule == "max_open_positions" and rule.status == "rejected"
+        for rule in rejected.hard_rule_results
+    )
+
+
 def test_kill_switch_blocks_risk_approval(tmp_path: Path) -> None:
     settings = _settings_for_temp_db(tmp_path)
     session_factory = _prepare_approval_db(settings)
@@ -437,6 +492,68 @@ def _risk_check_id(proposal: TraderProposal) -> str:
 
 def _settings_for_temp_db(tmp_path: Path) -> Settings:
     return Settings()
+
+
+def _write_money_management_policy(
+    tmp_path: Path,
+    *,
+    max_stock_pct: Decimal,
+    max_open_positions: int,
+) -> Path:
+    universe_path = tmp_path / "risk_shariah.yaml"
+    universe_path.write_text(
+        "universe_name: risk_test_shariah\n"
+        "default_exchange: NSE\n"
+        "default_segment: EQUITY\n"
+        "symbols:\n"
+        "  - symbol: INFY\n"
+        "    name: Infosys Ltd.\n"
+        "    enabled: true\n"
+        "    providers:\n"
+        "      kite:\n"
+        "        exchange: NSE\n"
+        "        tradingsymbol: INFY\n",
+        encoding="utf-8",
+    )
+    policy_path = tmp_path / "money_management_risk.yaml"
+    policy_path.write_text(
+        "policy_version: risk_test_policy\n"
+        f"shariah_universe_path: {universe_path}\n"
+        "sleeves:\n"
+        "  - sleeve_id: core_shariah\n"
+        "    name: Core\n"
+        "    target_weight_pct: 40.0\n"
+        "    role: Core sleeve\n"
+        "  - sleeve_id: active_strategy\n"
+        "    name: Active\n"
+        "    target_weight_pct: 55.0\n"
+        "    role: Active sleeve\n"
+        "  - sleeve_id: cash_buffer\n"
+        "    name: Cash\n"
+        "    target_weight_pct: 5.0\n"
+        "    role: Cash buffer\n"
+        "strategy_mappings:\n"
+        "  - strategy_name: graph_aware_score_v1\n"
+        "    sleeve_id: active_strategy\n"
+        "limits:\n"
+        f"  max_stock_pct_nav: {max_stock_pct}\n"
+        f"  max_stock_hard_cap_pct_nav: {max_stock_pct}\n"
+        "  max_sector_pct_nav: 25.0\n"
+        "  max_graph_cluster_pct_nav: 35.0\n"
+        f"  max_open_positions: {max_open_positions}\n"
+        "trade_risk:\n"
+        "  normal_trade_risk_pct_nav: 0.50\n"
+        "  strong_trade_risk_pct_nav: 0.75\n"
+        "  max_single_trade_risk_pct_nav: 1.00\n"
+        "  max_total_open_trade_risk_pct_nav: 5.00\n"
+        "rebalance:\n"
+        "  sleeve_drift_threshold_pct: 20.0\n"
+        "  min_rebalance_notional_inr: 5000\n"
+        "  review_frequency: daily_after_close\n"
+        "  core_rebalance_frequency: monthly\n",
+        encoding="utf-8",
+    )
+    return policy_path
 
 
 class _FailingFinalDecisionLLMProvider(FakeLLMProvider):

@@ -193,14 +193,16 @@ def test_money_management_policy_loads_default_config() -> None:
     assert policy.policy_version == "money_management_v1"
     assert policy.cash_buffer_target_pct == Decimal("5.0")
     assert sum(sleeve.target_weight_pct for sleeve in policy.sleeves) == Decimal("100.0")
-    assert "INFY" in policy.core_symbols
+    metadata = policy.to_metadata()
+    assert "cash_buffer_target_pct" not in metadata
+    assert "core_symbols" not in metadata
+    assert all("core_symbols" not in sleeve for sleeve in metadata["sleeves"])
     assert policy.limits.max_stock_hard_cap_pct_nav >= policy.limits.max_stock_pct_nav
 
 
 @pytest.mark.parametrize(
     ("override", "message"),
     [
-        ("cash_buffer_target_pct: -1.0", "greater than or equal to 0"),
         (
             "sleeves:\n"
             "  - sleeve_id: core_shariah\n"
@@ -218,6 +220,13 @@ def test_money_management_policy_loads_default_config() -> None:
             "  max_open_positions: 20\n",
             "hard cap must be greater than or equal",
         ),
+        (
+            "drawdown_governors:\n"
+            "  - name: invalid\n"
+            "    drawdown_pct: 3.0\n"
+            "    action: reduce\n",
+            "Input should be",
+        ),
     ],
 )
 def test_money_management_policy_validation_failures(
@@ -228,20 +237,6 @@ def test_money_management_policy_validation_failures(
     policy_path = _write_money_management_policy(tmp_path, override=override)
 
     with pytest.raises(ValueError, match=message):
-        load_money_management_policy(policy_path)
-
-
-def test_money_management_policy_enforces_core_symbol_shariah_universe_membership(
-    tmp_path: Path,
-) -> None:
-    universe_path = _write_universe(tmp_path, symbols=["INFY"])
-    policy_path = _write_money_management_policy(
-        tmp_path,
-        universe_path=universe_path,
-        core_symbols=["INFY", "NOTHALAL"],
-    )
-
-    with pytest.raises(ValueError, match="NOTHALAL"):
         load_money_management_policy(policy_path)
 
 
@@ -272,23 +267,17 @@ def _write_money_management_policy(
     tmp_path: Path,
     *,
     universe_path: Path | None = None,
-    core_symbols: list[str] | None = None,
     override: str | None = None,
 ) -> Path:
     universe_path = universe_path or _write_universe(tmp_path, symbols=["INFY"])
-    core_symbols = core_symbols or ["INFY"]
-    core_symbol_lines = "\n".join(f"      - {symbol}" for symbol in core_symbols)
     base = (
         "policy_version: test_policy\n"
         f"shariah_universe_path: {universe_path}\n"
-        "cash_buffer_target_pct: 5.0\n"
         "sleeves:\n"
         "  - sleeve_id: core_shariah\n"
         "    name: Core\n"
         "    target_weight_pct: 95.0\n"
         "    role: Core sleeve\n"
-        "    core_symbols:\n"
-        f"{core_symbol_lines}\n"
         "  - sleeve_id: cash_buffer\n"
         "    name: Cash\n"
         "    target_weight_pct: 5.0\n"
@@ -310,10 +299,9 @@ def _write_money_management_policy(
         "drawdown_governors:\n"
         "  - name: caution\n"
         "    drawdown_pct: 3.0\n"
-        "    action: reduce\n"
+        "    action: reduce_new_position_sizes_25_pct\n"
         "rebalance:\n"
         "  sleeve_drift_threshold_pct: 20.0\n"
-        "  position_drift_threshold_pct: 20.0\n"
         "  min_rebalance_notional_inr: 5000\n"
         "  review_frequency: daily_after_close\n"
         "  core_rebalance_frequency: monthly\n"
@@ -322,7 +310,7 @@ def _write_money_management_policy(
         key = override.split(":", maxsplit=1)[0]
         lines = base.splitlines()
         filtered = [line for line in lines if not line.startswith(f"{key}:")]
-        if key in {"sleeves", "limits"}:
+        if key in {"sleeves", "limits", "drawdown_governors", "rebalance"}:
             start = next(index for index, line in enumerate(lines) if line.startswith(f"{key}:"))
             end = next(
                 (

@@ -68,6 +68,7 @@ class ActiveAllocationInput:
     portfolio_starting_nav_estimate_inr: Decimal | None = None
     current_positions: tuple[ActiveAllocationPosition, ...] = ()
     sleeve_snapshots: tuple[SleeveAllocationSnapshot, ...] = ()
+    core_basket_symbols: tuple[str, ...] = ()
     history: tuple[DailyCandle, ...] = ()
     strategy_score: Decimal | None = None
     sector_by_symbol: dict[str, str] | None = None
@@ -258,10 +259,10 @@ class PortfolioAllocationService:
                 proposal=proposal,
                 nav_inr=allocation_input.nav_inr,
                 positions=allocation_input.current_positions,
-                policy=self.policy,
                 sleeve_id=sleeve.sleeve_id,
                 sleeve_target_pct=sleeve.target_weight_pct,
                 sleeve_snapshot=sleeve_snapshot,
+                core_basket_symbols=allocation_input.core_basket_symbols,
             ),
             "cash_buffer": _cash_buffer_room(allocation_input, self.policy),
             "total_open_trade_risk": _total_trade_risk_room(
@@ -713,10 +714,10 @@ def _sleeve_capacity_room(
     proposal: TraderProposal,
     nav_inr: Decimal,
     positions: tuple[ActiveAllocationPosition, ...],
-    policy: MoneyManagementPolicy,
     sleeve_id: str,
     sleeve_target_pct: Decimal,
     sleeve_snapshot: SleeveAllocationSnapshot | None,
+    core_basket_symbols: tuple[str, ...],
 ) -> Decimal:
     if sleeve_snapshot is not None:
         capacity = _pct_to_notional(sleeve_target_pct, nav_inr)
@@ -724,14 +725,12 @@ def _sleeve_capacity_room(
             MONEY_QUANT
         )
 
-    active_symbols = {position.symbol.upper() for position in positions}
-    core_symbols = set(policy.core_symbols)
+    core_symbols = {symbol.upper() for symbol in core_basket_symbols}
     current_active_notional = sum(
         (
             position.market_value_inr
             for position in positions
-            if position.symbol.upper() in active_symbols
-            and position.symbol.upper() not in core_symbols
+            if position.symbol.upper() not in core_symbols
             and position.symbol.upper() != proposal.symbol.upper()
         ),
         Decimal("0"),

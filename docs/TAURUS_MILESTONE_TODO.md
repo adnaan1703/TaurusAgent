@@ -91,6 +91,7 @@ context, then documented with the standard completion summary before moving on.
 | 13 | M33 | Done | `docs/agent_improvement_plans/PAPER_MONEY_MANAGEMENT_SYSTEM.md` | Added active-sleeve risk-budgeted, volatility-adjusted allocation. |
 | 14 | M34 | Done | `docs/agent_improvement_plans/PAPER_MONEY_MANAGEMENT_SYSTEM.md` | Added diversifying/experimental sleeve governors and strategy-level allocation. |
 | 15 | M35 | Done | `docs/agent_improvement_plans/PAPER_MONEY_MANAGEMENT_SYSTEM.md` | Added allocation dashboard surfaces and operator workflow docs. |
+| 16 | M35.1 | Done | User-provided money-management policy cleanup plan | Removed static core-symbol/cash/drift policy shortcuts; runtime core basket target weights are authoritative for attribution and labels. |
 
 ## Deferred Work
 

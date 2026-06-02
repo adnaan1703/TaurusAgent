@@ -48,6 +48,7 @@ from taurus_core.paper_trading.schemas import (
     paper_run_id,
 )
 from taurus_core.portfolio import (
+    ALLOCATABLE_SLEEVE_IDS,
     ActiveAllocationInput,
     ActiveAllocationPosition,
     CoreBasketPosition,
@@ -131,6 +132,7 @@ class PaperRunService:
                 strategy_config_path=strategy_config_path,
             )
             money_management_summary = self._generate_money_management_summary()
+            core_basket_symbols = _core_basket_symbols_from_summary(money_management_summary)
             normalized_symbols = _symbols_for_pipeline(
                 requested_symbols=requested_symbols,
                 universe=run.universe,
@@ -175,6 +177,7 @@ class PaperRunService:
                     symbol=symbol,
                     run_id=run.run_id,
                     strategy_summary=strategy_summary,
+                    core_basket_symbols=core_basket_symbols,
                 )
                 succeeded_symbols.append(symbol)
             except Exception as exc:
@@ -214,6 +217,7 @@ class PaperRunService:
         symbol: str,
         run_id: str,
         strategy_summary: dict[str, object],
+        core_basket_symbols: set[str],
     ) -> dict[str, object]:
         with bound_trace_context(run_id=run_id):
             self.logger.info("paper_run.symbol.started", symbol=symbol)
@@ -251,6 +255,7 @@ class PaperRunService:
             symbol=symbol,
             proposal=proposal,
             strategy_summary=strategy_summary,
+            core_basket_symbols=core_basket_symbols,
         )
 
         with self.session_factory() as session:
@@ -332,6 +337,7 @@ class PaperRunService:
         symbol: str,
         proposal,
         strategy_summary: dict[str, object],
+        core_basket_symbols: set[str],
     ):
         if not self.settings.taurus_money_management_enabled:
             return proposal
@@ -372,6 +378,7 @@ class PaperRunService:
                 session,
                 symbols=concentration_symbols,
             )
+            sleeve_by_symbol = _latest_allocation_sleeves_by_symbol(session, settings=self.settings)
 
             allocated = PortfolioAllocationService(policy).allocate(
                 ActiveAllocationInput(
@@ -387,7 +394,10 @@ class PaperRunService:
                         policy=policy,
                         nav_inr=nav_inr,
                         positions=open_positions,
+                        core_basket_symbols=core_basket_symbols,
+                        sleeve_by_symbol=sleeve_by_symbol,
                     ),
+                    core_basket_symbols=tuple(sorted(core_basket_symbols)),
                     history=history,
                     strategy_score=signal["score"] if signal is not None else None,
                     sector_by_symbol=sector_by_symbol,
@@ -831,6 +841,46 @@ def _strategy_signal_for_symbol(
     return None
 
 
+def _core_basket_symbols_from_summary(
+    money_management_summary: dict[str, object] | None,
+) -> set[str]:
+    if not isinstance(money_management_summary, dict):
+        return set()
+    core = money_management_summary.get("core_shariah_basket")
+    if not isinstance(core, dict):
+        return set()
+    target_weights = core.get("target_weights")
+    if not isinstance(target_weights, dict):
+        return set()
+    return {
+        str(symbol).strip().upper()
+        for symbol in target_weights
+        if str(symbol).strip()
+    }
+
+
+def _latest_allocation_sleeves_by_symbol(
+    session: Session,
+    *,
+    settings: Settings,
+) -> dict[str, str]:
+    sleeves_by_symbol: dict[str, str] = {}
+    for proposal in ResearchRepository(session).list_trader_proposals(
+        portfolio_id=settings.taurus_paper_portfolio_id,
+        limit=500,
+    ):
+        payload = proposal.payload or {}
+        allocation_decision = payload.get("allocation_decision")
+        if not isinstance(allocation_decision, dict):
+            continue
+        symbol = str(allocation_decision.get("symbol") or proposal.symbol).strip().upper()
+        sleeve_id = str(allocation_decision.get("sleeve_id") or "").strip().lower()
+        if not symbol or sleeve_id not in ALLOCATABLE_SLEEVE_IDS:
+            continue
+        sleeves_by_symbol.setdefault(symbol, sleeve_id)
+    return sleeves_by_symbol
+
+
 def _run_with_selected_symbols(run: PaperRun, symbols: list[str]) -> PaperRun:
     universe = run.universe
     if universe is not None:
@@ -1032,8 +1082,15 @@ def _sleeve_snapshots_for_allocation(
     policy: MoneyManagementPolicy,
     nav_inr: Decimal,
     positions: tuple[ActiveAllocationPosition, ...],
+    core_basket_symbols: set[str],
+    sleeve_by_symbol: dict[str, str] | None = None,
 ) -> tuple[SleeveAllocationSnapshot, ...]:
-    core_symbols = set(policy.core_symbols)
+    core_symbols = {symbol.upper() for symbol in core_basket_symbols}
+    runtime_sleeve_by_symbol = {
+        symbol.strip().upper(): sleeve_id.strip().lower()
+        for symbol, sleeve_id in (sleeve_by_symbol or {}).items()
+        if symbol.strip() and sleeve_id.strip()
+    }
     snapshots: list[SleeveAllocationSnapshot] = []
     for sleeve in policy.sleeves:
         starting_nav = (nav_inr * sleeve.target_weight_pct / Decimal("100")).quantize(
@@ -1045,11 +1102,16 @@ def _sleeve_snapshots_for_allocation(
                 for position in positions
                 if position.symbol.upper() in core_symbols
             ]
-        elif sleeve.sleeve_id == "active_strategy":
+        elif sleeve.sleeve_id in ALLOCATABLE_SLEEVE_IDS:
             sleeve_positions = [
                 position
                 for position in positions
                 if position.symbol.upper() not in core_symbols
+                and runtime_sleeve_by_symbol.get(
+                    position.symbol.upper(),
+                    "active_strategy",
+                )
+                == sleeve.sleeve_id
             ]
         else:
             sleeve_positions = []

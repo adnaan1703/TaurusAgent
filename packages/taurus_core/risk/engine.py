@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from taurus_core.config import Settings, get_settings
 from taurus_core.db.repositories import IntelligenceRepository, InstrumentRepository
 from taurus_core.intelligence.event_scoring import EVENT_SENTIMENT
+from taurus_core.portfolio.money_management import position_limits_for_settings
 from taurus_core.research.schemas import TraderProposal
 from taurus_core.risk.graph_concentration import evaluate_graph_concentration
 from taurus_core.risk.schemas import (
@@ -72,6 +73,7 @@ class RiskEngine:
         target_position = proposal.target_position_pct_nav.quantize(SCORE_QUANT)
         approved_position = target_position
         has_existing_position = proposal.current_position_quantity > 0
+        position_limits = position_limits_for_settings(self.settings)
         results: list[HardRuleResult] = []
 
         live_safe = (
@@ -145,13 +147,16 @@ class RiskEngine:
             )
         )
 
-        max_position = Decimal(str(self.settings.taurus_max_position_pct)).quantize(SCORE_QUANT)
+        max_position = position_limits.max_stock_pct_nav.quantize(SCORE_QUANT)
         if action == "BUY" and approved_position > max_position:
             results.append(
                 HardRuleResult(
                     rule="max_position_pct",
                     status="reduced",
-                    details=f"{approved_position} reduced to configured cap {max_position}.",
+                    details=(
+                        f"{approved_position} reduced to {position_limits.source} cap "
+                        f"{max_position}."
+                    ),
                 )
             )
             approved_position = max_position
@@ -161,7 +166,8 @@ class RiskEngine:
                     rule="max_position_pct",
                     status="passed",
                     details=(
-                        f"{approved_position} is within configured cap {max_position}."
+                        f"{approved_position} is within {position_limits.source} cap "
+                        f"{max_position}."
                         if action == "BUY"
                         else f"Position cap does not block lifecycle action {action}."
                     ),
@@ -188,7 +194,7 @@ class RiskEngine:
                 )
             )
 
-        max_open_positions = self.settings.taurus_max_open_positions
+        max_open_positions = position_limits.max_open_positions
         open_positions_ok = (
             action != "BUY"
             or has_existing_position
@@ -200,9 +206,11 @@ class RiskEngine:
                 rule="max_open_positions",
                 status="passed" if open_positions_ok else "rejected",
                 details=(
-                    f"Open positions {self.current_open_positions} below cap {max_open_positions}."
+                    f"Open positions {self.current_open_positions} below "
+                    f"{position_limits.source} cap {max_open_positions}."
                     if open_positions_ok
-                    else f"Open positions {self.current_open_positions} at cap {max_open_positions}."
+                    else f"Open positions {self.current_open_positions} at "
+                    f"{position_limits.source} cap {max_open_positions}."
                 ),
             )
         )

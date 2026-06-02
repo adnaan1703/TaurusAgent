@@ -1,15 +1,30 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from taurus_core.allocation_schemas import AllocationDecision
-from taurus_core.data.universe import load_market_data_universe
+
+
+DrawdownGovernorAction = Literal[
+    "reduce_new_position_sizes_25_pct",
+    "reduce_new_position_sizes_50_pct",
+    "stop_experimental_new_entries",
+    "freeze_new_buys_allow_exits",
+]
+
+
+@dataclass(frozen=True, slots=True)
+class PositionLimitPolicy:
+    max_stock_pct_nav: Decimal
+    max_open_positions: int
+    source: str
 
 
 class SleevePolicy(BaseModel):
@@ -19,7 +34,6 @@ class SleevePolicy(BaseModel):
     name: str = Field(min_length=1)
     target_weight_pct: Decimal = Field(ge=Decimal("0"), le=Decimal("100"))
     role: str = Field(min_length=1)
-    core_symbols: tuple[str, ...] = Field(default_factory=tuple)
     drawdown_reduce_threshold_pct: Decimal | None = Field(
         default=None,
         ge=Decimal("0"),
@@ -45,15 +59,6 @@ class SleevePolicy(BaseModel):
     @classmethod
     def normalize_sleeve_id(cls, value: str) -> str:
         return value.strip().lower()
-
-    @field_validator("core_symbols", mode="before")
-    @classmethod
-    def normalize_core_symbols(cls, value: object) -> tuple[str, ...]:
-        if value is None:
-            return tuple()
-        if not isinstance(value, list | tuple):
-            raise ValueError("core_symbols must be a list of symbols.")
-        return tuple(str(symbol).strip().upper() for symbol in value if str(symbol).strip())
 
 
 class StrategySleeveMapping(BaseModel):
@@ -103,14 +108,18 @@ class DrawdownGovernorPolicy(BaseModel):
 
     name: str = Field(min_length=1)
     drawdown_pct: Decimal = Field(ge=Decimal("0"), le=Decimal("100"))
-    action: str = Field(min_length=1)
+    action: DrawdownGovernorAction
+
+    @field_validator("action", mode="before")
+    @classmethod
+    def normalize_action(cls, value: object) -> str:
+        return str(value).strip().lower()
 
 
 class RebalanceThresholdPolicy(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     sleeve_drift_threshold_pct: Decimal = Field(ge=Decimal("0"), le=Decimal("100"))
-    position_drift_threshold_pct: Decimal = Field(ge=Decimal("0"), le=Decimal("100"))
     min_rebalance_notional_inr: Decimal = Field(ge=Decimal("0"))
     review_frequency: str = Field(min_length=1)
     core_rebalance_frequency: str = Field(min_length=1)
@@ -123,7 +132,6 @@ class MoneyManagementPolicy(BaseModel):
     shariah_universe_path: str = Field(min_length=1)
     sleeves: tuple[SleevePolicy, ...]
     strategy_mappings: tuple[StrategySleeveMapping, ...] = Field(default_factory=tuple)
-    cash_buffer_target_pct: Decimal = Field(ge=Decimal("0"), le=Decimal("100"))
     limits: ExposureLimitsPolicy
     trade_risk: TradeRiskDefaultsPolicy
     drawdown_governors: tuple[DrawdownGovernorPolicy, ...] = Field(default_factory=tuple)
@@ -146,6 +154,9 @@ class MoneyManagementPolicy(BaseModel):
         if total != Decimal("100"):
             raise ValueError("sleeve weights must sum to 100%.")
 
+        if "cash_buffer" not in sleeve_ids:
+            raise ValueError("money-management policy requires a cash_buffer sleeve.")
+
         missing_sleeves = sorted(
             {
                 mapping.sleeve_id
@@ -160,19 +171,15 @@ class MoneyManagementPolicy(BaseModel):
         return self
 
     @property
-    def core_symbols(self) -> tuple[str, ...]:
-        symbols = {
-            symbol
+    def cash_buffer_target_pct(self) -> Decimal:
+        return next(
+            sleeve.target_weight_pct
             for sleeve in self.sleeves
-            for symbol in sleeve.core_symbols
-            if symbol.strip()
-        }
-        return tuple(sorted(symbols))
+            if sleeve.sleeve_id == "cash_buffer"
+        )
 
     def to_metadata(self) -> dict[str, Any]:
-        payload = self.model_dump(mode="json")
-        payload["core_symbols"] = list(self.core_symbols)
-        return payload
+        return self.model_dump(mode="json")
 
 
 class SleeveSnapshot(BaseModel):
@@ -228,12 +235,26 @@ def load_money_management_policy(path: str | Path) -> MoneyManagementPolicy:
         raise ValueError("Money-management policy must be a YAML mapping.")
 
     policy = MoneyManagementPolicy.model_validate(payload)
-    _validate_core_symbols(policy)
     return policy
 
 
 def load_money_management_policy_for_settings(settings: Any) -> MoneyManagementPolicy:
     return load_money_management_policy(settings.taurus_money_management_config_path)
+
+
+def position_limits_for_settings(settings: Any) -> PositionLimitPolicy:
+    if bool(settings.taurus_money_management_enabled):
+        policy = load_money_management_policy_for_settings(settings)
+        return PositionLimitPolicy(
+            max_stock_pct_nav=policy.limits.max_stock_pct_nav,
+            max_open_positions=policy.limits.max_open_positions,
+            source="money_management_policy",
+        )
+    return PositionLimitPolicy(
+        max_stock_pct_nav=Decimal(str(settings.taurus_max_position_pct)),
+        max_open_positions=int(settings.taurus_max_open_positions),
+        source="settings",
+    )
 
 
 def money_management_metadata(settings: Any) -> dict[str, Any]:
@@ -300,16 +321,3 @@ def initial_sleeve_governor_statuses(
             }
         )
     return statuses
-
-
-def _validate_core_symbols(policy: MoneyManagementPolicy) -> None:
-    if not policy.core_symbols:
-        return
-    universe = load_market_data_universe(policy.shariah_universe_path)
-    enabled_symbols = set(universe.enabled_symbols())
-    missing = [symbol for symbol in policy.core_symbols if symbol not in enabled_symbols]
-    if missing:
-        raise ValueError(
-            "Configured core symbols are not enabled in the Shariah universe: "
-            + ", ".join(missing)
-        )

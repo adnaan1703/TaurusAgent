@@ -179,7 +179,6 @@ def _write_policy(tmp_path: Path, *, symbols: list[str]) -> Path:
     policy_path.write_text(
         "policy_version: test_policy\n"
         f"shariah_universe_path: {universe_path}\n"
-        "cash_buffer_target_pct: 5.0\n"
         "sleeves:\n"
         "  - sleeve_id: core_shariah\n"
         "    name: Core\n"
@@ -217,7 +216,6 @@ def _write_policy(tmp_path: Path, *, symbols: list[str]) -> Path:
         "  max_total_open_trade_risk_pct_nav: 5.00\n"
         "rebalance:\n"
         "  sleeve_drift_threshold_pct: 20.0\n"
-        "  position_drift_threshold_pct: 20.0\n"
         "  min_rebalance_notional_inr: 5000\n"
         "  review_frequency: daily_after_close\n"
         "  core_rebalance_frequency: monthly\n",

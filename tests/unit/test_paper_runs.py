@@ -25,7 +25,11 @@ from taurus_core.db.models import (
 from taurus_core.db.repositories import GraphRepository, InstrumentRepository
 from taurus_core.db.session import build_session_factory
 from taurus_core.domain.instruments import Instrument
-from taurus_core.paper_trading.service import PaperRunService
+from taurus_core.paper_trading.service import (
+    PaperRunService,
+    _sleeve_snapshots_for_allocation,
+)
+from taurus_core.portfolio import ActiveAllocationPosition, load_money_management_policy
 from tests.llm_fakes import FakeLLMProvider
 from tests.market_data_fixtures import FakeKiteMarketDataProvider, TEST_INSTRUMENTS
 
@@ -202,6 +206,38 @@ def test_money_management_paper_run_creates_shariah_equity_core_decisions(
         Decimal(str(weight)) <= Decimal("7.5")
         for weight in core["target_weights"].values()
     )
+
+
+def test_sleeve_snapshots_attribute_runtime_core_basket_holdings(tmp_path: Path) -> None:
+    policy_path = _write_active_allocation_policy(tmp_path, max_stock_pct=Decimal("5.0"))
+    policy = load_money_management_policy(policy_path)
+
+    snapshots = _sleeve_snapshots_for_allocation(
+        policy=policy,
+        nav_inr=Decimal("1000000"),
+        positions=(
+            ActiveAllocationPosition(
+                symbol="INFY",
+                quantity=1000,
+                market_value_inr=Decimal("100000.00"),
+            ),
+            ActiveAllocationPosition(
+                symbol="TCS",
+                quantity=500,
+                market_value_inr=Decimal("50000.00"),
+            ),
+        ),
+        core_basket_symbols={"INFY"},
+        sleeve_by_symbol={"TCS": "diversifying_strategy"},
+    )
+    by_sleeve = {snapshot.sleeve_id: snapshot for snapshot in snapshots}
+
+    assert by_sleeve["core_shariah"].current_exposure_inr == Decimal("100000.00")
+    assert by_sleeve["core_shariah"].open_position_count == 1
+    assert by_sleeve["active_strategy"].current_exposure_inr == Decimal("0.00")
+    assert by_sleeve["active_strategy"].open_position_count == 0
+    assert by_sleeve["diversifying_strategy"].current_exposure_inr == Decimal("50000.00")
+    assert by_sleeve["diversifying_strategy"].open_position_count == 1
 
 
 def test_graph_enabled_kite_paper_run_uses_graph_roster_strategy_and_risk(
@@ -430,7 +466,6 @@ def _write_active_allocation_policy(tmp_path: Path, *, max_stock_pct: Decimal) -
     policy_path.write_text(
         "policy_version: active_integration_policy\n"
         f"shariah_universe_path: {universe_path}\n"
-        "cash_buffer_target_pct: 5.0\n"
         "sleeves:\n"
         "  - sleeve_id: core_shariah\n"
         "    name: Core\n"
@@ -472,7 +507,6 @@ def _write_active_allocation_policy(tmp_path: Path, *, max_stock_pct: Decimal) -
         "  max_total_open_trade_risk_pct_nav: 5.00\n"
         "rebalance:\n"
         "  sleeve_drift_threshold_pct: 20.0\n"
-        "  position_drift_threshold_pct: 20.0\n"
         "  min_rebalance_notional_inr: 5000\n"
         "  review_frequency: daily_after_close\n"
         "  core_rebalance_frequency: monthly\n",

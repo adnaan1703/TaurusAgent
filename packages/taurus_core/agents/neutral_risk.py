@@ -3,6 +3,7 @@ from __future__ import annotations
 from decimal import Decimal
 
 from taurus_core.config import Settings
+from taurus_core.portfolio.money_management import position_limits_for_settings
 from taurus_core.research.schemas import TraderProposal
 from taurus_core.risk.schemas import RiskPersonaReview
 
@@ -14,7 +15,7 @@ class NeutralRiskAgent:
     model_version = "risk_persona_neutral_rules_v1"
 
     def run(self, *, proposal: TraderProposal, settings: Settings) -> RiskPersonaReview:
-        max_position = Decimal(str(settings.taurus_max_position_pct))
+        max_position = position_limits_for_settings(settings).max_stock_pct_nav
         if proposal.action in {"HOLD", "NO_TRADE", "REDUCE", "EXIT"}:
             recommendation = "allow"
             score = Decimal("0.0500")

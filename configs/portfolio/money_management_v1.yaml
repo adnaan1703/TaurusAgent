@@ -1,18 +1,10 @@
 policy_version: money_management_v1
 shariah_universe_path: configs/market_data/nifty_500_shariah.yaml
-cash_buffer_target_pct: 5.0
 sleeves:
   - sleeve_id: core_shariah
     name: Core Shariah equity basket
     target_weight_pct: 40.0
     role: Conservative diversified equity anchor from the Shariah universe.
-    core_symbols:
-      - ASIANPAINT
-      - CIPLA
-      - DRREDDY
-      - HINDUNILVR
-      - INFY
-      - TCS
   - sleeve_id: active_strategy
     name: Active strategy
     target_weight_pct: 35.0
@@ -73,7 +65,6 @@ drawdown_governors:
     action: freeze_new_buys_allow_exits
 rebalance:
   sleeve_drift_threshold_pct: 20.0
-  position_drift_threshold_pct: 20.0
   min_rebalance_notional_inr: 5000
   review_frequency: daily_after_close
   core_rebalance_frequency: monthly

@@ -1256,7 +1256,13 @@ def _monitor_enriched_positions(
 ) -> list[dict[str, Any]]:
     research_repo = ResearchRepository(session)
     allocation_by_symbol = _latest_allocation_decisions_by_symbol(session, settings)
-    core_sleeve = _core_sleeve_metadata(settings)
+    metadata = money_management_metadata(settings)
+    policy = metadata.get("policy") if isinstance(metadata.get("policy"), dict) else {}
+    latest_runs = PaperRunRepository(session).list(limit=1)
+    core_sleeve = _core_sleeve_metadata(
+        policy=policy,
+        latest_run=latest_runs[0] if latest_runs else None,
+    )
     enriched: list[dict[str, Any]] = []
     for position in positions:
         payload = _payload(position)
@@ -1361,10 +1367,15 @@ def _allocation_dashboard_payload(
         )
         account_payload = _payload(account_row) if account_row is not None else None
 
+    if latest_run is None:
+        latest_runs = PaperRunRepository(session).list(limit=1)
+        latest_run = latest_runs[0] if latest_runs else None
+
+    policy = metadata.get("policy") if isinstance(metadata.get("policy"), dict) else {}
     position_payloads = positions
     if position_payloads is None:
         allocation_by_symbol = _latest_allocation_decisions_by_symbol(session, settings)
-        core_sleeve = _core_sleeve_metadata(settings)
+        core_sleeve = _core_sleeve_metadata(policy=policy, latest_run=latest_run)
         position_payloads = []
         for row in execution_repo.latest_open_positions_by_portfolio(
             portfolio_id=settings.taurus_paper_portfolio_id,
@@ -1379,11 +1390,6 @@ def _allocation_dashboard_payload(
             )
             position_payloads.append(payload)
 
-    if latest_run is None:
-        latest_runs = PaperRunRepository(session).list(limit=1)
-        latest_run = latest_runs[0] if latest_runs else None
-
-    policy = metadata.get("policy") if isinstance(metadata.get("policy"), dict) else {}
     nav_inr = _decimal_or_none(
         account_payload.get("equity_inr") if account_payload else None
     ) or Decimal(str(settings.taurus_initial_capital_inr))
@@ -1518,21 +1524,19 @@ def _allocation_decision_from_payload(payload: dict[str, Any]) -> dict[str, Any]
     return _json_safe(raw)
 
 
-def _core_sleeve_metadata(settings: Settings) -> dict[str, Any] | None:
-    if not settings.taurus_money_management_enabled:
-        return None
-    metadata = money_management_metadata(settings)
-    policy = metadata.get("policy")
-    if not isinstance(policy, dict):
-        return None
-    core_symbols = {str(symbol).upper() for symbol in policy.get("core_symbols", [])}
+def _core_sleeve_metadata(
+    *,
+    policy: dict[str, Any],
+    latest_run: PaperRunModel | None,
+) -> dict[str, Any] | None:
+    runtime_symbols = _core_basket_target_symbols(latest_run)
     for sleeve in policy.get("sleeves", []):
         if isinstance(sleeve, dict) and sleeve.get("sleeve_id") == "core_shariah":
             return {
                 "sleeve_id": "core_shariah",
                 "sleeve_name": sleeve.get("name"),
                 "strategy_name": "core_shariah_basket_v1",
-                "core_symbols": core_symbols,
+                "runtime_symbols": runtime_symbols,
             }
     return None
 
@@ -1551,7 +1555,7 @@ def _position_allocation_labels(
             "allocation_status": allocation_decision.get("status"),
             "binding_constraint": allocation_decision.get("binding_constraint"),
         }
-    if core_sleeve is not None and symbol.upper() in core_sleeve.get("core_symbols", set()):
+    if core_sleeve is not None and symbol.upper() in core_sleeve.get("runtime_symbols", set()):
         return {
             "sleeve_id": core_sleeve.get("sleeve_id"),
             "sleeve_name": core_sleeve.get("sleeve_name"),
@@ -1635,7 +1639,7 @@ def _cash_allocation_payload(
     nav_inr: Decimal,
     available_cash: Decimal,
 ) -> dict[str, Any]:
-    target_pct = _decimal_or_none(policy.get("cash_buffer_target_pct")) or Decimal("0")
+    target_pct = _sleeve_target_pct(policy, "cash_buffer")
     target_cash = _pct_to_nav(target_pct, nav_inr)
     surplus = available_cash - target_cash
     return {
@@ -1694,16 +1698,21 @@ def _core_basket_payload(
         return _empty_core_basket()
     target_weights = core.get("target_weights") if isinstance(core.get("target_weights"), dict) else {}
     current_weights = core.get("current_weights") if isinstance(core.get("current_weights"), dict) else {}
-    symbols = sorted(
-        {
-            *[str(symbol).upper() for symbol in target_weights],
-            *[str(symbol).upper() for symbol in current_weights],
-        }
-    )
+    target_weights_by_symbol = {
+        str(symbol).upper(): value
+        for symbol, value in target_weights.items()
+        if str(symbol).strip()
+    }
+    current_weights_by_symbol = {
+        str(symbol).upper(): value
+        for symbol, value in current_weights.items()
+        if str(symbol).strip()
+    }
+    symbols = sorted(target_weights_by_symbol)
     composition = []
     for symbol in symbols:
-        target_pct = _decimal_or_none(target_weights.get(symbol)) or Decimal("0")
-        current_pct = _decimal_or_none(current_weights.get(symbol)) or Decimal("0")
+        target_pct = _decimal_or_none(target_weights_by_symbol.get(symbol)) or Decimal("0")
+        current_pct = _decimal_or_none(current_weights_by_symbol.get(symbol)) or Decimal("0")
         composition.append(
             {
                 "symbol": symbol,
@@ -1721,6 +1730,7 @@ def _core_basket_payload(
             "strategy_name": core.get("strategy_name"),
             "sleeve_id": core.get("sleeve_id"),
             "as_of_date": core.get("as_of_date"),
+            "symbols": symbols,
             "selected_symbols": core.get("selected_symbols", []),
             "candidate_count": core.get("candidate_count"),
             "drift": core.get("drift", {}),
@@ -1734,12 +1744,43 @@ def _core_basket_payload(
 def _empty_core_basket() -> dict[str, Any]:
     return {
         "available": False,
+        "symbols": [],
         "selected_symbols": [],
         "composition": [],
         "rejected_candidates": [],
         "drift": {},
         "rebalance": {},
     }
+
+
+def _core_basket_target_symbols(latest_run: PaperRunModel | None) -> set[str]:
+    if latest_run is None:
+        return set()
+    artifacts = latest_run.artifacts or {}
+    money_management = artifacts.get("money_management")
+    if not isinstance(money_management, dict):
+        return set()
+    core = money_management.get("core_shariah_basket")
+    if not isinstance(core, dict):
+        return set()
+    target_weights = core.get("target_weights")
+    if not isinstance(target_weights, dict):
+        return set()
+    return {
+        str(symbol).strip().upper()
+        for symbol in target_weights
+        if str(symbol).strip()
+    }
+
+
+def _sleeve_target_pct(policy: dict[str, Any], sleeve_id: str) -> Decimal:
+    for sleeve in policy.get("sleeves", []):
+        if not isinstance(sleeve, dict):
+            continue
+        if str(sleeve.get("sleeve_id") or "").strip().lower() != sleeve_id:
+            continue
+        return _decimal_or_none(sleeve.get("target_weight_pct")) or Decimal("0")
+    return Decimal("0")
 
 
 def _drawdown_governor_payload(

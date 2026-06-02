@@ -272,6 +272,16 @@ decisions, cash-buffer checks, open-risk usage, and drawdown-governor context.
 It still routes only through local `PaperBroker`; live broker execution remains
 disabled.
 
+There is no manual core-symbol allowlist in the money-management policy. The
+`core_shariah` sleeve defines the target allocation, `core_shariah_basket_v1`
+selects the runtime basket, and
+`money_management.core_shariah_basket.target_weights` is the authoritative
+source for current core membership, allocation attribution, and UI labels. The
+cash target is the `cash_buffer` sleeve target. When money management is
+enabled, position and open-position caps come from policy `limits` rather than
+the fallback `TAURUS_MAX_POSITION_PCT` and `TAURUS_MAX_OPEN_POSITIONS` env
+settings.
+
 9. Observe in React:
 
 ```bash
@@ -427,6 +437,11 @@ decision trail expose the same allocation context: sleeve utilization, core
 basket drift, cash buffer, undeployed capacity, open risk used versus limit,
 drawdown-governor state, latest allocation decisions with binding constraints,
 and per-position sleeve/strategy labels.
+
+Core basket membership shown in these views comes from the latest money
+management run artifact's target weights. If the runtime core basket changes,
+the labels and active capacity attribution follow that latest artifact rather
+than any static policy symbol list.
 
 ## Graph Intelligence
 
