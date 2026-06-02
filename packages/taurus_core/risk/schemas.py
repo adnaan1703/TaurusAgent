@@ -6,6 +6,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from taurus_core.allocation_schemas import AllocationDecision
 from taurus_core.intelligence.documents import stable_id
 from taurus_core.research.schemas import TraderAction
 
@@ -59,6 +60,7 @@ class RiskReview(BaseModel):
     source_report_ids: list[str] = Field(min_length=1)
     is_order: bool = False
     can_send_to_broker: bool = False
+    allocation_decision: AllocationDecision | None = None
     model_version: str
 
     @field_validator("symbol")
@@ -89,6 +91,7 @@ class FinalDecision(BaseModel):
     reason: str = Field(min_length=1)
     is_order: bool = False
     can_send_to_broker: bool = False
+    allocation_decision: AllocationDecision | None = None
     model_version: str
 
     @field_validator("symbol")

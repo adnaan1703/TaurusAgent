@@ -455,6 +455,32 @@ The core Shariah basket writes decisions to the paper-run
 orders; runtime market data remains Kite-backed and broker routing remains
 PaperBroker-only.
 
+## M33 Commands Used
+
+```bash
+uv run pytest tests/unit/test_active_allocation.py tests/unit/test_paper_runs.py::test_graph_enabled_money_management_run_adds_active_allocation_metadata tests/unit/test_paper_runs.py::test_money_management_paper_run_creates_shariah_equity_core_decisions tests/unit/test_paper_runs.py::test_graph_enabled_kite_paper_run_uses_graph_roster_strategy_and_risk tests/unit/test_risk_approval.py::test_portfolio_manager_stores_final_paper_decision_and_api_returns_m6_artifacts -q
+uv run pytest tests/unit/test_ui_aggregate_api.py::test_disabled_money_management_does_not_change_paper_run_artifacts tests/unit/test_active_allocation.py tests/unit/test_paper_runs.py::test_graph_enabled_money_management_run_adds_active_allocation_metadata -q
+make lint
+make test
+git diff --check
+sed -n '/# END MY CUSTOM ADDITION/,$p' /Users/adnaan/.codex/rules/default.rules
+sed -n '1,260p' .codex/rules/default.rules
+```
+
+M33 active allocation runs only when
+`TAURUS_MONEY_MANAGEMENT_ENABLED=true`. It resizes or rejects active-sleeve
+paper BUY/increase proposals before risk review, then stores the allocation
+rationale in proposal, risk review, final decision, and run-symbol payloads.
+It does not add live broker routing and leaves REDUCE/EXIT lifecycle actions
+unblocked by new-risk sizing.
+
+The full `make test` pass was blocked in the local environment by existing
+configuration/LLM expectation failures unrelated to M33: `.env`/environment
+values set graph enabled and override default LLM model/base URLs, LM Studio
+tests expect `response_format={"type":"json_object"}` while the current
+provider emits JSON schema format, and the smoke test fails graph readiness
+when graph is enabled without imported graph nodes.
+
 ## M28 Commands Used
 
 ```bash

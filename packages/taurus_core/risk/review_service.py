@@ -105,6 +105,7 @@ class RiskReviewService:
             source_report_ids=proposal.source_report_ids,
             is_order=False,
             can_send_to_broker=False,
+            allocation_decision=proposal.allocation_decision,
             model_version=self.model_version,
         )
         RiskRepository(self.session).replace_risk_review_for_run_symbol(review)

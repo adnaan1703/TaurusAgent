@@ -281,6 +281,40 @@ quantity for active paper trades.
 
 At completion, add assumptions made, mocks created, and mocks used.
 
+### Completion Summary
+
+- Status: Completed on 2026-06-02.
+- Added `PortfolioAllocationService` for active-sleeve paper BUY/increase
+  proposals mapped from `graph_aware_score_v1` and
+  `moving_average_crossover_v1`.
+- Added active candidate scoring from strategy score, TraderAgent confidence,
+  liquidity, realized volatility, sector/graph diversification, and neutral
+  recent sleeve performance when no durable sleeve history exists.
+- Added score-band risk budgets, stop-loss-distance sizing, volatility
+  damping, whole-share flooring, and caps for stock exposure, sleeve capacity,
+  cash buffer, total open trade risk, open positions, sector, and graph
+  concentration.
+- Wired money-management-enabled paper runs to resize or reject active BUY
+  proposals before risk review while leaving HOLD, REDUCE, and EXIT lifecycle
+  actions broker-safe and unblocked by new-risk sizing.
+- Persisted allocation rationale through trader proposal, risk review, final
+  decision, and per-symbol paper-run artifacts, including requested/approved
+  notional, approved quantity, allowed/estimated risk, volatility, binding
+  constraint, sleeve, and strategy.
+- Added focused unit coverage for each active sizing cap, invalid stop-loss
+  behavior, and volatile-vs-lower-volatility sizing; added graph-aware paper-run
+  integration coverage for allocation metadata and cap-driven size reduction.
+- Assumptions made: After-close active proposals expose stop-loss distance as
+  `stop_loss_pct`, so M33 sizes from percentage distance rather than a separate
+  stop-loss price; existing open paper positions without durable allocation
+  records are treated as active unless they are configured core symbols; legacy
+  open-position risk is estimated with the existing 6% stop-risk default; recent
+  sleeve performance is neutral until a later milestone adds durable sleeve
+  performance history.
+- Mocks created: None.
+- Mocks used: Existing unit-test fake LLM provider and fake Kite market-data
+  provider for paper-run integration tests.
+
 ## M34: Diversifying And Experimental Sleeves
 
 ### Goal

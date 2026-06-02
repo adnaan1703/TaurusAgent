@@ -1,0 +1,629 @@
+from __future__ import annotations
+
+import math
+from dataclasses import dataclass
+from decimal import Decimal, ROUND_DOWN
+from statistics import mean, pstdev
+
+from taurus_core.allocation_schemas import AllocationDecision
+from taurus_core.domain.market_data import DailyCandle
+from taurus_core.portfolio.money_management import MoneyManagementPolicy
+from taurus_core.research.schemas import TraderProposal
+
+ACTIVE_SLEEVE_ID = "active_strategy"
+ACTIVE_STRATEGY_NAMES = frozenset({"graph_aware_score_v1", "moving_average_crossover_v1"})
+SCORE_QUANT = Decimal("0.0001")
+MONEY_QUANT = Decimal("0.01")
+VOLATILITY_QUANT = Decimal("0.0001")
+DEFAULT_OPEN_POSITION_STOP_RISK_PCT = Decimal("6.0000")
+VOLATILITY_WINDOW = 60
+LIQUIDITY_WINDOW = 20
+
+
+@dataclass(frozen=True, slots=True)
+class ActiveAllocationPosition:
+    symbol: str
+    quantity: int
+    market_value_inr: Decimal
+
+
+@dataclass(frozen=True, slots=True)
+class ActiveAllocationInput:
+    proposal: TraderProposal
+    strategy_name: str
+    nav_inr: Decimal
+    available_cash_inr: Decimal
+    current_positions: tuple[ActiveAllocationPosition, ...] = ()
+    history: tuple[DailyCandle, ...] = ()
+    strategy_score: Decimal | None = None
+    sector_by_symbol: dict[str, str] | None = None
+    graph_cluster_by_symbol: dict[str, str] | None = None
+    recent_sleeve_performance_score: Decimal | None = None
+
+
+class PortfolioAllocationService:
+    """Risk-budgeted active-sleeve sizing for paper BUY/increase proposals."""
+
+    model_version = "active_sleeve_allocation_v1"
+
+    def __init__(self, policy: MoneyManagementPolicy) -> None:
+        self.policy = policy
+        self.sleeve = next(
+            (sleeve for sleeve in policy.sleeves if sleeve.sleeve_id == ACTIVE_SLEEVE_ID),
+            None,
+        )
+        if self.sleeve is None:
+            raise ValueError("Money-management policy requires an active_strategy sleeve.")
+        self.strategy_to_sleeve = {
+            mapping.strategy_name: mapping.sleeve_id
+            for mapping in policy.strategy_mappings
+        }
+
+    def allocate(self, allocation_input: ActiveAllocationInput) -> TraderProposal:
+        proposal = allocation_input.proposal
+        strategy_name = allocation_input.strategy_name
+        mapped_sleeve = self.strategy_to_sleeve.get(strategy_name)
+        if mapped_sleeve != ACTIVE_SLEEVE_ID or strategy_name not in ACTIVE_STRATEGY_NAMES:
+            return self._with_decision(
+                proposal,
+                AllocationDecision(
+                    symbol=proposal.symbol,
+                    action=proposal.action,
+                    strategy_name=strategy_name,
+                    sleeve_id=mapped_sleeve or "unmapped",
+                    sleeve_name=None,
+                    status="unchanged",
+                    requested_position_pct_nav=proposal.requested_position_pct_nav,
+                    approved_position_pct_nav=proposal.target_position_pct_nav,
+                    requested_notional_inr=_requested_increase_notional(
+                        proposal=proposal,
+                        nav_inr=allocation_input.nav_inr,
+                    ),
+                    approved_notional_inr=Decimal("0"),
+                    approved_quantity=0,
+                    binding_constraint="strategy_not_active_sleeve",
+                    rationale=("Strategy is outside M33 active-sleeve allocation scope.",),
+                ),
+            )
+
+        if proposal.action not in {"BUY"}:
+            return self._with_decision(
+                proposal,
+                AllocationDecision(
+                    symbol=proposal.symbol,
+                    action=proposal.action,
+                    strategy_name=strategy_name,
+                    sleeve_id=ACTIVE_SLEEVE_ID,
+                    sleeve_name=self.sleeve.name,
+                    status="unchanged",
+                    requested_position_pct_nav=proposal.requested_position_pct_nav,
+                    approved_position_pct_nav=proposal.target_position_pct_nav,
+                    requested_notional_inr=_requested_increase_notional(
+                        proposal=proposal,
+                        nav_inr=allocation_input.nav_inr,
+                    ),
+                    approved_notional_inr=Decimal("0"),
+                    approved_quantity=0,
+                    binding_constraint="lifecycle_action_not_new_risk",
+                    rationale=(
+                        f"Lifecycle action {proposal.action} does not require new active risk.",
+                    ),
+                ),
+            )
+
+        latest_price = _latest_close(allocation_input.history)
+        requested_notional = _requested_increase_notional(
+            proposal=proposal,
+            nav_inr=allocation_input.nav_inr,
+        )
+        current_notional = _pct_to_notional(
+            proposal.current_position_pct_nav,
+            allocation_input.nav_inr,
+        )
+        risk_per_share = _risk_per_share(
+            latest_price=latest_price,
+            stop_loss_pct=proposal.stop_loss_pct,
+        )
+        if latest_price <= 0 or risk_per_share <= 0:
+            return self._rejected_buy(
+                allocation_input,
+                requested_notional=requested_notional,
+                candidate_score=None,
+                score_band="invalid_stop_loss",
+                volatility=None,
+                binding_constraint="invalid_stop_loss_or_price",
+                rationale=(
+                    "Active BUY requires a positive latest price and stop-loss distance.",
+                ),
+            )
+
+        candidate_score, score_parts = _candidate_score(allocation_input)
+        score_band, base_risk_pct = _score_band(
+            candidate_score,
+            trade_risk_normal=self.policy.trade_risk.normal_trade_risk_pct_nav,
+            trade_risk_strong=self.policy.trade_risk.strong_trade_risk_pct_nav,
+            max_single_trade_risk=self.policy.trade_risk.max_single_trade_risk_pct_nav,
+        )
+        volatility = _realized_volatility(allocation_input.history)
+        volatility_factor = _volatility_factor(volatility)
+        allowed_risk = _pct_to_notional(base_risk_pct, allocation_input.nav_inr)
+        dampened_allowed_risk = (allowed_risk * volatility_factor).quantize(MONEY_QUANT)
+
+        if score_band == "reject":
+            return self._rejected_buy(
+                allocation_input,
+                requested_notional=requested_notional,
+                candidate_score=candidate_score,
+                score_band=score_band,
+                volatility=volatility,
+                binding_constraint="candidate_score_below_60",
+                rationale=(
+                    f"Candidate score {candidate_score} is below the 60 active-entry floor.",
+                    _score_parts_text(score_parts),
+                ),
+            )
+
+        trade_risk_notional = _risk_to_notional(
+            allowed_risk_inr=dampened_allowed_risk,
+            latest_price=latest_price,
+            risk_per_share=risk_per_share,
+        )
+        caps = {
+            "requested_notional": requested_notional,
+            "trade_risk": trade_risk_notional,
+            "stock_exposure": _stock_exposure_room(
+                proposal=proposal,
+                nav_inr=allocation_input.nav_inr,
+                current_notional=current_notional,
+                policy=self.policy,
+            ),
+            "sleeve_capacity": _sleeve_capacity_room(
+                proposal=proposal,
+                nav_inr=allocation_input.nav_inr,
+                positions=allocation_input.current_positions,
+                policy=self.policy,
+                active_sleeve_target_pct=self.sleeve.target_weight_pct,
+            ),
+            "cash_buffer": _cash_buffer_room(allocation_input, self.policy),
+            "total_open_trade_risk": _total_trade_risk_room(
+                allocation_input,
+                policy=self.policy,
+                risk_per_share=risk_per_share,
+                latest_price=latest_price,
+            ),
+            "open_positions": _open_position_room(allocation_input, policy=self.policy),
+            "sector_concentration": _group_room(
+                allocation_input,
+                group_by_symbol=allocation_input.sector_by_symbol or {},
+                cap_pct_nav=self.policy.limits.max_sector_pct_nav,
+            ),
+            "graph_concentration": _group_room(
+                allocation_input,
+                group_by_symbol=allocation_input.graph_cluster_by_symbol or {},
+                cap_pct_nav=self.policy.limits.max_graph_cluster_pct_nav,
+            ),
+        }
+        binding_constraint, approved_notional = min(
+            caps.items(),
+            key=lambda item: (item[1], item[0]),
+        )
+        approved_quantity = int((approved_notional / latest_price).to_integral_value(rounding=ROUND_DOWN))
+        approved_notional = _money(latest_price * Decimal(approved_quantity))
+        estimated_risk = _money(risk_per_share * Decimal(approved_quantity))
+        target_position = (
+            ((current_notional + approved_notional) / allocation_input.nav_inr) * Decimal("100")
+            if allocation_input.nav_inr > 0
+            else Decimal("0")
+        ).quantize(SCORE_QUANT)
+        status = "approved" if approved_quantity > 0 else "rejected"
+        decision = AllocationDecision(
+            symbol=proposal.symbol,
+            action=proposal.action,
+            strategy_name=strategy_name,
+            sleeve_id=ACTIVE_SLEEVE_ID,
+            sleeve_name=self.sleeve.name,
+            status=status,
+            candidate_score=candidate_score,
+            score_band=score_band,
+            requested_position_pct_nav=proposal.requested_position_pct_nav,
+            approved_position_pct_nav=target_position,
+            requested_notional_inr=requested_notional,
+            approved_notional_inr=approved_notional,
+            approved_quantity=approved_quantity,
+            allowed_risk_inr=dampened_allowed_risk,
+            estimated_risk_inr=estimated_risk,
+            volatility_used=volatility,
+            binding_constraint=binding_constraint,
+            rationale=(
+                f"Active score band {score_band} allowed {dampened_allowed_risk} INR risk.",
+                f"Volatility factor {volatility_factor} applied to realized volatility {volatility}.",
+                _score_parts_text(score_parts),
+            ),
+        )
+        if approved_quantity <= 0:
+            return self._zero_buy_target(
+                proposal,
+                decision=decision,
+                current_position_pct_nav=proposal.current_position_pct_nav,
+            )
+        return self._with_decision(
+            proposal.model_copy(
+                update={
+                    "target_position_pct_nav": target_position,
+                    "model_version": f"{proposal.model_version}+{self.model_version}",
+                    "position_management_summary": (
+                        f"{proposal.position_management_summary} Active allocation approved "
+                        f"{approved_quantity} shares; binding constraint {binding_constraint}."
+                    ),
+                }
+            ),
+            decision,
+        )
+
+    def _rejected_buy(
+        self,
+        allocation_input: ActiveAllocationInput,
+        *,
+        requested_notional: Decimal,
+        candidate_score: Decimal | None,
+        score_band: str,
+        volatility: Decimal | None,
+        binding_constraint: str,
+        rationale: tuple[str, ...],
+    ) -> TraderProposal:
+        proposal = allocation_input.proposal
+        decision = AllocationDecision(
+            symbol=proposal.symbol,
+            action=proposal.action,
+            strategy_name=allocation_input.strategy_name,
+            sleeve_id=ACTIVE_SLEEVE_ID,
+            sleeve_name=self.sleeve.name,
+            status="rejected",
+            candidate_score=candidate_score,
+            score_band=score_band,
+            requested_position_pct_nav=proposal.requested_position_pct_nav,
+            approved_position_pct_nav=proposal.current_position_pct_nav,
+            requested_notional_inr=requested_notional,
+            approved_notional_inr=Decimal("0"),
+            approved_quantity=0,
+            allowed_risk_inr=Decimal("0"),
+            estimated_risk_inr=Decimal("0"),
+            volatility_used=volatility,
+            binding_constraint=binding_constraint,
+            rationale=rationale,
+        )
+        return self._zero_buy_target(
+            proposal,
+            decision=decision,
+            current_position_pct_nav=proposal.current_position_pct_nav,
+        )
+
+    def _zero_buy_target(
+        self,
+        proposal: TraderProposal,
+        *,
+        decision: AllocationDecision,
+        current_position_pct_nav: Decimal,
+    ) -> TraderProposal:
+        if proposal.current_position_quantity > 0:
+            updated = proposal.model_copy(
+                update={
+                    "action": "HOLD",
+                    "target_position_pct_nav": current_position_pct_nav.quantize(SCORE_QUANT),
+                    "order_type": "NONE",
+                    "entry_rule": "Active allocation produced no incremental paper BUY quantity.",
+                    "model_version": f"{proposal.model_version}+{self.model_version}",
+                    "position_management_summary": (
+                        f"{proposal.position_management_summary} Active allocation produced no "
+                        "incremental BUY quantity; existing paper position remains under HOLD."
+                    ),
+                }
+            )
+            return self._with_decision(updated, decision)
+        updated = proposal.model_copy(
+            update={
+                "action": "NO_TRADE",
+                "target_position_pct_nav": Decimal("0.0000"),
+                "order_type": "NONE",
+                "entry_rule": "Active allocation rejected the new BUY before risk review.",
+                "model_version": f"{proposal.model_version}+{self.model_version}",
+                "position_management_summary": (
+                    f"{proposal.position_management_summary} Active allocation rejected the "
+                    f"new BUY; binding constraint {decision.binding_constraint}."
+                ),
+            }
+        )
+        return self._with_decision(updated, decision)
+
+    def _with_decision(
+        self,
+        proposal: TraderProposal,
+        decision: AllocationDecision,
+    ) -> TraderProposal:
+        return proposal.model_copy(update={"allocation_decision": decision})
+
+
+def _requested_increase_notional(*, proposal: TraderProposal, nav_inr: Decimal) -> Decimal:
+    requested_pct = max(
+        Decimal("0"),
+        proposal.target_position_pct_nav - proposal.current_position_pct_nav,
+    )
+    return _pct_to_notional(requested_pct, nav_inr)
+
+
+def _pct_to_notional(percent: Decimal, nav_inr: Decimal) -> Decimal:
+    if percent <= 0 or nav_inr <= 0:
+        return Decimal("0")
+    return (nav_inr * percent / Decimal("100")).quantize(MONEY_QUANT)
+
+
+def _latest_close(history: tuple[DailyCandle, ...]) -> Decimal:
+    if not history:
+        return Decimal("0")
+    return sorted(history, key=lambda candle: candle.trade_date)[-1].close.quantize(MONEY_QUANT)
+
+
+def _risk_per_share(*, latest_price: Decimal, stop_loss_pct: Decimal) -> Decimal:
+    if latest_price <= 0 or stop_loss_pct <= 0:
+        return Decimal("0")
+    return (latest_price * stop_loss_pct / Decimal("100")).quantize(MONEY_QUANT)
+
+
+def _candidate_score(allocation_input: ActiveAllocationInput) -> tuple[Decimal, dict[str, Decimal]]:
+    history = allocation_input.history
+    strategy_component = _strategy_score_component(allocation_input.strategy_score)
+    confidence_component = (allocation_input.proposal.confidence * Decimal("100")).quantize(
+        SCORE_QUANT
+    )
+    liquidity_component = _liquidity_score(history)
+    volatility = _realized_volatility(history)
+    volatility_component = _volatility_score(volatility)
+    diversification_component = _diversification_score(allocation_input)
+    performance_component = allocation_input.recent_sleeve_performance_score or Decimal("75")
+    parts = {
+        "strategy_score": strategy_component,
+        "trader_confidence": confidence_component,
+        "liquidity": liquidity_component,
+        "volatility": volatility_component,
+        "diversification": diversification_component,
+        "recent_sleeve_performance": _clamp(performance_component, Decimal("0"), Decimal("100")),
+    }
+    score = (
+        (parts["strategy_score"] * Decimal("0.30"))
+        + (parts["trader_confidence"] * Decimal("0.25"))
+        + (parts["liquidity"] * Decimal("0.15"))
+        + (parts["volatility"] * Decimal("0.15"))
+        + (parts["diversification"] * Decimal("0.10"))
+        + (parts["recent_sleeve_performance"] * Decimal("0.05"))
+    ).quantize(SCORE_QUANT)
+    return _clamp(score, Decimal("0"), Decimal("100")), parts
+
+
+def _strategy_score_component(score: Decimal | None) -> Decimal:
+    if score is None:
+        return Decimal("50.0000")
+    raw = Decimal(str(score))
+    if raw >= 0:
+        return _clamp(Decimal("60") + (raw * Decimal("400")), Decimal("0"), Decimal("100"))
+    return _clamp(Decimal("60") + (raw * Decimal("600")), Decimal("0"), Decimal("100"))
+
+
+def _liquidity_score(history: tuple[DailyCandle, ...]) -> Decimal:
+    if not history:
+        return Decimal("0")
+    window = sorted(history, key=lambda candle: candle.trade_date)[-LIQUIDITY_WINDOW:]
+    liquidity = mean(float(candle.close) * float(candle.volume) for candle in window)
+    if liquidity >= 50_000_000:
+        return Decimal("100")
+    if liquidity <= 1_000_000:
+        return Decimal("20")
+    return Decimal(str(20 + ((liquidity - 1_000_000) / 49_000_000 * 80))).quantize(SCORE_QUANT)
+
+
+def _realized_volatility(history: tuple[DailyCandle, ...]) -> Decimal:
+    ordered = sorted(history, key=lambda candle: candle.trade_date)
+    closes = [float(candle.close) for candle in ordered]
+    if len(closes) < VOLATILITY_WINDOW + 1:
+        return Decimal("0.2500")
+    returns = [
+        (closes[index] / closes[index - 1]) - 1.0
+        for index in range(1, len(closes))
+        if closes[index - 1] > 0
+    ]
+    if len(returns) < VOLATILITY_WINDOW:
+        return Decimal("0.2500")
+    volatility = pstdev(returns[-VOLATILITY_WINDOW:]) * math.sqrt(252)
+    return Decimal(f"{max(volatility, 0.0001):.8f}").quantize(VOLATILITY_QUANT)
+
+
+def _volatility_score(volatility: Decimal) -> Decimal:
+    if volatility <= Decimal("0.1200"):
+        return Decimal("100")
+    if volatility >= Decimal("0.6000"):
+        return Decimal("25")
+    score = Decimal("100") - ((volatility - Decimal("0.1200")) / Decimal("0.4800") * Decimal("75"))
+    return _clamp(score, Decimal("25"), Decimal("100")).quantize(SCORE_QUANT)
+
+
+def _volatility_factor(volatility: Decimal) -> Decimal:
+    if volatility <= Decimal("0.1800"):
+        return Decimal("1.0000")
+    factor = Decimal("0.1800") / volatility
+    return _clamp(factor, Decimal("0.3500"), Decimal("1.0000")).quantize(SCORE_QUANT)
+
+
+def _diversification_score(allocation_input: ActiveAllocationInput) -> Decimal:
+    score = Decimal("100")
+    symbol = allocation_input.proposal.symbol.upper()
+    for group_by_symbol, penalty in (
+        (allocation_input.sector_by_symbol or {}, Decimal("12")),
+        (allocation_input.graph_cluster_by_symbol or {}, Decimal("8")),
+    ):
+        group = group_by_symbol.get(symbol)
+        if not group:
+            continue
+        matching_positions = [
+            position
+            for position in allocation_input.current_positions
+            if position.symbol.upper() != symbol
+            and group_by_symbol.get(position.symbol.upper()) == group
+        ]
+        score -= penalty * Decimal(len(matching_positions))
+    return _clamp(score, Decimal("40"), Decimal("100")).quantize(SCORE_QUANT)
+
+
+def _score_band(
+    score: Decimal,
+    *,
+    trade_risk_normal: Decimal,
+    trade_risk_strong: Decimal,
+    max_single_trade_risk: Decimal,
+) -> tuple[str, Decimal]:
+    if score < Decimal("60"):
+        return "reject", Decimal("0")
+    if score < Decimal("75"):
+        return "half_normal", min(
+            trade_risk_normal / Decimal("2"),
+            max_single_trade_risk,
+        )
+    if score < Decimal("85"):
+        return "normal", min(trade_risk_normal, max_single_trade_risk)
+    return "strong", min(trade_risk_strong, max_single_trade_risk, Decimal("0.75"))
+
+
+def _risk_to_notional(
+    *,
+    allowed_risk_inr: Decimal,
+    latest_price: Decimal,
+    risk_per_share: Decimal,
+) -> Decimal:
+    if allowed_risk_inr <= 0 or latest_price <= 0 or risk_per_share <= 0:
+        return Decimal("0")
+    quantity = int((allowed_risk_inr / risk_per_share).to_integral_value(rounding=ROUND_DOWN))
+    return _money(latest_price * Decimal(quantity))
+
+
+def _stock_exposure_room(
+    *,
+    proposal: TraderProposal,
+    nav_inr: Decimal,
+    current_notional: Decimal,
+    policy: MoneyManagementPolicy,
+) -> Decimal:
+    target_cap = _pct_to_notional(policy.limits.max_stock_pct_nav, nav_inr)
+    return max(Decimal("0"), target_cap - current_notional).quantize(MONEY_QUANT)
+
+
+def _sleeve_capacity_room(
+    *,
+    proposal: TraderProposal,
+    nav_inr: Decimal,
+    positions: tuple[ActiveAllocationPosition, ...],
+    policy: MoneyManagementPolicy,
+    active_sleeve_target_pct: Decimal,
+) -> Decimal:
+    active_symbols = {position.symbol.upper() for position in positions}
+    core_symbols = set(policy.core_symbols)
+    current_active_notional = sum(
+        (
+            position.market_value_inr
+            for position in positions
+            if position.symbol.upper() in active_symbols
+            and position.symbol.upper() not in core_symbols
+            and position.symbol.upper() != proposal.symbol.upper()
+        ),
+        Decimal("0"),
+    )
+    capacity = _pct_to_notional(active_sleeve_target_pct, nav_inr)
+    return max(Decimal("0"), capacity - current_active_notional).quantize(MONEY_QUANT)
+
+
+def _cash_buffer_room(
+    allocation_input: ActiveAllocationInput,
+    policy: MoneyManagementPolicy,
+) -> Decimal:
+    protected_cash = _pct_to_notional(policy.cash_buffer_target_pct, allocation_input.nav_inr)
+    return max(Decimal("0"), allocation_input.available_cash_inr - protected_cash).quantize(
+        MONEY_QUANT
+    )
+
+
+def _total_trade_risk_room(
+    allocation_input: ActiveAllocationInput,
+    *,
+    policy: MoneyManagementPolicy,
+    risk_per_share: Decimal,
+    latest_price: Decimal,
+) -> Decimal:
+    max_total_risk = _pct_to_notional(
+        policy.trade_risk.max_total_open_trade_risk_pct_nav,
+        allocation_input.nav_inr,
+    )
+    symbol = allocation_input.proposal.symbol.upper()
+    existing_risk = sum(
+        (
+            position.market_value_inr
+            * DEFAULT_OPEN_POSITION_STOP_RISK_PCT
+            / Decimal("100")
+            for position in allocation_input.current_positions
+            if position.symbol.upper() != symbol
+        ),
+        Decimal("0"),
+    ).quantize(MONEY_QUANT)
+    remaining_risk = max(Decimal("0"), max_total_risk - existing_risk)
+    return _risk_to_notional(
+        allowed_risk_inr=remaining_risk,
+        latest_price=latest_price,
+        risk_per_share=risk_per_share,
+    )
+
+
+def _open_position_room(
+    allocation_input: ActiveAllocationInput,
+    *,
+    policy: MoneyManagementPolicy,
+) -> Decimal:
+    proposal = allocation_input.proposal
+    if proposal.current_position_quantity > 0:
+        return Decimal("999999999999.99")
+    open_count = sum(1 for position in allocation_input.current_positions if position.quantity > 0)
+    if open_count >= policy.limits.max_open_positions:
+        return Decimal("0")
+    return Decimal("999999999999.99")
+
+
+def _group_room(
+    allocation_input: ActiveAllocationInput,
+    *,
+    group_by_symbol: dict[str, str],
+    cap_pct_nav: Decimal,
+) -> Decimal:
+    symbol = allocation_input.proposal.symbol.upper()
+    group = group_by_symbol.get(symbol)
+    if not group:
+        return Decimal("999999999999.99")
+    cap = _pct_to_notional(cap_pct_nav, allocation_input.nav_inr)
+    current_group_notional = sum(
+        (
+            position.market_value_inr
+            for position in allocation_input.current_positions
+            if position.symbol.upper() != symbol
+            and group_by_symbol.get(position.symbol.upper()) == group
+        ),
+        Decimal("0"),
+    ).quantize(MONEY_QUANT)
+    return max(Decimal("0"), cap - current_group_notional).quantize(MONEY_QUANT)
+
+
+def _score_parts_text(parts: dict[str, Decimal]) -> str:
+    return "Score parts: " + ", ".join(
+        f"{name}={value}" for name, value in sorted(parts.items())
+    )
+
+
+def _money(value: Decimal) -> Decimal:
+    return value.quantize(MONEY_QUANT)
+
+
+def _clamp(value: Decimal, lower: Decimal, upper: Decimal) -> Decimal:
+    return max(lower, min(upper, value))

@@ -1,3 +1,11 @@
+from taurus_core.allocation_schemas import AllocationDecision
+from taurus_core.portfolio.active_allocation import (
+    ACTIVE_SLEEVE_ID,
+    ACTIVE_STRATEGY_NAMES,
+    ActiveAllocationInput,
+    ActiveAllocationPosition,
+    PortfolioAllocationService,
+)
 from taurus_core.portfolio.core_shariah_basket import (
     CORE_SLEEVE_ID,
     CORE_STRATEGY_NAME,
@@ -7,7 +15,6 @@ from taurus_core.portfolio.core_shariah_basket import (
     severe_negative_symbols,
 )
 from taurus_core.portfolio.money_management import (
-    AllocationDecision,
     DrawdownGovernorPolicy,
     ExposureLimitsPolicy,
     MoneyManagementPolicy,
@@ -24,9 +31,13 @@ from taurus_core.portfolio.money_management import (
 )
 
 __all__ = [
+    "ACTIVE_SLEEVE_ID",
+    "ACTIVE_STRATEGY_NAMES",
     "CORE_SLEEVE_ID",
     "CORE_STRATEGY_NAME",
     "AllocationDecision",
+    "ActiveAllocationInput",
+    "ActiveAllocationPosition",
     "CoreBasketPosition",
     "CoreBasketReviewInput",
     "CoreShariahBasketStrategy",
@@ -34,6 +45,7 @@ __all__ = [
     "ExposureLimitsPolicy",
     "MoneyManagementPolicy",
     "PortfolioPolicy",
+    "PortfolioAllocationService",
     "RebalanceThresholdPolicy",
     "SleevePolicy",
     "SleeveSnapshot",

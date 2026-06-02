@@ -3,11 +3,12 @@ from __future__ import annotations
 from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from taurus_core.allocation_schemas import AllocationDecision
 from taurus_core.data.universe import load_market_data_universe
 
 
@@ -152,30 +153,6 @@ class MoneyManagementPolicy(BaseModel):
         payload = self.model_dump(mode="json")
         payload["core_symbols"] = list(self.core_symbols)
         return payload
-
-
-class AllocationDecision(BaseModel):
-    model_config = ConfigDict(frozen=True)
-
-    symbol: str
-    strategy_name: str
-    sleeve_id: str
-    status: Literal["approved", "rejected", "unchanged"]
-    requested_notional_inr: Decimal = Field(ge=Decimal("0"))
-    approved_notional_inr: Decimal = Field(ge=Decimal("0"))
-    approved_quantity: int = Field(ge=0)
-    binding_constraint: str | None = None
-    rationale: tuple[str, ...] = Field(default_factory=tuple)
-
-    @field_validator("symbol")
-    @classmethod
-    def normalize_symbol(cls, value: str) -> str:
-        return value.strip().upper()
-
-    @field_validator("sleeve_id")
-    @classmethod
-    def normalize_sleeve_id(cls, value: str) -> str:
-        return value.strip().lower()
 
 
 class SleeveSnapshot(BaseModel):

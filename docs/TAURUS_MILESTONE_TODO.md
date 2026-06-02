@@ -88,7 +88,7 @@ context, then documented with the standard completion summary before moving on.
 |---:|---|---|---|---|
 | 11 | M31 | Done | `docs/agent_improvement_plans/PAPER_MONEY_MANAGEMENT_SYSTEM.md` | Added money-management policy/config/state foundation without changing sizing behavior. |
 | 12 | M32 | Done | `docs/agent_improvement_plans/PAPER_MONEY_MANAGEMENT_SYSTEM.md` | Deployed the 40% core sleeve as conservative Shariah basket decisions and artifacts. |
-| 13 | M33 | Planned | `docs/agent_improvement_plans/PAPER_MONEY_MANAGEMENT_SYSTEM.md` | Add active-sleeve risk-budgeted, volatility-adjusted allocation. |
+| 13 | M33 | Done | `docs/agent_improvement_plans/PAPER_MONEY_MANAGEMENT_SYSTEM.md` | Added active-sleeve risk-budgeted, volatility-adjusted allocation. |
 | 14 | M34 | Planned | `docs/agent_improvement_plans/PAPER_MONEY_MANAGEMENT_SYSTEM.md` | Add diversifying/experimental sleeve governors and strategy-level allocation. |
 | 15 | M35 | Planned | `docs/agent_improvement_plans/PAPER_MONEY_MANAGEMENT_SYSTEM.md` | Add allocation dashboard surfaces and operator workflow docs. |
 

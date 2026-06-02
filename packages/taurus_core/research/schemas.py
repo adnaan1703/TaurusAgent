@@ -7,6 +7,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from taurus_core.agents.schemas import ReportHorizon
+from taurus_core.allocation_schemas import AllocationDecision
 from taurus_core.intelligence.documents import stable_id
 
 ConsensusLabel = Literal["bullish", "mild_bullish", "neutral", "mild_bearish", "bearish"]
@@ -151,6 +152,7 @@ class TraderProposal(BaseModel):
     source_report_ids: list[str] = Field(min_length=1)
     is_order: bool = False
     requires_risk_approval: bool = True
+    allocation_decision: AllocationDecision | None = None
     model_version: str
 
     @field_validator("symbol")

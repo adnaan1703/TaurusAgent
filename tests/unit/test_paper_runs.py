@@ -16,9 +16,11 @@ from taurus_core.data.universe import load_market_data_universe
 from taurus_core.db.models import (
     AnalystReportModel,
     AuditLogModel,
+    FinalDecisionModel,
     PaperOrderModel,
     PaperRunModel,
     RiskReviewModel,
+    TraderProposalModel,
 )
 from taurus_core.db.repositories import GraphRepository, InstrumentRepository
 from taurus_core.db.session import build_session_factory
@@ -245,6 +247,49 @@ def test_graph_enabled_kite_paper_run_uses_graph_roster_strategy_and_risk(
     assert "graph_correlated_cluster_concentration" in hard_rules
 
 
+def test_graph_enabled_money_management_run_adds_active_allocation_metadata(
+    tmp_path: Path,
+) -> None:
+    policy_path = _write_active_allocation_policy(tmp_path, max_stock_pct=Decimal("1.0"))
+    settings = _settings_for_temp_db(
+        tmp_path,
+        enabled_analysts="technical,graph",
+        graph_enabled=True,
+        graph_risk_enabled=True,
+        money_management_enabled=True,
+        money_management_config_path=str(policy_path),
+    )
+    _seed_paper_graph_fixture(settings)
+
+    run = PaperRunService(settings).run_once(
+        symbols=["INFY"],
+        strategy_config_path="configs/strategies/graph_aware_score_v1.yaml",
+    )
+
+    symbol_artifact = run.artifacts["symbols"]["INFY"]
+    allocation = symbol_artifact["allocation_decision"]
+
+    assert run.status == "COMPLETED"
+    assert allocation["strategy_name"] == "graph_aware_score_v1"
+    assert allocation["sleeve_id"] == "active_strategy"
+    assert allocation["binding_constraint"] == "stock_exposure"
+    assert Decimal(allocation["approved_position_pct_nav"]) <= Decimal("1.0000")
+    assert Decimal(allocation["approved_notional_inr"]) < Decimal(
+        allocation["requested_notional_inr"]
+    )
+    assert allocation["approved_quantity"] > 0
+
+    session_factory = build_session_factory(settings)
+    with session_factory() as session:
+        proposal = session.scalars(select(TraderProposalModel)).one()
+        risk_review = session.scalars(select(RiskReviewModel)).one()
+        final_decision = session.scalars(select(FinalDecisionModel)).one()
+
+    assert proposal.payload["allocation_decision"]["binding_constraint"] == "stock_exposure"
+    assert risk_review.payload["allocation_decision"]["binding_constraint"] == "stock_exposure"
+    assert final_decision.payload["allocation_decision"]["binding_constraint"] == "stock_exposure"
+
+
 def test_graph_enabled_kite_paper_run_fails_fast_without_graph_nodes(
     tmp_path: Path,
 ) -> None:
@@ -302,6 +347,7 @@ def _settings_for_temp_db(
     graph_enabled: bool = False,
     graph_risk_enabled: bool = False,
     money_management_enabled: bool = False,
+    money_management_config_path: str = "configs/portfolio/money_management_v1.yaml",
 ) -> Settings:
     return Settings(
         taurus_paper_partial_fill_threshold=1,
@@ -309,6 +355,7 @@ def _settings_for_temp_db(
         taurus_graph_enabled=graph_enabled,
         taurus_graph_risk_enabled=graph_risk_enabled,
         taurus_money_management_enabled=money_management_enabled,
+        taurus_money_management_config_path=money_management_config_path,
     )
 
 
@@ -361,3 +408,74 @@ def _seed_paper_graph_fixture(settings: Settings) -> None:
             stability_score=Decimal("0.9000"),
         )
         session.commit()
+
+
+def _write_active_allocation_policy(tmp_path: Path, *, max_stock_pct: Decimal) -> Path:
+    universe_path = tmp_path / "active_shariah.yaml"
+    universe_path.write_text(
+        "universe_name: active_test_shariah\n"
+        "default_exchange: NSE\n"
+        "default_segment: EQUITY\n"
+        "symbols:\n"
+        "  - symbol: INFY\n"
+        "    name: Infosys Ltd.\n"
+        "    enabled: true\n"
+        "    providers:\n"
+        "      kite:\n"
+        "        exchange: NSE\n"
+        "        tradingsymbol: INFY\n",
+        encoding="utf-8",
+    )
+    policy_path = tmp_path / "money_management_active.yaml"
+    policy_path.write_text(
+        "policy_version: active_integration_policy\n"
+        f"shariah_universe_path: {universe_path}\n"
+        "cash_buffer_target_pct: 5.0\n"
+        "sleeves:\n"
+        "  - sleeve_id: core_shariah\n"
+        "    name: Core\n"
+        "    target_weight_pct: 40.0\n"
+        "    role: Core sleeve\n"
+        "  - sleeve_id: active_strategy\n"
+        "    name: Active\n"
+        "    target_weight_pct: 35.0\n"
+        "    role: Active sleeve\n"
+        "  - sleeve_id: diversifying_strategy\n"
+        "    name: Diversifying\n"
+        "    target_weight_pct: 15.0\n"
+        "    role: Diversifying sleeve\n"
+        "  - sleeve_id: experimental_models\n"
+        "    name: Experimental\n"
+        "    target_weight_pct: 5.0\n"
+        "    role: Experimental sleeve\n"
+        "  - sleeve_id: cash_buffer\n"
+        "    name: Cash\n"
+        "    target_weight_pct: 5.0\n"
+        "    role: Cash buffer\n"
+        "strategy_mappings:\n"
+        "  - strategy_name: core_shariah_basket_v1\n"
+        "    sleeve_id: core_shariah\n"
+        "  - strategy_name: graph_aware_score_v1\n"
+        "    sleeve_id: active_strategy\n"
+        "  - strategy_name: moving_average_crossover_v1\n"
+        "    sleeve_id: active_strategy\n"
+        "limits:\n"
+        f"  max_stock_pct_nav: {max_stock_pct}\n"
+        f"  max_stock_hard_cap_pct_nav: {max_stock_pct}\n"
+        "  max_sector_pct_nav: 25.0\n"
+        "  max_graph_cluster_pct_nav: 35.0\n"
+        "  max_open_positions: 20\n"
+        "trade_risk:\n"
+        "  normal_trade_risk_pct_nav: 0.50\n"
+        "  strong_trade_risk_pct_nav: 0.75\n"
+        "  max_single_trade_risk_pct_nav: 1.00\n"
+        "  max_total_open_trade_risk_pct_nav: 5.00\n"
+        "rebalance:\n"
+        "  sleeve_drift_threshold_pct: 20.0\n"
+        "  position_drift_threshold_pct: 20.0\n"
+        "  min_rebalance_notional_inr: 5000\n"
+        "  review_frequency: daily_after_close\n"
+        "  core_rebalance_frequency: monthly\n",
+        encoding="utf-8",
+    )
+    return policy_path

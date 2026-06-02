@@ -126,6 +126,7 @@ class PortfolioManagerAgent:
             reason=fields.reason,
             is_order=False,
             can_send_to_broker=fields.can_send_to_broker,
+            allocation_decision=risk_review.allocation_decision or proposal.allocation_decision,
             model_version=self.model_version,
         )
 
@@ -255,11 +256,17 @@ class PortfolioManagerAgent:
                 "reason_summary": proposal.reason_summary,
                 "invalid_if": list(proposal.invalid_if),
                 "position_management_summary": proposal.position_management_summary,
+                "allocation_decision": proposal.allocation_decision.model_dump(mode="json")
+                if proposal.allocation_decision is not None
+                else None,
             },
             "risk_review": {
                 "status": risk_review.status,
                 "approved_position_pct_nav": str(risk_review.approved_position_pct_nav),
                 "risk_committee_summary": risk_review.risk_committee_summary,
+                "allocation_decision": risk_review.allocation_decision.model_dump(mode="json")
+                if risk_review.allocation_decision is not None
+                else None,
             },
             "hard_rules": [
                 {

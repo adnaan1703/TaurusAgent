@@ -30,6 +30,7 @@ from taurus_core.db.repositories import (
     IntelligenceRepository,
     InstrumentRepository,
     PaperRunRepository,
+    ResearchRepository,
 )
 from taurus_core.db.session import build_session_factory
 from taurus_core.domain.market_data import DailyCandle
@@ -47,9 +48,12 @@ from taurus_core.paper_trading.schemas import (
     paper_run_id,
 )
 from taurus_core.portfolio import (
+    ActiveAllocationInput,
+    ActiveAllocationPosition,
     CoreBasketPosition,
     CoreBasketReviewInput,
     CoreShariahBasketStrategy,
+    PortfolioAllocationService,
     load_money_management_policy_for_settings,
     severe_negative_symbols,
 )
@@ -165,7 +169,11 @@ class PaperRunService:
 
         for symbol in normalized_symbols:
             try:
-                artifacts["symbols"][symbol] = self._run_symbol(symbol=symbol, run_id=run.run_id)
+                artifacts["symbols"][symbol] = self._run_symbol(
+                    symbol=symbol,
+                    run_id=run.run_id,
+                    strategy_summary=strategy_summary,
+                )
                 succeeded_symbols.append(symbol)
             except Exception as exc:
                 error = PaperRunError(
@@ -198,7 +206,13 @@ class PaperRunService:
         )
         return self._store_run(completed, audit_event=f"paper_run.{completed.status.lower()}")
 
-    def _run_symbol(self, *, symbol: str, run_id: str) -> dict[str, object]:
+    def _run_symbol(
+        self,
+        *,
+        symbol: str,
+        run_id: str,
+        strategy_summary: dict[str, object],
+    ) -> dict[str, object]:
         with bound_trace_context(run_id=run_id):
             self.logger.info("paper_run.symbol.started", symbol=symbol)
 
@@ -230,6 +244,12 @@ class PaperRunService:
                 self.settings,
                 llm_provider=llm_provider,
             ).run(symbol=symbol, run_id=run_id, debate=debate)
+
+        proposal = self._apply_active_allocation(
+            symbol=symbol,
+            proposal=proposal,
+            strategy_summary=strategy_summary,
+        )
 
         with self.session_factory() as session:
             execution_repo = ExecutionRepository(session)
@@ -291,6 +311,8 @@ class PaperRunService:
             "order_status": order.status if order is not None else None,
             "account_id": account.account_id if account is not None else None,
         }
+        if proposal.allocation_decision is not None:
+            result["allocation_decision"] = proposal.allocation_decision.model_dump(mode="json")
         with bound_trace_context(
             run_id=run_id,
             debate_id=debate.debate_id,
@@ -301,6 +323,70 @@ class PaperRunService:
         ):
             self.logger.info("paper_run.symbol.completed", **result)
         return result
+
+    def _apply_active_allocation(
+        self,
+        *,
+        symbol: str,
+        proposal,
+        strategy_summary: dict[str, object],
+    ):
+        if not self.settings.taurus_money_management_enabled:
+            return proposal
+
+        policy = load_money_management_policy_for_settings(self.settings)
+        strategy_name = str(strategy_summary.get("strategy_name") or "")
+        signal = _strategy_signal_for_symbol(strategy_summary, symbol)
+        with self.session_factory() as session:
+            execution_repo = ExecutionRepository(session)
+            account = execution_repo.latest_account_by_portfolio(
+                portfolio_id=self.settings.taurus_paper_portfolio_id,
+            )
+            nav_inr = (
+                account.equity_inr
+                if account is not None
+                else Decimal(str(self.settings.taurus_initial_capital_inr))
+            )
+            available_cash = (
+                account.available_cash_inr
+                if account is not None
+                else Decimal(str(self.settings.taurus_initial_capital_inr))
+            )
+            open_positions = tuple(
+                ActiveAllocationPosition(
+                    symbol=position.symbol,
+                    quantity=position.quantity,
+                    market_value_inr=position.market_value_inr,
+                )
+                for position in execution_repo.latest_open_positions_by_portfolio(
+                    portfolio_id=self.settings.taurus_paper_portfolio_id,
+                )
+            )
+            history = tuple(_daily_candle_history(session, symbol))
+            concentration_symbols = {symbol.upper()} | {
+                position.symbol.upper() for position in open_positions
+            }
+            sector_by_symbol, graph_cluster_by_symbol = _core_concentration_groups(
+                session,
+                symbols=concentration_symbols,
+            )
+
+            allocated = PortfolioAllocationService(policy).allocate(
+                ActiveAllocationInput(
+                    proposal=proposal,
+                    strategy_name=strategy_name,
+                    nav_inr=nav_inr,
+                    available_cash_inr=available_cash,
+                    current_positions=open_positions,
+                    history=history,
+                    strategy_score=signal["score"] if signal is not None else None,
+                    sector_by_symbol=sector_by_symbol,
+                    graph_cluster_by_symbol=graph_cluster_by_symbol,
+                )
+            )
+            ResearchRepository(session).replace_trader_proposal_for_run_symbol(allocated)
+            session.commit()
+            return allocated
 
     def _load_latest_inputs(self) -> dict[str, object]:
         provider = build_market_data_provider(self.settings)
@@ -708,6 +794,31 @@ def _symbols_for_pipeline(
             *[str(symbol) for symbol in strategy_summary.get("open_position_symbols", [])],
         ]
     )
+
+
+def _strategy_signal_for_symbol(
+    strategy_summary: dict[str, object],
+    symbol: str,
+) -> dict[str, object] | None:
+    normalized = symbol.upper()
+    signals = strategy_summary.get("signals")
+    if not isinstance(signals, list):
+        return None
+    for signal in signals:
+        if not isinstance(signal, dict):
+            continue
+        if str(signal.get("symbol") or "").upper() != normalized:
+            continue
+        raw_score = signal.get("score")
+        try:
+            score = Decimal(str(raw_score))
+        except Exception:
+            score = None
+        return {
+            **signal,
+            "score": score,
+        }
+    return None
 
 
 def _run_with_selected_symbols(run: PaperRun, symbols: list[str]) -> PaperRun:
