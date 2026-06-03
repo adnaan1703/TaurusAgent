@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import time
 from collections.abc import Iterable
+from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
@@ -16,6 +17,7 @@ from scripts.migrate import run_migrations
 from taurus_core.agents.portfolio_manager import PortfolioManagerAgent
 from taurus_core.agents.roster import MIN_ANALYST_REPORTS, skipped_analysts
 from taurus_core.agents.runner import run_analyst_suite
+from taurus_core.agents.schemas import AnalystReport
 from taurus_core.agents.trader_agent import TraderAgent
 from taurus_core.backtesting.graph import GraphBacktestSignal, GraphBacktestSignalLoader
 from taurus_core.config import Settings, get_settings
@@ -35,10 +37,11 @@ from taurus_core.db.repositories import (
 from taurus_core.db.session import build_session_factory
 from taurus_core.domain.market_data import DailyCandle
 from taurus_core.execution.order_router import ExecutionRouter
+from taurus_core.execution.schemas import PaperOrder
 from taurus_core.features.store import TechnicalFeatureService
 from taurus_core.graph.preflight import assert_graph_ready_for_paper
 from taurus_core.intelligence.mock_news_provider import MockNewsProvider
-from taurus_core.llm import build_llm_provider
+from taurus_core.llm import LLMProvider, build_llm_provider
 from taurus_core.logging import get_logger
 from taurus_core.observability.tracing import bound_trace_context
 from taurus_core.ops.progress import ProgressEventCallback, emit_progress
@@ -62,9 +65,44 @@ from taurus_core.portfolio import (
     severe_negative_symbols,
 )
 from taurus_core.research.debate_service import DEFAULT_DEBATE_ROUNDS, ResearchDebateService
+from taurus_core.research.schemas import DebateReport, TraderProposal
 from taurus_core.risk.review_service import RiskReviewService
+from taurus_core.risk.schemas import FinalDecision, RiskReview
 from taurus_core.strategies import DEFAULT_STRATEGY_CONFIG_PATH, load_strategy_config
 from taurus_core.strategies.factory import build_strategy
+
+
+ANALYSIS_STAGE_NAMES = (
+    "analyst_suite",
+    "research_debate",
+    "trader_proposal",
+)
+FINALIZATION_STAGE_NAMES = (
+    "allocation",
+    "risk_review",
+    "portfolio_manager_final_decision",
+    "execution_routing",
+)
+
+
+@dataclass(frozen=True, slots=True)
+class PaperSymbolAnalysis:
+    symbol: str
+    enabled_analysts: list[str]
+    reports: list[AnalystReport]
+    debate: DebateReport
+    proposal: TraderProposal
+
+
+@dataclass(frozen=True, slots=True)
+class PaperSymbolFinalization:
+    symbol: str
+    proposal: TraderProposal
+    proposal_source: str
+    risk_review: RiskReview
+    final_decision: FinalDecision
+    order: PaperOrder | None
+    account: Any | None
 
 
 class PaperRunService:
@@ -359,25 +397,173 @@ class PaperRunService:
         succeeded_count: int,
         failed_count: int,
     ) -> dict[str, object]:
-        def emit_stage(stage: str) -> None:
-            self._emit_progress(
-                "paper.symbol.stage_started",
-                run_id=run_id,
-                symbol=symbol,
-                symbol_index=symbol_index,
-                stage=stage,
-                succeeded_count=succeeded_count,
-                failed_count=failed_count,
-            )
+        llm_provider = build_llm_provider(self.settings)
+        analysis = self.analyze_symbol(
+            symbol=symbol,
+            run_id=run_id,
+            symbol_index=symbol_index,
+            succeeded_count=succeeded_count,
+            failed_count=failed_count,
+            llm_provider=llm_provider,
+        )
+        finalization = self.finalize_symbol(
+            symbol=symbol,
+            run_id=run_id,
+            strategy_summary=strategy_summary,
+            core_basket_symbols=core_basket_symbols,
+            proposal=analysis.proposal,
+            symbol_index=symbol_index,
+            succeeded_count=succeeded_count,
+            failed_count=failed_count,
+            llm_provider=llm_provider,
+        )
+        result = _symbol_artifact_from_results(analysis, finalization)
+        with bound_trace_context(
+            run_id=run_id,
+            debate_id=analysis.debate.debate_id,
+            proposal_id=finalization.proposal.proposal_id,
+            risk_check_id=finalization.risk_review.risk_check_id,
+            final_decision_id=finalization.final_decision.final_decision_id,
+            order_id=finalization.order.order_id if finalization.order is not None else None,
+        ):
+            self.logger.info("paper_run.symbol.completed", **result)
+        return result
 
+    def analyze_symbol(
+        self,
+        *,
+        symbol: str,
+        run_id: str,
+        symbol_index: int = 1,
+        succeeded_count: int = 0,
+        failed_count: int = 0,
+        llm_provider: LLMProvider | None = None,
+    ) -> PaperSymbolAnalysis:
+        symbol = symbol.upper()
         with bound_trace_context(run_id=run_id):
             self.logger.info("paper_run.symbol.started", symbol=symbol)
 
-        emit_stage("analysts")
         enabled_analysts = self.settings.enabled_analyst_keys
-        llm_provider = build_llm_provider(self.settings)
+        llm_provider = llm_provider or build_llm_provider(self.settings)
+        reports = self._run_symbol_analyst_suite(
+            symbol=symbol,
+            run_id=run_id,
+            enabled_analysts=enabled_analysts,
+            llm_provider=llm_provider,
+            symbol_index=symbol_index,
+            succeeded_count=succeeded_count,
+            failed_count=failed_count,
+        )
+        debate = self._run_symbol_research_debate(
+            symbol=symbol,
+            run_id=run_id,
+            llm_provider=llm_provider,
+            symbol_index=symbol_index,
+            succeeded_count=succeeded_count,
+            failed_count=failed_count,
+        )
+        proposal = self._run_symbol_trader_proposal(
+            symbol=symbol,
+            run_id=run_id,
+            debate=debate,
+            llm_provider=llm_provider,
+            symbol_index=symbol_index,
+            succeeded_count=succeeded_count,
+            failed_count=failed_count,
+        )
+        return PaperSymbolAnalysis(
+            symbol=symbol,
+            enabled_analysts=list(enabled_analysts),
+            reports=reports,
+            debate=debate,
+            proposal=proposal,
+        )
+
+    def finalize_symbol(
+        self,
+        *,
+        symbol: str,
+        run_id: str,
+        strategy_summary: dict[str, object],
+        core_basket_symbols: set[str],
+        proposal: TraderProposal | None = None,
+        symbol_index: int = 1,
+        succeeded_count: int = 0,
+        failed_count: int = 0,
+        llm_provider: LLMProvider | None = None,
+    ) -> PaperSymbolFinalization:
+        symbol = symbol.upper()
+        proposal_source = "in_memory" if proposal is not None else "stored"
+        proposal = proposal or self._load_symbol_proposal(symbol=symbol, run_id=run_id)
+        self._validate_symbol_proposal(symbol=symbol, run_id=run_id, proposal=proposal)
+        proposal = self._allocate_symbol_proposal(
+            symbol=symbol,
+            proposal=proposal,
+            strategy_summary=strategy_summary,
+            core_basket_symbols=core_basket_symbols,
+            symbol_index=symbol_index,
+            succeeded_count=succeeded_count,
+            failed_count=failed_count,
+        )
+        review = self._run_symbol_risk_review(
+            symbol=symbol,
+            run_id=run_id,
+            proposal=proposal,
+            symbol_index=symbol_index,
+            succeeded_count=succeeded_count,
+            failed_count=failed_count,
+        )
+        decision = self._run_symbol_portfolio_manager_final_decision(
+            symbol=symbol,
+            run_id=run_id,
+            review=review,
+            llm_provider=llm_provider or build_llm_provider(self.settings),
+            symbol_index=symbol_index,
+            succeeded_count=succeeded_count,
+            failed_count=failed_count,
+        )
+        order, account = self._route_symbol_execution(
+            decision=decision,
+            run_id=run_id,
+            symbol=symbol,
+            symbol_index=symbol_index,
+            succeeded_count=succeeded_count,
+            failed_count=failed_count,
+        )
+        return PaperSymbolFinalization(
+            symbol=symbol,
+            proposal=proposal,
+            proposal_source=proposal_source,
+            risk_review=review,
+            final_decision=decision,
+            order=order,
+            account=account,
+        )
+
+    def _run_symbol_analyst_suite(
+        self,
+        *,
+        symbol: str,
+        run_id: str,
+        enabled_analysts: list[str],
+        llm_provider: LLMProvider,
+        symbol_index: int,
+        succeeded_count: int,
+        failed_count: int,
+    ) -> list[AnalystReport]:
+        self._emit_symbol_stage_started(
+            run_id=run_id,
+            symbol=symbol,
+            symbol_index=symbol_index,
+            stage="analyst_suite",
+            terminal_stage="analysts",
+            phase="analysis",
+            method="run_analyst_suite",
+            succeeded_count=succeeded_count,
+            failed_count=failed_count,
+        )
         with self.session_factory() as session:
-            reports = run_analyst_suite(
+            return run_analyst_suite(
                 session,
                 symbol=symbol,
                 run_id=run_id,
@@ -385,9 +571,29 @@ class PaperRunService:
                 enabled_analysts=enabled_analysts,
             )
 
-        emit_stage("debate")
+    def _run_symbol_research_debate(
+        self,
+        *,
+        symbol: str,
+        run_id: str,
+        llm_provider: LLMProvider,
+        symbol_index: int,
+        succeeded_count: int,
+        failed_count: int,
+    ) -> DebateReport:
+        self._emit_symbol_stage_started(
+            run_id=run_id,
+            symbol=symbol,
+            symbol_index=symbol_index,
+            stage="research_debate",
+            terminal_stage="debate",
+            phase="analysis",
+            method="ResearchDebateService.run",
+            succeeded_count=succeeded_count,
+            failed_count=failed_count,
+        )
         with self.session_factory() as session:
-            debate = ResearchDebateService(
+            return ResearchDebateService(
                 session,
                 settings=self.settings,
                 llm_provider=llm_provider,
@@ -397,23 +603,85 @@ class PaperRunService:
                 rounds_requested=self.rounds_requested,
             )
 
-        emit_stage("trader")
+    def _run_symbol_trader_proposal(
+        self,
+        *,
+        symbol: str,
+        run_id: str,
+        debate: DebateReport,
+        llm_provider: LLMProvider,
+        symbol_index: int,
+        succeeded_count: int,
+        failed_count: int,
+    ) -> TraderProposal:
+        self._emit_symbol_stage_started(
+            run_id=run_id,
+            symbol=symbol,
+            symbol_index=symbol_index,
+            stage="trader_proposal",
+            terminal_stage="trader",
+            phase="analysis",
+            method="TraderAgent.run",
+            succeeded_count=succeeded_count,
+            failed_count=failed_count,
+        )
         with self.session_factory() as session:
-            proposal = TraderAgent(
+            return TraderAgent(
                 session,
                 self.settings,
                 llm_provider=llm_provider,
             ).run(symbol=symbol, run_id=run_id, debate=debate)
 
-        emit_stage("allocation")
-        proposal = self._apply_active_allocation(
+    def _allocate_symbol_proposal(
+        self,
+        *,
+        symbol: str,
+        proposal: TraderProposal,
+        strategy_summary: dict[str, object],
+        core_basket_symbols: set[str],
+        symbol_index: int,
+        succeeded_count: int,
+        failed_count: int,
+    ) -> TraderProposal:
+        self._emit_symbol_stage_started(
+            run_id=proposal.run_id,
+            symbol=symbol,
+            symbol_index=symbol_index,
+            stage="allocation",
+            terminal_stage="allocation",
+            phase="finalization",
+            method="PaperRunService._apply_active_allocation",
+            succeeded_count=succeeded_count,
+            failed_count=failed_count,
+        )
+        return self._apply_active_allocation(
             symbol=symbol,
             proposal=proposal,
             strategy_summary=strategy_summary,
             core_basket_symbols=core_basket_symbols,
         )
 
-        emit_stage("risk")
+    def _run_symbol_risk_review(
+        self,
+        *,
+        symbol: str,
+        run_id: str,
+        proposal: TraderProposal,
+        symbol_index: int,
+        succeeded_count: int,
+        failed_count: int,
+    ) -> RiskReview:
+        self._emit_symbol_stage_started(
+            run_id=run_id,
+            symbol=symbol,
+            symbol_index=symbol_index,
+            stage="risk_review",
+            terminal_stage="risk",
+            phase="finalization",
+            method="RiskReviewService.run",
+            succeeded_count=succeeded_count,
+            failed_count=failed_count,
+        )
         with self.session_factory() as session:
             execution_repo = ExecutionRepository(session)
             open_positions = execution_repo.latest_open_positions_by_portfolio(
@@ -431,10 +699,32 @@ class PaperRunService:
                     equity_inr=account.equity_inr if account is not None else None,
                 ),
             ).run(symbol=symbol, run_id=run_id, proposal=proposal)
+            return review
 
-        emit_stage("portfolio_manager")
+    def _run_symbol_portfolio_manager_final_decision(
+        self,
+        *,
+        symbol: str,
+        run_id: str,
+        review: RiskReview,
+        llm_provider: LLMProvider,
+        symbol_index: int,
+        succeeded_count: int,
+        failed_count: int,
+    ) -> FinalDecision:
+        self._emit_symbol_stage_started(
+            run_id=run_id,
+            symbol=symbol,
+            symbol_index=symbol_index,
+            stage="portfolio_manager_final_decision",
+            terminal_stage="portfolio_manager",
+            phase="finalization",
+            method="PortfolioManagerAgent.run",
+            succeeded_count=succeeded_count,
+            failed_count=failed_count,
+        )
         with self.session_factory() as session:
-            decision = PortfolioManagerAgent(
+            return PortfolioManagerAgent(
                 session,
                 self.settings,
                 llm_provider=llm_provider,
@@ -444,50 +734,83 @@ class PaperRunService:
                 risk_review=review,
             )
 
-        emit_stage("execution")
+    def _route_symbol_execution(
+        self,
+        *,
+        decision: FinalDecision,
+        run_id: str,
+        symbol: str,
+        symbol_index: int,
+        succeeded_count: int,
+        failed_count: int,
+    ) -> tuple[PaperOrder | None, Any | None]:
+        self._emit_symbol_stage_started(
+            run_id=run_id,
+            symbol=symbol,
+            symbol_index=symbol_index,
+            stage="execution_routing",
+            terminal_stage="execution",
+            phase="finalization",
+            method="ExecutionRouter.route_decision",
+            succeeded_count=succeeded_count,
+            failed_count=failed_count,
+        )
         with self.session_factory() as session:
             order = ExecutionRouter(session, self.settings).route_decision(decision)
             repo = ExecutionRepository(session)
             account = repo.latest_account(run_id=run_id)
+            return order, account
 
-        result = {
-            "symbol": symbol,
-            "report_ids": [report.report_id for report in reports],
-            "analyst_roster": _analyst_roster_dict(
-                enabled_analysts=enabled_analysts,
-                report_count=len(reports),
-            ),
-            "debate_id": debate.debate_id,
-            "proposal_id": proposal.proposal_id,
-            "proposal_action": proposal.action,
-            "portfolio_id": proposal.portfolio_id,
-            "lifecycle_trigger": proposal.lifecycle_trigger,
-            "evaluation_mode": proposal.evaluation_mode,
-            "current_position_quantity": proposal.current_position_quantity,
-            "current_position_pct_nav": str(proposal.current_position_pct_nav),
-            "target_position_pct_nav": str(proposal.target_position_pct_nav),
-            "position_management_summary": proposal.position_management_summary,
-            "risk_check_id": review.risk_check_id,
-            "final_decision_id": decision.final_decision_id,
-            "final_status": decision.status,
-            "final_action": decision.final_action,
-            "no_paper_order_expected": decision.status == "NO_ACTION",
-            "order_id": order.order_id if order is not None else None,
-            "order_status": order.status if order is not None else None,
-            "account_id": account.account_id if account is not None else None,
-        }
-        if proposal.allocation_decision is not None:
-            result["allocation_decision"] = proposal.allocation_decision.model_dump(mode="json")
-        with bound_trace_context(
+    def _load_symbol_proposal(self, *, symbol: str, run_id: str) -> TraderProposal:
+        with self.session_factory() as session:
+            model = ResearchRepository(session).latest_trader_proposal(
+                run_id=run_id,
+                symbol=symbol,
+            )
+            if model is None:
+                raise ValueError(
+                    f"No trader proposal found for {symbol.upper()} run_id={run_id}. "
+                    "Run symbol analysis before finalization."
+                )
+            return TraderProposal.model_validate(model.payload)
+
+    def _validate_symbol_proposal(
+        self,
+        *,
+        symbol: str,
+        run_id: str,
+        proposal: TraderProposal,
+    ) -> None:
+        if proposal.symbol != symbol.upper():
+            raise ValueError("Trader proposal symbol does not match finalization symbol.")
+        if proposal.run_id != run_id:
+            raise ValueError("Trader proposal run_id does not match finalization run_id.")
+
+    def _emit_symbol_stage_started(
+        self,
+        *,
+        run_id: str,
+        symbol: str,
+        symbol_index: int,
+        stage: str,
+        terminal_stage: str,
+        phase: str,
+        method: str,
+        succeeded_count: int,
+        failed_count: int,
+    ) -> None:
+        self._emit_progress(
+            "paper.symbol.stage_started",
             run_id=run_id,
-            debate_id=debate.debate_id,
-            proposal_id=proposal.proposal_id,
-            risk_check_id=review.risk_check_id,
-            final_decision_id=decision.final_decision_id,
-            order_id=order.order_id if order is not None else None,
-        ):
-            self.logger.info("paper_run.symbol.completed", **result)
-        return result
+            symbol=symbol,
+            symbol_index=symbol_index,
+            stage=stage,
+            terminal_stage=terminal_stage,
+            phase=phase,
+            method=method,
+            succeeded_count=succeeded_count,
+            failed_count=failed_count,
+        )
 
     def _apply_active_allocation(
         self,
@@ -971,6 +1294,46 @@ def _normalize_symbols(symbols: Iterable[str]) -> list[str]:
             if cleaned and cleaned not in normalized:
                 normalized.append(cleaned)
     return normalized
+
+
+def _symbol_artifact_from_results(
+    analysis: PaperSymbolAnalysis,
+    finalization: PaperSymbolFinalization,
+) -> dict[str, object]:
+    proposal = finalization.proposal
+    review = finalization.risk_review
+    decision = finalization.final_decision
+    order = finalization.order
+    account = finalization.account
+    result = {
+        "symbol": analysis.symbol,
+        "report_ids": [report.report_id for report in analysis.reports],
+        "analyst_roster": _analyst_roster_dict(
+            enabled_analysts=analysis.enabled_analysts,
+            report_count=len(analysis.reports),
+        ),
+        "debate_id": analysis.debate.debate_id,
+        "proposal_id": proposal.proposal_id,
+        "proposal_action": proposal.action,
+        "portfolio_id": proposal.portfolio_id,
+        "lifecycle_trigger": proposal.lifecycle_trigger,
+        "evaluation_mode": proposal.evaluation_mode,
+        "current_position_quantity": proposal.current_position_quantity,
+        "current_position_pct_nav": str(proposal.current_position_pct_nav),
+        "target_position_pct_nav": str(proposal.target_position_pct_nav),
+        "position_management_summary": proposal.position_management_summary,
+        "risk_check_id": review.risk_check_id,
+        "final_decision_id": decision.final_decision_id,
+        "final_status": decision.status,
+        "final_action": decision.final_action,
+        "no_paper_order_expected": decision.status == "NO_ACTION",
+        "order_id": order.order_id if order is not None else None,
+        "order_status": order.status if order is not None else None,
+        "account_id": account.account_id if account is not None else None,
+    }
+    if proposal.allocation_decision is not None:
+        result["allocation_decision"] = proposal.allocation_decision.model_dump(mode="json")
+    return result
 
 
 def _analyst_roster_dict(

@@ -27,8 +27,11 @@ from taurus_core.db.session import build_session_factory
 from taurus_core.domain.instruments import Instrument
 from taurus_core.paper_trading.schemas import PaperRunUniverse
 from taurus_core.paper_trading.service import (
+    ANALYSIS_STAGE_NAMES,
+    FINALIZATION_STAGE_NAMES,
     PaperRunService,
     _sleeve_snapshots_for_allocation,
+    _symbol_artifact_from_results,
 )
 from taurus_core.portfolio import ActiveAllocationPosition, load_money_management_policy
 from tests.llm_fakes import FakeLLMProvider
@@ -381,6 +384,129 @@ def test_paper_loop_records_manual_symbol_universe_provenance(
     assert overview.json()["latest_run"]["universe"]["source"] == "manual_symbols"
 
 
+def test_decomposed_symbol_analysis_and_stored_finalization_keep_legacy_artifact(
+    tmp_path: Path,
+) -> None:
+    settings = _settings_for_temp_db(tmp_path)
+    run_id = "m37-decomposed-symbol"
+    events: list[tuple[str, dict[str, object]]] = []
+    service = PaperRunService(
+        settings,
+        progress=lambda event, payload: events.append((event, dict(payload))),
+    )
+    service._load_latest_inputs()
+    strategy_summary = service._generate_strategy_summary(
+        symbols=["INFY"],
+        universe=None,
+        strategy_config_path=None,
+    )
+
+    analysis = service.analyze_symbol(symbol="INFY", run_id=run_id)
+
+    session_factory = build_session_factory(settings)
+    with session_factory() as session:
+        proposal_count = session.scalar(
+            select(func.count())
+            .select_from(TraderProposalModel)
+            .where(TraderProposalModel.run_id == run_id)
+        )
+        risk_count = session.scalar(
+            select(func.count())
+            .select_from(RiskReviewModel)
+            .where(RiskReviewModel.run_id == run_id)
+        )
+        final_count = session.scalar(
+            select(func.count())
+            .select_from(FinalDecisionModel)
+            .where(FinalDecisionModel.run_id == run_id)
+        )
+        order_count = session.scalar(
+            select(func.count())
+            .select_from(PaperOrderModel)
+            .where(PaperOrderModel.run_id == run_id)
+        )
+
+    assert analysis.proposal.symbol == "INFY"
+    assert proposal_count == 1
+    assert risk_count == 0
+    assert final_count == 0
+    assert order_count == 0
+
+    finalization = service.finalize_symbol(
+        symbol="INFY",
+        run_id=run_id,
+        strategy_summary=strategy_summary,
+        core_basket_symbols=set(),
+    )
+    artifact = _symbol_artifact_from_results(analysis, finalization)
+
+    with session_factory() as session:
+        risk_count = session.scalar(
+            select(func.count())
+            .select_from(RiskReviewModel)
+            .where(RiskReviewModel.run_id == run_id)
+        )
+        final_count = session.scalar(
+            select(func.count())
+            .select_from(FinalDecisionModel)
+            .where(FinalDecisionModel.run_id == run_id)
+        )
+        order_count = session.scalar(
+            select(func.count())
+            .select_from(PaperOrderModel)
+            .where(PaperOrderModel.run_id == run_id)
+        )
+
+    assert finalization.proposal_source == "stored"
+    assert finalization.proposal.proposal_id == analysis.proposal.proposal_id
+    assert artifact["symbol"] == "INFY"
+    assert set(artifact) == {
+        "symbol",
+        "report_ids",
+        "analyst_roster",
+        "debate_id",
+        "proposal_id",
+        "proposal_action",
+        "portfolio_id",
+        "lifecycle_trigger",
+        "evaluation_mode",
+        "current_position_quantity",
+        "current_position_pct_nav",
+        "target_position_pct_nav",
+        "position_management_summary",
+        "risk_check_id",
+        "final_decision_id",
+        "final_status",
+        "final_action",
+        "no_paper_order_expected",
+        "order_id",
+        "order_status",
+        "account_id",
+    }
+    assert artifact["final_status"] == "APPROVED_FOR_PAPER"
+    assert artifact["order_status"] == "FILLED"
+    assert risk_count == 1
+    assert final_count == 1
+    assert order_count == 1
+
+    stage_payloads = [
+        payload for event, payload in events if event == "paper.symbol.stage_started"
+    ]
+    assert [payload["stage"] for payload in stage_payloads] == [
+        *ANALYSIS_STAGE_NAMES,
+        *FINALIZATION_STAGE_NAMES,
+    ]
+    assert [payload["phase"] for payload in stage_payloads] == [
+        "analysis",
+        "analysis",
+        "analysis",
+        "finalization",
+        "finalization",
+        "finalization",
+        "finalization",
+    ]
+
+
 def test_paper_loop_emits_iteration_and_symbol_stage_progress_events(
     tmp_path: Path,
 ) -> None:
@@ -406,6 +532,16 @@ def test_paper_loop_emits_iteration_and_symbol_stage_progress_events(
         for event, payload in events
         if event == "paper.symbol.stage_started"
     ]
+    terminal_stage_names = [
+        str(payload["terminal_stage"])
+        for event, payload in events
+        if event == "paper.symbol.stage_started"
+    ]
+    phase_names = [
+        str(payload["phase"])
+        for event, payload in events
+        if event == "paper.symbol.stage_started"
+    ]
     iteration_completed = next(
         payload for event, payload in events if event == "paper.iteration.completed"
     )
@@ -418,6 +554,10 @@ def test_paper_loop_emits_iteration_and_symbol_stage_progress_events(
     assert "paper.iteration.completed" in event_names
     assert "paper.loop.completed" in event_names
     assert stage_names == [
+        *ANALYSIS_STAGE_NAMES,
+        *FINALIZATION_STAGE_NAMES,
+    ]
+    assert terminal_stage_names == [
         "analysts",
         "debate",
         "trader",
@@ -425,6 +565,15 @@ def test_paper_loop_emits_iteration_and_symbol_stage_progress_events(
         "risk",
         "portfolio_manager",
         "execution",
+    ]
+    assert phase_names == [
+        "analysis",
+        "analysis",
+        "analysis",
+        "finalization",
+        "finalization",
+        "finalization",
+        "finalization",
     ]
     assert iteration_completed["succeeded_count"] == 1
     assert iteration_completed["failed_count"] == 0

@@ -104,7 +104,7 @@ context, then documented with the standard completion summary before moving on.
 | Order | Milestone | Status | Plan | Purpose |
 |---:|---|---|---|---|
 | 18 | M36 | Done | `docs/agent_improvement_plans/FULL_UNIVERSE_DYNAMIC_ALLOCATION.md` | Replaced fixed strategy target counts with full-universe ranking artifacts. |
-| 19 | M37 | Planned | `docs/agent_improvement_plans/FULL_UNIVERSE_DYNAMIC_ALLOCATION.md` | Decompose the paper loop into analysis, allocation, finalization, and execution phases without changing default behavior. |
+| 19 | M37 | Done | `docs/agent_improvement_plans/FULL_UNIVERSE_DYNAMIC_ALLOCATION.md` | Decompose the paper loop into analysis, allocation, finalization, and execution phases without changing default behavior. |
 | 20 | M38 | Planned | `docs/agent_improvement_plans/FULL_UNIVERSE_DYNAMIC_ALLOCATION.md` | Add full-universe analysis mode through trader proposals while preserving safe execution behavior. |
 | 21 | M39 | Planned | `docs/agent_improvement_plans/FULL_UNIVERSE_DYNAMIC_ALLOCATION.md` | Add run-level dynamic allocation across all proposals, using money-management policy or settings fallback constraints. |
 | 22 | M40 | Planned | `docs/agent_improvement_plans/FULL_UNIVERSE_DYNAMIC_ALLOCATION.md` | Run risk/final decisions for every analyzed symbol and defer execution until allocated approved decisions are known. |

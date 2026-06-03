@@ -98,6 +98,31 @@ def test_auto_progress_uses_plain_stderr_for_non_tty_stream() -> None:
     assert "progress=1/3" in output
 
 
+def test_paper_loop_terminal_progress_prefers_terminal_stage_label() -> None:
+    line = format_plain_progress_line(
+        "paper-loop",
+        "paper.symbol.stage_started",
+        {
+            "iteration": 1,
+            "iterations": 1,
+            "symbol_count": 1,
+            "run_id": "pr-test",
+            "symbol": "INFY",
+            "symbol_index": 1,
+            "stage": "risk_review",
+            "terminal_stage": "risk",
+            "succeeded_count": 0,
+            "failed_count": 0,
+        },
+        elapsed_seconds=10,
+        eta_seconds=None,
+    )
+
+    assert line is not None
+    assert "stage=risk" in line
+    assert "risk_review" not in line
+
+
 def test_candle_import_emits_symbol_progress_events(
     postgres_test_settings: Settings,
 ) -> None:

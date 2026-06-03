@@ -202,6 +202,14 @@ foundation for full-universe runs.
 
 At completion, add assumptions made, mocks created, and mocks used.
 
+### Completion Summary
+
+Completed on 2026-06-03.
+
+- Assumptions made: M37 should preserve the current selected-symbol loop, per-symbol allocation, and in-loop paper execution behavior; run artifact keys should remain unchanged; progress callbacks may expose decomposed stage names while terminal progress keeps the existing stage labels.
+- Mocks created: None.
+- Mocks used: Existing `FakeLLMProvider`, `FakeKiteMarketDataProvider`, and mock/default paper-trading test settings in pytest coverage.
+
 ## M38: Full-Universe Analysis Mode
 
 ### Goal

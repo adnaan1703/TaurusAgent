@@ -391,7 +391,11 @@ def _paper_loop_snapshot(
         )
         run_id = _string(payload, "run_id", "pending")
         symbol = _string(payload, "symbol", "-")
-        stage = _string(payload, "stage", "symbol_pipeline")
+        stage = _string(
+            payload,
+            "terminal_stage",
+            _string(payload, "stage", "symbol_pipeline"),
+        )
         succeeded = _int(payload, "succeeded_count", 0)
         failed = _int(payload, "failed_count", 0)
         return ProgressSnapshot(
