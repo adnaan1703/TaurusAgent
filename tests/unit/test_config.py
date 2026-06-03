@@ -222,6 +222,8 @@ def test_money_management_policy_loads_default_config() -> None:
     assert "core_symbols" not in metadata
     assert all("core_symbols" not in sleeve for sleeve in metadata["sleeves"])
     assert policy.limits.max_stock_hard_cap_pct_nav >= policy.limits.max_stock_pct_nav
+    assert policy.allocation_scoring.weights.strategy_score == Decimal("0.30")
+    assert policy.allocation_scoring.score_bands.reject_below == Decimal("60.0")
 
 
 def test_missing_strategy_target_positions_stays_unset(tmp_path: Path) -> None:
@@ -338,6 +340,18 @@ def _write_money_management_policy(
         "  strong_trade_risk_pct_nav: 0.75\n"
         "  max_single_trade_risk_pct_nav: 1.00\n"
         "  max_total_open_trade_risk_pct_nav: 5.00\n"
+        "allocation_scoring:\n"
+        "  weights:\n"
+        "    strategy_score: 0.30\n"
+        "    trader_confidence: 0.25\n"
+        "    liquidity: 0.15\n"
+        "    volatility: 0.15\n"
+        "    diversification: 0.10\n"
+        "    recent_sleeve_performance: 0.05\n"
+        "  score_bands:\n"
+        "    reject_below: 60.0\n"
+        "    half_normal_below: 75.0\n"
+        "    normal_below: 85.0\n"
         "drawdown_governors:\n"
         "  - name: caution\n"
         "    drawdown_pct: 3.0\n"

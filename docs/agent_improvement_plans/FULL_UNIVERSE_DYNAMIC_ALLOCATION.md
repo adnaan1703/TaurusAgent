@@ -342,6 +342,25 @@ that compares all trader proposals before selecting and sizing paper trades.
 
 At completion, add assumptions made, mocks created, and mocks used.
 
+### M39 Completion Summary
+
+Completed on 2026-06-03.
+
+- Assumptions made:
+  - M39 should persist run-level allocation decisions and the allocation ledger
+    before finalization, while M40 still owns finalizing every analyzed symbol
+    and moving paper execution to a deferred run-level execution phase.
+  - Existing selected-only finalization remains the effective execution
+    boundary for M39; symbols outside that set keep analysis and allocation
+    ledger records but do not yet receive risk/final decision records.
+  - Normal whole-share rounding should not classify an otherwise fully selected
+    proposal as `allocation_reduced`; reductions are tied to binding
+    constraints other than requested notional.
+- Mocks created: None
+- Mocks used:
+  - Existing `FakeLLMProvider` and `FakeKiteMarketDataProvider` in paper-run
+    pytest coverage.
+
 ## M40: Full-Universe Risk, Final Decisions, And Deferred Execution
 
 ### Goal

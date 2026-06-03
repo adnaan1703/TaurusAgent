@@ -50,6 +50,18 @@ trade_risk:
   strong_trade_risk_pct_nav: 0.75
   max_single_trade_risk_pct_nav: 1.00
   max_total_open_trade_risk_pct_nav: 5.00
+allocation_scoring:
+  weights:
+    strategy_score: 0.30
+    trader_confidence: 0.25
+    liquidity: 0.15
+    volatility: 0.15
+    diversification: 0.10
+    recent_sleeve_performance: 0.05
+  score_bands:
+    reject_below: 60.0
+    half_normal_below: 75.0
+    normal_below: 85.0
 drawdown_governors:
   - name: portfolio_caution
     drawdown_pct: 3.0

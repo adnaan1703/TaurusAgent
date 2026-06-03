@@ -58,8 +58,12 @@ from taurus_core.portfolio import (
     CoreBasketPosition,
     CoreBasketReviewInput,
     CoreShariahBasketStrategy,
+    FallbackAllocationPolicy,
     MoneyManagementPolicy,
     PortfolioAllocationService,
+    RunAllocationInput,
+    RunAllocationResult,
+    RunLevelAllocationService,
     SleeveAllocationSnapshot,
     load_money_management_policy_for_settings,
     severe_negative_symbols,
@@ -371,10 +375,11 @@ class PaperRunService:
         self._store_run(run)
 
         finalization_symbol_set = set(finalization_symbols)
+        analysis_by_symbol: dict[str, PaperSymbolAnalysis] = {}
+        pending_finalization_symbols: list[str] = []
         llm_provider = build_llm_provider(self.settings)
         for symbol_index, symbol in enumerate(analysis_symbols, start=1):
             finalization_required = symbol in finalization_symbol_set
-            symbol_stage = "symbol_pipeline" if finalization_required else "symbol_analysis"
             try:
                 analysis = self.analyze_symbol(
                     symbol=symbol,
@@ -384,38 +389,16 @@ class PaperRunService:
                     failed_count=len(failed_symbols),
                     llm_provider=llm_provider,
                 )
+                analysis_by_symbol[symbol] = analysis
                 artifacts["analysis"][symbol] = _analysis_artifact_from_result(
                     analysis,
                     finalization_required=finalization_required,
                     finalization_status="pending" if finalization_required else "not_selected",
                 )
                 if finalization_required:
-                    finalization = self.finalize_symbol(
-                        symbol=symbol,
-                        run_id=run.run_id,
-                        strategy_summary=strategy_summary,
-                        core_basket_symbols=core_basket_symbols,
-                        proposal=analysis.proposal,
-                        symbol_index=symbol_index,
-                        succeeded_count=len(succeeded_symbols),
-                        failed_count=len(failed_symbols),
-                        llm_provider=llm_provider,
-                    )
-                    result = _symbol_artifact_from_results(analysis, finalization)
-                    artifacts["symbols"][symbol] = result
-                    artifacts["analysis"][symbol]["finalization_status"] = "completed"
-                    with bound_trace_context(
-                        run_id=run.run_id,
-                        debate_id=analysis.debate.debate_id,
-                        proposal_id=finalization.proposal.proposal_id,
-                        risk_check_id=finalization.risk_review.risk_check_id,
-                        final_decision_id=finalization.final_decision.final_decision_id,
-                        order_id=finalization.order.order_id
-                        if finalization.order is not None
-                        else None,
-                    ):
-                        self.logger.info("paper_run.symbol.completed", **result)
+                    pending_finalization_symbols.append(symbol)
                 else:
+                    succeeded_symbols.append(symbol)
                     with bound_trace_context(
                         run_id=run.run_id,
                         debate_id=analysis.debate.debate_id,
@@ -425,15 +408,14 @@ class PaperRunService:
                             "paper_run.symbol.analysis_completed",
                             **artifacts["analysis"][symbol],
                         )
-                succeeded_symbols.append(symbol)
                 self._emit_progress(
                     "paper.symbol.completed",
                     run_id=run.run_id,
                     symbols=analysis_symbols,
                     symbol=symbol,
                     symbol_index=symbol_index,
-                    stage=symbol_stage,
-                    phase="finalization" if finalization_required else "analysis",
+                    stage="symbol_analysis",
+                    phase="analysis",
                     finalization_required=finalization_required,
                     succeeded_count=len(succeeded_symbols),
                     failed_count=len(failed_symbols),
@@ -444,7 +426,7 @@ class PaperRunService:
                     analysis_artifact["finalization_status"] = "failed"
                 error = PaperRunError(
                     symbol=symbol,
-                    stage=symbol_stage,
+                    stage="symbol_pipeline" if finalization_required else "symbol_analysis",
                     message=str(exc),
                     error_type=exc.__class__.__name__,
                 )
@@ -459,6 +441,153 @@ class PaperRunService:
                     symbol_index=symbol_index,
                     stage=error.stage,
                     finalization_required=finalization_required,
+                    succeeded_count=len(succeeded_symbols),
+                    failed_count=len(failed_symbols),
+                    error_type=error.error_type,
+                    message=error.message,
+                )
+            finally:
+                partial_status = _status_for(succeeded_symbols, failed_symbols)
+                run = run.model_copy(
+                    update={
+                        "status": partial_status,
+                        "succeeded_symbols": list(succeeded_symbols),
+                        "failed_symbols": list(failed_symbols),
+                        "errors": list(errors),
+                        "artifacts": artifacts,
+                    }
+                )
+                self._store_run(run)
+
+        allocation_result: RunAllocationResult | None = None
+        if analysis_by_symbol:
+            try:
+                self._emit_progress(
+                    "paper.run.setup_started",
+                    run_id=run.run_id,
+                    stage="run_allocation",
+                    symbols=sorted(analysis_by_symbol),
+                )
+                allocation_result = self._allocate_run_proposals(
+                    run_id=run.run_id,
+                    strategy_summary=strategy_summary,
+                    core_basket_symbols=core_basket_symbols,
+                    proposals=tuple(
+                        analysis.proposal for analysis in analysis_by_symbol.values()
+                    ),
+                )
+                artifacts["allocation"] = allocation_result.to_artifact()
+                allocation_status_by_symbol = {
+                    entry.symbol: entry.status for entry in allocation_result.ledger
+                }
+                for symbol, status in allocation_status_by_symbol.items():
+                    analysis_artifact = artifacts["analysis"].get(symbol)
+                    if isinstance(analysis_artifact, dict):
+                        analysis_artifact["allocation_status"] = status
+                self._emit_progress(
+                    "paper.run.setup_completed",
+                    run_id=run.run_id,
+                    stage="run_allocation",
+                    symbols=sorted(analysis_by_symbol),
+                    selected_count=allocation_result.summary["selected_count"],
+                    not_selected_count=allocation_result.summary["not_selected_count"],
+                    allocation_rejected_count=allocation_result.summary[
+                        "allocation_rejected_count"
+                    ],
+                )
+                run = run.model_copy(update={"artifacts": artifacts})
+                self._store_run(run)
+            except Exception as exc:
+                error = PaperRunError(
+                    symbol="*",
+                    stage="run_allocation",
+                    message=str(exc),
+                    error_type=exc.__class__.__name__,
+                )
+                failed_symbols.extend(
+                    symbol
+                    for symbol in pending_finalization_symbols
+                    if symbol not in failed_symbols
+                )
+                errors.append(error)
+                self._log_failure(run.run_id, error)
+                run = run.model_copy(
+                    update={
+                        "status": _status_for(succeeded_symbols, failed_symbols),
+                        "failed_symbols": list(failed_symbols),
+                        "errors": list(errors),
+                        "artifacts": artifacts,
+                    }
+                )
+                self._store_run(run)
+
+        allocated_proposals = (
+            allocation_result.proposal_by_symbol() if allocation_result is not None else {}
+        )
+        for symbol in pending_finalization_symbols:
+            if symbol in failed_symbols:
+                continue
+            analysis = analysis_by_symbol[symbol]
+            symbol_index = analysis_symbols.index(symbol) + 1
+            try:
+                finalization = self.finalize_symbol(
+                    symbol=symbol,
+                    run_id=run.run_id,
+                    strategy_summary=strategy_summary,
+                    core_basket_symbols=core_basket_symbols,
+                    proposal=allocated_proposals.get(symbol, analysis.proposal),
+                    symbol_index=symbol_index,
+                    succeeded_count=len(succeeded_symbols),
+                    failed_count=len(failed_symbols),
+                    llm_provider=llm_provider,
+                    apply_allocation=False,
+                )
+                result = _symbol_artifact_from_results(analysis, finalization)
+                artifacts["symbols"][symbol] = result
+                artifacts["analysis"][symbol]["finalization_status"] = "completed"
+                succeeded_symbols.append(symbol)
+                with bound_trace_context(
+                    run_id=run.run_id,
+                    debate_id=analysis.debate.debate_id,
+                    proposal_id=finalization.proposal.proposal_id,
+                    risk_check_id=finalization.risk_review.risk_check_id,
+                    final_decision_id=finalization.final_decision.final_decision_id,
+                    order_id=finalization.order.order_id
+                    if finalization.order is not None
+                    else None,
+                ):
+                    self.logger.info("paper_run.symbol.completed", **result)
+                self._emit_progress(
+                    "paper.symbol.completed",
+                    run_id=run.run_id,
+                    symbols=analysis_symbols,
+                    symbol=symbol,
+                    symbol_index=symbol_index,
+                    stage="symbol_pipeline",
+                    phase="finalization",
+                    finalization_required=True,
+                    succeeded_count=len(succeeded_symbols),
+                    failed_count=len(failed_symbols),
+                )
+            except Exception as exc:
+                artifacts["analysis"][symbol]["finalization_status"] = "failed"
+                error = PaperRunError(
+                    symbol=symbol,
+                    stage="symbol_pipeline",
+                    message=str(exc),
+                    error_type=exc.__class__.__name__,
+                )
+                failed_symbols.append(symbol)
+                errors.append(error)
+                self._log_failure(run.run_id, error)
+                self._emit_progress(
+                    "paper.symbol.failed",
+                    run_id=run.run_id,
+                    symbols=analysis_symbols,
+                    symbol=symbol,
+                    symbol_index=symbol_index,
+                    stage=error.stage,
+                    finalization_required=True,
                     succeeded_count=len(succeeded_symbols),
                     failed_count=len(failed_symbols),
                     error_type=error.error_type,
@@ -590,20 +719,30 @@ class PaperRunService:
         succeeded_count: int = 0,
         failed_count: int = 0,
         llm_provider: LLMProvider | None = None,
+        apply_allocation: bool = True,
     ) -> PaperSymbolFinalization:
         symbol = symbol.upper()
         proposal_source = "in_memory" if proposal is not None else "stored"
         proposal = proposal or self._load_symbol_proposal(symbol=symbol, run_id=run_id)
         self._validate_symbol_proposal(symbol=symbol, run_id=run_id, proposal=proposal)
-        proposal = self._allocate_symbol_proposal(
-            symbol=symbol,
-            proposal=proposal,
-            strategy_summary=strategy_summary,
-            core_basket_symbols=core_basket_symbols,
-            symbol_index=symbol_index,
-            succeeded_count=succeeded_count,
-            failed_count=failed_count,
-        )
+        if apply_allocation:
+            proposal = self._allocate_symbol_proposal(
+                symbol=symbol,
+                proposal=proposal,
+                strategy_summary=strategy_summary,
+                core_basket_symbols=core_basket_symbols,
+                symbol_index=symbol_index,
+                succeeded_count=succeeded_count,
+                failed_count=failed_count,
+            )
+        else:
+            proposal = self._use_run_level_allocation(
+                symbol=symbol,
+                proposal=proposal,
+                symbol_index=symbol_index,
+                succeeded_count=succeeded_count,
+                failed_count=failed_count,
+            )
         review = self._run_symbol_risk_review(
             symbol=symbol,
             run_id=run_id,
@@ -759,6 +898,28 @@ class PaperRunService:
             strategy_summary=strategy_summary,
             core_basket_symbols=core_basket_symbols,
         )
+
+    def _use_run_level_allocation(
+        self,
+        *,
+        symbol: str,
+        proposal: TraderProposal,
+        symbol_index: int,
+        succeeded_count: int,
+        failed_count: int,
+    ) -> TraderProposal:
+        self._emit_symbol_stage_started(
+            run_id=proposal.run_id,
+            symbol=symbol,
+            symbol_index=symbol_index,
+            stage="allocation",
+            terminal_stage="allocation",
+            phase="finalization",
+            method="PaperRunService._use_run_level_allocation",
+            succeeded_count=succeeded_count,
+            failed_count=failed_count,
+        )
+        return proposal
 
     def _run_symbol_risk_review(
         self,
@@ -987,6 +1148,107 @@ class PaperRunService:
             ResearchRepository(session).replace_trader_proposal_for_run_symbol(allocated)
             session.commit()
             return allocated
+
+    def _allocate_run_proposals(
+        self,
+        *,
+        run_id: str,
+        strategy_summary: dict[str, object],
+        core_basket_symbols: set[str],
+        proposals: tuple[TraderProposal, ...],
+    ) -> RunAllocationResult:
+        strategy_name = str(strategy_summary.get("strategy_name") or "")
+        strategy_rank_by_symbol, strategy_score_by_symbol = _strategy_ranking_maps(
+            strategy_summary
+        )
+        policy = (
+            load_money_management_policy_for_settings(self.settings)
+            if self.settings.taurus_money_management_enabled
+            else None
+        )
+        fallback_policy = (
+            None if policy is not None else FallbackAllocationPolicy.from_settings(self.settings)
+        )
+        with self.session_factory() as session:
+            execution_repo = ExecutionRepository(session)
+            account = execution_repo.latest_account_by_portfolio(
+                portfolio_id=self.settings.taurus_paper_portfolio_id,
+            )
+            nav_inr = (
+                account.equity_inr
+                if account is not None
+                else Decimal(str(self.settings.taurus_initial_capital_inr))
+            )
+            available_cash = (
+                account.available_cash_inr
+                if account is not None
+                else Decimal(str(self.settings.taurus_initial_capital_inr))
+            )
+            open_positions = tuple(
+                ActiveAllocationPosition(
+                    symbol=position.symbol,
+                    quantity=position.quantity,
+                    market_value_inr=position.market_value_inr,
+                )
+                for position in execution_repo.latest_open_positions_by_portfolio(
+                    portfolio_id=self.settings.taurus_paper_portfolio_id,
+                )
+            )
+            proposal_symbols = {proposal.symbol.upper() for proposal in proposals}
+            concentration_symbols = proposal_symbols | {
+                position.symbol.upper() for position in open_positions
+            }
+            histories_by_symbol = {
+                symbol: tuple(_daily_candle_history(session, symbol))
+                for symbol in sorted(proposal_symbols)
+            }
+            sector_by_symbol, graph_cluster_by_symbol = _core_concentration_groups(
+                session,
+                symbols=concentration_symbols,
+            )
+            sleeve_by_symbol = (
+                _latest_allocation_sleeves_by_symbol(session, settings=self.settings)
+                if policy is not None
+                else {}
+            )
+            sleeve_snapshots = (
+                _sleeve_snapshots_for_allocation(
+                    policy=policy,
+                    nav_inr=nav_inr,
+                    positions=open_positions,
+                    core_basket_symbols=core_basket_symbols,
+                    sleeve_by_symbol=sleeve_by_symbol,
+                )
+                if policy is not None
+                else tuple()
+            )
+            result = RunLevelAllocationService().allocate(
+                RunAllocationInput(
+                    run_id=run_id,
+                    strategy_name=strategy_name,
+                    proposals=proposals,
+                    nav_inr=nav_inr,
+                    available_cash_inr=available_cash,
+                    portfolio_starting_nav_estimate_inr=Decimal(
+                        str(self.settings.taurus_initial_capital_inr)
+                    ),
+                    current_positions=open_positions,
+                    sleeve_snapshots=sleeve_snapshots,
+                    histories_by_symbol=histories_by_symbol,
+                    core_basket_symbols=tuple(sorted(core_basket_symbols)),
+                    strategy_rank_by_symbol=strategy_rank_by_symbol,
+                    strategy_score_by_symbol=strategy_score_by_symbol,
+                    sector_by_symbol=sector_by_symbol,
+                    graph_cluster_by_symbol=graph_cluster_by_symbol,
+                    money_management_policy=policy,
+                    fallback_policy=fallback_policy,
+                )
+            )
+            research_repo = ResearchRepository(session)
+            for updated in result.proposals:
+                research_repo.replace_trader_proposal_for_run_symbol(updated)
+            session.commit()
+            return result
 
     def _load_latest_inputs(self) -> dict[str, object]:
         provider = build_market_data_provider(self.settings)
@@ -1682,6 +1944,47 @@ def _strategy_signal_for_symbol(
                 "source": "strategy_score_by_symbol",
             }
     return None
+
+
+def _strategy_ranking_maps(
+    strategy_summary: dict[str, object],
+) -> tuple[dict[str, int], dict[str, Decimal]]:
+    rank_by_symbol: dict[str, int] = {}
+    score_by_symbol: dict[str, Decimal] = {}
+    ranked_candidates = strategy_summary.get("ranked_candidates")
+    if isinstance(ranked_candidates, list):
+        for item in ranked_candidates:
+            if not isinstance(item, dict):
+                continue
+            symbol = str(item.get("symbol") or "").strip().upper()
+            if not symbol:
+                continue
+            raw_rank = item.get("rank")
+            if raw_rank is not None:
+                try:
+                    rank_by_symbol[symbol] = int(raw_rank)
+                except (TypeError, ValueError):
+                    pass
+            raw_score = item.get("raw_strategy_score")
+            if raw_score is None:
+                raw_score = item.get("normalized_score")
+            if raw_score is not None:
+                try:
+                    score_by_symbol[symbol] = Decimal(str(raw_score))
+                except Exception:
+                    pass
+
+    score_payload = strategy_summary.get("strategy_score_by_symbol")
+    if isinstance(score_payload, dict):
+        for raw_symbol, raw_score in score_payload.items():
+            symbol = str(raw_symbol).strip().upper()
+            if not symbol:
+                continue
+            try:
+                score_by_symbol.setdefault(symbol, Decimal(str(raw_score)))
+            except Exception:
+                continue
+    return rank_by_symbol, score_by_symbol
 
 
 def _core_basket_symbols_from_summary(

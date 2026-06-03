@@ -121,7 +121,7 @@ def test_ui_aggregate_endpoints_return_completed_run_trail(tmp_path: Path) -> No
     assert len(portfolio.json()["fills"]) == 2
 
 
-def test_disabled_money_management_does_not_change_paper_run_artifacts(
+def test_disabled_money_management_uses_settings_fallback_allocation(
     tmp_path: Path,
 ) -> None:
     settings = Settings(
@@ -137,9 +137,19 @@ def test_disabled_money_management_does_not_change_paper_run_artifacts(
 
     run = PaperRunService(settings).run_once(symbols=["INFY"])
 
-    assert set(run.artifacts) == {"analysis", "strategy", "symbol_scope", "symbols"}
+    assert set(run.artifacts) == {
+        "allocation",
+        "analysis",
+        "strategy",
+        "symbol_scope",
+        "symbols",
+    }
     assert "money_management" not in run.artifacts
+    assert run.artifacts["allocation"]["policy_source"] == "settings"
+    assert run.artifacts["allocation"]["summary"]["proposal_count"] == 1
+    assert run.artifacts["allocation"]["summary"]["selected_count"] == 1
     assert run.artifacts["analysis"]["INFY"]["finalization_status"] == "completed"
+    assert run.artifacts["analysis"]["INFY"]["allocation_status"] == "selected"
     assert run.artifacts["symbol_scope"]["analysis_scope"] == "strategy_selected"
     assert set(run.artifacts["symbols"]["INFY"]) == {
         "symbol",
@@ -163,7 +173,12 @@ def test_disabled_money_management_does_not_change_paper_run_artifacts(
         "order_id",
         "order_status",
         "account_id",
+        "allocation_decision",
     }
+    assert (
+        run.artifacts["symbols"]["INFY"]["allocation_decision"]["sleeve_id"]
+        == "settings_fallback"
+    )
 
 
 def test_ui_risk_and_portfolio_include_money_management_metadata_when_enabled(
@@ -339,7 +354,7 @@ def test_ui_decision_trail_includes_allocation_decision_when_enabled(
     allocation_decision = trail.json()["allocation_decision"]
     assert allocation_decision["symbol"] == "INFY"
     assert allocation_decision["sleeve_id"] == "unmapped"
-    assert allocation_decision["status"] == "unchanged"
+    assert allocation_decision["status"] == "allocation_rejected"
     assert allocation_decision["binding_constraint"] == "strategy_unmapped"
     proposal_stage = _find_stage(trail.json(), "trader_proposal")
     assert proposal_stage["metrics"]["sleeve_id"] == "unmapped"
@@ -557,6 +572,18 @@ def _write_money_management_policy(tmp_path: Path) -> Path:
         "  strong_trade_risk_pct_nav: 0.75\n"
         "  max_single_trade_risk_pct_nav: 1.00\n"
         "  max_total_open_trade_risk_pct_nav: 5.00\n"
+        "allocation_scoring:\n"
+        "  weights:\n"
+        "    strategy_score: 0.30\n"
+        "    trader_confidence: 0.25\n"
+        "    liquidity: 0.15\n"
+        "    volatility: 0.15\n"
+        "    diversification: 0.10\n"
+        "    recent_sleeve_performance: 0.05\n"
+        "  score_bands:\n"
+        "    reject_below: 60.0\n"
+        "    half_normal_below: 75.0\n"
+        "    normal_below: 85.0\n"
         "drawdown_governors:\n"
         "  - name: caution\n"
         "    drawdown_pct: 3.0\n"

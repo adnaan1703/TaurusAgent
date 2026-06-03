@@ -3,6 +3,18 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Literal
 
+AllocationStatus = Literal[
+    "approved",
+    "rejected",
+    "unchanged",
+    "selected",
+    "not_selected",
+    "unchanged_lifecycle",
+    "allocation_rejected",
+    "allocation_reduced",
+    "open_position_management",
+]
+
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
@@ -14,7 +26,7 @@ class AllocationDecision(BaseModel):
     strategy_name: str
     sleeve_id: str
     sleeve_name: str | None = None
-    status: Literal["approved", "rejected", "unchanged"]
+    status: AllocationStatus
     candidate_score: Decimal | None = Field(default=None, ge=Decimal("0"), le=Decimal("100"))
     score_band: str | None = None
     requested_position_pct_nav: Decimal = Field(

@@ -103,6 +103,58 @@ class TradeRiskDefaultsPolicy(BaseModel):
     max_total_open_trade_risk_pct_nav: Decimal = Field(ge=Decimal("0"), le=Decimal("100"))
 
 
+class AllocationScoreWeightsPolicy(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    strategy_score: Decimal = Field(ge=Decimal("0"), le=Decimal("1"))
+    trader_confidence: Decimal = Field(ge=Decimal("0"), le=Decimal("1"))
+    liquidity: Decimal = Field(ge=Decimal("0"), le=Decimal("1"))
+    volatility: Decimal = Field(ge=Decimal("0"), le=Decimal("1"))
+    diversification: Decimal = Field(ge=Decimal("0"), le=Decimal("1"))
+    recent_sleeve_performance: Decimal = Field(ge=Decimal("0"), le=Decimal("1"))
+
+    @model_validator(mode="after")
+    def validate_weight_sum(self) -> AllocationScoreWeightsPolicy:
+        total = sum(
+            (
+                self.strategy_score,
+                self.trader_confidence,
+                self.liquidity,
+                self.volatility,
+                self.diversification,
+                self.recent_sleeve_performance,
+            ),
+            Decimal("0"),
+        )
+        if total != Decimal("1.00"):
+            raise ValueError("allocation score weights must sum to 1.00.")
+        return self
+
+
+class AllocationScoreBandsPolicy(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    reject_below: Decimal = Field(ge=Decimal("0"), le=Decimal("100"))
+    half_normal_below: Decimal = Field(ge=Decimal("0"), le=Decimal("100"))
+    normal_below: Decimal = Field(ge=Decimal("0"), le=Decimal("100"))
+
+    @model_validator(mode="after")
+    def validate_band_order(self) -> AllocationScoreBandsPolicy:
+        if not (self.reject_below < self.half_normal_below < self.normal_below):
+            raise ValueError(
+                "allocation score bands must satisfy reject_below < "
+                "half_normal_below < normal_below."
+            )
+        return self
+
+
+class AllocationScoringPolicy(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    weights: AllocationScoreWeightsPolicy
+    score_bands: AllocationScoreBandsPolicy
+
+
 class DrawdownGovernorPolicy(BaseModel):
     model_config = ConfigDict(frozen=True)
 
@@ -134,6 +186,7 @@ class MoneyManagementPolicy(BaseModel):
     strategy_mappings: tuple[StrategySleeveMapping, ...] = Field(default_factory=tuple)
     limits: ExposureLimitsPolicy
     trade_risk: TradeRiskDefaultsPolicy
+    allocation_scoring: AllocationScoringPolicy
     drawdown_governors: tuple[DrawdownGovernorPolicy, ...] = Field(default_factory=tuple)
     rebalance: RebalanceThresholdPolicy
 

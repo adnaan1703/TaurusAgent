@@ -7,7 +7,12 @@ from statistics import mean, pstdev
 
 from taurus_core.allocation_schemas import AllocationDecision
 from taurus_core.domain.market_data import DailyCandle
-from taurus_core.portfolio.money_management import MoneyManagementPolicy, SleevePolicy
+from taurus_core.portfolio.money_management import (
+    AllocationScoreBandsPolicy,
+    AllocationScoreWeightsPolicy,
+    MoneyManagementPolicy,
+    SleevePolicy,
+)
 from taurus_core.research.schemas import TraderProposal
 
 ACTIVE_SLEEVE_ID = "active_strategy"
@@ -101,6 +106,21 @@ class PortfolioAllocationService:
 
     def sleeve_id_for_strategy(self, strategy_name: str) -> str | None:
         return self.strategy_to_sleeve.get(strategy_name)
+
+    def candidate_score(
+        self,
+        allocation_input: ActiveAllocationInput,
+    ) -> tuple[Decimal, dict[str, Decimal]]:
+        return _candidate_score(allocation_input, weights=self.policy.allocation_scoring.weights)
+
+    def score_band_for(self, score: Decimal) -> tuple[str, Decimal]:
+        return _score_band(
+            score,
+            bands=self.policy.allocation_scoring.score_bands,
+            trade_risk_normal=self.policy.trade_risk.normal_trade_risk_pct_nav,
+            trade_risk_strong=self.policy.trade_risk.strong_trade_risk_pct_nav,
+            max_single_trade_risk=self.policy.trade_risk.max_single_trade_risk_pct_nav,
+        )
 
     def allocate(self, allocation_input: ActiveAllocationInput) -> TraderProposal:
         proposal = allocation_input.proposal
@@ -204,13 +224,8 @@ class PortfolioAllocationService:
                 ),
             )
 
-        candidate_score, score_parts = _candidate_score(allocation_input)
-        score_band, base_risk_pct = _score_band(
-            candidate_score,
-            trade_risk_normal=self.policy.trade_risk.normal_trade_risk_pct_nav,
-            trade_risk_strong=self.policy.trade_risk.strong_trade_risk_pct_nav,
-            max_single_trade_risk=self.policy.trade_risk.max_single_trade_risk_pct_nav,
-        )
+        candidate_score, score_parts = self.candidate_score(allocation_input)
+        score_band, base_risk_pct = self.score_band_for(candidate_score)
         volatility = _realized_volatility(allocation_input.history)
         volatility_factor = _volatility_factor(volatility)
         allowed_risk = _pct_to_notional(base_risk_pct, allocation_input.nav_inr)
@@ -227,9 +242,12 @@ class PortfolioAllocationService:
                 candidate_score=candidate_score,
                 score_band=score_band,
                 volatility=volatility,
-                binding_constraint="candidate_score_below_60",
+                binding_constraint="candidate_score_below_entry_floor",
                 rationale=(
-                    f"Candidate score {candidate_score} is below the 60 strategy-sleeve entry floor.",
+                    "Candidate score "
+                    f"{candidate_score} is below the configured "
+                    f"{self.policy.allocation_scoring.score_bands.reject_below} "
+                    "strategy-sleeve entry floor.",
                     _score_parts_text(score_parts),
                 ),
             )
@@ -564,7 +582,11 @@ def _risk_per_share(*, latest_price: Decimal, stop_loss_pct: Decimal) -> Decimal
     return (latest_price * stop_loss_pct / Decimal("100")).quantize(MONEY_QUANT)
 
 
-def _candidate_score(allocation_input: ActiveAllocationInput) -> tuple[Decimal, dict[str, Decimal]]:
+def _candidate_score(
+    allocation_input: ActiveAllocationInput,
+    *,
+    weights: AllocationScoreWeightsPolicy,
+) -> tuple[Decimal, dict[str, Decimal]]:
     history = allocation_input.history
     strategy_component = _strategy_score_component(allocation_input.strategy_score)
     confidence_component = (allocation_input.proposal.confidence * Decimal("100")).quantize(
@@ -584,12 +606,15 @@ def _candidate_score(allocation_input: ActiveAllocationInput) -> tuple[Decimal, 
         "recent_sleeve_performance": _clamp(performance_component, Decimal("0"), Decimal("100")),
     }
     score = (
-        (parts["strategy_score"] * Decimal("0.30"))
-        + (parts["trader_confidence"] * Decimal("0.25"))
-        + (parts["liquidity"] * Decimal("0.15"))
-        + (parts["volatility"] * Decimal("0.15"))
-        + (parts["diversification"] * Decimal("0.10"))
-        + (parts["recent_sleeve_performance"] * Decimal("0.05"))
+        (parts["strategy_score"] * weights.strategy_score)
+        + (parts["trader_confidence"] * weights.trader_confidence)
+        + (parts["liquidity"] * weights.liquidity)
+        + (parts["volatility"] * weights.volatility)
+        + (parts["diversification"] * weights.diversification)
+        + (
+            parts["recent_sleeve_performance"]
+            * weights.recent_sleeve_performance
+        )
     ).quantize(SCORE_QUANT)
     return _clamp(score, Decimal("0"), Decimal("100")), parts
 
@@ -670,18 +695,19 @@ def _diversification_score(allocation_input: ActiveAllocationInput) -> Decimal:
 def _score_band(
     score: Decimal,
     *,
+    bands: AllocationScoreBandsPolicy,
     trade_risk_normal: Decimal,
     trade_risk_strong: Decimal,
     max_single_trade_risk: Decimal,
 ) -> tuple[str, Decimal]:
-    if score < Decimal("60"):
+    if score < bands.reject_below:
         return "reject", Decimal("0")
-    if score < Decimal("75"):
+    if score < bands.half_normal_below:
         return "half_normal", min(
             trade_risk_normal / Decimal("2"),
             max_single_trade_risk,
         )
-    if score < Decimal("85"):
+    if score < bands.normal_below:
         return "normal", min(trade_risk_normal, max_single_trade_risk)
     return "strong", min(trade_risk_strong, max_single_trade_risk, Decimal("0.75"))
 

@@ -581,9 +581,19 @@ market-data-universe symbol plus open paper positions and stores proposal
 artifacts under `run.artifacts.analysis`; finalized legacy symbol artifacts
 remain under `run.artifacts.symbols`. Manual `SYMBOL` or `SYMBOLS` runs stay
 limited to the explicit symbols plus open positions. `TAURUS_PAPER_EXECUTION_SCOPE`
-accepts `selected_only` and `allocated_only`; during M38 the effective execution
-scope remains `selected_only` until the M39/M40 run-level allocation and
-finalization milestones are implemented.
+accepts `selected_only` and `allocated_only`; M39 adds the run-level allocation
+ledger and batch proposal updates, while the effective finalization/execution
+scope remains `selected_only` until M40 moves all analyzed symbols through risk,
+final decision, and deferred execution routing.
+
+M39 run-level allocation stores `run.artifacts.allocation` with proposal counts,
+selection counts, binding-constraint counts, and one ledger row per analyzed
+proposal. Money-management-enabled runs use
+`configs/portfolio/money_management_v1.yaml`; disabled money-management runs use
+the settings fallback from `TAURUS_MAX_OPEN_POSITIONS`,
+`TAURUS_MAX_POSITION_PCT`, available cash, current positions, proposal
+confidence, and strategy score. Active-allocation score weights and score-band
+thresholds now live in `configs/portfolio/money_management_v1.yaml`.
 
 Inspect allocation reductions and rejected candidates through:
 
@@ -594,13 +604,27 @@ curl http://localhost:8000/ui/portfolio
 curl http://localhost:8000/ui/runs/{run_id}/symbols/{symbol}/decision-trail
 ```
 
-The full `make test` pass remained blocked in the local environment by the
-same unrelated failures observed in M33-M34: environment values override graph
-and LLM defaults, LM Studio request-shape tests still expect
-`response_format={"type":"json_object"}` while the provider emits JSON schema
-response format, and the smoke test enables graph without imported graph
-company nodes. M35-focused API tests, UI tests, frontend build, lint, and
+## M39 Commands Used
+
+```bash
+uv run pytest tests/unit/test_run_level_allocation.py tests/unit/test_active_allocation.py tests/unit/test_config.py::test_money_management_policy_loads_default_config -q
+uv run pytest tests/unit/test_paper_runs.py tests/unit/test_ui_aggregate_api.py tests/unit/test_risk_approval.py -q
+```
+
+M39 verification focused on run-level allocation, active-allocation regression,
+paper-run artifact persistence, UI aggregate/decision-trail compatibility, and
+risk/final-decision propagation of allocation decisions. `make test` and
+`make lint` were run during final milestone verification. Final results:
+`make test` passed with 246 tests and 1 skipped test, `make lint` passed, and
 `git diff --check` passed.
+
+Earlier M35 verification note: the full `make test` pass remained blocked in
+that local environment by the same unrelated failures observed in M33-M34:
+environment values overrode graph and LLM defaults, LM Studio request-shape
+tests still expected `response_format={"type":"json_object"}` while the
+provider emitted JSON schema response format, and the smoke test enabled graph
+without imported graph company nodes. M35-focused API tests, UI tests, frontend
+build, lint, and `git diff --check` passed.
 
 ## M35.1 Commands Used
 
