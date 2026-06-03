@@ -13,11 +13,13 @@ from taurus_core.llm.base import (
     LLMFinalDecisionExplanation,
     LLMProviderError,
     LLMResearchManagerOutput,
+    LLMTraderOutput,
     parse_bear_thesis_output,
     parse_bull_thesis_output,
     parse_final_decision_explanation_output,
     parse_llm_output,
     parse_research_manager_output,
+    parse_trader_output,
 )
 
 
@@ -622,6 +624,19 @@ def test_final_decision_explanation_parser_rejects_invalid_schema() -> None:
         )
 
 
+def test_trader_parser_replaces_verbose_model_version_with_provider_identifier() -> None:
+    payload = _trader_payload(
+        "research_consensus_v1: TraderAgent processed GraphAnalyst inputs with debate synthesis."
+    )
+
+    output = parse_trader_output(
+        json.dumps(payload),
+        fallback_model_version="lmstudio:qwen/qwq-32b",
+    )
+
+    assert output.model_version == "lmstudio:qwen/qwq-32b"
+
+
 class _Response:
     def __init__(self, payload: dict[str, object]) -> None:
         self.payload = payload
@@ -691,6 +706,20 @@ def _manager_payload(model_version: str) -> dict[str, object]:
         confidence="0.75",
         summary="TechnicalAnalystAgent: src-1 keeps the manager consensus evidence-bound.",
         unresolved_uncertainties=["NewsAnalystAgent: src-1 remains an unresolved uncertainty."],
+        model_version=model_version,
+    ).model_dump(mode="json")
+
+
+def _trader_payload(model_version: str) -> dict[str, object]:
+    return LLMTraderOutput(
+        action="NO_TRADE",
+        confidence="0.75",
+        target_position_pct_nav="0",
+        stop_loss_pct="6",
+        take_profit_pct="12",
+        reason_summary="Schema-valid trader output.",
+        invalid_if=["Provider output requires review."],
+        position_management_summary="Lifecycle summary remains paper-only.",
         model_version=model_version,
     ).model_dump(mode="json")
 

@@ -14,6 +14,16 @@ class LLMProviderError(RuntimeError):
     pass
 
 
+MODEL_VERSION_MAX_CHARS = 160
+
+
+MODEL_VERSION_JSON_SCHEMA: dict[str, object] = {
+    "type": "string",
+    "minLength": 1,
+    "maxLength": MODEL_VERSION_MAX_CHARS,
+}
+
+
 ANALYST_OUTPUT_JSON_SCHEMA: dict[str, object] = {
     "type": "object",
     "properties": {
@@ -23,7 +33,7 @@ ANALYST_OUTPUT_JSON_SCHEMA: dict[str, object] = {
         "horizon": {"type": "string", "enum": ["intraday", "short", "medium", "long"]},
         "key_points": {"type": "array", "items": {"type": "string"}},
         "risks": {"type": "array", "items": {"type": "string"}},
-        "model_version": {"type": "string"},
+        "model_version": MODEL_VERSION_JSON_SCHEMA,
     },
     "required": [
         "score",
@@ -44,7 +54,7 @@ BULL_THESIS_OUTPUT_JSON_SCHEMA: dict[str, object] = {
         "confidence": {"type": "number", "minimum": 0, "maximum": 1},
         "key_points": {"type": "array", "items": {"type": "string"}, "minItems": 1},
         "conditions": {"type": "array", "items": {"type": "string"}, "minItems": 1},
-        "model_version": {"type": "string"},
+        "model_version": MODEL_VERSION_JSON_SCHEMA,
     },
     "required": [
         "score",
@@ -63,7 +73,7 @@ BEAR_THESIS_OUTPUT_JSON_SCHEMA: dict[str, object] = {
         "confidence": {"type": "number", "minimum": 0, "maximum": 1},
         "key_points": {"type": "array", "items": {"type": "string"}, "minItems": 1},
         "risk_flags": {"type": "array", "items": {"type": "string"}, "minItems": 1},
-        "model_version": {"type": "string"},
+        "model_version": MODEL_VERSION_JSON_SCHEMA,
     },
     "required": [
         "score",
@@ -90,7 +100,7 @@ RESEARCH_MANAGER_OUTPUT_JSON_SCHEMA: dict[str, object] = {
             "items": {"type": "string"},
             "minItems": 1,
         },
-        "model_version": {"type": "string"},
+        "model_version": MODEL_VERSION_JSON_SCHEMA,
     },
     "required": [
         "consensus_label",
@@ -121,7 +131,7 @@ TRADER_OUTPUT_JSON_SCHEMA: dict[str, object] = {
             "minItems": 1,
         },
         "position_management_summary": {"type": "string", "minLength": 1},
-        "model_version": {"type": "string"},
+        "model_version": MODEL_VERSION_JSON_SCHEMA,
     },
     "required": [
         "action",
@@ -141,7 +151,7 @@ FINAL_DECISION_EXPLANATION_JSON_SCHEMA: dict[str, object] = {
     "type": "object",
     "properties": {
         "reason": {"type": "string", "minLength": 1, "maxLength": 900},
-        "model_version": {"type": "string", "minLength": 1, "maxLength": 160},
+        "model_version": MODEL_VERSION_JSON_SCHEMA,
     },
     "required": ["reason", "model_version"],
     "additionalProperties": False,
@@ -155,7 +165,7 @@ class LLMBullThesisOutput(BaseModel):
     confidence: Decimal = Field(ge=Decimal("0"), le=Decimal("1"))
     key_points: list[str] = Field(min_length=1)
     conditions: list[str] = Field(min_length=1)
-    model_version: str
+    model_version: str = Field(min_length=1, max_length=MODEL_VERSION_MAX_CHARS)
 
     @field_validator("key_points", "conditions")
     @classmethod
@@ -173,7 +183,7 @@ class LLMBearThesisOutput(BaseModel):
     confidence: Decimal = Field(ge=Decimal("0"), le=Decimal("1"))
     key_points: list[str] = Field(min_length=1)
     risk_flags: list[str] = Field(min_length=1)
-    model_version: str
+    model_version: str = Field(min_length=1, max_length=MODEL_VERSION_MAX_CHARS)
 
     @field_validator("key_points", "risk_flags")
     @classmethod
@@ -194,7 +204,7 @@ class LLMResearchManagerOutput(BaseModel):
     confidence: Decimal = Field(ge=Decimal("0"), le=Decimal("1"))
     summary: str = Field(min_length=1)
     unresolved_uncertainties: list[str] = Field(min_length=1)
-    model_version: str
+    model_version: str = Field(min_length=1, max_length=MODEL_VERSION_MAX_CHARS)
 
     @field_validator("summary")
     @classmethod
@@ -224,7 +234,7 @@ class LLMTraderOutput(BaseModel):
     reason_summary: str = Field(min_length=1)
     invalid_if: list[str] = Field(min_length=1)
     position_management_summary: str = Field(min_length=1)
-    model_version: str
+    model_version: str = Field(min_length=1, max_length=MODEL_VERSION_MAX_CHARS)
 
     @field_validator("reason_summary", "position_management_summary")
     @classmethod
@@ -247,7 +257,7 @@ class LLMFinalDecisionExplanation(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     reason: str = Field(min_length=1, max_length=900)
-    model_version: str = Field(min_length=1, max_length=160)
+    model_version: str = Field(min_length=1, max_length=MODEL_VERSION_MAX_CHARS)
 
     @field_validator("reason", "model_version")
     @classmethod
@@ -434,8 +444,7 @@ def parse_llm_output(raw_content: str, *, fallback_model_version: str) -> LLMAna
         payload = json.loads(raw_content)
     except json.JSONDecodeError as exc:
         raise LLMProviderError("LLM response was not valid JSON") from exc
-    if isinstance(payload, dict) and "model_version" not in payload:
-        payload["model_version"] = fallback_model_version
+    payload = _payload_with_model_version(payload, fallback_model_version)
     try:
         return LLMAnalystOutput.model_validate(payload)
     except ValidationError as exc:
@@ -451,8 +460,7 @@ def parse_bull_thesis_output(
         payload = json.loads(raw_content)
     except json.JSONDecodeError as exc:
         raise LLMProviderError("LLM bull thesis response was not valid JSON") from exc
-    if isinstance(payload, dict) and "model_version" not in payload:
-        payload["model_version"] = fallback_model_version
+    payload = _payload_with_model_version(payload, fallback_model_version)
     try:
         return LLMBullThesisOutput.model_validate(payload)
     except ValidationError as exc:
@@ -468,8 +476,7 @@ def parse_bear_thesis_output(
         payload = json.loads(raw_content)
     except json.JSONDecodeError as exc:
         raise LLMProviderError("LLM bear thesis response was not valid JSON") from exc
-    if isinstance(payload, dict) and "model_version" not in payload:
-        payload["model_version"] = fallback_model_version
+    payload = _payload_with_model_version(payload, fallback_model_version)
     try:
         return LLMBearThesisOutput.model_validate(payload)
     except ValidationError as exc:
@@ -485,8 +492,7 @@ def parse_research_manager_output(
         payload = json.loads(raw_content)
     except json.JSONDecodeError as exc:
         raise LLMProviderError("LLM research manager response was not valid JSON") from exc
-    if isinstance(payload, dict) and "model_version" not in payload:
-        payload["model_version"] = fallback_model_version
+    payload = _payload_with_model_version(payload, fallback_model_version)
     try:
         return LLMResearchManagerOutput.model_validate(payload)
     except ValidationError as exc:
@@ -502,8 +508,7 @@ def parse_trader_output(
         payload = json.loads(raw_content)
     except json.JSONDecodeError as exc:
         raise LLMProviderError("LLM trader response was not valid JSON") from exc
-    if isinstance(payload, dict) and "model_version" not in payload:
-        payload["model_version"] = fallback_model_version
+    payload = _payload_with_model_version(payload, fallback_model_version)
     try:
         return LLMTraderOutput.model_validate(payload)
     except ValidationError as exc:
@@ -519,11 +524,41 @@ def parse_final_decision_explanation_output(
         payload = json.loads(raw_content)
     except json.JSONDecodeError as exc:
         raise LLMProviderError("LLM final-decision explanation response was not valid JSON") from exc
-    if isinstance(payload, dict) and "model_version" not in payload:
-        payload["model_version"] = fallback_model_version
+    payload = _payload_with_model_version(payload, fallback_model_version)
     try:
         return LLMFinalDecisionExplanation.model_validate(payload)
     except ValidationError as exc:
         raise LLMProviderError(
             "LLM final-decision explanation response failed schema validation"
         ) from exc
+
+
+def normalize_llm_model_version(value: object, *, fallback_model_version: str) -> str:
+    candidate = str(value or "").strip()
+    if _is_machine_model_version(candidate):
+        return candidate
+    return _compact_model_version(fallback_model_version)
+
+
+def _payload_with_model_version(payload: object, fallback_model_version: str) -> object:
+    if not isinstance(payload, dict):
+        return payload
+    updated = dict(payload)
+    updated["model_version"] = normalize_llm_model_version(
+        updated.get("model_version"),
+        fallback_model_version=fallback_model_version,
+    )
+    return updated
+
+
+def _is_machine_model_version(value: str) -> bool:
+    if not value or len(value) > MODEL_VERSION_MAX_CHARS:
+        return False
+    return not any(character.isspace() for character in value)
+
+
+def _compact_model_version(value: object) -> str:
+    cleaned = "_".join(str(value or "").strip().split())
+    if not cleaned:
+        return "unknown"
+    return cleaned[:MODEL_VERSION_MAX_CHARS]

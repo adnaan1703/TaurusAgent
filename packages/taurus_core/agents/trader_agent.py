@@ -19,7 +19,7 @@ from taurus_core.db.repositories import (
 )
 from taurus_core.execution.schemas import PaperAccount, PaperPosition
 from taurus_core.llm import LLMProvider, LLMProviderError
-from taurus_core.llm.base import LLMTraderOutput
+from taurus_core.llm.base import LLMTraderOutput, normalize_llm_model_version
 from taurus_core.logging import get_logger
 from taurus_core.observability.tracing import bound_trace_context
 from taurus_core.research.schemas import (
@@ -579,6 +579,14 @@ class TraderAgent:
                 fallback,
                 f"LLM target clamps to {target}% NAV, which would not increase exposure.",
             )
+        output_model_version = normalize_llm_model_version(
+            output.model_version,
+            fallback_model_version=getattr(
+                self.llm_provider,
+                "model_version",
+                output.model_version,
+            ),
+        )
         return _ProposalDecision(
             action=action,
             confidence=output.confidence.quantize(SCORE_QUANT),
@@ -593,7 +601,7 @@ class TraderAgent:
                     fallback.position_management_summary,
                 )
             ),
-            model_version=f"{self.model_version}:{output.model_version}",
+            model_version=f"{self.model_version}:{output_model_version}",
         )
 
     def _target_is_valid(

@@ -218,6 +218,38 @@ def test_trader_agent_falls_back_when_llm_recommends_outside_envelope(
     assert "outside allowed actions" in proposal.position_management_summary
 
 
+def test_trader_agent_normalizes_verbose_llm_model_version(tmp_path: Path) -> None:
+    settings = _settings_for_temp_db(tmp_path)
+    session_factory = _prepare_trader_db(settings)
+    with session_factory() as session:
+        run_analyst_suite(
+            session,
+            symbol="INFY",
+            llm_provider=FakeLLMProvider(),
+            run_id="verbose-model-version-run",
+        )
+    with session_factory() as session:
+        debate = ResearchDebateService(session, llm_provider=FakeLLMProvider()).run(
+            symbol="INFY",
+            run_id="verbose-model-version-run",
+            rounds_requested=2,
+        )
+
+    with session_factory() as session:
+        proposal = TraderAgent(
+            session,
+            settings,
+            llm_provider=_VerboseTraderModelVersionProvider(),
+        ).run(
+            symbol="INFY",
+            run_id="verbose-model-version-run",
+            debate=debate,
+        )
+
+    assert proposal.model_version == "trader_position_lifecycle_v1:test-trader-provider-v1"
+    assert "GraphAnalyst inputs with debate synthesis" not in proposal.model_version
+
+
 def _prepare_trader_db(settings: Settings):
     run_migrations(settings)
     session_factory = build_session_factory(settings)
@@ -291,6 +323,35 @@ class _BadTraderLLMProvider(FakeLLMProvider):
             invalid_if=["Bad test output invalidation."],
             position_management_summary="Bad test output outside action envelope.",
             model_version="bad-test-llm",
+        )
+
+
+class _VerboseTraderModelVersionProvider(FakeLLMProvider):
+    def __init__(self) -> None:
+        super().__init__(model_version="test-trader-provider-v1")
+
+    def complete_trader_proposal(
+        self,
+        *,
+        agent_name: str,
+        symbol: str,
+        context: dict[str, object],
+    ) -> LLMTraderOutput:
+        fallback = context["deterministic_fallback"]
+        assert isinstance(fallback, dict)
+        return LLMTraderOutput(
+            action=str(fallback["action"]),
+            confidence=Decimal(str(fallback["confidence"])),
+            target_position_pct_nav=Decimal(str(fallback["target_position_pct_nav"])),
+            stop_loss_pct=Decimal("6.0000"),
+            take_profit_pct=Decimal("12.0000"),
+            reason_summary=str(fallback["reason_summary"]),
+            invalid_if=["Risk committee rejects or resizes the proposal."],
+            position_management_summary=str(fallback["position_management_summary"]),
+            model_version=(
+                "research_consensus_v1: TraderAgent processed GraphAnalyst inputs "
+                "with debate synthesis."
+            ),
         )
 
 

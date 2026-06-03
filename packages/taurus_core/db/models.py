@@ -680,7 +680,7 @@ class AnalystReportModel(Base):
     key_points: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     risks: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     source_ids: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
-    model_version: Mapped[str] = mapped_column(String(128), nullable=False)
+    model_version: Mapped[str] = mapped_column(Text, nullable=False)
     payload: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
 
@@ -851,7 +851,7 @@ class DebateReportModel(Base):
     rounds: Mapped[list[dict[str, object]]] = mapped_column(JSON, nullable=False, default=list)
     manager_summary: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
     source_report_ids: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
-    model_version: Mapped[str] = mapped_column(String(128), nullable=False)
+    model_version: Mapped[str] = mapped_column(Text, nullable=False)
     payload: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
 
@@ -904,7 +904,7 @@ class TraderProposalModel(Base):
     source_report_ids: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     is_order: Mapped[bool] = mapped_column(nullable=False, default=False)
     requires_risk_approval: Mapped[bool] = mapped_column(nullable=False, default=True)
-    model_version: Mapped[str] = mapped_column(String(128), nullable=False)
+    model_version: Mapped[str] = mapped_column(Text, nullable=False)
     payload: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
 
@@ -940,7 +940,7 @@ class RiskReviewModel(Base):
     source_report_ids: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     is_order: Mapped[bool] = mapped_column(nullable=False, default=False)
     can_send_to_broker: Mapped[bool] = mapped_column(nullable=False, default=False)
-    model_version: Mapped[str] = mapped_column(String(128), nullable=False)
+    model_version: Mapped[str] = mapped_column(Text, nullable=False)
     payload: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
 
@@ -978,7 +978,7 @@ class FinalDecisionModel(Base):
     reason: Mapped[str] = mapped_column(Text, nullable=False)
     is_order: Mapped[bool] = mapped_column(nullable=False, default=False)
     can_send_to_broker: Mapped[bool] = mapped_column(nullable=False, default=False)
-    model_version: Mapped[str] = mapped_column(String(128), nullable=False)
+    model_version: Mapped[str] = mapped_column(Text, nullable=False)
     payload: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
 

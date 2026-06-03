@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import func, select
+from sqlalchemy.exc import DataError
 
 from apps.api.main import create_app
 from apps.dashboard.data import list_paper_runs
@@ -121,6 +122,61 @@ def test_paper_run_records_symbol_failure_without_losing_success(
     assert stored_run.status == "PARTIAL_FAILED"
     assert order_count == 1
     assert failure_audits == 1
+
+
+def test_paper_run_aborts_on_systemic_symbol_persistence_error(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings = _settings_for_temp_db(tmp_path, paper_analysis_scope="full_universe")
+    attempted_symbols: list[str] = []
+
+    def fail_trader_persistence(
+        agent,
+        *,
+        symbol: str,
+        run_id: str,
+        debate,
+    ):
+        attempted_symbols.append(symbol)
+        raise DataError(
+            "INSERT INTO trader_proposals",
+            {},
+            Exception("value too long for type character varying(128)"),
+        )
+
+    monkeypatch.setattr(
+        "taurus_core.paper_trading.service.TraderAgent.run",
+        fail_trader_persistence,
+    )
+
+    run = PaperRunService(settings).run_once(
+        symbols=["INFY", "TCS", "RELIANCE"],
+        universe=_paper_run_universe(
+            source="market_data_universe",
+            symbols=["INFY", "TCS", "RELIANCE"],
+        ),
+    )
+
+    assert run.status == "FAILED"
+    assert run.completed_at is not None
+    assert run.failed_symbols == ["INFY"]
+    assert len(run.errors) == 1
+    assert run.errors[0].error_type == "DataError"
+    assert attempted_symbols == ["INFY"]
+
+    session_factory = build_session_factory(settings)
+    with session_factory() as session:
+        stored_run = session.get(PaperRunModel, run.run_id)
+        proposal_count = session.scalar(
+            select(func.count())
+            .select_from(TraderProposalModel)
+            .where(TraderProposalModel.run_id == run.run_id)
+        )
+
+    assert stored_run is not None
+    assert stored_run.status == "FAILED"
+    assert proposal_count == 0
 
 
 def test_paper_run_succeeds_without_fundamentals(tmp_path: Path) -> None:

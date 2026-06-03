@@ -9,6 +9,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from taurus_core.alerts.service import AlertService
@@ -382,6 +383,7 @@ class PaperRunService:
         llm_provider = build_llm_provider(self.settings)
         for symbol_index, symbol in enumerate(analysis_symbols, start=1):
             finalization_required = symbol in finalization_symbol_set
+            abort_run = False
             try:
                 analysis = self.analyze_symbol(
                     symbol=symbol,
@@ -448,18 +450,37 @@ class PaperRunService:
                     error_type=error.error_type,
                     message=error.message,
                 )
+                abort_run = _should_abort_paper_run(exc)
+                if abort_run:
+                    self._emit_progress(
+                        "paper.run.failed",
+                        run_id=run.run_id,
+                        stage=error.stage,
+                        symbols=analysis_symbols,
+                        error_type=error.error_type,
+                        message=error.message,
+                    )
             finally:
-                partial_status = _status_for(succeeded_symbols, failed_symbols)
+                partial_status = "FAILED" if abort_run else _status_for(
+                    succeeded_symbols,
+                    failed_symbols,
+                )
                 run = run.model_copy(
                     update={
                         "status": partial_status,
+                        "completed_at": _utc_now() if abort_run else run.completed_at,
                         "succeeded_symbols": list(succeeded_symbols),
                         "failed_symbols": list(failed_symbols),
                         "errors": list(errors),
                         "artifacts": artifacts,
                     }
                 )
-                self._store_run(run)
+                self._store_run(
+                    run,
+                    audit_event="paper_run.failed" if abort_run else None,
+                )
+            if abort_run:
+                return run
 
         allocation_result: RunAllocationResult | None = None
         if analysis_by_symbol:
@@ -522,6 +543,26 @@ class PaperRunService:
                     }
                 )
                 self._store_run(run)
+                if _should_abort_paper_run(exc):
+                    failed = run.model_copy(
+                        update={
+                            "status": "FAILED",
+                            "completed_at": _utc_now(),
+                            "succeeded_symbols": list(succeeded_symbols),
+                            "failed_symbols": list(failed_symbols),
+                            "errors": list(errors),
+                            "artifacts": artifacts,
+                        }
+                    )
+                    self._emit_progress(
+                        "paper.run.failed",
+                        run_id=failed.run_id,
+                        stage=error.stage,
+                        symbols=analysis_symbols,
+                        error_type=error.error_type,
+                        message=error.message,
+                    )
+                    return self._store_run(failed, audit_event="paper_run.failed")
 
         allocated_proposals = (
             allocation_result.proposal_by_symbol() if allocation_result is not None else {}
@@ -532,6 +573,7 @@ class PaperRunService:
                 continue
             analysis = analysis_by_symbol[symbol]
             symbol_index = analysis_symbols.index(symbol) + 1
+            abort_run = False
             try:
                 finalization = self.finalize_symbol(
                     symbol=symbol,
@@ -601,21 +643,40 @@ class PaperRunService:
                     error_type=error.error_type,
                     message=error.message,
                 )
+                abort_run = _should_abort_paper_run(exc)
+                if abort_run:
+                    self._emit_progress(
+                        "paper.run.failed",
+                        run_id=run.run_id,
+                        stage=error.stage,
+                        symbols=analysis_symbols,
+                        error_type=error.error_type,
+                        message=error.message,
+                    )
             finally:
-                partial_status = _status_for(succeeded_symbols, failed_symbols)
+                partial_status = "FAILED" if abort_run else _status_for(
+                    succeeded_symbols,
+                    failed_symbols,
+                )
                 artifacts["final_decisions"] = _final_decision_artifact(
                     finalizations_by_symbol
                 )
                 run = run.model_copy(
                     update={
                         "status": partial_status,
+                        "completed_at": _utc_now() if abort_run else run.completed_at,
                         "succeeded_symbols": list(succeeded_symbols),
                         "failed_symbols": list(failed_symbols),
                         "errors": list(errors),
                         "artifacts": artifacts,
                     }
                 )
-                self._store_run(run)
+                self._store_run(
+                    run,
+                    audit_event="paper_run.failed" if abort_run else None,
+                )
+            if abort_run:
+                return run
 
         if allocation_result is not None and finalizations_by_symbol:
             execution_artifact, execution_errors = self._route_run_execution(
@@ -2445,6 +2506,10 @@ def _status_for(succeeded_symbols: list[str], failed_symbols: list[str]) -> str:
     if succeeded_symbols:
         return "COMPLETED"
     return "RUNNING"
+
+
+def _should_abort_paper_run(exc: Exception) -> bool:
+    return isinstance(exc, SQLAlchemyError)
 
 
 def _position_exposures_pct_nav(

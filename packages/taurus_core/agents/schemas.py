@@ -10,6 +10,7 @@ from taurus_core.intelligence.documents import stable_id
 
 AgentStance = Literal["bullish", "bearish", "neutral"]
 ReportHorizon = Literal["intraday", "short", "medium", "long"]
+LLM_MODEL_VERSION_MAX_CHARS = 160
 
 
 class LLMAnalystOutput(BaseModel):
@@ -21,7 +22,7 @@ class LLMAnalystOutput(BaseModel):
     horizon: ReportHorizon
     key_points: list[str] = Field(min_length=1)
     risks: list[str] = Field(min_length=1)
-    model_version: str
+    model_version: str = Field(min_length=1, max_length=LLM_MODEL_VERSION_MAX_CHARS)
 
     @field_validator("key_points", "risks")
     @classmethod

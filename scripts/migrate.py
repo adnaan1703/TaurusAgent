@@ -21,6 +21,7 @@ def run_migrations(settings: Settings | None = None) -> None:
     _add_missing_daily_candle_columns(engine)
     _widen_graph_edge_columns(engine)
     _add_missing_m28_position_lifecycle_columns(engine)
+    _widen_agent_model_version_columns(engine)
 
 
 def _add_missing_backtest_signal_columns(engine: Engine) -> None:
@@ -199,6 +200,42 @@ def _add_missing_m28_position_lifecycle_columns(engine: Engine) -> None:
             table_name = statement.split(" ON ", 1)[1].split(" ", 1)[0]
             if table_name in table_names:
                 connection.execute(text(statement))
+
+
+def _widen_agent_model_version_columns(engine: Engine) -> None:
+    if engine.dialect.name != "postgresql":
+        return
+
+    inspector = inspect(engine)
+    table_names = set(inspector.get_table_names())
+    agent_tables = (
+        "analyst_reports",
+        "debate_reports",
+        "trader_proposals",
+        "risk_reviews",
+        "final_decisions",
+    )
+    statements: list[str] = []
+    for table in agent_tables:
+        if table not in table_names:
+            continue
+        columns = {
+            column["name"]: column
+            for column in inspector.get_columns(table)
+        }
+        model_version = columns.get("model_version")
+        if model_version is None:
+            continue
+        if str(model_version["type"]).lower() == "text":
+            continue
+        statements.append(f"ALTER TABLE {table} ALTER COLUMN model_version TYPE TEXT")
+
+    if not statements:
+        return
+
+    with engine.begin() as connection:
+        for statement in statements:
+            connection.execute(text(statement))
 
 
 if __name__ == "__main__":
