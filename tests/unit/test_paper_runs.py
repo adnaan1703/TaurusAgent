@@ -13,6 +13,7 @@ from apps.dashboard.data import list_paper_runs
 from scripts.run_paper_loop import _resolve_symbols_from_env, run_paper_loop
 from taurus_core.config import Settings
 from taurus_core.data.universe import load_market_data_universe
+from taurus_core.brokers.paper_broker import PaperBroker
 from taurus_core.db.models import (
     AnalystReportModel,
     AuditLogModel,
@@ -23,12 +24,15 @@ from taurus_core.db.models import (
     TraderProposalModel,
 )
 from taurus_core.db.repositories import GraphRepository, InstrumentRepository
+from taurus_core.db.repositories import ResearchRepository
 from taurus_core.db.session import build_session_factory
 from taurus_core.domain.instruments import Instrument
+from taurus_core.execution.order_router import ExecutionRouter
 from taurus_core.paper_trading.schemas import PaperRunUniverse
 from taurus_core.paper_trading.service import (
     ANALYSIS_STAGE_NAMES,
     FINALIZATION_STAGE_NAMES,
+    PaperSymbolAnalysis,
     PaperRunService,
     _sleeve_snapshots_for_allocation,
     _symbol_artifact_from_results,
@@ -381,9 +385,12 @@ def test_full_universe_analysis_records_proposals_for_requested_market_universe(
     assert scope["analysis_scope"] == "full_universe"
     assert scope["requested_universe_symbols"] == ["INFY", "TCS", "RELIANCE"]
     assert set(scope["analyzed_symbols"]) == {"INFY", "TCS", "RELIANCE"}
+    assert set(scope["finalization_symbols"]) == {"INFY", "TCS", "RELIANCE"}
     assert set(analysis_artifacts) == {"INFY", "TCS", "RELIANCE"}
-    assert set(run.artifacts["symbols"]) == set(scope["finalization_symbols"])
-    assert len(scope["finalization_symbols"]) <= 1
+    assert set(run.artifacts["symbols"]) == {"INFY", "TCS", "RELIANCE"}
+    assert run.artifacts["allocation"]["ledger_count"] == 3
+    assert run.artifacts["final_decisions"]["total_count"] == 3
+    assert run.artifacts["execution"]["execution_set_count"] <= 1
 
     session_factory = build_session_factory(settings)
     with session_factory() as session:
@@ -398,9 +405,117 @@ def test_full_universe_analysis_records_proposals_for_requested_market_universe(
             .select_from(FinalDecisionModel)
             .where(FinalDecisionModel.run_id == run.run_id)
         )
+        order_count = session.scalar(
+            select(func.count())
+            .select_from(PaperOrderModel)
+            .where(PaperOrderModel.run_id == run.run_id)
+        )
 
     assert proposal_symbols == {"INFY", "TCS", "RELIANCE"}
-    assert final_decision_count <= 1
+    assert final_decision_count == 3
+    assert order_count == run.artifacts["execution"]["routed_order_count"]
+
+
+def test_full_universe_finalizes_all_symbols_before_allocated_execution(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings = _settings_for_temp_db(
+        tmp_path,
+        paper_analysis_scope="full_universe",
+        max_open_positions=1,
+    )
+    universe = _paper_run_universe(
+        source="market_data_universe",
+        symbols=["INFY", "TCS", "RELIANCE"],
+    )
+    route_final_counts: list[int] = []
+    broker_decisions: list[tuple[str, str, str | None]] = []
+
+    _force_trader_actions(
+        monkeypatch,
+        {
+            "INFY": "BUY",
+            "TCS": "BUY",
+            "RELIANCE": "BUY",
+        },
+    )
+
+    original_route = ExecutionRouter.route_decision
+    original_place_order = PaperBroker.place_order
+
+    def recording_route(router, decision):
+        session_factory = build_session_factory(settings)
+        with session_factory() as session:
+            route_final_counts.append(
+                session.scalar(
+                    select(func.count())
+                    .select_from(FinalDecisionModel)
+                    .where(FinalDecisionModel.run_id == decision.run_id)
+                )
+                or 0
+            )
+        return original_route(router, decision)
+
+    def recording_place_order(broker, decision):
+        broker_decisions.append(
+            (
+                decision.symbol,
+                decision.status,
+                decision.allocation_decision.status
+                if decision.allocation_decision is not None
+                else None,
+            )
+        )
+        return original_place_order(broker, decision)
+
+    monkeypatch.setattr(
+        "taurus_core.execution.order_router.ExecutionRouter.route_decision",
+        recording_route,
+    )
+    monkeypatch.setattr(
+        "taurus_core.brokers.paper_broker.PaperBroker.place_order",
+        recording_place_order,
+    )
+
+    run = PaperRunService(settings).run_once(
+        symbols=universe.symbols,
+        universe=universe,
+    )
+
+    skipped = run.artifacts["execution"]["skipped_symbols"]
+    not_selected_skips = [
+        item for item in skipped if item["reason"] == "not_selected_by_run_allocation"
+    ]
+
+    assert run.status == "COMPLETED"
+    assert run.artifacts["final_decisions"]["total_count"] == 3
+    assert route_final_counts == [3]
+    assert len(broker_decisions) == 1
+    assert broker_decisions[0][1] == "APPROVED_FOR_PAPER"
+    assert broker_decisions[0][2] in {"selected", "allocation_reduced"}
+    assert len(not_selected_skips) == 2
+    not_selected_symbols = {skip["symbol"] for skip in not_selected_skips}
+    assert all(
+        item["order_id"] is None
+        for item in run.artifacts["symbols"].values()
+        if item["symbol"] in not_selected_symbols
+    )
+
+    session_factory = build_session_factory(settings)
+    with session_factory() as session:
+        decisions = {
+            row.symbol: row.payload
+            for row in session.scalars(
+                select(FinalDecisionModel).where(FinalDecisionModel.run_id == run.run_id)
+            )
+        }
+
+    for skip in not_selected_skips:
+        decision = decisions[skip["symbol"]]
+        assert decision["status"] == "NO_ACTION"
+        assert decision["final_action"] == "NO_TRADE"
+        assert "not_selected_by_run_allocation" in decision["reason"]
 
 
 def test_full_universe_graph_selection_does_not_narrow_analysis(
@@ -435,6 +550,8 @@ def test_full_universe_graph_selection_does_not_narrow_analysis(
     assert graph_selected.issubset(analyzed)
     assert len(graph_selected) < len(analyzed)
     assert set(run.artifacts["analysis"]) == analyzed
+    assert set(run.artifacts["symbols"]) == analyzed
+    assert run.artifacts["final_decisions"]["total_count"] == len(analyzed)
 
     session_factory = build_session_factory(settings)
     with session_factory() as session:
@@ -485,6 +602,48 @@ def test_full_universe_manual_symbols_remain_explicit_plus_open_positions(
         }
 
     assert proposal_symbols == {"TCS", "INFY"}
+
+
+@pytest.mark.parametrize(
+    ("action", "expect_order"),
+    [
+        ("HOLD", False),
+        ("REDUCE", True),
+        ("EXIT", True),
+    ],
+)
+def test_open_position_lifecycle_actions_survive_full_universe_finalization(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    action: str,
+    expect_order: bool,
+) -> None:
+    settings = _settings_for_temp_db(tmp_path, paper_analysis_scope="full_universe")
+    seed = PaperRunService(settings, schedule_name=f"seed_{action.lower()}").run_once(
+        symbols=["INFY"]
+    )
+    assert seed.status == "COMPLETED"
+    assert seed.artifacts["symbols"]["INFY"]["order_status"] == "FILLED"
+
+    _force_trader_actions(monkeypatch, {"INFY": action})
+
+    run = PaperRunService(settings, schedule_name=f"lifecycle_{action.lower()}").run_once(
+        symbols=["INFY"],
+        universe=_paper_run_universe(source="manual_symbols", symbols=["INFY"]),
+    )
+    symbol_artifact = run.artifacts["symbols"]["INFY"]
+    execution = run.artifacts["execution"]
+
+    assert run.status == "COMPLETED"
+    assert symbol_artifact["proposal_action"] == action
+    assert symbol_artifact["final_action"] == action
+    if expect_order:
+        assert execution["execution_set"][0]["reason"] == "open_position_lifecycle"
+        assert symbol_artifact["order_status"] in {"FILLED", "PARTIALLY_FILLED"}
+    else:
+        assert symbol_artifact["no_paper_order_expected"] is True
+        assert symbol_artifact["order_id"] is None
+        assert execution["skipped_symbols"][0]["reason"] == "hold_no_paper_order_expected"
 
 
 def test_paper_loop_records_manual_symbol_universe_provenance(
@@ -709,6 +868,67 @@ def test_paper_loop_emits_iteration_and_symbol_stage_progress_events(
     assert iteration_completed["succeeded_count"] == 1
     assert iteration_completed["failed_count"] == 0
     assert iteration_completed["status"] == "COMPLETED"
+
+
+def _force_trader_actions(
+    monkeypatch: pytest.MonkeyPatch,
+    action_by_symbol: dict[str, str],
+) -> None:
+    original_analyze_symbol = PaperRunService.analyze_symbol
+
+    def patched_analyze_symbol(self: PaperRunService, *args, **kwargs) -> PaperSymbolAnalysis:
+        analysis = original_analyze_symbol(self, *args, **kwargs)
+        action = action_by_symbol.get(analysis.symbol)
+        if action is None:
+            return analysis
+
+        current = analysis.proposal.current_position_pct_nav
+        target_by_action = {
+            "BUY": max(
+                analysis.proposal.target_position_pct_nav,
+                current + Decimal("1.0000"),
+                Decimal("1.0000"),
+            ).quantize(Decimal("0.0001")),
+            "HOLD": current.quantize(Decimal("0.0001")),
+            "NO_TRADE": Decimal("0.0000"),
+            "REDUCE": (current / Decimal("2")).quantize(Decimal("0.0001")),
+            "EXIT": Decimal("0.0000"),
+        }
+        trigger_by_action = {
+            "BUY": "new_entry",
+            "HOLD": "hold_review",
+            "NO_TRADE": "new_entry",
+            "REDUCE": "take_profit",
+            "EXIT": "stop_loss",
+        }
+        target = target_by_action[action]
+        order_type = "NONE" if action in {"HOLD", "NO_TRADE"} else "MARKET"
+        proposal = analysis.proposal.model_copy(
+            update={
+                "action": action,
+                "requested_position_pct_nav": target,
+                "target_position_pct_nav": target,
+                "lifecycle_trigger": trigger_by_action[action],
+                "order_type": order_type,
+                "entry_rule": f"Forced {action} proposal for M40 regression coverage.",
+                "reason_summary": f"Forced {action} proposal for M40 regression coverage.",
+                "position_management_summary": (
+                    f"Forced {action} lifecycle proposal for M40 regression coverage."
+                ),
+            }
+        )
+        with self.session_factory() as session:
+            ResearchRepository(session).replace_trader_proposal_for_run_symbol(proposal)
+            session.commit()
+        return PaperSymbolAnalysis(
+            symbol=analysis.symbol,
+            enabled_analysts=analysis.enabled_analysts,
+            reports=analysis.reports,
+            debate=analysis.debate,
+            proposal=proposal,
+        )
+
+    monkeypatch.setattr(PaperRunService, "analyze_symbol", patched_analyze_symbol)
 
 
 def _settings_for_temp_db(

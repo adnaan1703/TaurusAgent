@@ -409,6 +409,29 @@ has selected approved trades.
 
 At completion, add assumptions made, mocks created, and mocks used.
 
+### M40 Completion Summary
+
+Completed on 2026-06-03.
+
+- Assumptions made:
+  - M40 run-artifact additions for final-decision counts, allocation ledger
+    counts, execution set, and skipped execution reasons do not require React
+    dashboard changes in this milestone; M41 owns dedicated API/React
+    observability surfaces.
+  - `effective_execution_scope=allocated_only` now reflects actual M40 routing
+    behavior, while the configured `TAURUS_PAPER_EXECUTION_SCOPE` value remains
+    recorded for operator context.
+  - Open-position `REDUCE` and `EXIT` lifecycle decisions belong in the
+    allocation execution set because they manage existing paper exposure rather
+    than adding new BUY risk; open-position `HOLD` and no-position `NO_TRADE`
+    decisions remain stored final decisions that are skipped from execution.
+- Mocks created: None.
+- Mocks used:
+  - Existing `FakeLLMProvider` and `FakeKiteMarketDataProvider` in paper-run
+    pytest coverage.
+  - Test-only monkeypatches for forced trader lifecycle actions and route/order
+    call recording in focused M40 regression coverage.
+
 ## M41: API And React Full-Universe Observability
 
 ### Goal

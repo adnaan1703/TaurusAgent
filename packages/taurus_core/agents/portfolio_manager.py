@@ -142,6 +142,9 @@ class PortfolioManagerAgent:
         approved_position = Decimal("0.0000")
         approved_quantity = 0
         reason = f"Rejected because risk status is {risk_review.status}."
+        allocation_no_trade_reason = _allocation_no_trade_reason(
+            proposal.allocation_decision or risk_review.allocation_decision
+        )
 
         if risk_review.status == "BLOCKED":
             status = "BLOCKED"
@@ -157,7 +160,9 @@ class PortfolioManagerAgent:
                 status = "NO_ACTION"
                 can_send_to_broker = False
                 approved_quantity = 0
-                reason = f"Approved {final_action}; no paper order expected."
+                reason = allocation_no_trade_reason or (
+                    f"Approved {final_action}; no paper order expected."
+                )
             elif approved_quantity > 0 and self._paper_safe():
                 status = "APPROVED_FOR_PAPER"
                 can_send_to_broker = True
@@ -398,3 +403,21 @@ def _provider_label(provider: LLMProvider | None) -> str:
     if provider is None:
         return "none"
     return getattr(provider, "model_version", provider.__class__.__name__)
+
+
+def _allocation_no_trade_reason(allocation_decision) -> str | None:
+    if allocation_decision is None or allocation_decision.action != "BUY":
+        return None
+    if allocation_decision.status == "not_selected":
+        binding = allocation_decision.binding_constraint or "none"
+        return (
+            "No paper trade: not_selected_by_run_allocation; "
+            f"binding_constraint={binding}."
+        )
+    if allocation_decision.status == "allocation_rejected":
+        binding = allocation_decision.binding_constraint or "none"
+        return (
+            "No paper trade: allocation_rejected_by_run_allocation; "
+            f"binding_constraint={binding}."
+        )
+    return None

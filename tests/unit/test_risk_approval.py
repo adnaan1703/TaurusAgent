@@ -10,6 +10,7 @@ from sqlalchemy import func, select
 from apps.api.main import create_app
 from scripts.import_mock_news import import_mock_news
 from scripts.migrate import run_migrations
+from taurus_core.allocation_schemas import AllocationDecision
 from taurus_core.agents.portfolio_manager import PortfolioManagerAgent
 from taurus_core.agents.runner import DEFAULT_ANALYST_RUN_ID, run_analyst_suite
 from taurus_core.agents.trader_agent import TraderAgent
@@ -267,6 +268,57 @@ def test_hold_proposal_becomes_no_action_final_decision(tmp_path: Path) -> None:
     assert decision.final_action == "HOLD"
     assert decision.approved_quantity == 0
     assert decision.can_send_to_broker is False
+
+
+def test_allocation_rejected_buy_final_decision_keeps_binding_reason(
+    tmp_path: Path,
+) -> None:
+    settings = _settings_for_temp_db(tmp_path)
+    session_factory = _prepare_approval_db(settings)
+    proposal = _build_trader_proposal(session_factory).model_copy(
+        update={
+            "action": "NO_TRADE",
+            "requested_position_pct_nav": Decimal("0.0000"),
+            "target_position_pct_nav": Decimal("0.0000"),
+            "order_type": "NONE",
+            "entry_rule": (
+                "not_selected_by_run_allocation: Run-level allocation rejected this BUY."
+            ),
+            "allocation_decision": AllocationDecision(
+                symbol="INFY",
+                action="BUY",
+                strategy_name="moving_average_crossover_v1",
+                sleeve_id="settings_fallback",
+                sleeve_name="Settings fallback",
+                status="allocation_rejected",
+                requested_position_pct_nav=Decimal("3.0000"),
+                approved_position_pct_nav=Decimal("0.0000"),
+                requested_notional_inr=Decimal("30000.00"),
+                approved_notional_inr=Decimal("0.00"),
+                approved_quantity=0,
+                binding_constraint="candidate_score_below_fallback_floor",
+                rationale=("Run-level allocation rejected the BUY candidate.",),
+            ),
+        }
+    )
+    with session_factory() as session:
+        ResearchRepository(session).replace_trader_proposal_for_run_symbol(proposal)
+        session.commit()
+    with session_factory() as session:
+        review = RiskReviewService(session, settings).run(symbol="INFY", proposal=proposal)
+    with session_factory() as session:
+        decision = PortfolioManagerAgent(
+            session,
+            settings,
+            enable_llm_explanation=False,
+        ).run(symbol="INFY", risk_review=review)
+
+    assert review.status == "APPROVED"
+    assert decision.status == "NO_ACTION"
+    assert decision.final_action == "NO_TRADE"
+    assert decision.can_send_to_broker is False
+    assert "allocation_rejected_by_run_allocation" in decision.reason
+    assert "candidate_score_below_fallback_floor" in decision.reason
 
 
 def test_portfolio_manager_falls_back_to_deterministic_reason_on_llm_failure(

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import time
+from collections import Counter
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
@@ -68,6 +69,7 @@ from taurus_core.portfolio import (
     load_money_management_policy_for_settings,
     severe_negative_symbols,
 )
+from taurus_core.portfolio.run_allocation import SELECTED_LEDGER_STATUSES
 from taurus_core.research.debate_service import DEFAULT_DEBATE_ROUNDS, ResearchDebateService
 from taurus_core.research.schemas import DebateReport, TraderProposal
 from taurus_core.risk.review_service import RiskReviewService
@@ -476,7 +478,7 @@ class PaperRunService:
                         analysis.proposal for analysis in analysis_by_symbol.values()
                     ),
                 )
-                artifacts["allocation"] = allocation_result.to_artifact()
+                artifacts["allocation"] = _allocation_artifact_from_result(allocation_result)
                 allocation_status_by_symbol = {
                     entry.symbol: entry.status for entry in allocation_result.ledger
                 }
@@ -524,6 +526,7 @@ class PaperRunService:
         allocated_proposals = (
             allocation_result.proposal_by_symbol() if allocation_result is not None else {}
         )
+        finalizations_by_symbol: dict[str, PaperSymbolFinalization] = {}
         for symbol in pending_finalization_symbols:
             if symbol in failed_symbols:
                 continue
@@ -541,10 +544,15 @@ class PaperRunService:
                     failed_count=len(failed_symbols),
                     llm_provider=llm_provider,
                     apply_allocation=False,
+                    route_execution=False,
                 )
+                finalizations_by_symbol[symbol] = finalization
                 result = _symbol_artifact_from_results(analysis, finalization)
                 artifacts["symbols"][symbol] = result
                 artifacts["analysis"][symbol]["finalization_status"] = "completed"
+                artifacts["final_decisions"] = _final_decision_artifact(
+                    finalizations_by_symbol
+                )
                 succeeded_symbols.append(symbol)
                 with bound_trace_context(
                     run_id=run.run_id,
@@ -595,6 +603,9 @@ class PaperRunService:
                 )
             finally:
                 partial_status = _status_for(succeeded_symbols, failed_symbols)
+                artifacts["final_decisions"] = _final_decision_artifact(
+                    finalizations_by_symbol
+                )
                 run = run.model_copy(
                     update={
                         "status": partial_status,
@@ -605,6 +616,32 @@ class PaperRunService:
                     }
                 )
                 self._store_run(run)
+
+        if allocation_result is not None and finalizations_by_symbol:
+            execution_artifact, execution_errors = self._route_run_execution(
+                run_id=run.run_id,
+                analysis_symbols=analysis_symbols,
+                finalizations_by_symbol=finalizations_by_symbol,
+                allocation_result=allocation_result,
+                artifacts=artifacts,
+                succeeded_count=len(succeeded_symbols),
+                failed_count=len(failed_symbols),
+            )
+            artifacts["execution"] = execution_artifact
+            for error in execution_errors:
+                if error.symbol not in failed_symbols:
+                    failed_symbols.append(error.symbol)
+                errors.append(error)
+            run = run.model_copy(
+                update={
+                    "status": _status_for(succeeded_symbols, failed_symbols),
+                    "succeeded_symbols": list(succeeded_symbols),
+                    "failed_symbols": list(failed_symbols),
+                    "errors": list(errors),
+                    "artifacts": artifacts,
+                }
+            )
+            self._store_run(run)
 
         completed = run.model_copy(
             update={
@@ -720,6 +757,7 @@ class PaperRunService:
         failed_count: int = 0,
         llm_provider: LLMProvider | None = None,
         apply_allocation: bool = True,
+        route_execution: bool = True,
     ) -> PaperSymbolFinalization:
         symbol = symbol.upper()
         proposal_source = "in_memory" if proposal is not None else "stored"
@@ -760,14 +798,17 @@ class PaperRunService:
             succeeded_count=succeeded_count,
             failed_count=failed_count,
         )
-        order, account = self._route_symbol_execution(
-            decision=decision,
-            run_id=run_id,
-            symbol=symbol,
-            symbol_index=symbol_index,
-            succeeded_count=succeeded_count,
-            failed_count=failed_count,
-        )
+        order = None
+        account = None
+        if route_execution:
+            order, account = self._route_symbol_execution(
+                decision=decision,
+                run_id=run_id,
+                symbol=symbol,
+                symbol_index=symbol_index,
+                succeeded_count=succeeded_count,
+                failed_count=failed_count,
+            )
         return PaperSymbolFinalization(
             symbol=symbol,
             proposal=proposal,
@@ -1020,6 +1061,124 @@ class PaperRunService:
             repo = ExecutionRepository(session)
             account = repo.latest_account(run_id=run_id)
             return order, account
+
+    def _route_run_execution(
+        self,
+        *,
+        run_id: str,
+        analysis_symbols: list[str],
+        finalizations_by_symbol: dict[str, PaperSymbolFinalization],
+        allocation_result: RunAllocationResult,
+        artifacts: dict[str, Any],
+        succeeded_count: int,
+        failed_count: int,
+    ) -> tuple[dict[str, object], list[PaperRunError]]:
+        execution_entries = _allocation_execution_entries(allocation_result)
+        ledger_by_symbol = _allocation_ledger_by_symbol(allocation_result)
+        execution_set: list[dict[str, object]] = []
+        routed_orders: list[dict[str, object]] = []
+        skipped_symbols: list[dict[str, object]] = []
+        errors: list[PaperRunError] = []
+
+        for symbol, finalization in finalizations_by_symbol.items():
+            entry = ledger_by_symbol.get(symbol)
+            execution_entry = execution_entries.get(symbol)
+            if execution_entry is None:
+                skipped_symbols.append(
+                    _execution_skip_artifact(
+                        symbol=symbol,
+                        entry=entry,
+                        decision=finalization.final_decision,
+                    )
+                )
+                continue
+
+            execution_set.append(
+                _execution_set_artifact(
+                    entry=execution_entry,
+                    decision=finalization.final_decision,
+                )
+            )
+            symbol_index = analysis_symbols.index(symbol) + 1
+            try:
+                order, account = self._route_symbol_execution(
+                    decision=finalization.final_decision,
+                    run_id=run_id,
+                    symbol=symbol,
+                    symbol_index=symbol_index,
+                    succeeded_count=succeeded_count,
+                    failed_count=failed_count,
+                )
+                symbol_artifact = artifacts.get("symbols", {}).get(symbol)
+                if isinstance(symbol_artifact, dict):
+                    symbol_artifact["order_id"] = order.order_id if order is not None else None
+                    symbol_artifact["order_status"] = order.status if order is not None else None
+                    symbol_artifact["account_id"] = (
+                        account.account_id if account is not None else None
+                    )
+                if order is None:
+                    skipped_symbols.append(
+                        _execution_skip_artifact(
+                            symbol=symbol,
+                            entry=entry,
+                            decision=finalization.final_decision,
+                            reason=_final_decision_not_routed_reason(
+                                finalization.final_decision
+                            ),
+                        )
+                    )
+                    continue
+                routed_orders.append(
+                    {
+                        "symbol": symbol,
+                        "order_id": order.order_id,
+                        "order_status": order.status,
+                        "final_decision_id": order.final_decision_id,
+                        "allocation_status": execution_entry.status,
+                    }
+                )
+            except Exception as exc:
+                error = PaperRunError(
+                    symbol=symbol,
+                    stage="execution_routing",
+                    message=str(exc),
+                    error_type=exc.__class__.__name__,
+                )
+                errors.append(error)
+                skipped_symbols.append(
+                    _execution_skip_artifact(
+                        symbol=symbol,
+                        entry=entry,
+                        decision=finalization.final_decision,
+                        reason=f"execution_routing_failed:{error.error_type}",
+                    )
+                )
+                self._log_failure(run_id, error)
+                self._emit_progress(
+                    "paper.symbol.failed",
+                    run_id=run_id,
+                    symbols=analysis_symbols,
+                    symbol=symbol,
+                    symbol_index=symbol_index,
+                    stage=error.stage,
+                    finalization_required=True,
+                    succeeded_count=succeeded_count,
+                    failed_count=failed_count + len(errors),
+                    error_type=error.error_type,
+                    message=error.message,
+                )
+
+        return (
+            {
+                "execution_set": execution_set,
+                "execution_set_count": len(execution_set),
+                "routed_orders": routed_orders,
+                "routed_order_count": len(routed_orders),
+                "skipped_symbols": skipped_symbols,
+                "skipped_symbol_count": len(skipped_symbols),
+            },
+            errors,
+        )
 
     def _load_symbol_proposal(self, *, symbol: str, run_id: str) -> TraderProposal:
         with self.session_factory() as session:
@@ -1710,6 +1869,105 @@ def _symbol_artifact_from_results(
     return result
 
 
+def _allocation_artifact_from_result(
+    allocation_result: RunAllocationResult,
+) -> dict[str, object]:
+    artifact = allocation_result.to_artifact()
+    artifact["ledger_count"] = len(allocation_result.ledger)
+    artifact["ledger_counts"] = dict(
+        sorted(Counter(entry.status for entry in allocation_result.ledger).items())
+    )
+    return artifact
+
+
+def _final_decision_artifact(
+    finalizations_by_symbol: dict[str, PaperSymbolFinalization],
+) -> dict[str, object]:
+    decisions = [finalization.final_decision for finalization in finalizations_by_symbol.values()]
+    return {
+        "total_count": len(decisions),
+        "symbols": sorted(finalizations_by_symbol),
+        "by_status": dict(sorted(Counter(decision.status for decision in decisions).items())),
+        "by_action": dict(
+            sorted(Counter(decision.final_action for decision in decisions).items())
+        ),
+    }
+
+
+def _allocation_ledger_by_symbol(allocation_result: RunAllocationResult) -> dict[str, Any]:
+    return {entry.symbol.upper(): entry for entry in allocation_result.ledger}
+
+
+def _allocation_execution_entries(allocation_result: RunAllocationResult) -> dict[str, Any]:
+    execution_entries: dict[str, Any] = {}
+    for entry in allocation_result.ledger:
+        symbol = entry.symbol.upper()
+        if entry.status in SELECTED_LEDGER_STATUSES and entry.approved_quantity > 0:
+            execution_entries[symbol] = entry
+        elif entry.status == "open_position_management" and entry.action in {"REDUCE", "EXIT"}:
+            execution_entries[symbol] = entry
+    return execution_entries
+
+
+def _execution_set_artifact(*, entry: Any, decision: FinalDecision) -> dict[str, object]:
+    reason = (
+        "open_position_lifecycle"
+        if entry.status == "open_position_management"
+        else "selected_by_run_allocation"
+    )
+    return {
+        "symbol": entry.symbol,
+        "proposal_id": entry.proposal_id,
+        "final_decision_id": decision.final_decision_id,
+        "allocation_status": entry.status,
+        "final_status": decision.status,
+        "final_action": decision.final_action,
+        "reason": reason,
+    }
+
+
+def _execution_skip_artifact(
+    *,
+    symbol: str,
+    entry: Any | None,
+    decision: FinalDecision,
+    reason: str | None = None,
+) -> dict[str, object]:
+    return {
+        "symbol": symbol,
+        "proposal_id": entry.proposal_id if entry is not None else decision.proposal_id,
+        "final_decision_id": decision.final_decision_id,
+        "allocation_status": entry.status if entry is not None else None,
+        "binding_constraint": entry.binding_constraint if entry is not None else None,
+        "final_status": decision.status,
+        "final_action": decision.final_action,
+        "reason": reason or _execution_skip_reason(entry=entry, decision=decision),
+    }
+
+
+def _execution_skip_reason(*, entry: Any | None, decision: FinalDecision) -> str:
+    if entry is None:
+        return "missing_allocation_ledger_entry"
+    if entry.status == "not_selected":
+        return "not_selected_by_run_allocation"
+    if entry.status == "allocation_rejected":
+        binding = entry.binding_constraint or "none"
+        return f"allocation_rejected_by_run_allocation:{binding}"
+    if decision.final_action in {"HOLD", "NO_TRADE"}:
+        return f"{decision.final_action.lower()}_no_paper_order_expected"
+    return f"not_in_allocation_execution_set:{entry.status}"
+
+
+def _final_decision_not_routed_reason(decision: FinalDecision) -> str:
+    if decision.status != "APPROVED_FOR_PAPER":
+        return f"final_decision_not_broker_routable:{decision.status.lower()}"
+    if decision.can_send_to_broker is not True:
+        return "final_decision_not_broker_routable:can_send_to_broker_false"
+    if decision.approved_quantity <= 0:
+        return "final_decision_not_broker_routable:zero_approved_quantity"
+    return "execution_router_returned_no_order"
+
+
 def _analysis_artifact_from_result(
     analysis: PaperSymbolAnalysis,
     *,
@@ -1807,12 +2065,7 @@ def _symbol_scope_for_run(
     if settings.taurus_paper_analysis_scope == "full_universe":
         if universe_mode == "market_data_universe":
             analyzed = _normalize_symbols([*requested, *open_positions])
-            finalization = _selected_only_finalization_symbols(
-                requested_symbols=requested,
-                universe=universe,
-                strategy_selected_symbols=strategy_selected,
-                open_position_symbols=open_positions,
-            )
+            finalization = list(analyzed)
         else:
             analyzed = _normalize_symbols([*requested, *open_positions])
             finalization = list(analyzed)
@@ -1825,7 +2078,7 @@ def _symbol_scope_for_run(
         analyzed = list(finalization)
 
     analyzed = _normalize_symbols([*analyzed, *finalization])
-    effective_execution_scope = "selected_only"
+    effective_execution_scope = "allocated_only"
     return PaperRunSymbolScope(
         analysis_scope=settings.taurus_paper_analysis_scope,
         execution_scope=settings.taurus_paper_execution_scope,

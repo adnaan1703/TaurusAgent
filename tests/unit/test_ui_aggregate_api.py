@@ -140,14 +140,21 @@ def test_disabled_money_management_uses_settings_fallback_allocation(
     assert set(run.artifacts) == {
         "allocation",
         "analysis",
+        "execution",
+        "final_decisions",
         "strategy",
         "symbol_scope",
         "symbols",
     }
     assert "money_management" not in run.artifacts
     assert run.artifacts["allocation"]["policy_source"] == "settings"
+    assert run.artifacts["allocation"]["ledger_count"] == 1
+    assert run.artifacts["allocation"]["ledger_counts"] == {"selected": 1}
     assert run.artifacts["allocation"]["summary"]["proposal_count"] == 1
     assert run.artifacts["allocation"]["summary"]["selected_count"] == 1
+    assert run.artifacts["final_decisions"]["total_count"] == 1
+    assert run.artifacts["execution"]["execution_set_count"] == 1
+    assert run.artifacts["execution"]["routed_order_count"] == 1
     assert run.artifacts["analysis"]["INFY"]["finalization_status"] == "completed"
     assert run.artifacts["analysis"]["INFY"]["allocation_status"] == "selected"
     assert run.artifacts["symbol_scope"]["analysis_scope"] == "strategy_selected"

@@ -396,13 +396,18 @@ def _with_run_status(
             summary_suffix,
         ),
     }
-    if proposal.action == "BUY" and status not in SELECTED_LEDGER_STATUSES:
+    if decision.action == "BUY" and status in SELECTED_LEDGER_STATUSES:
+        updates["target_position_pct_nav"] = decision.approved_position_pct_nav
+    if decision.action == "BUY" and status not in SELECTED_LEDGER_STATUSES:
         updates.update(
             {
                 "action": "HOLD" if proposal.current_position_quantity > 0 else "NO_TRADE",
                 "target_position_pct_nav": proposal.current_position_pct_nav,
                 "order_type": "NONE",
-                "entry_rule": "Run-level allocation did not select this BUY proposal.",
+                "entry_rule": (
+                    "not_selected_by_run_allocation: Run-level allocation did not "
+                    "select this BUY proposal."
+                ),
             }
         )
     return proposal.model_copy(update=updates)
@@ -432,7 +437,8 @@ def _fallback_updated_proposal(
                 "target_position_pct_nav": proposal.current_position_pct_nav,
                 "order_type": "NONE",
                 "entry_rule": (
-                    "Run-level fallback allocation did not select this BUY proposal."
+                    "not_selected_by_run_allocation: Run-level allocation did not "
+                    "select this BUY proposal."
                 ),
                 "position_management_summary": _append_sentence(
                     proposal.position_management_summary,
