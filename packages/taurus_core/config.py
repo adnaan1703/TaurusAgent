@@ -21,6 +21,8 @@ DEFAULT_GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
 DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
 SUPPORTED_LLM_PROVIDERS = ("lmstudio", "openai", "gemini")
 SUPPORTED_MARKET_DATA_PROVIDERS = ("kite",)
+SUPPORTED_PAPER_ANALYSIS_SCOPES = ("strategy_selected", "full_universe")
+SUPPORTED_PAPER_EXECUTION_SCOPES = ("selected_only", "allocated_only")
 
 
 class Settings(BaseSettings):
@@ -276,6 +278,14 @@ class Settings(BaseSettings):
         default="daily_after_close",
         validation_alias="TAURUS_PAPER_SCHEDULE",
     )
+    taurus_paper_analysis_scope: str = Field(
+        default="strategy_selected",
+        validation_alias="TAURUS_PAPER_ANALYSIS_SCOPE",
+    )
+    taurus_paper_execution_scope: str = Field(
+        default="selected_only",
+        validation_alias="TAURUS_PAPER_EXECUTION_SCOPE",
+    )
     taurus_position_monitor_enabled: bool = Field(
         default=False,
         validation_alias="TAURUS_POSITION_MONITOR_ENABLED",
@@ -340,6 +350,16 @@ class Settings(BaseSettings):
             raise ValueError(
                 "Unsupported Taurus position monitor provider. Supported values: "
                 f"{', '.join(SUPPORTED_MARKET_DATA_PROVIDERS)}."
+            )
+        if self.taurus_paper_analysis_scope not in set(SUPPORTED_PAPER_ANALYSIS_SCOPES):
+            raise ValueError(
+                "Unsupported Taurus paper analysis scope. Supported values: "
+                f"{', '.join(SUPPORTED_PAPER_ANALYSIS_SCOPES)}."
+            )
+        if self.taurus_paper_execution_scope not in set(SUPPORTED_PAPER_EXECUTION_SCOPES):
+            raise ValueError(
+                "Unsupported Taurus paper execution scope. Supported values: "
+                f"{', '.join(SUPPORTED_PAPER_EXECUTION_SCOPES)}."
             )
         if self.taurus_llm_provider not in set(SUPPORTED_LLM_PROVIDERS):
             raise ValueError(

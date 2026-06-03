@@ -259,6 +259,26 @@ entire configured universe while keeping allocation/execution behavior safe.
 
 At completion, add assumptions made, mocks created, and mocks used.
 
+### M38 Completion Summary
+
+Completed on 2026-06-03.
+
+- Assumptions made:
+  - `TAURUS_PAPER_ANALYSIS_SCOPE=strategy_selected` must preserve pre-M38
+    selected-symbol behavior, while `full_universe` is opt-in until M43.
+  - In M38, `TAURUS_PAPER_EXECUTION_SCOPE=allocated_only` can be validated and
+    recorded but the effective execution scope remains `selected_only` until
+    M39/M40 add run-level allocation and full-symbol finalization.
+  - Full-universe market-data runs should finalize only strategy-selected
+    symbols plus open positions for M38 safety; manual `SYMBOL`/`SYMBOLS` runs
+    remain limited to explicit symbols plus open positions.
+  - New M38 symbol-scope and analysis records are run artifact additions, not a
+    typed public API payload change requiring React dashboard updates.
+- Mocks created: None.
+- Mocks used:
+  - Existing `FakeLLMProvider` and `FakeKiteMarketDataProvider` in focused
+    pytest coverage for paper-run full-universe behavior.
+
 ## M39: Run-Level Dynamic Allocation Engine
 
 ### Goal

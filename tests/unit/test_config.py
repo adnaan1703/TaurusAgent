@@ -63,6 +63,8 @@ def test_default_settings_are_safe() -> None:
     assert settings.taurus_money_management_config_path == (
         "configs/portfolio/money_management_v1.yaml"
     )
+    assert settings.taurus_paper_analysis_scope == "strategy_selected"
+    assert settings.taurus_paper_execution_scope == "selected_only"
 
 
 def test_live_trading_cannot_be_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -139,6 +141,27 @@ def test_graph_analyst_key_can_be_enabled_explicitly(monkeypatch: pytest.MonkeyP
     monkeypatch.setenv("TAURUS_ENABLED_ANALYSTS", "technical,graph")
 
     assert Settings().enabled_analyst_keys == ("technical", "graph")
+
+
+def test_paper_analysis_and_execution_scopes_are_validated(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("TAURUS_PAPER_ANALYSIS_SCOPE", "full_universe")
+    monkeypatch.setenv("TAURUS_PAPER_EXECUTION_SCOPE", "allocated_only")
+
+    settings = Settings()
+
+    assert settings.taurus_paper_analysis_scope == "full_universe"
+    assert settings.taurus_paper_execution_scope == "allocated_only"
+
+    monkeypatch.setenv("TAURUS_PAPER_ANALYSIS_SCOPE", "everything")
+    with pytest.raises(ValidationError, match="paper analysis scope"):
+        Settings()
+
+    monkeypatch.setenv("TAURUS_PAPER_ANALYSIS_SCOPE", "strategy_selected")
+    monkeypatch.setenv("TAURUS_PAPER_EXECUTION_SCOPE", "live")
+    with pytest.raises(ValidationError, match="paper execution scope"):
+        Settings()
 
 
 def test_graph_stats_windows_are_validated(monkeypatch: pytest.MonkeyPatch) -> None:

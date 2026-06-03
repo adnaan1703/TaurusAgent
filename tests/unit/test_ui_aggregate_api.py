@@ -137,8 +137,10 @@ def test_disabled_money_management_does_not_change_paper_run_artifacts(
 
     run = PaperRunService(settings).run_once(symbols=["INFY"])
 
-    assert set(run.artifacts) == {"strategy", "symbols"}
+    assert set(run.artifacts) == {"analysis", "strategy", "symbol_scope", "symbols"}
     assert "money_management" not in run.artifacts
+    assert run.artifacts["analysis"]["INFY"]["finalization_status"] == "completed"
+    assert run.artifacts["symbol_scope"]["analysis_scope"] == "strategy_selected"
     assert set(run.artifacts["symbols"]["INFY"]) == {
         "symbol",
         "report_ids",

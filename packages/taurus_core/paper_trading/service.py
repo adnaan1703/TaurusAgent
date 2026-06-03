@@ -105,6 +105,40 @@ class PaperSymbolFinalization:
     account: Any | None
 
 
+@dataclass(frozen=True, slots=True)
+class PaperRunSymbolScope:
+    analysis_scope: str
+    execution_scope: str
+    effective_execution_scope: str
+    requested_symbols: list[str]
+    requested_universe_symbols: list[str]
+    manual_symbols: list[str]
+    analyzed_symbols: list[str]
+    finalization_symbols: list[str]
+    strategy_selected_symbols: list[str]
+    strategy_ranked_symbols: list[str]
+    graph_selected_symbols: list[str]
+    open_position_symbols: list[str]
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "analysis_scope": self.analysis_scope,
+            "execution_scope": self.execution_scope,
+            "effective_execution_scope": self.effective_execution_scope,
+            "requested_symbols": list(self.requested_symbols),
+            "requested_universe_symbols": list(self.requested_universe_symbols),
+            "manual_symbols": list(self.manual_symbols),
+            "analyzed_symbols": list(self.analyzed_symbols),
+            "analyzed_symbol_count": len(self.analyzed_symbols),
+            "finalization_symbols": list(self.finalization_symbols),
+            "finalization_symbol_count": len(self.finalization_symbols),
+            "strategy_selected_symbols": list(self.strategy_selected_symbols),
+            "strategy_ranked_symbols": list(self.strategy_ranked_symbols),
+            "graph_selected_symbols": list(self.graph_selected_symbols),
+            "open_position_symbols": list(self.open_position_symbols),
+        }
+
+
 class PaperRunService:
     """End-of-day paper pipeline with run-level status tracking."""
 
@@ -184,24 +218,26 @@ class PaperRunService:
             symbols=requested_symbols,
         )
         open_position_symbols = sorted(self._open_position_symbols())
-        normalized_symbols = _normalize_symbols([*requested_symbols, *open_position_symbols])
-        self._progress_symbol_count = max(len(normalized_symbols), 1)
+        input_symbols = _normalize_symbols([*requested_symbols, *open_position_symbols])
+        analysis_symbols = list(input_symbols)
+        finalization_symbols = list(input_symbols)
+        self._progress_symbol_count = max(len(input_symbols), 1)
         self._emit_progress(
             "paper.run.setup_completed",
             stage="open_positions",
-            symbols=normalized_symbols,
+            symbols=input_symbols,
         )
         started_at = _utc_now()
         run = PaperRun(
             run_id=paper_run_id(
                 started_at=started_at,
-                symbols=normalized_symbols,
+                symbols=input_symbols,
                 schedule_name=self.schedule_name,
             ),
             schedule_name=self.schedule_name,
             status="RUNNING",
             started_at=started_at,
-            symbols=normalized_symbols,
+            symbols=input_symbols,
             timezone=self.timezone_name,
             run_after_market_close=self.run_after_market_close,
             universe=universe or _manual_universe(
@@ -213,7 +249,7 @@ class PaperRunService:
             "paper.run.started",
             run_id=run.run_id,
             stage="run_created",
-            symbols=normalized_symbols,
+            symbols=input_symbols,
         )
         self._store_run(run, audit_event="paper_run.started")
 
@@ -222,20 +258,20 @@ class PaperRunService:
                 "paper.run.setup_started",
                 run_id=run.run_id,
                 stage="market_data",
-                symbols=normalized_symbols,
+                symbols=input_symbols,
             )
             market_data_summary = self._load_latest_inputs()
             self._emit_progress(
                 "paper.run.setup_completed",
                 run_id=run.run_id,
                 stage="market_data",
-                symbols=normalized_symbols,
+                symbols=input_symbols,
             )
             self._emit_progress(
                 "paper.run.setup_started",
                 run_id=run.run_id,
                 stage="strategy",
-                symbols=normalized_symbols,
+                symbols=input_symbols,
             )
             strategy_summary = self._generate_strategy_summary(
                 symbols=requested_symbols,
@@ -246,41 +282,49 @@ class PaperRunService:
                 "paper.run.setup_completed",
                 run_id=run.run_id,
                 stage="strategy",
-                symbols=normalized_symbols,
+                symbols=input_symbols,
             )
             self._emit_progress(
                 "paper.run.setup_started",
                 run_id=run.run_id,
                 stage="money_management",
-                symbols=normalized_symbols,
+                symbols=input_symbols,
             )
             money_management_summary = self._generate_money_management_summary()
             self._emit_progress(
                 "paper.run.setup_completed",
                 run_id=run.run_id,
                 stage="money_management",
-                symbols=normalized_symbols,
+                symbols=input_symbols,
             )
             core_basket_symbols = _core_basket_symbols_from_summary(money_management_summary)
             self._emit_progress(
                 "paper.run.setup_started",
                 run_id=run.run_id,
                 stage="symbol_selection",
-                symbols=normalized_symbols,
+                symbols=input_symbols,
             )
-            normalized_symbols = _symbols_for_pipeline(
+            symbol_scope = _symbol_scope_for_run(
+                settings=self.settings,
                 requested_symbols=requested_symbols,
                 universe=run.universe,
                 strategy_summary=strategy_summary,
             )
-            self._progress_symbol_count = max(len(normalized_symbols), 1)
+            strategy_summary = _strategy_summary_with_symbol_scope(
+                strategy_summary,
+                symbol_scope=symbol_scope,
+            )
+            analysis_symbols = list(symbol_scope.analyzed_symbols)
+            finalization_symbols = list(symbol_scope.finalization_symbols)
+            self._progress_symbol_count = max(len(analysis_symbols), 1)
             self._emit_progress(
                 "paper.run.setup_completed",
                 run_id=run.run_id,
                 stage="symbol_selection",
-                symbols=normalized_symbols,
+                symbols=analysis_symbols,
+                finalization_symbols=finalization_symbols,
             )
-            run = _run_with_selected_symbols(run, normalized_symbols)
+            run = _run_with_selected_symbols(run, analysis_symbols)
         except Exception as exc:
             error = PaperRunError(
                 symbol="*",
@@ -292,7 +336,7 @@ class PaperRunService:
                 update={
                     "status": "FAILED",
                     "completed_at": _utc_now(),
-                    "failed_symbols": normalized_symbols,
+                    "failed_symbols": analysis_symbols,
                     "errors": [error],
                 }
             )
@@ -301,13 +345,18 @@ class PaperRunService:
                 "paper.run.failed",
                 run_id=failed.run_id,
                 stage=error.stage,
-                symbols=normalized_symbols,
+                symbols=analysis_symbols,
                 error_type=error.error_type,
                 message=error.message,
             )
             return self._store_run(failed, audit_event="paper_run.failed")
 
-        artifacts: dict[str, Any] = {"strategy": strategy_summary, "symbols": {}}
+        artifacts: dict[str, Any] = {
+            "strategy": strategy_summary,
+            "symbol_scope": symbol_scope.to_dict(),
+            "analysis": {},
+            "symbols": {},
+        }
         if money_management_summary is not None:
             artifacts["money_management"] = money_management_summary
         succeeded_symbols: list[str] = []
@@ -321,32 +370,81 @@ class PaperRunService:
         )
         self._store_run(run)
 
-        for symbol_index, symbol in enumerate(normalized_symbols, start=1):
+        finalization_symbol_set = set(finalization_symbols)
+        llm_provider = build_llm_provider(self.settings)
+        for symbol_index, symbol in enumerate(analysis_symbols, start=1):
+            finalization_required = symbol in finalization_symbol_set
+            symbol_stage = "symbol_pipeline" if finalization_required else "symbol_analysis"
             try:
-                artifacts["symbols"][symbol] = self._run_symbol(
+                analysis = self.analyze_symbol(
                     symbol=symbol,
                     run_id=run.run_id,
-                    strategy_summary=strategy_summary,
-                    core_basket_symbols=core_basket_symbols,
                     symbol_index=symbol_index,
                     succeeded_count=len(succeeded_symbols),
                     failed_count=len(failed_symbols),
+                    llm_provider=llm_provider,
                 )
+                artifacts["analysis"][symbol] = _analysis_artifact_from_result(
+                    analysis,
+                    finalization_required=finalization_required,
+                    finalization_status="pending" if finalization_required else "not_selected",
+                )
+                if finalization_required:
+                    finalization = self.finalize_symbol(
+                        symbol=symbol,
+                        run_id=run.run_id,
+                        strategy_summary=strategy_summary,
+                        core_basket_symbols=core_basket_symbols,
+                        proposal=analysis.proposal,
+                        symbol_index=symbol_index,
+                        succeeded_count=len(succeeded_symbols),
+                        failed_count=len(failed_symbols),
+                        llm_provider=llm_provider,
+                    )
+                    result = _symbol_artifact_from_results(analysis, finalization)
+                    artifacts["symbols"][symbol] = result
+                    artifacts["analysis"][symbol]["finalization_status"] = "completed"
+                    with bound_trace_context(
+                        run_id=run.run_id,
+                        debate_id=analysis.debate.debate_id,
+                        proposal_id=finalization.proposal.proposal_id,
+                        risk_check_id=finalization.risk_review.risk_check_id,
+                        final_decision_id=finalization.final_decision.final_decision_id,
+                        order_id=finalization.order.order_id
+                        if finalization.order is not None
+                        else None,
+                    ):
+                        self.logger.info("paper_run.symbol.completed", **result)
+                else:
+                    with bound_trace_context(
+                        run_id=run.run_id,
+                        debate_id=analysis.debate.debate_id,
+                        proposal_id=analysis.proposal.proposal_id,
+                    ):
+                        self.logger.info(
+                            "paper_run.symbol.analysis_completed",
+                            **artifacts["analysis"][symbol],
+                        )
                 succeeded_symbols.append(symbol)
                 self._emit_progress(
                     "paper.symbol.completed",
                     run_id=run.run_id,
-                    symbols=normalized_symbols,
+                    symbols=analysis_symbols,
                     symbol=symbol,
                     symbol_index=symbol_index,
-                    stage="symbol_pipeline",
+                    stage=symbol_stage,
+                    phase="finalization" if finalization_required else "analysis",
+                    finalization_required=finalization_required,
                     succeeded_count=len(succeeded_symbols),
                     failed_count=len(failed_symbols),
                 )
             except Exception as exc:
+                analysis_artifact = artifacts["analysis"].get(symbol)
+                if isinstance(analysis_artifact, dict) and finalization_required:
+                    analysis_artifact["finalization_status"] = "failed"
                 error = PaperRunError(
                     symbol=symbol,
-                    stage="symbol_pipeline",
+                    stage=symbol_stage,
                     message=str(exc),
                     error_type=exc.__class__.__name__,
                 )
@@ -356,10 +454,11 @@ class PaperRunService:
                 self._emit_progress(
                     "paper.symbol.failed",
                     run_id=run.run_id,
-                    symbols=normalized_symbols,
+                    symbols=analysis_symbols,
                     symbol=symbol,
                     symbol_index=symbol_index,
                     stage=error.stage,
+                    finalization_required=finalization_required,
                     succeeded_count=len(succeeded_symbols),
                     failed_count=len(failed_symbols),
                     error_type=error.error_type,
@@ -909,6 +1008,8 @@ class PaperRunService:
         path = strategy_config_path or DEFAULT_STRATEGY_CONFIG_PATH
         strategy_config = load_strategy_config(path)
         strategy = build_strategy(strategy_config)
+        current_positions = self._open_position_symbols()
+        strategy_input_symbols = _normalize_symbols([*symbols, *current_positions])
         graph_profile_enabled = _graph_profile_enabled(
             settings=self.settings,
             strategy_type=strategy_config.strategy_type,
@@ -920,26 +1021,29 @@ class PaperRunService:
                 graph_readiness = assert_graph_ready_for_paper(
                     session,
                     settings=self.settings,
-                    symbols=symbols,
+                    symbols=strategy_input_symbols,
                 ).to_dict()
         feature_service = TechnicalFeatureService.from_strategy_parameters(
             strategy_config.parameters
         )
-        current_positions = self._open_position_symbols()
+        strategy_input_symbol_set = set(strategy_input_symbols)
         with self.session_factory() as session:
             instruments = InstrumentRepository(session).list(active_only=True)
             snapshots = {}
             for instrument in instruments:
+                symbol = instrument.symbol.upper()
+                if symbol not in strategy_input_symbol_set:
+                    continue
                 history = _daily_candle_history(session, instrument.symbol)
                 if len(history) < max(strategy_config.lookback_days, 1):
                     continue
                 snapshot = feature_service.build_snapshot(
-                    symbol=instrument.symbol,
+                    symbol=symbol,
                     as_of_date=history[-1].trade_date + timedelta(days=1),
                     history=history,
                 )
                 if snapshot is not None:
-                    snapshots[instrument.symbol] = snapshot
+                    snapshots[symbol] = snapshot
 
         trade_dates = [snapshot.as_of_date for snapshot in snapshots.values()]
         if not trade_dates:
@@ -954,6 +1058,7 @@ class PaperRunService:
                 "ranked_candidates": [],
                 "eligible_symbol_count": 0,
                 "ranked_symbol_count": 0,
+                "strategy_ranked_symbols": [],
                 "strategy_score_by_symbol": {},
                 "feature_snapshot_count": 0,
                 "graph_enabled_profile": graph_profile_enabled,
@@ -985,7 +1090,10 @@ class PaperRunService:
                 graph_signals_by_symbol = GraphBacktestSignalLoader(
                     session,
                     edge_statuses=("active",),
-                ).load_by_as_of_date(as_of_date=trade_date, symbols=symbols)
+                ).load_by_as_of_date(
+                    as_of_date=trade_date,
+                    symbols=strategy_input_symbols,
+                )
 
         select_targets_with_graph = getattr(strategy, "select_targets_with_graph", None)
         select_targets_with_graph_called = graph_profile_enabled and callable(
@@ -1018,6 +1126,9 @@ class PaperRunService:
         requested = set(symbols)
         selected_symbols = sorted(targets)
         ranked_candidates = [ranking.to_dict() for ranking in rankings]
+        strategy_ranked_symbols = [
+            ranking.symbol for ranking in rankings if ranking.rank is not None
+        ]
         strategy_score_by_symbol = {
             ranking.symbol: str(ranking.raw_strategy_score)
             for ranking in rankings
@@ -1044,6 +1155,7 @@ class PaperRunService:
             "ranked_candidates": ranked_candidates,
             "eligible_symbol_count": sum(1 for ranking in rankings if ranking.is_eligible),
             "ranked_symbol_count": sum(1 for ranking in rankings if ranking.rank is not None),
+            "strategy_ranked_symbols": strategy_ranked_symbols,
             "strategy_score_by_symbol": strategy_score_by_symbol,
             "feature_snapshot_count": len(snapshots),
             "graph_enabled_profile": graph_profile_enabled,
@@ -1336,6 +1448,36 @@ def _symbol_artifact_from_results(
     return result
 
 
+def _analysis_artifact_from_result(
+    analysis: PaperSymbolAnalysis,
+    *,
+    finalization_required: bool,
+    finalization_status: str,
+) -> dict[str, object]:
+    proposal = analysis.proposal
+    return {
+        "symbol": analysis.symbol,
+        "analysis_status": "completed",
+        "report_ids": [report.report_id for report in analysis.reports],
+        "analyst_roster": _analyst_roster_dict(
+            enabled_analysts=analysis.enabled_analysts,
+            report_count=len(analysis.reports),
+        ),
+        "debate_id": analysis.debate.debate_id,
+        "proposal_id": proposal.proposal_id,
+        "proposal_action": proposal.action,
+        "portfolio_id": proposal.portfolio_id,
+        "lifecycle_trigger": proposal.lifecycle_trigger,
+        "evaluation_mode": proposal.evaluation_mode,
+        "current_position_quantity": proposal.current_position_quantity,
+        "current_position_pct_nav": str(proposal.current_position_pct_nav),
+        "target_position_pct_nav": str(proposal.target_position_pct_nav),
+        "position_management_summary": proposal.position_management_summary,
+        "finalization_required": finalization_required,
+        "finalization_status": finalization_status,
+    }
+
+
 def _analyst_roster_dict(
     *,
     enabled_analysts: Iterable[str],
@@ -1374,6 +1516,104 @@ def _graph_profile_enabled(
         or strategy_type == "graph_aware_score"
         or bool(strategy_parameters.get("graph_enabled", False))
     )
+
+
+def _symbol_scope_for_run(
+    *,
+    settings: Settings,
+    requested_symbols: list[str],
+    universe: PaperRunUniverse | None,
+    strategy_summary: dict[str, object],
+) -> PaperRunSymbolScope:
+    requested = _normalize_symbols(requested_symbols)
+    open_positions = _normalize_symbols(
+        [str(symbol) for symbol in strategy_summary.get("open_position_symbols", [])]
+    )
+    strategy_selected = _normalize_symbols(
+        [str(symbol) for symbol in strategy_summary.get("targets", [])]
+    )
+    graph_selected = _normalize_symbols(
+        [str(symbol) for symbol in strategy_summary.get("graph_selected_symbols", [])]
+    )
+    strategy_ranked = _normalize_symbols(
+        [str(symbol) for symbol in strategy_summary.get("strategy_ranked_symbols", [])]
+    )
+    universe_mode = universe.source if universe is not None else "manual_symbols"
+    requested_universe_symbols = requested if universe_mode == "market_data_universe" else []
+    manual_symbols = requested if universe_mode == "manual_symbols" else []
+
+    if settings.taurus_paper_analysis_scope == "full_universe":
+        if universe_mode == "market_data_universe":
+            analyzed = _normalize_symbols([*requested, *open_positions])
+            finalization = _selected_only_finalization_symbols(
+                requested_symbols=requested,
+                universe=universe,
+                strategy_selected_symbols=strategy_selected,
+                open_position_symbols=open_positions,
+            )
+        else:
+            analyzed = _normalize_symbols([*requested, *open_positions])
+            finalization = list(analyzed)
+    else:
+        finalization = _symbols_for_pipeline(
+            requested_symbols=requested,
+            universe=universe,
+            strategy_summary=strategy_summary,
+        )
+        analyzed = list(finalization)
+
+    analyzed = _normalize_symbols([*analyzed, *finalization])
+    effective_execution_scope = "selected_only"
+    return PaperRunSymbolScope(
+        analysis_scope=settings.taurus_paper_analysis_scope,
+        execution_scope=settings.taurus_paper_execution_scope,
+        effective_execution_scope=effective_execution_scope,
+        requested_symbols=requested,
+        requested_universe_symbols=requested_universe_symbols,
+        manual_symbols=manual_symbols,
+        analyzed_symbols=analyzed,
+        finalization_symbols=finalization,
+        strategy_selected_symbols=strategy_selected,
+        strategy_ranked_symbols=strategy_ranked,
+        graph_selected_symbols=graph_selected,
+        open_position_symbols=open_positions,
+    )
+
+
+def _strategy_summary_with_symbol_scope(
+    strategy_summary: dict[str, object],
+    *,
+    symbol_scope: PaperRunSymbolScope,
+) -> dict[str, object]:
+    scoped = dict(strategy_summary)
+    scope_payload = symbol_scope.to_dict()
+    scoped["symbol_scope"] = scope_payload
+    scoped["analysis_scope"] = symbol_scope.analysis_scope
+    scoped["execution_scope"] = symbol_scope.execution_scope
+    scoped["effective_execution_scope"] = symbol_scope.effective_execution_scope
+    scoped["requested_symbols"] = list(symbol_scope.requested_symbols)
+    scoped["requested_universe_symbols"] = list(symbol_scope.requested_universe_symbols)
+    scoped["manual_symbols"] = list(symbol_scope.manual_symbols)
+    scoped["analyzed_symbols"] = list(symbol_scope.analyzed_symbols)
+    scoped["finalization_symbols"] = list(symbol_scope.finalization_symbols)
+    scoped["strategy_selected_symbols"] = list(symbol_scope.strategy_selected_symbols)
+    scoped["strategy_ranked_symbols"] = list(symbol_scope.strategy_ranked_symbols)
+    scoped["graph_selected_symbols"] = list(symbol_scope.graph_selected_symbols)
+    scoped["open_position_symbols"] = list(symbol_scope.open_position_symbols)
+    return scoped
+
+
+def _selected_only_finalization_symbols(
+    *,
+    requested_symbols: list[str],
+    universe: PaperRunUniverse | None,
+    strategy_selected_symbols: list[str],
+    open_position_symbols: list[str],
+) -> list[str]:
+    universe_mode = universe.source if universe is not None else "manual_symbols"
+    if universe_mode == "manual_symbols":
+        return _normalize_symbols([*requested_symbols, *open_position_symbols])
+    return _normalize_symbols([*strategy_selected_symbols, *open_position_symbols])
 
 
 def _symbols_for_pipeline(

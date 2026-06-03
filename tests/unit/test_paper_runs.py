@@ -356,6 +356,137 @@ def test_graph_enabled_kite_paper_run_fails_fast_without_graph_nodes(
     assert run.artifacts == {}
 
 
+def test_full_universe_analysis_records_proposals_for_requested_market_universe(
+    tmp_path: Path,
+) -> None:
+    settings = _settings_for_temp_db(
+        tmp_path,
+        paper_analysis_scope="full_universe",
+        max_open_positions=1,
+    )
+    universe = _paper_run_universe(
+        source="market_data_universe",
+        symbols=["INFY", "TCS", "RELIANCE"],
+    )
+
+    run = PaperRunService(settings).run_once(
+        symbols=universe.symbols,
+        universe=universe,
+    )
+
+    scope = run.artifacts["symbol_scope"]
+    analysis_artifacts = run.artifacts["analysis"]
+
+    assert run.status == "COMPLETED"
+    assert scope["analysis_scope"] == "full_universe"
+    assert scope["requested_universe_symbols"] == ["INFY", "TCS", "RELIANCE"]
+    assert set(scope["analyzed_symbols"]) == {"INFY", "TCS", "RELIANCE"}
+    assert set(analysis_artifacts) == {"INFY", "TCS", "RELIANCE"}
+    assert set(run.artifacts["symbols"]) == set(scope["finalization_symbols"])
+    assert len(scope["finalization_symbols"]) <= 1
+
+    session_factory = build_session_factory(settings)
+    with session_factory() as session:
+        proposal_symbols = {
+            row.symbol
+            for row in session.scalars(
+                select(TraderProposalModel).where(TraderProposalModel.run_id == run.run_id)
+            )
+        }
+        final_decision_count = session.scalar(
+            select(func.count())
+            .select_from(FinalDecisionModel)
+            .where(FinalDecisionModel.run_id == run.run_id)
+        )
+
+    assert proposal_symbols == {"INFY", "TCS", "RELIANCE"}
+    assert final_decision_count <= 1
+
+
+def test_full_universe_graph_selection_does_not_narrow_analysis(
+    tmp_path: Path,
+) -> None:
+    settings = _settings_for_temp_db(
+        tmp_path,
+        graph_enabled=True,
+        graph_risk_enabled=True,
+        paper_analysis_scope="full_universe",
+        max_open_positions=1,
+    )
+    _seed_paper_graph_fixture(settings)
+    universe = _paper_run_universe(
+        source="market_data_universe",
+        symbols=["INFY", "TCS", "RELIANCE"],
+    )
+
+    run = PaperRunService(settings).run_once(
+        symbols=universe.symbols,
+        universe=universe,
+        strategy_config_path="configs/strategies/graph_aware_score_v1.yaml",
+    )
+
+    scope = run.artifacts["symbol_scope"]
+    analyzed = set(scope["analyzed_symbols"])
+    graph_selected = set(scope["graph_selected_symbols"])
+
+    assert run.status == "COMPLETED"
+    assert analyzed == {"INFY", "TCS", "RELIANCE"}
+    assert graph_selected != analyzed
+    assert graph_selected.issubset(analyzed)
+    assert len(graph_selected) < len(analyzed)
+    assert set(run.artifacts["analysis"]) == analyzed
+
+    session_factory = build_session_factory(settings)
+    with session_factory() as session:
+        proposal_symbols = {
+            row.symbol
+            for row in session.scalars(
+                select(TraderProposalModel).where(TraderProposalModel.run_id == run.run_id)
+            )
+        }
+
+    assert proposal_symbols == {"INFY", "TCS", "RELIANCE"}
+
+
+def test_full_universe_manual_symbols_remain_explicit_plus_open_positions(
+    tmp_path: Path,
+) -> None:
+    settings = _settings_for_temp_db(
+        tmp_path,
+        paper_analysis_scope="full_universe",
+    )
+    first = PaperRunService(settings, schedule_name="manual_open_seed").run_once(
+        symbols=["INFY"],
+        universe=_paper_run_universe(source="manual_symbols", symbols=["INFY"]),
+    )
+
+    second = PaperRunService(settings, schedule_name="manual_scope_review").run_once(
+        symbols=["TCS"],
+        universe=_paper_run_universe(source="manual_symbols", symbols=["TCS"]),
+    )
+
+    scope = second.artifacts["symbol_scope"]
+
+    assert first.status == "COMPLETED"
+    assert second.status == "COMPLETED"
+    assert scope["manual_symbols"] == ["TCS"]
+    assert scope["requested_universe_symbols"] == []
+    assert set(scope["analyzed_symbols"]) == {"TCS", "INFY"}
+    assert set(scope["finalization_symbols"]) == {"TCS", "INFY"}
+    assert set(second.artifacts["analysis"]) == {"TCS", "INFY"}
+
+    session_factory = build_session_factory(settings)
+    with session_factory() as session:
+        proposal_symbols = {
+            row.symbol
+            for row in session.scalars(
+                select(TraderProposalModel).where(TraderProposalModel.run_id == second.run_id)
+            )
+        }
+
+    assert proposal_symbols == {"TCS", "INFY"}
+
+
 def test_paper_loop_records_manual_symbol_universe_provenance(
     tmp_path: Path,
     monkeypatch,
@@ -588,6 +719,9 @@ def _settings_for_temp_db(
     graph_risk_enabled: bool = False,
     money_management_enabled: bool = False,
     money_management_config_path: str = "configs/portfolio/money_management_v1.yaml",
+    paper_analysis_scope: str = "strategy_selected",
+    paper_execution_scope: str = "selected_only",
+    max_open_positions: int = 8,
 ) -> Settings:
     return Settings(
         taurus_paper_partial_fill_threshold=1,
@@ -596,6 +730,26 @@ def _settings_for_temp_db(
         taurus_graph_risk_enabled=graph_risk_enabled,
         taurus_money_management_enabled=money_management_enabled,
         taurus_money_management_config_path=money_management_config_path,
+        taurus_paper_analysis_scope=paper_analysis_scope,
+        taurus_paper_execution_scope=paper_execution_scope,
+        taurus_max_open_positions=max_open_positions,
+    )
+
+
+def _paper_run_universe(*, source: str, symbols: list[str]) -> PaperRunUniverse:
+    normalized = [symbol.upper() for symbol in symbols]
+    return PaperRunUniverse(
+        source=source,  # type: ignore[arg-type]
+        provider="kite",
+        universe_name="test_shariah" if source == "market_data_universe" else None,
+        yaml_path="configs/market_data/test_shariah.yaml"
+        if source == "market_data_universe"
+        else None,
+        available_symbol_count=len(normalized)
+        if source == "market_data_universe"
+        else None,
+        selected_symbol_count=len(normalized),
+        symbols=normalized,
     )
 
 

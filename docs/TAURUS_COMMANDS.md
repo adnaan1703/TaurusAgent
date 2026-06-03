@@ -567,6 +567,24 @@ TAURUS_MARKET_DATA_UNIVERSE_PATH=configs/market_data/nifty_500_shariah.yaml
 
 When `SYMBOL` and `SYMBOLS` are omitted, `make paper-loop-kite` uses the
 configured market-data universe, which defaults to the Nifty 500 Shariah YAML.
+M38 adds an opt-in full-universe analysis mode for the paper loop:
+
+```bash
+TAURUS_PAPER_ANALYSIS_SCOPE=full_universe make paper-loop-kite
+TAURUS_PAPER_ANALYSIS_SCOPE=strategy_selected make paper-loop-kite
+TAURUS_PAPER_EXECUTION_SCOPE=selected_only make paper-loop-kite
+```
+
+`TAURUS_PAPER_ANALYSIS_SCOPE=strategy_selected` remains the default and preserves
+the pre-M38 selected-symbol behavior. `full_universe` analyzes every requested
+market-data-universe symbol plus open paper positions and stores proposal
+artifacts under `run.artifacts.analysis`; finalized legacy symbol artifacts
+remain under `run.artifacts.symbols`. Manual `SYMBOL` or `SYMBOLS` runs stay
+limited to the explicit symbols plus open positions. `TAURUS_PAPER_EXECUTION_SCOPE`
+accepts `selected_only` and `allocated_only`; during M38 the effective execution
+scope remains `selected_only` until the M39/M40 run-level allocation and
+finalization milestones are implemented.
+
 Inspect allocation reductions and rejected candidates through:
 
 ```bash
@@ -941,6 +959,17 @@ curl http://localhost:8000/metrics
 rg -n "sqlite|sqlite3|taurus\\.db|DATABASE_URL=sqlite" .
 find . -type f \( -name '*.db' -o -name '*.sqlite' -o -name '*.sqlite3' \) -print
 find /private/tmp -maxdepth 2 -type f -name 'taurus*.db' -print
+sed -n '/# END MY CUSTOM ADDITION/,$p' /Users/adnaan/.codex/rules/default.rules
+sed -n '1,260p' .codex/rules/default.rules
+```
+
+## M38 Commands Used
+
+```bash
+uv run pytest tests/unit/test_config.py tests/unit/test_paper_runs.py
+make test
+make lint
+git diff --check
 sed -n '/# END MY CUSTOM ADDITION/,$p' /Users/adnaan/.codex/rules/default.rules
 sed -n '1,260p' .codex/rules/default.rules
 ```
