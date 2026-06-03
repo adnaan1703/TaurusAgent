@@ -66,6 +66,21 @@ def test_ui_aggregate_endpoints_return_completed_run_trail(tmp_path: Path) -> No
     assert overview.json()["latest_run"]["run_id"] == run.run_id
     assert overview.json()["latest_trader_proposal"]["evaluation_mode"] == "after_close"
     assert overview.json()["latest_trader_proposal"]["lifecycle_trigger"] == "new_entry"
+    assert overview.json()["latest_run"]["universe_count"] == 1
+    assert overview.json()["latest_run"]["analyzed_count"] == 1
+    assert overview.json()["latest_run"]["ranked_count"] == 1
+    assert overview.json()["latest_run"]["proposal_count"] == 1
+    assert overview.json()["latest_run"]["selected_count"] == 1
+    assert overview.json()["latest_run"]["not_selected_count"] == 0
+    assert overview.json()["latest_run"]["allocation_rejected_count"] == 0
+    assert overview.json()["latest_run"]["risk_rejected_count"] == 0
+    assert overview.json()["latest_run"]["executed_count"] == 1
+    selection_preview = overview.json()["latest_run"]["selection_preview"]
+    assert selection_preview[0]["symbol"] == "INFY"
+    assert selection_preview[0]["allocation_status"] == "selected"
+    assert selection_preview[0]["final_status"] == "APPROVED_FOR_PAPER"
+    assert selection_preview[0]["execution_status"] == "FILLED"
+    assert selection_preview[0]["reason"] == "executed_by_paper_order:filled"
     assert overview.json()["latest_run"]["final_status_counts"] == {"APPROVED_FOR_PAPER": 1}
     assert overview.json()["latest_run"]["order_status_counts"] == {"FILLED": 1}
 
@@ -75,6 +90,8 @@ def test_ui_aggregate_endpoints_return_completed_run_trail(tmp_path: Path) -> No
     assert detail.status_code == 200
     detail_payload = detail.json()
     assert detail_payload["run"]["status"] == "COMPLETED"
+    assert detail_payload["selection_ledger"][0]["symbol"] == "INFY"
+    assert detail_payload["selection_ledger"][0]["reason"] == "executed_by_paper_order:filled"
     assert detail_payload["symbols"][0]["symbol"] == "INFY"
     assert detail_payload["symbols"][0]["pipeline_status"] == "complete"
     assert detail_payload["symbols"][0]["order_status"] == "FILLED"
@@ -90,6 +107,8 @@ def test_ui_aggregate_endpoints_return_completed_run_trail(tmp_path: Path) -> No
     trail_payload = trail.json()
     assert [stage["id"] for stage in trail_payload["stages"]] == EXPECTED_TRAIL_STAGES
     assert trail_payload["final_status"] == "APPROVED_FOR_PAPER"
+    assert trail_payload["selection_decision"]["allocation_status"] == "selected"
+    assert trail_payload["decision_reason"] == "executed_by_paper_order:filled"
     proposal_stage = _stage_artifacts(trail_payload, "trader_proposal")[0]
     assert proposal_stage["evaluation_mode"] == "after_close"
     assert proposal_stage["lifecycle_trigger"] == "new_entry"
@@ -356,13 +375,31 @@ def test_ui_decision_trail_includes_allocation_decision_when_enabled(
 
     assert overview.status_code == 200
     assert overview.json()["allocation"]["enabled"] is True
+    latest_run = overview.json()["latest_run"]
+    assert latest_run["selected_count"] == 0
+    assert latest_run["allocation_rejected_count"] == 1
+    assert latest_run["executed_count"] == 0
+    assert latest_run["selection_preview"][0]["allocation_status"] == "allocation_rejected"
+    assert (
+        latest_run["selection_preview"][0]["reason"]
+        == "allocation_rejected_by_run_allocation:strategy_unmapped"
+    )
     assert overview.json()["allocation"]["latest_decisions"][0]["symbol"] == "INFY"
+    assert (
+        overview.json()["allocation"]["latest_decisions"][0]["reason"]
+        == "allocation_rejected_by_run_allocation:strategy_unmapped"
+    )
     assert trail.status_code == 200
     allocation_decision = trail.json()["allocation_decision"]
     assert allocation_decision["symbol"] == "INFY"
     assert allocation_decision["sleeve_id"] == "unmapped"
     assert allocation_decision["status"] == "allocation_rejected"
     assert allocation_decision["binding_constraint"] == "strategy_unmapped"
+    assert trail.json()["selection_decision"]["allocation_status"] == "allocation_rejected"
+    assert (
+        trail.json()["decision_reason"]
+        == "allocation_rejected_by_run_allocation:strategy_unmapped"
+    )
     proposal_stage = _find_stage(trail.json(), "trader_proposal")
     assert proposal_stage["metrics"]["sleeve_id"] == "unmapped"
     assert proposal_stage["metrics"]["binding_constraint"] == "strategy_unmapped"
@@ -438,6 +475,48 @@ def test_ui_overview_handles_migrated_empty_database(tmp_path: Path) -> None:
     assert payload["recent_runs"] == []
     assert payload["positions"] == []
     assert payload["warnings"][0]["id"] == "missing-paper-account"
+
+
+def test_ui_run_payloads_preserve_legacy_runs_without_selection_ledger(
+    tmp_path: Path,
+) -> None:
+    settings = _settings_for_temp_db(tmp_path)
+    run_migrations(settings)
+    as_of = datetime(2026, 5, 21, 15, 0, tzinfo=timezone.utc)
+    legacy_run = PaperRun(
+        run_id="pr-legacy-no-ledger",
+        schedule_name="daily_after_close",
+        status="COMPLETED",
+        started_at=as_of,
+        completed_at=as_of,
+        symbols=["INFY", "TCS"],
+        succeeded_symbols=["INFY", "TCS"],
+        artifacts={"strategy": {"strategy_name": "legacy_strategy"}},
+    )
+    session_factory = build_session_factory(settings)
+    with session_factory() as session:
+        PaperRunRepository(session).upsert(legacy_run)
+        session.commit()
+
+    client = TestClient(create_app(settings))
+    overview = client.get("/ui/overview")
+    detail = client.get(f"/ui/runs/{legacy_run.run_id}")
+
+    assert overview.status_code == 200
+    latest_run = overview.json()["latest_run"]
+    assert latest_run["run_id"] == legacy_run.run_id
+    assert latest_run["universe_count"] == 2
+    assert latest_run["analyzed_count"] == 2
+    assert latest_run["ranked_count"] == 0
+    assert latest_run["proposal_count"] == 0
+    assert latest_run["selected_count"] == 0
+    assert latest_run["executed_count"] == 0
+    assert latest_run["selection_preview"] == []
+
+    assert detail.status_code == 200
+    detail_payload = detail.json()
+    assert detail_payload["selection_ledger"] == []
+    assert [row["symbol"] for row in detail_payload["symbols"]] == ["INFY", "TCS"]
 
 
 def test_ui_shariah_returns_active_rows_search_filters_and_pagination(

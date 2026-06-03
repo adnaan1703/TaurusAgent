@@ -87,13 +87,15 @@ export function AllocationPanels({ allocation, showCore = true }: AllocationPane
         <DataTable
           columns={[
             { key: "symbol", header: "Symbol", render: (row) => getString(row, "symbol") || "-" },
+            { key: "rank", header: "Rank", align: "right", render: (row) => formatNumber(getPrimitive(row, "rank")) },
             { key: "sleeve", header: "Sleeve", render: (row) => getString(row, "sleeve_name") || getString(row, "sleeve_id") || "-" },
             { key: "strategy", header: "Strategy", render: (row) => getString(row, "strategy_name") || "-" },
-            { key: "status", header: "Status", render: (row) => <StatusBadge status={getString(row, "status")} size="sm" /> },
+            { key: "status", header: "Status", render: (row) => <StatusBadge status={getString(row, "status") || getString(row, "allocation_status")} size="sm" /> },
             { key: "requested", header: "Requested", align: "right", render: (row) => formatPercent(getPrimitive(row, "requested_position_pct_nav")) },
             { key: "approved", header: "Approved", align: "right", render: (row) => formatPercent(getPrimitive(row, "approved_position_pct_nav")) },
             { key: "risk", header: "Risk", align: "right", render: (row) => formatInr(getPrimitive(row, "estimated_risk_inr")) },
             { key: "constraint", header: "Binding constraint", render: (row) => getString(row, "binding_constraint") || "None" },
+            { key: "reason", header: "Reason", render: (row) => getString(row, "reason") || "-" },
           ]}
           emptyLabel="No allocation decisions have been stored yet"
           getRowKey={(row) => `${getString(row, "proposal_id")}-${getString(row, "symbol")}`}

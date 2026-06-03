@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import { taurusApi } from "../api/client";
-import type { JsonObject, UiAnalystRoster, UiTimelineStage } from "../api/types";
+import type { JsonObject, UiAnalystRoster, UiRunSelectionRow, UiTimelineStage } from "../api/types";
 import { DataPanel } from "../components/DataPanel";
 import { DataTable } from "../components/DataTable";
 import { JsonDrawer } from "../components/JsonDrawer";
@@ -61,7 +61,7 @@ export function DecisionTrailPage() {
         <div className="grid gap-6">
           <WarningsPanel warnings={trailQuery.data.warnings} />
 
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
             <MetricCard
               label="Final status"
               supportingText={trailQuery.data.company_name ?? trailQuery.data.symbol}
@@ -94,6 +94,11 @@ export function DecisionTrailPage() {
               supportingText={trailQuery.data.run.run_id}
               value={<StatusBadge status={trailQuery.data.run.status} />}
             />
+            <MetricCard
+              label="Decision reason"
+              supportingText={trailQuery.data.selection_decision?.binding_constraint ?? "Run-level reason"}
+              value={trailQuery.data.decision_reason ?? "-"}
+            />
           </div>
 
           <DataPanel title="Stages">
@@ -125,6 +130,8 @@ export function DecisionTrailPage() {
 
           <AnalystRosterPanel roster={trailQuery.data.analyst_roster} />
 
+          <SelectionDecisionPanel decision={trailQuery.data.selection_decision} />
+
           <AllocationDecisionPanel allocationDecision={trailQuery.data.allocation_decision} />
 
           {selectedStage && <StageDetail stage={selectedStage} />}
@@ -133,6 +140,42 @@ export function DecisionTrailPage() {
         </div>
       )}
     </PageScaffold>
+  );
+}
+
+function SelectionDecisionPanel({
+  decision,
+}: {
+  decision: UiRunSelectionRow | null | undefined;
+}) {
+  if (!decision) {
+    return (
+      <DataPanel title="Run Selection Decision">
+        <p className="text-sm text-taurus-muted">
+          No run-level selection ledger entry is linked to this symbol.
+        </p>
+      </DataPanel>
+    );
+  }
+
+  return (
+    <DataPanel
+      actions={<StatusBadge status={decision.allocation_status} size="sm" />}
+      title="Run Selection Decision"
+    >
+      <KeyValueGrid
+        items={[
+          { label: "Rank", value: formatNumber(decision.rank ?? undefined) },
+          { label: "Strategy score", value: formatNumber(decision.strategy_score ?? undefined) },
+          { label: "Trader action", value: decision.trader_action ?? "-" },
+          { label: "Proposal confidence", value: formatPercent(decision.proposal_confidence ?? undefined) },
+          { label: "Final status", value: <StatusBadge status={decision.final_status} size="sm" /> },
+          { label: "Execution status", value: <StatusBadge status={decision.execution_status} size="sm" /> },
+          { label: "Constraint", value: decision.binding_constraint ?? "None" },
+          { label: "Reason", value: decision.reason ?? "-" },
+        ]}
+      />
+    </DataPanel>
   );
 }
 

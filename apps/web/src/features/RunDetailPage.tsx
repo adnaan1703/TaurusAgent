@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import { taurusApi } from "../api/client";
-import type { UiRunDetailResponse } from "../api/types";
+import type { UiRunDetailResponse, UiRunSelectionRow } from "../api/types";
 import { DataPanel } from "../components/DataPanel";
 import { DataTable } from "../components/DataTable";
 import { EmptyState } from "../components/EmptyState";
@@ -32,12 +33,33 @@ import { PageScaffold } from "./PageScaffold";
 
 export function RunDetailPage() {
   const { runId = "" } = useParams();
+  const [ledgerQuery, setLedgerQuery] = useState("");
   const runQuery = useQuery({
     queryKey: ["ui", "run", runId],
     queryFn: () => taurusApi.run(runId),
     enabled: runId.length > 0,
     refetchInterval: (query) => (query.state.data?.run.status === "RUNNING" ? 5_000 : false),
   });
+  const filteredLedger = useMemo(() => {
+    const rows = runQuery.data?.selection_ledger ?? [];
+    const query = ledgerQuery.trim().toLowerCase();
+    if (!query) {
+      return rows;
+    }
+    return rows.filter((row) =>
+      [
+        row.symbol,
+        row.trader_action,
+        row.allocation_status,
+        row.final_status,
+        row.execution_status,
+        row.binding_constraint,
+        row.reason,
+      ]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(query)),
+    );
+  }, [ledgerQuery, runQuery.data?.selection_ledger]);
 
   return (
     <PageScaffold
@@ -101,6 +123,21 @@ export function RunDetailPage() {
                 { label: "Error count", value: formatNumber(runQuery.data.run.error_count) },
               ]}
             />
+          </DataPanel>
+
+          <DataPanel
+            actions={
+              <input
+                className="w-64 max-w-full rounded-md border border-taurus-outline bg-taurus-shell px-3 py-2 text-sm text-taurus-text outline-none transition placeholder:text-taurus-muted focus:border-taurus-primary"
+                onChange={(event) => setLedgerQuery(event.target.value)}
+                placeholder="Search ledger"
+                type="search"
+                value={ledgerQuery}
+              />
+            }
+            title="Selection Ledger"
+          >
+            <SelectionLedgerTable rows={filteredLedger} runId={runQuery.data.run.run_id} />
           </DataPanel>
 
           {runQuery.data.symbols.length === 0 ? (
@@ -207,6 +244,42 @@ export function RunDetailPage() {
         </div>
       )}
     </PageScaffold>
+  );
+}
+
+function SelectionLedgerTable({
+  rows,
+  runId,
+}: {
+  rows: UiRunSelectionRow[];
+  runId: string;
+}) {
+  return (
+    <DataTable
+      columns={[
+        {
+          key: "symbol",
+          header: "Symbol",
+          render: (row) => (
+            <Link className="font-semibold text-taurus-primary hover:text-sky-200" to={`/runs/${runId}/symbols/${row.symbol}`}>
+              {row.symbol}
+            </Link>
+          ),
+        },
+        { key: "rank", header: "Rank", align: "right", render: (row) => formatNumber(row.rank ?? undefined) },
+        { key: "score", header: "Strategy score", align: "right", render: (row) => formatNumber(row.strategy_score ?? undefined) },
+        { key: "action", header: "Action", render: (row) => row.trader_action ?? "-" },
+        { key: "confidence", header: "Confidence", align: "right", render: (row) => formatPercent(row.proposal_confidence ?? undefined) },
+        { key: "allocation", header: "Allocation", render: (row) => <StatusBadge status={row.allocation_status} size="sm" /> },
+        { key: "final", header: "Final", render: (row) => <StatusBadge status={row.final_status} size="sm" /> },
+        { key: "execution", header: "Execution", render: (row) => <StatusBadge status={row.execution_status} size="sm" /> },
+        { key: "constraint", header: "Constraint", render: (row) => row.binding_constraint ?? "None" },
+        { key: "reason", header: "Reason", render: (row) => row.reason ?? "-" },
+      ]}
+      emptyLabel="No run-level selection ledger is available for this run"
+      getRowKey={(row) => `${runId}-${row.symbol}-${row.proposal_id ?? ""}`}
+      rows={rows}
+    />
   );
 }
 

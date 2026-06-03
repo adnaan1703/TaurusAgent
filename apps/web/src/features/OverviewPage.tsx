@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 
 import { taurusApi } from "../api/client";
-import type { JsonObject, UiRunSummary } from "../api/types";
+import type { JsonObject, UiRunSelectionRow, UiRunSummary } from "../api/types";
 import { DataPanel } from "../components/DataPanel";
 import { DataTable } from "../components/DataTable";
 import { EmptyState } from "../components/EmptyState";
@@ -123,6 +123,38 @@ export function OverviewPage() {
             />
           </div>
 
+          {overviewQuery.data.latest_run && (
+            <DataPanel title="Full-Universe Run Summary">
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                <MetricCard
+                  label="Universe"
+                  supportingText={`${formatNumber(overviewQuery.data.latest_run.analyzed_count)} analyzed`}
+                  value={formatNumber(overviewQuery.data.latest_run.universe_count)}
+                />
+                <MetricCard
+                  label="Ranked"
+                  supportingText={`${formatNumber(overviewQuery.data.latest_run.proposal_count)} proposal(s)`}
+                  value={formatNumber(overviewQuery.data.latest_run.ranked_count)}
+                />
+                <MetricCard
+                  label="Selected"
+                  supportingText={`${formatNumber(overviewQuery.data.latest_run.not_selected_count)} not selected`}
+                  value={formatNumber(overviewQuery.data.latest_run.selected_count)}
+                />
+                <MetricCard
+                  label="Rejected"
+                  supportingText={`${formatNumber(overviewQuery.data.latest_run.risk_rejected_count)} risk rejected`}
+                  value={formatNumber(overviewQuery.data.latest_run.allocation_rejected_count)}
+                />
+                <MetricCard
+                  label="Executed"
+                  supportingText="Paper orders routed"
+                  value={formatNumber(overviewQuery.data.latest_run.executed_count)}
+                />
+              </div>
+            </DataPanel>
+          )}
+
           {overviewQuery.data.recent_runs.length === 0 ? (
             <EmptyState
               commands={emptyDataCommands}
@@ -168,6 +200,16 @@ export function OverviewPage() {
                     render: (run) => <RunUniverseSummary universe={run.universe} />,
                   },
                   {
+                    key: "counts",
+                    header: "Run counts",
+                    render: (run) => <RunCountSummary run={run} />,
+                  },
+                  {
+                    key: "selection",
+                    header: "Selection",
+                    render: (run) => <RunSelectionSummary run={run} />,
+                  },
+                  {
                     key: "graph",
                     header: "Graph",
                     render: (run) => <GraphProfileSummary run={run} />,
@@ -187,6 +229,15 @@ export function OverviewPage() {
                 emptyLabel="No runs"
                 getRowKey={(run) => run.run_id}
                 rows={overviewQuery.data.recent_runs.slice(0, 8)}
+              />
+            </DataPanel>
+          )}
+
+          {overviewQuery.data.latest_run && (
+            <DataPanel title="Latest Selection Preview">
+              <SelectionPreviewTable
+                rows={overviewQuery.data.latest_run.selection_preview}
+                runId={overviewQuery.data.latest_run.run_id}
               />
             </DataPanel>
           )}
@@ -271,6 +322,64 @@ export function OverviewPage() {
         </div>
       )}
     </PageScaffold>
+  );
+}
+
+function RunCountSummary({ run }: { run: UiRunSummary }) {
+  return (
+    <div className="space-y-1 text-xs">
+      <p className="text-taurus-text">
+        {formatNumber(run.analyzed_count)} analyzed / {formatNumber(run.ranked_count)} ranked
+      </p>
+      <p className="text-taurus-muted">{formatNumber(run.proposal_count)} proposal(s)</p>
+    </div>
+  );
+}
+
+function RunSelectionSummary({ run }: { run: UiRunSummary }) {
+  return (
+    <div className="space-y-1 text-xs">
+      <p className="text-taurus-text">
+        {formatNumber(run.selected_count)} selected / {formatNumber(run.executed_count)} executed
+      </p>
+      <p className="text-taurus-muted">
+        {formatNumber(run.allocation_rejected_count)} allocation rejected, {formatNumber(run.risk_rejected_count)} risk rejected
+      </p>
+    </div>
+  );
+}
+
+function SelectionPreviewTable({
+  rows,
+  runId,
+}: {
+  rows: UiRunSelectionRow[];
+  runId: string;
+}) {
+  return (
+    <DataTable
+      columns={[
+        {
+          key: "symbol",
+          header: "Symbol",
+          render: (row) => (
+            <Link className="font-semibold text-taurus-primary hover:text-sky-200" to={`/runs/${runId}/symbols/${row.symbol}`}>
+              {row.symbol}
+            </Link>
+          ),
+        },
+        { key: "rank", header: "Rank", align: "right", render: (row) => formatNumber(row.rank ?? undefined) },
+        { key: "score", header: "Strategy score", align: "right", render: (row) => formatNumber(row.strategy_score ?? undefined) },
+        { key: "action", header: "Action", render: (row) => row.trader_action ?? "-" },
+        { key: "allocation", header: "Allocation", render: (row) => <StatusBadge status={row.allocation_status} size="sm" /> },
+        { key: "final", header: "Final", render: (row) => <StatusBadge status={row.final_status} size="sm" /> },
+        { key: "execution", header: "Execution", render: (row) => <StatusBadge status={row.execution_status} size="sm" /> },
+        { key: "reason", header: "Reason", render: (row) => row.reason ?? "-" },
+      ]}
+      emptyLabel="No run-level selection ledger is available for this run"
+      getRowKey={(row) => `${runId}-${row.symbol}-${row.proposal_id ?? ""}`}
+      rows={rows}
+    />
   );
 }
 

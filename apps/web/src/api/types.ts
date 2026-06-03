@@ -51,6 +51,25 @@ export type UiRunUniverse = {
   symbols: string[];
 };
 
+export type UiRunSelectionRow = {
+  symbol: string;
+  proposal_id?: string | null;
+  final_decision_id?: string | null;
+  decision_id?: string | null;
+  order_id?: string | null;
+  rank?: number | null;
+  strategy_score?: number | null;
+  trader_action?: string | null;
+  proposal_confidence?: number | null;
+  allocation_status?: string | null;
+  final_status?: string | null;
+  final_action?: string | null;
+  execution_status?: string | null;
+  selected: boolean;
+  binding_constraint?: string | null;
+  reason?: string | null;
+};
+
 export type UiRunSummary = {
   run_id: string;
   status: RunStatus;
@@ -66,6 +85,16 @@ export type UiRunSummary = {
   error_count: number;
   market_provider?: string | null;
   universe?: UiRunUniverse | null;
+  universe_count: number;
+  analyzed_count: number;
+  ranked_count: number;
+  proposal_count: number;
+  selected_count: number;
+  not_selected_count: number;
+  allocation_rejected_count: number;
+  risk_rejected_count: number;
+  executed_count: number;
+  selection_preview: UiRunSelectionRow[];
   final_status_counts: Record<string, number>;
   order_status_counts: Record<string, number>;
   graph_enabled_profile: boolean;
@@ -136,6 +165,7 @@ export type UiRunDetailResponse = {
   symbols: UiSymbolPipelineRow[];
   market_data_summary: JsonObject;
   strategy_summary: JsonObject;
+  selection_ledger: UiRunSelectionRow[];
   errors: JsonObject[];
   artifacts: JsonObject;
   warnings: UiWarning[];
@@ -150,6 +180,8 @@ export type UiDecisionTrailResponse = {
   final_action?: string | null;
   can_send_to_broker?: boolean | null;
   allocation_decision?: JsonObject | null;
+  selection_decision?: UiRunSelectionRow | null;
+  decision_reason?: string | null;
   analyst_roster?: UiAnalystRoster | null;
   selected_stage_id: string;
   stages: UiTimelineStage[];

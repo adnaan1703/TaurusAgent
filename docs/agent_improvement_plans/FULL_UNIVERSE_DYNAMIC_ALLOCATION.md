@@ -477,6 +477,27 @@ primary React dashboard.
 
 At completion, add assumptions made, mocks created, and mocks used.
 
+### M41 Completion Summary
+
+- Status: Done.
+- Completed: Added bounded run-level selection previews to overview run
+  summaries, full selection ledgers to run detail payloads, explicit
+  selection/no-action/allocation/execution reasons to decision trails, and
+  React surfaces for full-universe counts, ledger scanning, decision reasons,
+  and latest allocation decisions backed by run-level ledger data when
+  available.
+- Verification: `make test-ui`, `make build-ui`, `make test`, and `make lint`
+  passed.
+- Assumptions made: M40's persisted `allocation.ledger`, `allocation.summary`,
+  `symbol_scope`, `final_decisions`, and `execution` run artifacts are the
+  source of truth for M41 observability when present; overview selection
+  previews should remain bounded to eight rows; legacy runs without allocation
+  ledgers should keep empty selection-ledger payloads while retaining existing
+  allocation dashboard fallbacks.
+- Mocks created: None.
+- Mocks used: Existing `FakeLLMProvider` and `FakeKiteMarketDataProvider` test
+  fixtures.
+
 ## M42: Backtest, Replay, And Command Alignment
 
 ### Goal

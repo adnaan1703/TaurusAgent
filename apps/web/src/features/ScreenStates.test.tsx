@@ -31,6 +31,71 @@ const runSummary = {
   failed_symbols: [],
   error_count: 0,
   market_provider: "kite",
+  universe_count: 3,
+  analyzed_count: 3,
+  ranked_count: 3,
+  proposal_count: 3,
+  selected_count: 1,
+  not_selected_count: 1,
+  allocation_rejected_count: 1,
+  risk_rejected_count: 0,
+  executed_count: 1,
+  selection_preview: [
+    {
+      symbol: "INFY",
+      proposal_id: "tp-1",
+      final_decision_id: "fd-1",
+      decision_id: "dec-test",
+      order_id: "po-1",
+      rank: 1,
+      strategy_score: 0.92,
+      trader_action: "BUY",
+      proposal_confidence: 0.9,
+      allocation_status: "selected",
+      final_status: "APPROVED_FOR_PAPER",
+      final_action: "BUY",
+      execution_status: "FILLED",
+      selected: true,
+      binding_constraint: null,
+      reason: "executed_by_paper_order:filled",
+    },
+    {
+      symbol: "TCS",
+      proposal_id: "tp-2",
+      final_decision_id: "fd-2",
+      decision_id: "dec-tcs",
+      order_id: null,
+      rank: 2,
+      strategy_score: 0.8,
+      trader_action: "BUY",
+      proposal_confidence: 0.76,
+      allocation_status: "not_selected",
+      final_status: "NO_ACTION",
+      final_action: "NO_TRADE",
+      execution_status: "skipped",
+      selected: false,
+      binding_constraint: "open_positions",
+      reason: "not_selected_by_run_allocation:open_positions",
+    },
+    {
+      symbol: "RELIANCE",
+      proposal_id: "tp-3",
+      final_decision_id: "fd-3",
+      decision_id: "dec-reliance",
+      order_id: null,
+      rank: 3,
+      strategy_score: 0.7,
+      trader_action: "BUY",
+      proposal_confidence: 0.64,
+      allocation_status: "allocation_rejected",
+      final_status: "NO_ACTION",
+      final_action: "NO_TRADE",
+      execution_status: "skipped",
+      selected: false,
+      binding_constraint: "strategy_unmapped",
+      reason: "allocation_rejected_by_run_allocation:strategy_unmapped",
+    },
+  ],
   final_status_counts: { APPROVED_FOR_PAPER: 1 },
   order_status_counts: { FILLED: 1 },
 };
@@ -107,7 +172,17 @@ const allocation = {
     remaining_risk_inr: 3800,
     used_pct_limit: 24,
   },
-  latest_decisions: [{ ...allocationDecision, run_id: "pr-test", proposal_id: "tp-1", as_of: "2026-05-21T15:00:20Z" }],
+  latest_decisions: [
+    {
+      ...allocationDecision,
+      run_id: "pr-test",
+      proposal_id: "tp-1",
+      as_of: "2026-05-21T15:00:20Z",
+      rank: 1,
+      allocation_status: "selected",
+      reason: "executed_by_paper_order:filled",
+    },
+  ],
   drawdown_governors: {
     portfolio_drawdown_pct: 0,
     portfolio_governor_reasons: [],
@@ -368,6 +443,7 @@ const runDetail = {
   ],
   market_data_summary: { provider_name: "kite", candle_count: 252 },
   strategy_summary: { strategy_name: "blended_score", signal_count: 1 },
+  selection_ledger: runSummary.selection_preview,
   errors: [],
   artifacts: {},
   warnings: [],
@@ -382,6 +458,8 @@ const trail = {
   final_action: "BUY",
   can_send_to_broker: true,
   allocation_decision: allocationDecision,
+  selection_decision: runSummary.selection_preview[0],
+  decision_reason: "executed_by_paper_order:filled",
   analyst_roster: runDetail.symbols[0].analyst_roster,
   selected_stage_id: "inputs",
   stages,
@@ -484,11 +562,33 @@ describe("M16.4 screen states", () => {
     expect(await screen.findAllByText("make api")).not.toHaveLength(0);
   });
 
+  it("renders overview run-count and selection summaries", async () => {
+    stubFetch({ overview });
+    renderRoute("/");
+
+    expect(await screen.findByText("Full-Universe Run Summary")).toBeInTheDocument();
+    expect(screen.getByText("Latest Selection Preview")).toBeInTheDocument();
+    expect(screen.getByText("1 selected / 1 executed")).toBeInTheDocument();
+    expect(screen.getByText("3 analyzed / 3 ranked")).toBeInTheDocument();
+    expect(screen.getByText("not_selected_by_run_allocation:open_positions")).toBeInTheDocument();
+    expect(screen.getByText("allocation_rejected_by_run_allocation:strategy_unmapped")).toBeInTheDocument();
+  });
+
+  it("renders the run-detail selection ledger empty state for legacy runs", async () => {
+    stubFetch({ overview, runDetail: { ...runDetail, selection_ledger: [] } });
+    renderRoute("/runs/pr-test");
+
+    expect(await screen.findByText("Selection Ledger")).toBeInTheDocument();
+    expect(screen.getByText("No run-level selection ledger is available for this run")).toBeInTheDocument();
+  });
+
   it("renders a populated decision trail with missing stages and replay link", async () => {
     stubFetch({ overview, runDetail, trail });
     renderRoute("/runs/pr-test/symbols/INFY");
 
     expect(await screen.findByText("Open replay")).toBeInTheDocument();
+    expect(screen.getByText("Run Selection Decision")).toBeInTheDocument();
+    expect(screen.getAllByText("executed_by_paper_order:filled").length).toBeGreaterThan(0);
     expect(screen.getByText("Allocation Decision")).toBeInTheDocument();
     expect(screen.getAllByText("cash_buffer").length).toBeGreaterThan(0);
     expect(screen.getByText("Analyst Roster")).toBeInTheDocument();

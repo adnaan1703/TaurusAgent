@@ -9,7 +9,7 @@ export type DataTableColumn<Row> = {
 
 type DataTableProps<Row> = {
   columns: DataTableColumn<Row>[];
-  rows: Row[];
+  rows?: Row[];
   getRowKey: (row: Row) => string;
   emptyLabel?: string;
 };
@@ -20,7 +20,8 @@ export function DataTable<Row>({
   getRowKey,
   emptyLabel = "No rows",
 }: DataTableProps<Row>) {
-  if (rows.length === 0) {
+  const safeRows = rows ?? [];
+  if (safeRows.length === 0) {
     return (
       <div className="rounded-md border border-dashed border-taurus-outline bg-taurus-shell p-5 text-sm text-taurus-muted">
         {emptyLabel}
@@ -47,7 +48,7 @@ export function DataTable<Row>({
           </tr>
         </thead>
         <tbody className="divide-y divide-taurus-outline">
-          {rows.map((row) => (
+          {safeRows.map((row) => (
             <tr className="hover:bg-taurus-surfaceRaised/60" key={getRowKey(row)}>
               {columns.map((column) => (
                 <td className="px-3 py-3 text-taurus-text" key={column.key}>

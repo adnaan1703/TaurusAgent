@@ -105,6 +105,25 @@ class UiRunUniverse(BaseModel):
     symbols: list[str] = Field(default_factory=list)
 
 
+class UiRunSelectionRow(BaseModel):
+    symbol: str
+    proposal_id: str | None = None
+    final_decision_id: str | None = None
+    decision_id: str | None = None
+    order_id: str | None = None
+    rank: int | None = None
+    strategy_score: int | float | None = None
+    trader_action: str | None = None
+    proposal_confidence: int | float | None = None
+    allocation_status: str | None = None
+    final_status: str | None = None
+    final_action: str | None = None
+    execution_status: str | None = None
+    selected: bool = False
+    binding_constraint: str | None = None
+    reason: str | None = None
+
+
 class UiRunSummary(BaseModel):
     run_id: str
     status: RunStatus
@@ -120,6 +139,16 @@ class UiRunSummary(BaseModel):
     error_count: int
     market_provider: str | None
     universe: UiRunUniverse | None = None
+    universe_count: int = 0
+    analyzed_count: int = 0
+    ranked_count: int = 0
+    proposal_count: int = 0
+    selected_count: int = 0
+    not_selected_count: int = 0
+    allocation_rejected_count: int = 0
+    risk_rejected_count: int = 0
+    executed_count: int = 0
+    selection_preview: list[UiRunSelectionRow] = Field(default_factory=list)
     final_status_counts: dict[str, int] = Field(default_factory=dict)
     order_status_counts: dict[str, int] = Field(default_factory=dict)
     graph_enabled_profile: bool = False
@@ -190,6 +219,7 @@ class UiRunDetailResponse(BaseModel):
     symbols: list[UiSymbolPipelineRow]
     market_data_summary: dict[str, Any]
     strategy_summary: dict[str, Any]
+    selection_ledger: list[UiRunSelectionRow] = Field(default_factory=list)
     errors: list[dict[str, Any]]
     artifacts: dict[str, Any]
     warnings: list[UiWarning]
@@ -204,6 +234,8 @@ class UiDecisionTrailResponse(BaseModel):
     final_action: str | None
     can_send_to_broker: bool | None
     allocation_decision: dict[str, Any] | None = None
+    selection_decision: UiRunSelectionRow | None = None
+    decision_reason: str | None = None
     analyst_roster: UiAnalystRoster | None = None
     selected_stage_id: str
     stages: list[UiTimelineStage]
@@ -327,7 +359,10 @@ def get_overview(
     execution_repo = ExecutionRepository(session)
 
     run_rows = run_repo.list(limit=limit)
-    recent_runs = [_run_summary(row, risk_repo, execution_repo) for row in run_rows]
+    recent_runs = [
+        _run_summary(row, research_repo, risk_repo, execution_repo)
+        for row in run_rows
+    ]
     latest_run = recent_runs[0] if recent_runs else None
     latest_account = execution_repo.latest_account_by_portfolio(
         portfolio_id=settings.taurus_paper_portfolio_id,
@@ -386,7 +421,19 @@ def get_ui_run(
     run = _require_run(session, run_id)
     risk_repo = RiskRepository(session)
     execution_repo = ExecutionRepository(session)
-    run_summary = _run_summary(run, risk_repo, execution_repo)
+    research_repo = ResearchRepository(session)
+    final_decisions = risk_repo.list_final_decisions(run_id=run.run_id, limit=None)
+    orders = execution_repo.list_orders(run_id=run.run_id, limit=None)
+    proposals = research_repo.list_trader_proposals(run_id=run.run_id, limit=None)
+    run_summary = _run_summary(
+        run,
+        research_repo,
+        risk_repo,
+        execution_repo,
+        proposals=proposals,
+        final_decisions=final_decisions,
+        orders=orders,
+    )
     symbols = [
         _symbol_pipeline_row(session=session, run=run, symbol=symbol)
         for symbol in run.symbols
@@ -397,6 +444,13 @@ def get_ui_run(
         symbols=symbols,
         market_data_summary=_json_safe(run.market_data_summary),
         strategy_summary=_strategy_summary(run),
+        selection_ledger=_selection_rows(
+            run=run,
+            proposals=proposals,
+            final_decisions=final_decisions,
+            orders=orders,
+            limit=None,
+        ),
         errors=_json_safe(run.errors),
         artifacts=_json_safe(run.artifacts),
         warnings=_run_warnings(run),
@@ -421,8 +475,18 @@ def get_decision_trail(
     stages = _timeline_stages(run=run, symbol=normalized_symbol, context=context)
     final_decision = context["final_decision"]
     instrument = context["instrument"]
+    selection_decision = _selection_row_for_symbol(
+        run=run,
+        symbol=normalized_symbol,
+        context=context,
+    )
     return UiDecisionTrailResponse(
-        run=_run_summary(run, RiskRepository(session), ExecutionRepository(session)),
+        run=_run_summary(
+            run,
+            ResearchRepository(session),
+            RiskRepository(session),
+            ExecutionRepository(session),
+        ),
         symbol=normalized_symbol,
         company_name=instrument.name if instrument is not None else None,
         decision_id=final_decision.decision_id if final_decision is not None else None,
@@ -432,6 +496,10 @@ def get_decision_trail(
         if final_decision is not None
         else None,
         allocation_decision=_latest_allocation_decision(context),
+        selection_decision=selection_decision,
+        decision_reason=selection_decision.reason
+        if selection_decision is not None
+        else _legacy_decision_reason(context),
         analyst_roster=_analyst_roster(run=run, symbol=normalized_symbol),
         selected_stage_id=stages[0].id,
         stages=stages,
@@ -586,7 +654,8 @@ def get_ui_history(
     risk_repo = RiskRepository(session)
     execution_repo = ExecutionRepository(session)
     rows = PaperRunRepository(session).list(limit=limit)
-    runs = [_run_summary(row, risk_repo, execution_repo) for row in rows]
+    research_repo = ResearchRepository(session)
+    runs = [_run_summary(row, research_repo, risk_repo, execution_repo) for row in rows]
     symbols = sorted({symbol for row in rows for symbol in row.symbols})
     started_values = [row.started_at for row in rows]
     return UiHistoryResponse(
@@ -728,12 +797,39 @@ def _require_run(session: Session, run_id: str) -> PaperRunModel:
 
 def _run_summary(
     run: PaperRunModel,
+    research_repo: ResearchRepository,
     risk_repo: RiskRepository,
     execution_repo: ExecutionRepository,
+    *,
+    proposals: list[TraderProposalModel] | None = None,
+    risk_reviews: list[RiskReviewModel] | None = None,
+    final_decisions: list[FinalDecisionModel] | None = None,
+    orders: list[PaperOrderModel] | None = None,
 ) -> UiRunSummary:
-    final_decisions = risk_repo.list_final_decisions(run_id=run.run_id, limit=None)
-    orders = execution_repo.list_orders(run_id=run.run_id, limit=None)
+    proposals = proposals if proposals is not None else research_repo.list_trader_proposals(
+        run_id=run.run_id,
+        limit=None,
+    )
+    risk_reviews = risk_reviews if risk_reviews is not None else risk_repo.list_risk_reviews(
+        run_id=run.run_id,
+        limit=None,
+    )
+    final_decisions = final_decisions if final_decisions is not None else risk_repo.list_final_decisions(
+        run_id=run.run_id,
+        limit=None,
+    )
+    orders = orders if orders is not None else execution_repo.list_orders(
+        run_id=run.run_id,
+        limit=None,
+    )
     strategy = _strategy_summary(run)
+    count_payload = _run_count_payload(
+        run=run,
+        proposals=proposals,
+        risk_reviews=risk_reviews,
+        final_decisions=final_decisions,
+        orders=orders,
+    )
     return UiRunSummary(
         run_id=run.run_id,
         status=run.status,  # type: ignore[arg-type]
@@ -749,6 +845,13 @@ def _run_summary(
         error_count=len(run.errors),
         market_provider=_market_provider(run),
         universe=_run_universe(run),
+        selection_preview=_selection_rows(
+            run=run,
+            proposals=proposals,
+            final_decisions=final_decisions,
+            orders=orders,
+            limit=8,
+        ),
         final_status_counts=dict(Counter(row.status for row in final_decisions)),
         order_status_counts=dict(Counter(row.status for row in orders)),
         graph_enabled_profile=bool(strategy.get("graph_enabled_profile", False)),
@@ -759,7 +862,391 @@ def _run_summary(
             for symbol in strategy.get("graph_selected_symbols", [])
             if str(symbol).strip()
         ],
+        **count_payload,
     )
+
+
+SELECTED_ALLOCATION_STATUSES = frozenset({"selected", "allocation_reduced"})
+RISK_REJECTED_STATUSES = frozenset({"REJECTED", "BLOCKED"})
+
+
+def _run_count_payload(
+    *,
+    run: PaperRunModel,
+    proposals: list[TraderProposalModel],
+    risk_reviews: list[RiskReviewModel],
+    final_decisions: list[FinalDecisionModel],
+    orders: list[PaperOrderModel],
+) -> dict[str, int]:
+    strategy = _strategy_summary(run)
+    scope = _symbol_scope_artifact(run)
+    allocation = _allocation_artifact(run)
+    allocation_summary = (
+        allocation.get("summary") if isinstance(allocation.get("summary"), dict) else {}
+    )
+    ledger_counts = (
+        allocation.get("ledger_counts")
+        if isinstance(allocation.get("ledger_counts"), dict)
+        else {}
+    )
+    final_artifact = _run_artifact(run, "final_decisions")
+    execution_artifact = _run_artifact(run, "execution")
+    ledger = _allocation_ledger(run)
+    universe = _run_universe(run)
+
+    universe_count = (
+        (universe.available_symbol_count if universe is not None else None)
+        or _list_count(scope.get("requested_universe_symbols"))
+        or (universe.selected_symbol_count if universe is not None else None)
+        or len(run.symbols)
+    )
+    analyzed_count = (
+        _optional_int(scope.get("analyzed_symbol_count"))
+        or _list_count(scope.get("analyzed_symbols"))
+        or len(run.symbols)
+    )
+    ranked_count = (
+        _optional_int(strategy.get("ranked_symbol_count"))
+        or _list_count(scope.get("strategy_ranked_symbols"))
+        or _list_count(strategy.get("strategy_ranked_symbols"))
+    )
+    proposal_count = (
+        _optional_int(allocation_summary.get("proposal_count"))
+        or _optional_int(allocation.get("ledger_count"))
+        or len(proposals)
+    )
+    selected_count = (
+        _optional_int(allocation_summary.get("selected_count"))
+        or _ledger_status_count(ledger, SELECTED_ALLOCATION_STATUSES)
+        or sum(1 for decision in final_decisions if decision.status == "APPROVED_FOR_PAPER")
+    )
+    not_selected_count = (
+        _optional_int(allocation_summary.get("not_selected_count"))
+        or _optional_int(ledger_counts.get("not_selected"))
+        or max(
+            sum(1 for decision in final_decisions if decision.status == "NO_ACTION")
+            - _optional_int(allocation_summary.get("allocation_rejected_count") or 0),
+            0,
+        )
+    )
+    allocation_rejected_count = (
+        _optional_int(allocation_summary.get("allocation_rejected_count"))
+        or _optional_int(ledger_counts.get("allocation_rejected"))
+        or _ledger_status_count(ledger, {"allocation_rejected"})
+    )
+    risk_rejected_count = sum(
+        1 for review in risk_reviews if review.status in RISK_REJECTED_STATUSES
+    ) or _artifact_status_count(final_artifact, RISK_REJECTED_STATUSES)
+    executed_count = (
+        _optional_int(execution_artifact.get("routed_order_count"))
+        or sum(1 for order in orders if order.status != "REJECTED")
+    )
+    return {
+        "universe_count": int(universe_count),
+        "analyzed_count": int(analyzed_count),
+        "ranked_count": int(ranked_count),
+        "proposal_count": int(proposal_count),
+        "selected_count": int(selected_count),
+        "not_selected_count": int(not_selected_count),
+        "allocation_rejected_count": int(allocation_rejected_count),
+        "risk_rejected_count": int(risk_rejected_count),
+        "executed_count": int(executed_count),
+    }
+
+
+def _selection_rows(
+    *,
+    run: PaperRunModel,
+    proposals: list[TraderProposalModel],
+    final_decisions: list[FinalDecisionModel],
+    orders: list[PaperOrderModel],
+    limit: int | None,
+) -> list[UiRunSelectionRow]:
+    ledger = _allocation_ledger(run)
+    if not ledger:
+        return []
+
+    proposals_by_symbol = {proposal.symbol.upper(): proposal for proposal in proposals}
+    final_by_symbol = {decision.symbol.upper(): decision for decision in final_decisions}
+    order_by_symbol = {order.symbol.upper(): order for order in orders}
+    execution_by_symbol = _execution_artifacts_by_symbol(run)
+
+    rows: list[UiRunSelectionRow] = []
+    for raw_entry in ledger:
+        if not isinstance(raw_entry, dict):
+            continue
+        symbol = str(raw_entry.get("symbol") or "").strip().upper()
+        if not symbol:
+            continue
+        row = _selection_row_from_entry(
+            raw_entry,
+            proposal=proposals_by_symbol.get(symbol),
+            final_decision=final_by_symbol.get(symbol),
+            order=order_by_symbol.get(symbol),
+            execution_artifact=execution_by_symbol.get(symbol),
+        )
+        rows.append(row)
+
+    rows.sort(key=_selection_sort_key)
+    return rows if limit is None else rows[:limit]
+
+
+def _selection_row_for_symbol(
+    *,
+    run: PaperRunModel,
+    symbol: str,
+    context: dict[str, Any],
+) -> UiRunSelectionRow | None:
+    normalized = symbol.upper()
+    for raw_entry in _allocation_ledger(run):
+        if not isinstance(raw_entry, dict):
+            continue
+        if str(raw_entry.get("symbol") or "").strip().upper() != normalized:
+            continue
+        orders: list[PaperOrderModel] = context["orders"]
+        return _selection_row_from_entry(
+            raw_entry,
+            proposal=context["trader_proposal"],
+            final_decision=context["final_decision"],
+            order=orders[0] if orders else None,
+            execution_artifact=_execution_artifacts_by_symbol(run).get(normalized),
+        )
+    return None
+
+
+def _selection_row_from_entry(
+    entry: dict[str, Any],
+    *,
+    proposal: TraderProposalModel | None,
+    final_decision: FinalDecisionModel | None,
+    order: PaperOrderModel | None,
+    execution_artifact: dict[str, Any] | None,
+) -> UiRunSelectionRow:
+    symbol = str(entry.get("symbol") or "").strip().upper()
+    allocation_status = _optional_string(entry.get("status"))
+    proposal_payload = _payload(proposal) if proposal is not None else {}
+    allocation_decision = _allocation_decision_from_payload(proposal_payload)
+    binding_constraint = (
+        _optional_string(entry.get("binding_constraint"))
+        or (
+            _optional_string(allocation_decision.get("binding_constraint"))
+            if allocation_decision
+            else None
+        )
+    )
+    proposal_id = _optional_string(entry.get("proposal_id")) or (
+        proposal.proposal_id if proposal is not None else None
+    )
+    selected = bool(entry.get("selected")) or allocation_status in SELECTED_ALLOCATION_STATUSES
+    return UiRunSelectionRow(
+        symbol=symbol,
+        proposal_id=proposal_id,
+        final_decision_id=final_decision.final_decision_id
+        if final_decision is not None
+        else _optional_string(execution_artifact.get("final_decision_id"))
+        if execution_artifact
+        else None,
+        decision_id=final_decision.decision_id if final_decision is not None else None,
+        order_id=order.order_id if order is not None else None,
+        rank=_optional_int(entry.get("strategy_rank")),
+        strategy_score=_number_or_none(entry.get("strategy_score")),
+        trader_action=_optional_string(entry.get("action"))
+        or (proposal.action if proposal is not None else None),
+        proposal_confidence=_number_or_none(
+            entry.get("trader_confidence")
+            if entry.get("trader_confidence") is not None
+            else proposal.confidence
+            if proposal is not None
+            else None
+        ),
+        allocation_status=allocation_status,
+        final_status=final_decision.status if final_decision is not None else None,
+        final_action=final_decision.final_action if final_decision is not None else None,
+        execution_status=order.status
+        if order is not None
+        else "skipped"
+        if execution_artifact is not None
+        else None,
+        selected=selected,
+        binding_constraint=binding_constraint,
+        reason=_selection_reason(
+            entry=entry,
+            final_decision=final_decision,
+            order=order,
+            execution_artifact=execution_artifact,
+            allocation_status=allocation_status,
+            binding_constraint=binding_constraint,
+        ),
+    )
+
+
+def _selection_reason(
+    *,
+    entry: dict[str, Any],
+    final_decision: FinalDecisionModel | None,
+    order: PaperOrderModel | None,
+    execution_artifact: dict[str, Any] | None,
+    allocation_status: str | None,
+    binding_constraint: str | None,
+) -> str | None:
+    if order is not None:
+        if order.status == "REJECTED":
+            return order.rejection_reason or "execution_rejected_by_paper_broker"
+        if order.status in {"FILLED", "PARTIALLY_FILLED"}:
+            return f"executed_by_paper_order:{order.status.lower()}"
+        return f"paper_order_status:{order.status.lower()}"
+
+    execution_reason = (
+        _optional_string(execution_artifact.get("reason"))
+        if execution_artifact is not None
+        else None
+    )
+    if execution_reason:
+        return execution_reason
+
+    if final_decision is not None:
+        if final_decision.status in RISK_REJECTED_STATUSES:
+            return final_decision.reason or f"risk_rejected:{final_decision.status.lower()}"
+        if final_decision.status == "NO_ACTION":
+            return final_decision.reason or "no_action"
+
+    rationale = _first_string(entry.get("rationale"))
+    if rationale:
+        return rationale
+
+    if allocation_status in SELECTED_ALLOCATION_STATUSES:
+        return "selected_by_run_allocation"
+    if allocation_status == "not_selected":
+        return f"not_selected_by_run_allocation:{binding_constraint or 'none'}"
+    if allocation_status == "allocation_rejected":
+        return f"allocation_rejected_by_run_allocation:{binding_constraint or 'none'}"
+    if allocation_status == "open_position_management":
+        return "open_position_lifecycle"
+    if allocation_status in {"unchanged", "unchanged_lifecycle"}:
+        return "no_action_unchanged_lifecycle"
+    return None
+
+
+def _legacy_decision_reason(context: dict[str, Any]) -> str | None:
+    orders: list[PaperOrderModel] = context["orders"]
+    final_decision: FinalDecisionModel | None = context["final_decision"]
+    allocation_decision = _latest_allocation_decision(context)
+    entry = {
+        "status": allocation_decision.get("status") if allocation_decision else None,
+        "binding_constraint": allocation_decision.get("binding_constraint")
+        if allocation_decision
+        else None,
+        "rationale": allocation_decision.get("rationale") if allocation_decision else None,
+    }
+    return _selection_reason(
+        entry=entry,
+        final_decision=final_decision,
+        order=orders[0] if orders else None,
+        execution_artifact=None,
+        allocation_status=_optional_string(entry.get("status")),
+        binding_constraint=_optional_string(entry.get("binding_constraint")),
+    )
+
+
+def _selection_sort_key(row: UiRunSelectionRow) -> tuple[int, int, str]:
+    status_priority = 0 if row.selected else 1
+    rank = row.rank if row.rank is not None else 1_000_000
+    return status_priority, rank, row.symbol
+
+
+def _allocation_ledger(run: PaperRunModel) -> list[dict[str, Any]]:
+    allocation = _allocation_artifact(run)
+    ledger = allocation.get("ledger")
+    if not isinstance(ledger, list):
+        return []
+    return [entry for entry in ledger if isinstance(entry, dict)]
+
+
+def _allocation_artifact(run: PaperRunModel) -> dict[str, Any]:
+    return _run_artifact(run, "allocation")
+
+
+def _symbol_scope_artifact(run: PaperRunModel) -> dict[str, Any]:
+    scope = _run_artifact(run, "symbol_scope")
+    if scope:
+        return scope
+    strategy = _strategy_summary(run)
+    strategy_scope = strategy.get("symbol_scope")
+    return strategy_scope if isinstance(strategy_scope, dict) else {}
+
+
+def _run_artifact(run: PaperRunModel, key: str) -> dict[str, Any]:
+    artifacts = run.artifacts or {}
+    raw = artifacts.get(key)
+    return raw if isinstance(raw, dict) else {}
+
+
+def _execution_artifacts_by_symbol(run: PaperRunModel) -> dict[str, dict[str, Any]]:
+    execution = _run_artifact(run, "execution")
+    by_symbol: dict[str, dict[str, Any]] = {}
+    for key in ("execution_set", "skipped_symbols"):
+        rows = execution.get(key)
+        if not isinstance(rows, list):
+            continue
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            symbol = str(row.get("symbol") or "").strip().upper()
+            if symbol:
+                by_symbol[symbol] = row
+    return by_symbol
+
+
+def _ledger_status_count(
+    ledger: list[dict[str, Any]],
+    statuses: frozenset[str] | set[str],
+) -> int:
+    return sum(
+        1
+        for entry in ledger
+        if isinstance(entry, dict) and str(entry.get("status") or "") in statuses
+    )
+
+
+def _artifact_status_count(
+    artifact: dict[str, Any],
+    statuses: frozenset[str] | set[str],
+) -> int:
+    by_status = artifact.get("by_status")
+    if not isinstance(by_status, dict):
+        return 0
+    total = 0
+    for status in statuses:
+        total += _optional_int(by_status.get(status)) or 0
+    return total
+
+
+def _list_count(value: Any) -> int:
+    return len(value) if isinstance(value, list) else 0
+
+
+def _number_or_none(value: Any) -> int | float | None:
+    decimal_value = _decimal_or_none(value)
+    if decimal_value is None:
+        return None
+    return _decimal_to_number(decimal_value)
+
+
+def _optional_string(value: Any) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
+
+
+def _first_string(value: Any) -> str | None:
+    if isinstance(value, list):
+        for item in value:
+            text = _optional_string(item)
+            if text:
+                return text
+        return None
+    return _optional_string(value)
 
 
 def _symbol_context(
@@ -1494,6 +1981,69 @@ def _latest_allocation_decisions(
     limit: int,
 ) -> list[dict[str, Any]]:
     decisions: list[dict[str, Any]] = []
+    research_repo = ResearchRepository(session)
+    risk_repo = RiskRepository(session)
+    execution_repo = ExecutionRepository(session)
+
+    for run in PaperRunRepository(session).list(limit=25):
+        ledger = _allocation_ledger(run)
+        if not ledger:
+            continue
+        proposals = research_repo.list_trader_proposals(run_id=run.run_id, limit=None)
+        final_decisions = risk_repo.list_final_decisions(run_id=run.run_id, limit=None)
+        orders = execution_repo.list_orders(run_id=run.run_id, limit=None)
+        proposals_by_symbol = {proposal.symbol.upper(): proposal for proposal in proposals}
+        final_by_symbol = {decision.symbol.upper(): decision for decision in final_decisions}
+        order_by_symbol = {order.symbol.upper(): order for order in orders}
+        execution_by_symbol = _execution_artifacts_by_symbol(run)
+
+        for entry in ledger:
+            symbol = str(entry.get("symbol") or "").strip().upper()
+            if not symbol:
+                continue
+            proposal = proposals_by_symbol.get(symbol)
+            proposal_payload = _payload(proposal) if proposal is not None else {}
+            decision = _allocation_decision_from_payload(proposal_payload) or {}
+            selection = _selection_row_from_entry(
+                entry,
+                proposal=proposal,
+                final_decision=final_by_symbol.get(symbol),
+                order=order_by_symbol.get(symbol),
+                execution_artifact=execution_by_symbol.get(symbol),
+            )
+            decisions.append(
+                _json_safe(
+                    {
+                        **decision,
+                        **entry,
+                        "status": selection.allocation_status,
+                        "run_id": run.run_id,
+                        "proposal_id": selection.proposal_id,
+                        "as_of": proposal.as_of if proposal is not None else run.started_at,
+                        "lifecycle_trigger": proposal.lifecycle_trigger
+                        if proposal is not None
+                        else None,
+                        "evaluation_mode": proposal.evaluation_mode
+                        if proposal is not None
+                        else None,
+                        "rank": selection.rank,
+                        "strategy_score": selection.strategy_score,
+                        "trader_action": selection.trader_action,
+                        "proposal_confidence": selection.proposal_confidence,
+                        "allocation_status": selection.allocation_status,
+                        "final_status": selection.final_status,
+                        "final_action": selection.final_action,
+                        "execution_status": selection.execution_status,
+                        "reason": selection.reason,
+                    }
+                )
+            )
+            if len(decisions) >= limit:
+                return decisions
+
+    if decisions:
+        return decisions[:limit]
+
     for proposal in ResearchRepository(session).list_trader_proposals(
         portfolio_id=settings.taurus_paper_portfolio_id,
         limit=limit,
