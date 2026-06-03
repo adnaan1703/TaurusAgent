@@ -15,6 +15,7 @@ from taurus_core.db.models import (
     FinalDecisionModel,
     PaperFillModel,
     PaperOrderModel,
+    PaperRunModel,
     RiskReviewModel,
     TraderProposalModel,
 )
@@ -36,8 +37,11 @@ class DecisionReplayService:
             self._company_events_stage(symbol=symbol),
             self._debate_stage(run_id=run_id, symbol=symbol),
             self._trader_stage(run_id=run_id, symbol=symbol),
+            self._strategy_ranking_stage(run_id=run_id, symbol=symbol),
+            self._allocation_ledger_stage(run_id=run_id, symbol=symbol),
             self._risk_stage(decision_id=decision_id),
             self._final_stage(decision_id=decision_id),
+            self._deferred_execution_stage(run_id=run_id, symbol=symbol),
             self._paper_order_stage(decision_id=decision_id),
             self._paper_fill_stage(decision_id=decision_id),
             self._audit_stage(decision_id=decision_id, run_id=run_id, symbol=symbol),
@@ -153,6 +157,77 @@ class DecisionReplayService:
         )
         return _stage("trader_proposal", [_payload(row)] if row is not None else [])
 
+    def _strategy_ranking_stage(self, *, run_id: str, symbol: str) -> ReplayStage:
+        strategy = self._paper_run_artifact(run_id).get("strategy")
+        if not isinstance(strategy, dict):
+            return _stage("strategy_ranking", [])
+
+        normalized_symbol = symbol.upper()
+        ranked_candidates = strategy.get("ranked_candidates")
+        matched = []
+        if isinstance(ranked_candidates, list):
+            matched = [
+                dict(item)
+                for item in ranked_candidates
+                if isinstance(item, dict)
+                and str(item.get("symbol") or "").upper() == normalized_symbol
+            ]
+        summary = {
+            "symbol": normalized_symbol,
+            "strategy_name": strategy.get("strategy_name"),
+            "strategy_type": strategy.get("strategy_type"),
+            "analysis_scope": strategy.get("analysis_scope"),
+            "execution_scope": strategy.get("execution_scope"),
+            "effective_execution_scope": strategy.get("effective_execution_scope"),
+            "ranked_symbol_count": strategy.get("ranked_symbol_count"),
+            "eligible_symbol_count": strategy.get("eligible_symbol_count"),
+            "strategy_ranked_symbols": strategy.get("strategy_ranked_symbols", []),
+            "targets": strategy.get("targets", []),
+        }
+        if matched:
+            return _stage(
+                "strategy_ranking",
+                [{**summary, "ranking": item} for item in matched],
+            )
+        return _stage(
+            "strategy_ranking",
+            [{**summary, "ranking": None, "reason": "symbol_not_ranked"}],
+        )
+
+    def _allocation_ledger_stage(self, *, run_id: str, symbol: str) -> ReplayStage:
+        allocation = self._paper_run_artifact(run_id).get("allocation")
+        if not isinstance(allocation, dict):
+            return _stage("allocation_ledger", [])
+
+        normalized_symbol = symbol.upper()
+        ledger = allocation.get("ledger")
+        matched = []
+        if isinstance(ledger, list):
+            matched = [
+                dict(item)
+                for item in ledger
+                if isinstance(item, dict)
+                and str(item.get("symbol") or "").upper() == normalized_symbol
+            ]
+        summary = {
+            "symbol": normalized_symbol,
+            "model_version": allocation.get("model_version"),
+            "policy_source": allocation.get("policy_source"),
+            "summary": allocation.get("summary", {}),
+            "binding_constraints": allocation.get("binding_constraints", {}),
+            "ledger_count": allocation.get("ledger_count"),
+            "status_counts": allocation.get("status_counts", {}),
+        }
+        if matched:
+            return _stage(
+                "allocation_ledger",
+                [{**summary, "ledger_entry": item} for item in matched],
+            )
+        return _stage(
+            "allocation_ledger",
+            [{**summary, "ledger_entry": None, "reason": "symbol_not_in_allocation_ledger"}],
+        )
+
     def _risk_stage(self, *, decision_id: str) -> ReplayStage:
         rows = list(
             self.session.scalars(
@@ -172,6 +247,43 @@ class DecisionReplayService:
             )
         )
         return _stage("final_decision", [_payload(row) for row in rows])
+
+    def _deferred_execution_stage(self, *, run_id: str, symbol: str) -> ReplayStage:
+        execution = self._paper_run_artifact(run_id).get("execution")
+        if not isinstance(execution, dict):
+            return _stage("deferred_execution", [])
+
+        normalized_symbol = symbol.upper()
+        artifacts: list[dict[str, object]] = []
+        for key, kind in (
+            ("execution_set", "execution_set"),
+            ("routed_orders", "routed_order"),
+            ("skipped_symbols", "skipped_symbol"),
+        ):
+            rows = execution.get(key)
+            if not isinstance(rows, list):
+                continue
+            for row in rows:
+                if not isinstance(row, dict):
+                    continue
+                if str(row.get("symbol") or "").upper() != normalized_symbol:
+                    continue
+                artifacts.append({"kind": kind, **row})
+
+        if artifacts:
+            return _stage("deferred_execution", artifacts)
+        return _stage(
+            "deferred_execution",
+            [
+                {
+                    "symbol": normalized_symbol,
+                    "reason": "symbol_not_in_deferred_execution_artifact",
+                    "execution_set_count": execution.get("execution_set_count"),
+                    "routed_order_count": execution.get("routed_order_count"),
+                    "skipped_symbol_count": execution.get("skipped_symbol_count"),
+                }
+            ],
+        )
 
     def _paper_order_stage(self, *, decision_id: str) -> ReplayStage:
         rows = list(
@@ -230,6 +342,12 @@ class DecisionReplayService:
             ],
         )
 
+    def _paper_run_artifact(self, run_id: str) -> dict[str, object]:
+        row = self.session.get(PaperRunModel, run_id)
+        if row is None or not isinstance(row.artifacts, dict):
+            return {}
+        return dict(row.artifacts)
+
 
 def _stage(name: str, artifacts: list[dict[str, object]]) -> ReplayStage:
     safe_artifacts = [_json_safe(artifact) for artifact in artifacts]
@@ -256,5 +374,7 @@ def _json_safe(value: Any) -> Any:
     if isinstance(value, dict):
         return {str(key): _json_safe(item) for key, item in value.items()}
     if isinstance(value, list):
+        return [_json_safe(item) for item in value]
+    if isinstance(value, tuple):
         return [_json_safe(item) for item in value]
     return value

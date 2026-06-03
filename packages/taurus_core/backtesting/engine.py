@@ -30,7 +30,7 @@ from taurus_core.db.models import (
 from taurus_core.db.repositories import BacktestRepository, CandleRepository, InstrumentRepository
 from taurus_core.domain.market_data import DailyCandle
 from taurus_core.features.store import FeatureValue, TechnicalFeatureService
-from taurus_core.strategies import StrategyConfig, StrategySignal, build_strategy
+from taurus_core.strategies import StrategyConfig, StrategyRanking, StrategySignal, build_strategy
 
 MONEY = Decimal("0.0001")
 RATE_DENOMINATOR = Decimal("10000")
@@ -118,6 +118,8 @@ class BacktestEngine:
         orders: list[BacktestOrderModel] = []
         fills: list[BacktestFillModel] = []
         equity_points: list[BacktestEquityPointModel] = []
+        latest_rankings: list[StrategyRanking] = []
+        rebalance_count = 0
 
         for date_index, trade_date in enumerate(common_dates):
             if trade_date < start_date:
@@ -159,6 +161,14 @@ class BacktestEngine:
                     )
                     graph_signal_count += len(graph_signals_by_symbol)
 
+                latest_rankings = strategy.rank_universe(
+                    trade_date=trade_date,
+                    features_by_symbol=features_by_symbol,
+                    current_positions=current_symbols,
+                    graph_signals_by_symbol=graph_signals_by_symbol,
+                )
+                rebalance_count += 1
+                target_limit = self.config.effective_portfolio_breadth
                 select_with_graph = getattr(strategy, "select_targets_with_graph", None)
                 if callable(select_with_graph):
                     targets, generated_signals = select_with_graph(
@@ -166,20 +176,14 @@ class BacktestEngine:
                         features_by_symbol=features_by_symbol,
                         current_positions=current_symbols,
                         graph_signals_by_symbol=graph_signals_by_symbol,
-                        target_limit=min(
-                            self.config.target_positions,
-                            self.config.max_open_positions,
-                        ),
+                        target_limit=target_limit,
                     )
                 else:
                     targets, generated_signals = strategy.select_targets(
                         trade_date=trade_date,
                         features_by_symbol=features_by_symbol,
                         current_positions=current_symbols,
-                        target_limit=min(
-                            self.config.target_positions,
-                            self.config.max_open_positions,
-                        ),
+                        target_limit=target_limit,
                     )
                 signals.extend(_signal_model(run_id, signal) for signal in generated_signals)
                 cash, new_orders, new_fills, new_closed_pnl = self._rebalance(
@@ -228,6 +232,17 @@ class BacktestEngine:
             winning_pnl=winning_pnl,
             losing_pnl=losing_pnl,
         )
+        ranking_summary = _ranking_summary(latest_rankings)
+        metrics.update(
+            {
+                "portfolio_breadth": self.config.effective_portfolio_breadth,
+                "portfolio_breadth_source": self.config.portfolio_breadth_source,
+                "ranked_candidate_count": ranking_summary["ranked_candidate_count"],
+                "eligible_candidate_count": ranking_summary["eligible_candidate_count"],
+                "ranked_candidates_preview": ranking_summary["ranked_candidates_preview"],
+                "rebalance_count": rebalance_count,
+            }
+        )
         if graph_loader is not None:
             metrics.update(summarize_graph_performance(closed_graph_trades))
             metrics["graph_signal_count"] = graph_signal_count
@@ -247,7 +262,10 @@ class BacktestEngine:
             initial_capital_inr=self.config.initial_capital_inr,
             final_equity_inr=final_equity,
             metrics=metrics,
-            parameters=self._parameters(),
+            parameters={
+                **self._parameters(),
+                "latest_ranking_summary": ranking_summary,
+            },
         )
         audit_rows = [
             AuditLogModel(
@@ -269,6 +287,9 @@ class BacktestEngine:
                     "equity_points": len(equity_points),
                     "graph_signals_loaded": graph_signal_count,
                     "graph_trades_closed": len(closed_graph_trades),
+                    "portfolio_breadth": self.config.effective_portfolio_breadth,
+                    "portfolio_breadth_source": self.config.portfolio_breadth_source,
+                    "ranked_candidate_count": ranking_summary["ranked_candidate_count"],
                 },
                 note="Backtest run completed.",
             ),
@@ -562,7 +583,10 @@ class BacktestEngine:
         return {
             "initial_capital_inr": str(self.config.initial_capital_inr),
             "max_open_positions": self.config.max_open_positions,
-            "target_positions": self.config.target_positions,
+            "portfolio_breadth": self.config.effective_portfolio_breadth,
+            "portfolio_breadth_source": self.config.portfolio_breadth_source,
+            "target_positions": self.config.effective_portfolio_breadth,
+            "deprecated_target_positions_input": self.config.target_positions,
             "lookback_days": self.config.lookback_days,
             "rebalance_every_days": self.config.rebalance_every_days,
             "cost_bps": str(self.config.cost_bps),
@@ -645,6 +669,20 @@ def _fill_model(
 
 def _money(value: Decimal | int) -> Decimal:
     return Decimal(value).quantize(MONEY)
+
+
+def _ranking_summary(rankings: list[StrategyRanking]) -> dict[str, object]:
+    ranked = sorted(
+        [ranking for ranking in rankings if ranking.rank is not None],
+        key=lambda ranking: ranking.rank or 1_000_000,
+    )
+    eligible = [ranking for ranking in rankings if ranking.is_eligible]
+    return {
+        "ranked_candidate_count": len(ranked),
+        "eligible_candidate_count": len(eligible),
+        "ranked_symbols": [ranking.symbol for ranking in ranked],
+        "ranked_candidates_preview": [ranking.to_dict() for ranking in ranked[:25]],
+    }
 
 
 def _json_safe(value: Any) -> Any:

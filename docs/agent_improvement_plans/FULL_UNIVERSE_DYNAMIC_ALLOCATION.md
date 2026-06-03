@@ -532,6 +532,31 @@ portfolio allocation.
 
 At completion, add assumptions made, mocks created, and mocks used.
 
+### M42 Completion Summary
+
+- Status: Done.
+- Completed: Backtest breadth now comes from `TAURUS_BACKTEST_TARGET_POSITIONS`,
+  money-management policy limits, or `TAURUS_MAX_OPEN_POSITIONS` instead of
+  deprecated strategy YAML `target_positions`; backtest run summaries include
+  breadth source plus latest ranking counts and a ranked-candidate preview.
+  Replay now includes run-level strategy ranking, allocation ledger, and
+  deferred-execution stages for selected and not-selected decisions. Position
+  monitor behavior remains open-position-only during market hours, including
+  when after-close paper runs are configured for full-universe analysis.
+- Verification: `uv run pytest tests/unit/test_backtest_engine.py
+  tests/unit/test_paper_runs.py::test_replay_includes_run_level_context_for_selected_and_not_selected_decisions
+  tests/unit/test_position_monitor.py::test_market_hours_monitor_remains_open_position_only_under_full_universe_scope
+  -q`, `make lint`, `make test`, `git diff --check`, and the global approval
+  audit passed. Full `make test` result: 255 passed, 1 skipped.
+- Assumptions made: `TAURUS_BACKTEST_TARGET_POSITIONS` is the explicit
+  backtest-level breadth override; when it is unset, enabled money-management
+  policy limits are the canonical breadth source before the settings fallback.
+  Replay can summarize run-level artifacts from `PaperRunModel.artifacts`
+  without rerunning agents or allocation.
+- Mocks created: None.
+- Mocks used: Existing `FakeLLMProvider`, `FakeKiteMarketDataProvider`, and
+  position-monitor `FakeQuoteProvider` test fixtures.
+
 ## M43: Default Enablement And Operator Hardening
 
 ### Goal

@@ -15,7 +15,9 @@ class BacktestConfig:
     seed: int = 42
     initial_capital_inr: Decimal = Decimal("1000000")
     max_open_positions: int = 8
-    target_positions: int = 3
+    portfolio_breadth: int | None = None
+    portfolio_breadth_source: str = "backtest_config"
+    target_positions: int | None = None
     lookback_days: int = 60
     rebalance_every_days: int = 21
     cost_bps: Decimal = Decimal("10")
@@ -28,8 +30,12 @@ class BacktestConfig:
             raise ValueError("initial_capital_inr must be positive")
         if self.max_open_positions <= 0:
             raise ValueError("max_open_positions must be positive")
-        if self.target_positions <= 0:
-            raise ValueError("target_positions must be positive")
+        if self.portfolio_breadth is not None and self.portfolio_breadth <= 0:
+            raise ValueError("portfolio_breadth must be positive when provided")
+        if not self.portfolio_breadth_source:
+            raise ValueError("portfolio_breadth_source must be set")
+        if self.target_positions is not None and self.target_positions <= 0:
+            raise ValueError("target_positions must be positive when provided")
         if self.lookback_days <= 0:
             raise ValueError("lookback_days must be positive")
         if self.rebalance_every_days <= 0:
@@ -40,6 +46,11 @@ class BacktestConfig:
             raise ValueError("slippage_bps cannot be negative")
         if self.strategy_type == "graph_aware_score" and not self.graph_enabled:
             object.__setattr__(self, "graph_enabled", True)
+
+    @property
+    def effective_portfolio_breadth(self) -> int:
+        requested = self.portfolio_breadth or self.target_positions or self.max_open_positions
+        return min(requested, self.max_open_positions)
 
 
 @dataclass(frozen=True, slots=True)

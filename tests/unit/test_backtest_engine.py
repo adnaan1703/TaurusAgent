@@ -7,9 +7,15 @@ from pathlib import Path
 from sqlalchemy import select
 
 from scripts.migrate import run_migrations
+from scripts.run_backtest import run_mock_backtest
 from taurus_core.backtesting import BacktestConfig, BacktestEngine
 from taurus_core.config import Settings
-from taurus_core.db.models import BacktestPositionModel, BacktestSignalModel, FeatureValueModel
+from taurus_core.db.models import (
+    BacktestPositionModel,
+    BacktestRunModel,
+    BacktestSignalModel,
+    FeatureValueModel,
+)
 from taurus_core.db.repositories import BacktestRepository, CandleRepository, InstrumentRepository
 from taurus_core.db.session import build_session_factory
 from taurus_core.domain.instruments import Instrument
@@ -62,7 +68,53 @@ def test_backtest_engine_stores_deterministic_run_artifacts(tmp_path: Path) -> N
         "max_drawdown",
         "win_rate",
         "profit_factor",
+        "portfolio_breadth",
+        "portfolio_breadth_source",
+        "ranked_candidate_count",
+        "eligible_candidate_count",
+        "ranked_candidates_preview",
+        "rebalance_count",
     }
+
+
+def test_backtest_runner_does_not_require_strategy_yaml_target_positions(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    strategy_path = tmp_path / "strategy_with_deprecated_targets.yaml"
+    strategy_path.write_text(
+        "strategy_name: no_target_positions_test\n"
+        "strategy_type: moving_average_crossover\n"
+        "target_positions: 1\n"
+        "lookback_days: 60\n"
+        "rebalance_every_days: 21\n"
+        "parameters:\n"
+        "  fast_window: 10\n"
+        "  slow_window: 30\n"
+        "  min_return_20d: -1\n",
+        encoding="utf-8",
+    )
+    settings = Settings(taurus_backtest_target_positions=2)
+    run_migrations(settings)
+    session_factory = build_session_factory(settings)
+    with session_factory() as session:
+        seed_test_market_data(session, candle_count=252)
+
+    monkeypatch.setenv("STRATEGY", str(strategy_path))
+
+    result = run_mock_backtest(settings)
+
+    with session_factory() as session:
+        run = session.get(BacktestRunModel, result.run_id)
+
+    assert result.metrics["portfolio_breadth"] == 2
+    assert result.metrics["portfolio_breadth_source"] == "backtest_config"
+    assert result.metrics["ranked_candidate_count"] > 0
+    assert result.metrics["ranked_candidates_preview"]
+    assert run is not None
+    assert run.parameters["portfolio_breadth"] == 2
+    assert run.parameters["deprecated_target_positions_input"] is None
+    assert run.parameters["strategy_config_path"] == str(strategy_path)
 
 
 def test_backtest_engine_aligns_candles_by_common_trade_date(tmp_path: Path) -> None:

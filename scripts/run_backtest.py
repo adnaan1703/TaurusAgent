@@ -10,6 +10,7 @@ from taurus_core.config import Settings, get_settings
 from taurus_core.data.preflight import assert_no_legacy_mock_candles
 from taurus_core.db.session import build_session_factory
 from taurus_core.logging import configure_logging
+from taurus_core.portfolio import load_money_management_policy_for_settings
 from taurus_core.strategies import DEFAULT_STRATEGY_CONFIG_PATH, load_strategy_config
 
 
@@ -22,6 +23,8 @@ def run_mock_backtest(settings: Settings | None = None) -> BacktestResult:
     with session_factory() as session:
         assert_no_legacy_mock_candles(session)
 
+    portfolio_breadth, breadth_source = _backtest_portfolio_breadth(settings)
+    max_open_positions = max(settings.taurus_max_open_positions, portfolio_breadth)
     config = BacktestConfig(
         strategy_name=strategy_config.strategy_name,
         strategy_type=strategy_config.strategy_type,
@@ -29,9 +32,9 @@ def run_mock_backtest(settings: Settings | None = None) -> BacktestResult:
         strategy_parameters=strategy_config.parameters,
         seed=42,
         initial_capital_inr=Decimal(settings.taurus_initial_capital_inr),
-        max_open_positions=settings.taurus_max_open_positions,
-        target_positions=strategy_config.target_positions
-        or settings.taurus_max_open_positions,
+        max_open_positions=max_open_positions,
+        portfolio_breadth=portfolio_breadth,
+        portfolio_breadth_source=breadth_source,
         lookback_days=strategy_config.lookback_days,
         rebalance_every_days=strategy_config.rebalance_every_days,
         timeframe=settings.taurus_timeframe,
@@ -44,8 +47,25 @@ def run_mock_backtest(settings: Settings | None = None) -> BacktestResult:
         return BacktestEngine(session, config).run()
 
 
+def _backtest_portfolio_breadth(settings: Settings) -> tuple[int, str]:
+    if settings.taurus_backtest_target_positions is not None:
+        return settings.taurus_backtest_target_positions, "backtest_config"
+    if settings.taurus_money_management_enabled:
+        policy = load_money_management_policy_for_settings(settings)
+        return policy.limits.max_open_positions, "money_management_policy"
+    return settings.taurus_max_open_positions, "settings"
+
+
 if __name__ == "__main__":
     configure_logging()
     result = run_mock_backtest()
     print(f"run_id={result.run_id}")
+    print(
+        "portfolio_breadth="
+        f"{result.metrics.get('portfolio_breadth')} "
+        f"source={result.metrics.get('portfolio_breadth_source')}"
+    )
+    ranked = result.metrics.get("ranked_candidates_preview") or []
+    if ranked:
+        print("ranked_candidates_preview=" + json.dumps(ranked, sort_keys=True))
     print(json.dumps(result.metrics, sort_keys=True))

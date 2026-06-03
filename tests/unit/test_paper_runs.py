@@ -518,6 +518,77 @@ def test_full_universe_finalizes_all_symbols_before_allocated_execution(
         assert "not_selected_by_run_allocation" in decision["reason"]
 
 
+def test_replay_includes_run_level_context_for_selected_and_not_selected_decisions(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings = _settings_for_temp_db(
+        tmp_path,
+        paper_analysis_scope="full_universe",
+        max_open_positions=1,
+    )
+    universe = _paper_run_universe(
+        source="market_data_universe",
+        symbols=["INFY", "TCS", "RELIANCE"],
+    )
+    _force_trader_actions(
+        monkeypatch,
+        {
+            "INFY": "BUY",
+            "TCS": "BUY",
+            "RELIANCE": "BUY",
+        },
+    )
+
+    run = PaperRunService(settings).run_once(
+        symbols=universe.symbols,
+        universe=universe,
+    )
+
+    execution = run.artifacts["execution"]
+    selected_symbol = execution["execution_set"][0]["symbol"]
+    not_selected_symbol = next(
+        item["symbol"]
+        for item in execution["skipped_symbols"]
+        if item["reason"] == "not_selected_by_run_allocation"
+    )
+    session_factory = build_session_factory(settings)
+    with session_factory() as session:
+        decision_ids = {
+            row.symbol: row.decision_id
+            for row in session.scalars(
+                select(FinalDecisionModel).where(FinalDecisionModel.run_id == run.run_id)
+            )
+        }
+
+    client = TestClient(create_app(settings))
+    selected_replay = client.get(f"/replay/{decision_ids[selected_symbol]}").json()
+    not_selected_replay = client.get(f"/replay/{decision_ids[not_selected_symbol]}").json()
+
+    selected_allocation = _replay_stage(selected_replay, "allocation_ledger")["artifacts"][0]
+    selected_execution = _replay_stage(selected_replay, "deferred_execution")["artifacts"]
+    not_selected_allocation = _replay_stage(not_selected_replay, "allocation_ledger")[
+        "artifacts"
+    ][0]
+    not_selected_execution = _replay_stage(not_selected_replay, "deferred_execution")[
+        "artifacts"
+    ]
+    not_selected_final = _replay_stage(not_selected_replay, "final_decision")["artifacts"][0]
+
+    assert _replay_stage(selected_replay, "strategy_ranking")["artifact_count"] >= 1
+    assert selected_allocation["ledger_entry"]["status"] in {
+        "selected",
+        "allocation_reduced",
+    }
+    assert {item["kind"] for item in selected_execution} >= {"execution_set"}
+    assert _replay_stage(not_selected_replay, "strategy_ranking")["artifact_count"] >= 1
+    assert not_selected_allocation["ledger_entry"]["status"] == "not_selected"
+    assert not_selected_final["status"] == "NO_ACTION"
+    assert not_selected_final["final_action"] == "NO_TRADE"
+    assert not_selected_execution[0]["kind"] == "skipped_symbol"
+    assert not_selected_execution[0]["reason"] == "not_selected_by_run_allocation"
+
+
 def test_full_universe_graph_selection_does_not_narrow_analysis(
     tmp_path: Path,
 ) -> None:
@@ -971,6 +1042,15 @@ def _paper_run_universe(*, source: str, symbols: list[str]) -> PaperRunUniverse:
         selected_symbol_count=len(normalized),
         symbols=normalized,
     )
+
+
+def _replay_stage(replay: dict[str, object], name: str) -> dict[str, object]:
+    stages = replay["stages"]
+    assert isinstance(stages, list)
+    for stage in stages:
+        if stage["name"] == name:
+            return stage
+    raise AssertionError(f"Replay stage {name} not found.")
 
 
 def _seed_paper_graph_fixture(settings: Settings) -> None:

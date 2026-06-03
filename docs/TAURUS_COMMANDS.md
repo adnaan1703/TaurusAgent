@@ -604,6 +604,40 @@ curl http://localhost:8000/ui/portfolio
 curl http://localhost:8000/ui/runs/{run_id}/symbols/{symbol}/decision-trail
 ```
 
+M42 aligns supporting tools with ranking/allocation separation. Backtests no
+longer use deprecated strategy YAML `target_positions` for portfolio breadth.
+Set the backtest breadth explicitly or let money management/settings provide it:
+
+```bash
+TAURUS_BACKTEST_TARGET_POSITIONS=8 make backtest-mock
+TAURUS_MONEY_MANAGEMENT_ENABLED=true make backtest-mock
+TAURUS_MAX_OPEN_POSITIONS=8 make backtest-mock
+```
+
+Breadth precedence is `TAURUS_BACKTEST_TARGET_POSITIONS`, then
+`TAURUS_MONEY_MANAGEMENT_ENABLED=true` policy `limits.max_open_positions`, then
+`TAURUS_MAX_OPEN_POSITIONS`. `scripts/run_backtest.py` prints
+`portfolio_breadth=<n> source=<source>`, a `ranked_candidates_preview` JSON
+line when rankings exist, and metrics containing `ranked_candidate_count`,
+`eligible_candidate_count`, and `rebalance_count`.
+
+Replay now includes run-level context in addition to the per-symbol trail:
+
+```bash
+make replay-decision DECISION_ID=sample
+```
+
+Expected replay stages include `strategy_ranking`, `allocation_ledger`, and
+`deferred_execution`. Selected decisions show their allocation ledger status and
+execution-set/routed-order entries; not-selected decisions show the
+`not_selected` allocation ledger row, a `NO_ACTION` final decision, and a
+deferred-execution skip reason such as `not_selected_by_run_allocation`.
+
+Market-hours position monitoring remains position-only. Even when
+`TAURUS_PAPER_ANALYSIS_SCOPE=full_universe` is configured for after-close paper
+runs, `make position-monitor` polls latest Kite quotes only for open paper
+positions and does not run full-universe strategy ranking or analysis.
+
 ## M39 Commands Used
 
 ```bash

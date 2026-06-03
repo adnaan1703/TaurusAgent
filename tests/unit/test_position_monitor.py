@@ -35,8 +35,10 @@ class FakeQuoteProvider:
     def __init__(self, prices: dict[str, Decimal], *, fail: bool = False) -> None:
         self.prices = {symbol.upper(): price for symbol, price in prices.items()}
         self.fail = fail
+        self.requests: list[list[str]] = []
 
     def get_latest_snapshots(self, symbols: list[str]) -> list[MarketPriceSnapshot]:
+        self.requests.append([symbol.upper() for symbol in symbols])
         if self.fail:
             raise RuntimeError("quote outage")
         now = datetime(2026, 6, 1, 5, 0, tzinfo=timezone.utc)
@@ -95,6 +97,71 @@ def test_stop_loss_trigger_creates_exit_flow(postgres_test_settings: Settings) -
     assert final is not None
     assert final.final_action == "EXIT"
     assert order.side == "SELL"
+
+
+def test_market_hours_monitor_remains_open_position_only_under_full_universe_scope(
+    postgres_test_settings: Settings,
+) -> None:
+    settings = _settings(paper_analysis_scope="full_universe")
+    _seed_monitor_fixture(settings)
+    now = datetime(2026, 5, 29, 10, 0, tzinfo=timezone.utc)
+    with build_session_factory(settings)() as session:
+        InstrumentRepository(session).upsert(
+            Instrument(
+                symbol="TCS",
+                name="Tata Consultancy Services Ltd",
+                exchange="NSE",
+                segment="EQUITY",
+                currency="INR",
+                lot_size=1,
+                tick_size=Decimal("0.05"),
+                active=True,
+            )
+        )
+        CandleRepository(session).upsert(
+            [
+                DailyCandle(
+                    symbol="TCS",
+                    trade_date=date(2026, 5, 28),
+                    open=Decimal("3500.0000"),
+                    high=Decimal("3510.0000"),
+                    low=Decimal("3490.0000"),
+                    close=Decimal("3500.0000"),
+                    volume=100000,
+                    source="test",
+                    data_available_time=now,
+                )
+            ]
+        )
+        session.commit()
+    quote_provider = FakeQuoteProvider(
+        {
+            "INFY": Decimal("1000.0000"),
+            "TCS": Decimal("3500.0000"),
+        }
+    )
+
+    result = PositionMonitorService(
+        settings,
+        quote_provider=quote_provider,
+        llm_provider=FakeLLMProvider(),
+        now_func=lambda: datetime(2026, 6, 1, 5, 0, tzinfo=timezone.utc),
+    ).run_once()
+
+    with build_session_factory(settings)() as session:
+        latest_run = (
+            session.query(AuditLogModel)
+            .filter(AuditLogModel.event_type == "position_monitor.iteration_started")
+            .order_by(AuditLogModel.created_at.desc())
+            .first()
+        )
+
+    assert result.status == "COMPLETED"
+    assert result.symbols_seen == ["INFY"]
+    assert quote_provider.requests == [["INFY"]]
+    assert result.skipped["INFY"] == "no_threshold_crossed"
+    assert latest_run is not None
+    assert latest_run.payload["symbols"] == ["INFY"]
 
 
 def test_take_profit_trigger_creates_reduce_flow(postgres_test_settings: Settings) -> None:
@@ -177,13 +244,14 @@ def test_quote_fetch_failure_audits_and_skips_symbol(
     assert audit_count == 1
 
 
-def _settings() -> Settings:
+def _settings(*, paper_analysis_scope: str = "strategy_selected") -> Settings:
     return Settings(
         taurus_position_monitor_enabled=True,
         taurus_position_monitor_market_hours_only=False,
         taurus_position_monitor_max_iterations=1,
         taurus_alert_provider="disabled",
         taurus_paper_partial_fill_threshold=1,
+        taurus_paper_analysis_scope=paper_analysis_scope,
     )
 
 

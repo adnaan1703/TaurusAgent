@@ -217,6 +217,11 @@ class Settings(BaseSettings):
         gt=0,
         validation_alias="TAURUS_MAX_OPEN_POSITIONS",
     )
+    taurus_backtest_target_positions: int | None = Field(
+        default=None,
+        gt=0,
+        validation_alias="TAURUS_BACKTEST_TARGET_POSITIONS",
+    )
     taurus_money_management_enabled: bool = Field(
         default=False,
         validation_alias="TAURUS_MONEY_MANAGEMENT_ENABLED",
