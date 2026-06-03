@@ -16,7 +16,7 @@ machine-readable summary on stdout:
   candle count, percent, elapsed time, and ETA.
 - `make compute-graph-stats`: current edge/window, source and target symbols,
   validated/insufficient/promoted counts, percent, elapsed time, and ETA.
-- `make paper-loop-kite`: iteration, run ID, setup stage, selected symbols,
+- `make paper-loop-kite`: iteration, run ID, setup stage, analyzed symbols,
   current symbol pipeline stage, succeeded/failed counts, elapsed time, and
   approximate ETA.
 
@@ -567,24 +567,28 @@ TAURUS_MARKET_DATA_UNIVERSE_PATH=configs/market_data/nifty_500_shariah.yaml
 
 When `SYMBOL` and `SYMBOLS` are omitted, `make paper-loop-kite` uses the
 configured market-data universe, which defaults to the Nifty 500 Shariah YAML.
-M38 adds an opt-in full-universe analysis mode for the paper loop:
+The canonical Kite paper profile now sets
+`TAURUS_PAPER_ANALYSIS_SCOPE=full_universe` and
+`TAURUS_PAPER_EXECUTION_SCOPE=allocated_only`:
 
 ```bash
-TAURUS_PAPER_ANALYSIS_SCOPE=full_universe make paper-loop-kite
-TAURUS_PAPER_ANALYSIS_SCOPE=strategy_selected make paper-loop-kite
-TAURUS_PAPER_EXECUTION_SCOPE=selected_only make paper-loop-kite
+make paper-loop-kite
+make paper-loop-kite SYMBOLS=INFY,TCS
+make paper-loop-start SYMBOLS=INFY,TCS
 ```
 
-`TAURUS_PAPER_ANALYSIS_SCOPE=strategy_selected` remains the default and preserves
-the pre-M38 selected-symbol behavior. `full_universe` analyzes every requested
-market-data-universe symbol plus open paper positions and stores proposal
-artifacts under `run.artifacts.analysis`; finalized legacy symbol artifacts
-remain under `run.artifacts.symbols`. Manual `SYMBOL` or `SYMBOLS` runs stay
-limited to the explicit symbols plus open positions. `TAURUS_PAPER_EXECUTION_SCOPE`
-accepts `selected_only` and `allocated_only`; M39 adds the run-level allocation
-ledger and batch proposal updates, while the effective finalization/execution
-scope remains `selected_only` until M40 moves all analyzed symbols through risk,
-final decision, and deferred execution routing.
+Full-universe runs analyze every requested market-data-universe symbol plus open
+paper positions and store proposal artifacts under `run.artifacts.analysis`;
+finalized legacy symbol artifacts remain under `run.artifacts.symbols`. Run-level
+allocation writes one ledger row per analyzed proposal and deferred execution
+routes only allocated, risk-approved paper decisions. Manual `SYMBOL` or
+`SYMBOLS` runs stay limited to the explicit symbols plus open positions, which is
+the recommended way to narrow a canonical graph-enabled run during debugging.
+Generic `paper-loop-start` and direct `scripts/run_paper_loop.py` invocations
+still use the settings defaults unless you provide scope environment variables.
+Full-universe runs are longer and can consume more LLM/API resources; terminal
+progress shows where time is spent across market data, strategy, symbol
+analysis, run allocation, risk, final decision, and execution routing.
 
 M39 run-level allocation stores `run.artifacts.allocation` with proposal counts,
 selection counts, binding-constraint counts, and one ledger row per analyzed
@@ -1208,6 +1212,27 @@ Post-MVP live-readiness API smoke check, if implemented later:
 ```bash
 curl http://localhost:8000/live-readiness
 ```
+
+## M43 Commands Used
+
+```bash
+make -n paper-loop-kite
+uv run pytest tests/unit/test_paper_loop_command_profile.py tests/unit/test_paper_runs.py::test_full_universe_analysis_records_proposals_for_requested_market_universe
+make test
+make lint
+make test-ui
+make build-ui
+sed -n '1,220p' /Users/adnaan/.codex/rules/default.rules
+sed -n '1,220p' .codex/rules/default.rules
+```
+
+M43 verification passed. `make paper-loop-kite` dry-run showed
+`TAURUS_PAPER_ANALYSIS_SCOPE=full_universe` and
+`TAURUS_PAPER_EXECUTION_SCOPE=allocated_only`. Focused M43 tests passed. Full
+verification results: `make test` passed with 259 tests and 1 skipped test,
+`make lint` passed, `make test-ui` passed with 27 tests, and `make build-ui`
+passed. The global approval-rules cleanup found no entries after the user's
+`# END MY CUSTOM ADDITION` marker, so no rules were moved or removed.
 
 ## Codex Project-Local Prefix Allowlist
 

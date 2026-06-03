@@ -2078,7 +2078,7 @@ def _symbol_scope_for_run(
         analyzed = list(finalization)
 
     analyzed = _normalize_symbols([*analyzed, *finalization])
-    effective_execution_scope = "allocated_only"
+    effective_execution_scope = settings.taurus_paper_execution_scope
     return PaperRunSymbolScope(
         analysis_scope=settings.taurus_paper_analysis_scope,
         execution_scope=settings.taurus_paper_execution_scope,
@@ -2118,38 +2118,24 @@ def _strategy_summary_with_symbol_scope(
     return scoped
 
 
-def _selected_only_finalization_symbols(
-    *,
-    requested_symbols: list[str],
-    universe: PaperRunUniverse | None,
-    strategy_selected_symbols: list[str],
-    open_position_symbols: list[str],
-) -> list[str]:
-    universe_mode = universe.source if universe is not None else "manual_symbols"
-    if universe_mode == "manual_symbols":
-        return _normalize_symbols([*requested_symbols, *open_position_symbols])
-    return _normalize_symbols([*strategy_selected_symbols, *open_position_symbols])
-
-
 def _symbols_for_pipeline(
     *,
     requested_symbols: list[str],
     universe: PaperRunUniverse | None,
     strategy_summary: dict[str, object],
 ) -> list[str]:
-    if (
-        universe is not None
-        and universe.source == "market_data_universe"
-        and strategy_summary.get("select_targets_with_graph_called") is True
-    ):
+    if universe is not None and universe.source == "market_data_universe":
+        strategy_key = "graph_selected_symbols" if (
+            strategy_summary.get("select_targets_with_graph_called") is True
+        ) else "targets"
         selected = [
-            *[str(symbol) for symbol in strategy_summary.get("graph_selected_symbols", [])],
+            *[str(symbol) for symbol in strategy_summary.get(strategy_key, [])],
             *[str(symbol) for symbol in strategy_summary.get("open_position_symbols", [])],
         ]
         normalized = _normalize_symbols(selected)
         if not normalized:
             raise ValueError(
-                "Graph-aware paper target selection produced no target or open-position "
+                "Strategy-selected paper target selection produced no target or open-position "
                 "symbols for the market-data universe."
             )
         return normalized

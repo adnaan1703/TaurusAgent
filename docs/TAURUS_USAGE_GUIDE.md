@@ -145,7 +145,9 @@ real LLM provider where the workflow calls an LLM.
 - `make paper-loop-start PAPER_LOOP_ITERATIONS=5`: runs repeated local loops.
 - `make paper-loop-kite`: runs the canonical Kite-backed, graph-enabled paper
   loop. It sets `TAURUS_ENABLED_ANALYSTS=technical,graph`,
-  `TAURUS_GRAPH_ENABLED=true`, `TAURUS_GRAPH_RISK_ENABLED=true`, and
+  `TAURUS_GRAPH_ENABLED=true`, `TAURUS_GRAPH_RISK_ENABLED=true`,
+  `TAURUS_PAPER_ANALYSIS_SCOPE=full_universe`,
+  `TAURUS_PAPER_EXECUTION_SCOPE=allocated_only`, and
   `STRATEGY=configs/strategies/graph_aware_score_v1.yaml`.
 - `make paper-loop-dashboard`: starts the stack, imports market data, graph
   prerequisites, and mock news, runs one Kite paper loop, then starts the React
@@ -250,14 +252,22 @@ make paper-loop-kite
 ```
 
 The canonical loop is Shariah-only when `SYMBOL` and `SYMBOLS` are omitted,
-because it selects from `TAURUS_MARKET_DATA_UNIVERSE_PATH`, which defaults to
-`configs/market_data/nifty_500_shariah.yaml`.
+because it analyzes `TAURUS_MARKET_DATA_UNIVERSE_PATH`, which defaults to
+`configs/market_data/nifty_500_shariah.yaml`. It now performs full-universe
+analysis, run-level allocation, risk/final decisions for analyzed symbols, and
+deferred execution routing for allocated, risk-approved paper decisions. Expect
+longer runtime and higher LLM/API usage than a manual subset; the terminal
+progress output shows where the run is spending time.
 
 For a manual graph-enabled subset:
 
 ```bash
 make paper-loop-kite SYMBOLS=INFY,TCS
 ```
+
+Manual subsets remain bounded to the explicit symbols plus any open paper
+positions, so use them for debugging, prompt checks, or targeted graph/risk
+reviews before running the full universe.
 
 For an explicit technical-only manual loop:
 

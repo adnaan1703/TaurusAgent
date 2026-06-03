@@ -158,13 +158,18 @@ curl "http://localhost:8000/data/quotes/latest?symbol=INFY"
 ```
 
 `configs/market_data/nifty_500_shariah.yaml` defines the default Kite-backed paper universe
-when `TAURUS_MARKET_DATA_PROVIDER=kite`. Use `make paper-loop-kite` to run that
-Kite-backed universe, or pass `SYMBOL=INFY` / `SYMBOLS=INFY,TCS` for an explicit
-graph-enabled manual subset. This real-data paper profile enables the technical
-and graph analysts, graph readiness preflight, graph-aware strategy target
-selection, graph concentration risk, and position-aware after-close lifecycle
-reviews while execution remains local `PaperBroker` simulation. Paper account
-state persists by `TAURUS_PAPER_PORTFOLIO_ID` across run IDs.
+when `TAURUS_MARKET_DATA_PROVIDER=kite`. `make paper-loop-kite` is the canonical
+real-data paper profile: it analyzes the full configured universe, applies
+run-level allocation, routes only allocated/risk-approved paper decisions, and
+keeps execution inside the local `PaperBroker` simulation. The profile enables
+the technical and graph analysts, graph readiness preflight, graph-aware
+strategy ranking, graph concentration risk, and position-aware after-close
+lifecycle reviews. Full-universe runs are longer and can use more LLM/API
+resources; progress output shows setup, per-symbol analysis, allocation, risk,
+final-decision, and execution routing stages. During debugging, pass
+`SYMBOL=INFY` or `SYMBOLS=INFY,TCS` to keep the run bounded to those explicit
+symbols plus any open paper positions. Paper account state persists by
+`TAURUS_PAPER_PORTFOLIO_ID` across run IDs.
 
 Market-hours monitoring is disabled by default. `make position-monitor` respects
 that default and exits without polling unless you opt in with

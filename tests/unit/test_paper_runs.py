@@ -360,12 +360,44 @@ def test_graph_enabled_kite_paper_run_fails_fast_without_graph_nodes(
     assert run.artifacts == {}
 
 
+def test_strategy_selected_market_universe_uses_strategy_targets(
+    tmp_path: Path,
+) -> None:
+    settings = _settings_for_temp_db(
+        tmp_path,
+        paper_analysis_scope="strategy_selected",
+        max_open_positions=1,
+    )
+    universe = _paper_run_universe(
+        source="market_data_universe",
+        symbols=["INFY", "TCS", "RELIANCE"],
+    )
+
+    run = PaperRunService(settings).run_once(
+        symbols=universe.symbols,
+        universe=universe,
+    )
+
+    scope = run.artifacts["symbol_scope"]
+    targets = set(run.artifacts["strategy"]["targets"])
+
+    assert run.status == "COMPLETED"
+    assert scope["analysis_scope"] == "strategy_selected"
+    assert scope["requested_universe_symbols"] == ["INFY", "TCS", "RELIANCE"]
+    assert len(targets) == 1
+    assert set(scope["analyzed_symbols"]) == targets
+    assert set(scope["finalization_symbols"]) == targets
+    assert set(run.artifacts["analysis"]) == targets
+    assert set(run.artifacts["symbols"]) == targets
+
+
 def test_full_universe_analysis_records_proposals_for_requested_market_universe(
     tmp_path: Path,
 ) -> None:
     settings = _settings_for_temp_db(
         tmp_path,
         paper_analysis_scope="full_universe",
+        paper_execution_scope="allocated_only",
         max_open_positions=1,
     )
     universe = _paper_run_universe(
@@ -383,6 +415,8 @@ def test_full_universe_analysis_records_proposals_for_requested_market_universe(
 
     assert run.status == "COMPLETED"
     assert scope["analysis_scope"] == "full_universe"
+    assert scope["execution_scope"] == "allocated_only"
+    assert scope["effective_execution_scope"] == "allocated_only"
     assert scope["requested_universe_symbols"] == ["INFY", "TCS", "RELIANCE"]
     assert set(scope["analyzed_symbols"]) == {"INFY", "TCS", "RELIANCE"}
     assert set(scope["finalization_symbols"]) == {"INFY", "TCS", "RELIANCE"}
@@ -414,6 +448,51 @@ def test_full_universe_analysis_records_proposals_for_requested_market_universe(
     assert proposal_symbols == {"INFY", "TCS", "RELIANCE"}
     assert final_decision_count == 3
     assert order_count == run.artifacts["execution"]["routed_order_count"]
+
+
+def test_full_universe_money_management_run_completes_allocation_pipeline(
+    tmp_path: Path,
+) -> None:
+    policy_path = _write_active_allocation_policy(tmp_path, max_stock_pct=Decimal("5.0"))
+    settings = _settings_for_temp_db(
+        tmp_path,
+        money_management_enabled=True,
+        money_management_config_path=str(policy_path),
+        paper_analysis_scope="full_universe",
+        paper_execution_scope="allocated_only",
+    )
+    universe = _paper_run_universe(
+        source="market_data_universe",
+        symbols=["INFY", "TCS", "RELIANCE"],
+    )
+
+    run = PaperRunService(settings).run_once(
+        symbols=universe.symbols,
+        universe=universe,
+    )
+
+    allocation = run.artifacts["allocation"]
+    execution = run.artifacts["execution"]
+    ledger_counts = allocation["ledger_counts"]
+
+    assert run.status == "COMPLETED"
+    assert run.failed_symbols == []
+    assert "money_management" in run.artifacts
+    assert allocation["policy_source"] == "money_management_policy"
+    assert allocation["ledger_count"] == 3
+    assert sum(ledger_counts.values()) == 3
+    assert (
+        ledger_counts.get("selected", 0)
+        + ledger_counts.get("allocation_reduced", 0)
+        + ledger_counts.get("not_selected", 0)
+        + ledger_counts.get("allocation_rejected", 0)
+        + ledger_counts.get("unchanged_lifecycle", 0)
+    ) == 3
+    assert run.artifacts["final_decisions"]["total_count"] == 3
+    assert execution["execution_set_count"] == (
+        ledger_counts.get("selected", 0) + ledger_counts.get("allocation_reduced", 0)
+    )
+    assert execution["routed_order_count"] == execution["execution_set_count"]
 
 
 def test_full_universe_finalizes_all_symbols_before_allocated_execution(
@@ -1011,7 +1090,7 @@ def _settings_for_temp_db(
     money_management_enabled: bool = False,
     money_management_config_path: str = "configs/portfolio/money_management_v1.yaml",
     paper_analysis_scope: str = "strategy_selected",
-    paper_execution_scope: str = "selected_only",
+    paper_execution_scope: str = "allocated_only",
     max_open_positions: int = 8,
 ) -> Settings:
     return Settings(

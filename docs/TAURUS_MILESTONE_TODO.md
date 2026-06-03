@@ -110,7 +110,7 @@ context, then documented with the standard completion summary before moving on.
 | 22 | M40 | Done | `docs/agent_improvement_plans/FULL_UNIVERSE_DYNAMIC_ALLOCATION.md` | Run risk/final decisions for every analyzed symbol and defer execution until allocated approved decisions are known. |
 | 23 | M41 | Done | `docs/agent_improvement_plans/FULL_UNIVERSE_DYNAMIC_ALLOCATION.md` | Added API and React observability for full-universe counts, selection ledger, and allocation reasons. |
 | 24 | M42 | Done | `docs/agent_improvement_plans/FULL_UNIVERSE_DYNAMIC_ALLOCATION.md` | Aligned backtests, replay, commands, and position-monitor boundaries with ranking/allocation separation. |
-| 25 | M43 | Planned | `docs/agent_improvement_plans/FULL_UNIVERSE_DYNAMIC_ALLOCATION.md` | Make full-universe analysis the canonical Kite paper-loop behavior after verification. |
+| 25 | M43 | Done | `docs/agent_improvement_plans/FULL_UNIVERSE_DYNAMIC_ALLOCATION.md` | Made full-universe analysis the canonical Kite paper-loop behavior after verification. |
 
 ## Deferred Work
 

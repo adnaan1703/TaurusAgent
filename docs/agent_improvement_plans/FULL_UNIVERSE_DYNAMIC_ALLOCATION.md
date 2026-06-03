@@ -599,6 +599,34 @@ preceding milestones are stable.
 
 At completion, add assumptions made, mocks created, and mocks used.
 
+### M43 Completion Summary
+
+- Status: Done.
+- Completed: `make paper-loop-kite` now sets
+  `TAURUS_PAPER_ANALYSIS_SCOPE=full_universe` and
+  `TAURUS_PAPER_EXECUTION_SCOPE=allocated_only` for the canonical
+  graph-enabled Kite paper profile. Manual `SYMBOL`/`SYMBOLS` runs remain
+  bounded to explicit symbols plus open paper positions. Operator docs now call
+  out longer runtime, higher LLM/API usage, progress-stage expectations, and
+  manual subsets for debugging. Controlled concurrency was not added.
+- Verification: focused M43 command/profile tests passed, the small-universe
+  full-universe paper-run test verifies ranking/proposal/allocation/final
+  decision/execution counts under `allocated_only`, `make test` passed with 259
+  tests and 1 skipped test, `make lint` passed, `make test-ui` passed with 27
+  tests, `make build-ui` passed, and the global approval-rules audit found no
+  accidental Taurus approvals after the user's marker.
+- Assumptions made:
+  - Generic settings and direct `scripts/run_paper_loop.py`/`paper-loop-start`
+    invocations should remain selected-symbol scoped unless the operator
+    explicitly provides scope environment variables.
+  - `SYMBOL`/`SYMBOLS` is the intended narrow-debug escape hatch for the
+    canonical Kite profile.
+  - M36-M42 verification did not require controlled concurrency, so the
+    canonical run remains single-worker/sequential for artifact correctness.
+- Mocks created: None.
+- Mocks used:
+  - Existing `FakeLLMProvider` and `FakeKiteMarketDataProvider` pytest fixtures.
+
 ## Deferred Follow-Ups
 
 - Durable allocation ledger table if JSON artifacts become too large or hard to

@@ -5,7 +5,7 @@ from functools import lru_cache
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
-from pydantic import Field, ValidationError, model_validator
+from pydantic import Field, ValidationError, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from taurus_core import __version__
@@ -22,7 +22,8 @@ DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
 SUPPORTED_LLM_PROVIDERS = ("lmstudio", "openai", "gemini")
 SUPPORTED_MARKET_DATA_PROVIDERS = ("kite",)
 SUPPORTED_PAPER_ANALYSIS_SCOPES = ("strategy_selected", "full_universe")
-SUPPORTED_PAPER_EXECUTION_SCOPES = ("selected_only", "allocated_only")
+SUPPORTED_PAPER_EXECUTION_SCOPES = ("allocated_only",)
+LEGACY_PAPER_EXECUTION_SCOPE_ALIASES = {"selected_only": "allocated_only"}
 
 
 class Settings(BaseSettings):
@@ -288,7 +289,7 @@ class Settings(BaseSettings):
         validation_alias="TAURUS_PAPER_ANALYSIS_SCOPE",
     )
     taurus_paper_execution_scope: str = Field(
-        default="selected_only",
+        default="allocated_only",
         validation_alias="TAURUS_PAPER_EXECUTION_SCOPE",
     )
     taurus_position_monitor_enabled: bool = Field(
@@ -335,6 +336,12 @@ class Settings(BaseSettings):
     kite_api_secret: str = Field(default="", validation_alias="KITE_API_SECRET")
     kite_access_token: str = Field(default="", validation_alias="KITE_ACCESS_TOKEN")
     taurus_kite_exchange: str = Field(default="NSE", validation_alias="TAURUS_KITE_EXCHANGE")
+
+    @field_validator("taurus_paper_execution_scope")
+    @classmethod
+    def normalize_paper_execution_scope(cls, value: str) -> str:
+        cleaned = value.strip()
+        return LEGACY_PAPER_EXECUTION_SCOPE_ALIASES.get(cleaned, cleaned)
 
     @model_validator(mode="after")
     def enforce_trading_safety(self) -> Settings:

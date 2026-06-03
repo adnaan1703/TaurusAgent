@@ -64,7 +64,7 @@ def test_default_settings_are_safe() -> None:
         "configs/portfolio/money_management_v1.yaml"
     )
     assert settings.taurus_paper_analysis_scope == "strategy_selected"
-    assert settings.taurus_paper_execution_scope == "selected_only"
+    assert settings.taurus_paper_execution_scope == "allocated_only"
 
 
 def test_live_trading_cannot_be_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -152,6 +152,10 @@ def test_paper_analysis_and_execution_scopes_are_validated(
     settings = Settings()
 
     assert settings.taurus_paper_analysis_scope == "full_universe"
+    assert settings.taurus_paper_execution_scope == "allocated_only"
+
+    monkeypatch.setenv("TAURUS_PAPER_EXECUTION_SCOPE", "selected_only")
+    settings = Settings()
     assert settings.taurus_paper_execution_scope == "allocated_only"
 
     monkeypatch.setenv("TAURUS_PAPER_ANALYSIS_SCOPE", "everything")
