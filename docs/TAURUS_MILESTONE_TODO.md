@@ -1,29 +1,46 @@
 # Taurus Milestone TODO
 
-Last updated: 2026-06-03
+Last updated: 2026-06-04
 
-This is the active tracker for Taurus milestone work. Keep it concise. Detailed
-implementation instructions belong in the linked plan docs.
+This is the active tracker for Taurus milestone work. Keep it concise and keep
+current operator detail in the usage and command docs.
 
 ## Active Sources
 
-- `docs/TAURUS_MOCK_MIGRATION_STATUS.md`: current mock/runtime status.
-- `docs/agent_improvement_plans/`: selected functional-MVP migration plans.
-- `docs/agent_improvement_plans/LLM_AGENT_SYSTEM_PROMPTS_BACKLOG.md`: deferred
-  system prompts for existing LLM-backed analysts not in the selected sequence.
-- `docs/TAURUS_USAGE_GUIDE.md`: operator workflow.
-- `docs/TAURUS_COMMANDS.md`: command reference and project-local approvals.
+- `docs/TAURUS_USAGE_GUIDE.md`: current operator workflow and limitations.
+- `docs/TAURUS_COMMANDS.md`: active command reference and project-local
+  approval policy.
+- `docs/TAURUS_MOCK_MIGRATION_STATUS.md`: current mock/simulation status.
+- `docs/TAURUS_AGENT_ARCHITECTURE.md`: current agent pipeline and data flow.
+- `docs/TAURUS_DATABASE_TABLES.md`: current Postgres table summary.
 - `docs/TAURUS_GRAPH_INTELLIGENCE_PLAN.md`: completed M20 graph reference.
-- `docs/agent_improvement_plans/PAPER_MONEY_MANAGEMENT_SYSTEM.md`: planned
-  Shariah-only paper portfolio money-management sequence.
-- `docs/agent_improvement_plans/FULL_UNIVERSE_DYNAMIC_ALLOCATION.md`: planned
-  full-universe analysis and dynamic run-level allocation sequence.
-- `docs/stitch/paper-trade-event-monitor/`: React dashboard visual reference
-  assets.
+- `docs/agent_improvement_plans/LLM_AGENT_SYSTEM_PROMPTS_BACKLOG.md`: deferred
+  prompt backlog for optional analyst upgrades.
+
+Completed milestone implementation plans and Stitch UI reference assets were
+removed during docs cleanup. Use Git history for detailed historical plans.
+
+## Current State
+
+- Taurus is paper-trading-first and local by default.
+- Docker Postgres is the canonical database; runtime and tests reject SQLite
+  URLs.
+- Runtime market data is Kite-only.
+- Runtime LLM providers are real providers only: LM Studio by default, with
+  OpenAI and Gemini as explicit opt-ins.
+- Execution routes only through local `PaperBroker` simulation.
+- `make paper-loop-kite` is the canonical real-data profile. It runs
+  full-universe analysis, graph-aware ranking, run-level allocation,
+  risk/final decisions for analyzed symbols, and allocated-only paper routing.
+- React is the primary local dashboard. Streamlit remains a fallback dashboard.
+- Alerts default to mock delivery until Telegram is verified with local
+  credentials.
+- Graph and graph risk are disabled by config default but enabled by
+  `make paper-loop-kite` after readiness checks. Neo4j remains optional and
+  disposable.
 
 ## Standing Safety Rules
 
-- Taurus remains paper-trading-first.
 - `LIVE_TRADING_ENABLED=false` remains the default.
 - `BROKER_PROVIDER=paper` remains the default.
 - Kite support is data-only; execution continues through `PaperBroker`.
@@ -32,7 +49,7 @@ implementation instructions belong in the linked plan docs.
 - Do not commit API keys, broker credentials, Telegram tokens, Kite tokens, or
   user CSV exports.
 - Runtime LLM-backed components must use `build_llm_provider(settings)` and the
-  default provider must be LM Studio unless an explicit hosted provider is
+  default provider must remain LM Studio unless an explicit hosted provider is
   configured.
 - Money-management and portfolio-construction work must remain long-only,
   equity-only, and restricted to enabled symbols in
@@ -41,7 +58,7 @@ implementation instructions belong in the linked plan docs.
 - Any plan that changes API payloads or decision artifacts must include matching
   React dashboard updates in the same milestone.
 
-## Completed Baseline
+## Completed Milestone Summary
 
 | Scope | Status | Result |
 |---|---|---|
@@ -50,67 +67,10 @@ implementation instructions belong in the linked plan docs.
 | M17 | Done | Zerodha Kite market-data provider, data-only. |
 | M18-M19 | Done | HalalStock compliance sync, halal NSE universe export, Shariah dashboard, and paper-run universe provenance. |
 | M20.0-M20.10 | Done | Graph intelligence foundation, importer, API, React views, optional Neo4j projection, graph stats, graph analyst, graph risk, graph metrics, and graph-aware backtesting. |
-
-## Current Baseline Before MVP Migrations
-
-- Runtime is still paper-only with simulated broker execution.
-- Default market data, LLM, and alerts are still mock-backed until the selected
-  migration sequence changes them.
-- Technical analyst is the only default analyst.
-- Graph analyst, graph risk, and Neo4j remain opt-in.
-- React dashboard is the primary UI; Streamlit is fallback only.
-- `docs/TAURUS_MOCK_MIGRATION_STATUS.md` is the detailed status reference.
-
-## Functional MVP Migration Sequence
-
-Execute these migrations in order. Each row is intended to be run separately
-with fresh context. After one migration is implemented, verified, cleaned up,
-and documented with its completion summary, stop and report the result. Do not
-start the next migration unless the user explicitly asks.
-
-| Order | Milestone | Status | Plan | Purpose |
-|---:|---|---|---|---|
-| 1 | M21 | Done | `docs/agent_improvement_plans/DOCKER_ONLY_DATABASE_MIGRATION.md` | Made Docker Postgres canonical and removed SQLite runtime/test paths. |
-| 2 | M22 | Done | `docs/agent_improvement_plans/REAL_LLM_PROVIDER_MIGRATION.md` | Removed runtime mock LLM and defaulted the real provider to LM Studio, with OpenAI/Gemini opt-ins. |
-| 3 | M23 | Done | `docs/agent_improvement_plans/KITE_ONLY_MARKET_DATA_MIGRATION.md` | Removed runtime market-data mocks/CSV provider paths and made Kite the only runtime market-data provider. |
-| 4 | M24 | Done | `docs/agent_improvement_plans/GRAPH_ENABLED_REAL_DATA_PAPER_LOOP.md` | Enabled graph analyst, graph-aware strategy, and graph risk for the Kite real-data paper path. |
-| 5 | M25 | Done | `docs/agent_improvement_plans/LLM_BULL_RESEARCHER_AGENT.md` | Added LLM-backed bullish research with deterministic guardrails and dedicated prompt. |
-| 6 | M26 | Done | `docs/agent_improvement_plans/LLM_BEAR_RESEARCHER_AGENT.md` | Added LLM-backed bearish research with deterministic guardrails and dedicated prompt. |
-| 7 | M27 | Done | `docs/agent_improvement_plans/LLM_RESEARCH_MANAGER_AGENT.md` | Added LLM-backed debate synthesis and consensus management with dedicated prompt. |
-| 8 | M28 | Done | `docs/agent_improvement_plans/PHASE_1_POSITION_AWARE_TRADER_AGENT.md` | Added cross-run portfolio continuity and after-close BUY/HOLD/NO_TRADE/REDUCE/EXIT lifecycle proposals. |
-| 9 | M29 | Done | `docs/agent_improvement_plans/LLM_PORTFOLIO_MANAGER_AGENT.md` | Added optional LLM explanations to deterministic final approval/rejection/no-action decisions. |
-| 10 | M30 | Done | `docs/agent_improvement_plans/PHASE_2_MARKET_HOURS_POSITION_MONITOR.md` | Added market-hours stop-loss/take-profit monitoring for open long paper positions. |
-
-## Planned Paper Money Management Sequence
-
-Execute these milestones in order. Each row should be run separately with fresh
-context, then documented with the standard completion summary before moving on.
-
-| Order | Milestone | Status | Plan | Purpose |
-|---:|---|---|---|---|
-| 11 | M31 | Done | `docs/agent_improvement_plans/PAPER_MONEY_MANAGEMENT_SYSTEM.md` | Added money-management policy/config/state foundation without changing sizing behavior. |
-| 12 | M32 | Done | `docs/agent_improvement_plans/PAPER_MONEY_MANAGEMENT_SYSTEM.md` | Deployed the 40% core sleeve as conservative Shariah basket decisions and artifacts. |
-| 13 | M33 | Done | `docs/agent_improvement_plans/PAPER_MONEY_MANAGEMENT_SYSTEM.md` | Added active-sleeve risk-budgeted, volatility-adjusted allocation. |
-| 14 | M34 | Done | `docs/agent_improvement_plans/PAPER_MONEY_MANAGEMENT_SYSTEM.md` | Added diversifying/experimental sleeve governors and strategy-level allocation. |
-| 15 | M35 | Done | `docs/agent_improvement_plans/PAPER_MONEY_MANAGEMENT_SYSTEM.md` | Added allocation dashboard surfaces and operator workflow docs. |
-| 16 | M35.1 | Done | User-provided money-management policy cleanup plan | Removed static core-symbol/cash/drift policy shortcuts; runtime core basket target weights are authoritative for attribution and labels. |
-| 17 | Ops progress UI | Done | User-provided Rich Progress UI plan | Added Rich/plain stderr terminal progress for Kite candle import, graph stats computation, and the graph-enabled Kite paper loop. |
-
-## Planned Full-Universe Dynamic Allocation Sequence
-
-Execute these milestones in order. Each row should be run separately with fresh
-context, then documented with the standard completion summary before moving on.
-
-| Order | Milestone | Status | Plan | Purpose |
-|---:|---|---|---|---|
-| 18 | M36 | Done | `docs/agent_improvement_plans/FULL_UNIVERSE_DYNAMIC_ALLOCATION.md` | Replaced fixed strategy target counts with full-universe ranking artifacts. |
-| 19 | M37 | Done | `docs/agent_improvement_plans/FULL_UNIVERSE_DYNAMIC_ALLOCATION.md` | Decompose the paper loop into analysis, allocation, finalization, and execution phases without changing default behavior. |
-| 20 | M38 | Done | `docs/agent_improvement_plans/FULL_UNIVERSE_DYNAMIC_ALLOCATION.md` | Add full-universe analysis mode through trader proposals while preserving safe execution behavior. |
-| 21 | M39 | Done | `docs/agent_improvement_plans/FULL_UNIVERSE_DYNAMIC_ALLOCATION.md` | Added run-level dynamic allocation across all proposals, using money-management policy or settings fallback constraints. |
-| 22 | M40 | Done | `docs/agent_improvement_plans/FULL_UNIVERSE_DYNAMIC_ALLOCATION.md` | Run risk/final decisions for every analyzed symbol and defer execution until allocated approved decisions are known. |
-| 23 | M41 | Done | `docs/agent_improvement_plans/FULL_UNIVERSE_DYNAMIC_ALLOCATION.md` | Added API and React observability for full-universe counts, selection ledger, and allocation reasons. |
-| 24 | M42 | Done | `docs/agent_improvement_plans/FULL_UNIVERSE_DYNAMIC_ALLOCATION.md` | Aligned backtests, replay, commands, and position-monitor boundaries with ranking/allocation separation. |
-| 25 | M43 | Done | `docs/agent_improvement_plans/FULL_UNIVERSE_DYNAMIC_ALLOCATION.md` | Made full-universe analysis the canonical Kite paper-loop behavior after verification. |
+| M21-M30 | Done | Docker Postgres-only persistence, real LLM provider migration, Kite-only runtime market data, graph-enabled Kite paper loop, LLM-backed research/trader/final explanation flow, portfolio continuity, and market-hours position monitoring. |
+| M31-M35.1 | Done | Paper money-management policy, core Shariah basket, active/diversifying/experimental sleeve allocation, allocation dashboard, and static policy shortcut cleanup. |
+| Ops progress UI | Done | Rich/plain stderr progress for Kite candle import, graph stats computation, and graph-enabled Kite paper loops. |
+| M36-M43 | Done | Full-universe ranking, decomposed paper loop, run-level dynamic allocation, all-symbol risk/final decisions, allocation observability, replay/backtest/command alignment, and default full-universe Kite paper loop enablement. |
 
 ## Deferred Work
 
@@ -135,14 +95,16 @@ If any category is empty, write `None`.
 
 At milestone cleanup, inspect `/Users/adnaan/.codex/rules/default.rules`.
 Entries after the user's `# END MY CUSTOM ADDITION` marker are accidental global
-approvals. Move Taurus-specific approved prefixes into `.codex/rules/default.rules`
-if missing, document them in `docs/TAURUS_COMMANDS.md`, and remove them from the
-global file. Do not copy unrelated global approvals.
+approvals. Move Taurus-specific approved prefixes into
+`.codex/rules/default.rules` if missing, document them in
+`docs/TAURUS_COMMANDS.md`, and remove them from the global file. Do not copy
+unrelated global approvals.
 
 ## Maintenance Rules
 
-- Update this file when a migration starts, completes, or is intentionally
+- Update this file when a milestone starts, completes, or is intentionally
   deferred.
-- Keep detailed implementation text in the linked migration plan, not here.
 - Keep command changes in `docs/TAURUS_COMMANDS.md`.
 - Keep operator workflow changes in `docs/TAURUS_USAGE_GUIDE.md`.
+- Keep implementation plans out of active docs after their milestones complete;
+  Git history is the archive.

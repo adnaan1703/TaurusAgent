@@ -1,6 +1,6 @@
 # Taurus Mock Migration Status
 
-Last reviewed: 2026-05-30
+Last reviewed: 2026-06-04
 
 This document tracks which Taurus components are still mocked or simulated, which
 agents depend on them, and what remains to migrate toward a real-data paper
@@ -131,7 +131,7 @@ The advisory risk personas can be upgraded after that. `RiskEngine`,
 
 ## Mock Migration Checklist
 
-- [ ] Complete the ordered functional-MVP sequence in
+- [x] Complete the ordered functional-MVP sequence in
       `docs/TAURUS_MILESTONE_TODO.md`.
 - [x] Switch market data defaults and runtime path from `mock` to `kite` for
       real-data paper runs.
@@ -187,12 +187,12 @@ graph risk disabled by config default; enabled on paper-loop-kite after prefligh
 Neo4j disabled
 ```
 
-The selected migration path is now tracked as M21-M30 in
+The completed migration/allocation path is summarized in
 `docs/TAURUS_MILESTONE_TODO.md`. Docker Postgres-only persistence, real LLM
-providers, Kite-only runtime market data, and graph-enabled Kite paper loops are
-complete through the market-hours position monitor migration. The selected
-M21-M30 functional MVP sequence is now implemented; remaining work is deferred
-outside that sequence.
+providers, Kite-only runtime market data, graph-enabled Kite paper loops,
+market-hours position monitoring, money management, and full-universe dynamic
+allocation are implemented through M43. Remaining work is deferred outside that
+completed sequence.
 
 **The target workflow should become:**
 

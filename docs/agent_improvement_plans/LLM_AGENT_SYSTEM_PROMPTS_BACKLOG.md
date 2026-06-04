@@ -1,11 +1,11 @@
 # LLM Agent System Prompts Backlog
 
-Last reviewed: 2026-05-30
+Last reviewed: 2026-06-04
 
 This file tracks dedicated system prompts for Taurus agents that already have
-LLM support but are not covered by the current functional-MVP migration plans.
+LLM support but are not prioritized in the current default paper workflow.
 Implement these later when the corresponding agents are revisited. The real LLM
-provider migration should already be complete first, so runtime calls use
+provider migration is complete, so runtime calls use
 `build_llm_provider(settings)` with LM Studio as the default provider.
 
 These prompts are not a request to enable every analyst in the default paper
@@ -106,6 +106,5 @@ Hard rules:
 ## Deferred Optional Prompts
 
 Risk persona agents (`RiskyRiskAgent`, `NeutralRiskAgent`, `SafeRiskAgent`) do
-not currently have LLM support and are not part of the selected MVP migration
-sequence. If they are upgraded later, keep `RiskEngine` deterministic and use
-LLM output only for advisory persona reasoning.
+not currently have LLM support. If they are upgraded later, keep `RiskEngine`
+deterministic and use LLM output only for advisory persona reasoning.

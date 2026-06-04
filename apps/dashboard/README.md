@@ -1,6 +1,6 @@
 # Dashboard
 
-M8 adds the local Streamlit dashboard.
+Local Streamlit fallback dashboard for Taurus.
 
 ```bash
 make dashboard

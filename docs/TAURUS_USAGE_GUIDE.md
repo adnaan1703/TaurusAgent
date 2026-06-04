@@ -1,10 +1,11 @@
 # Taurus Usage Guide
 
-Last verified: 2026-06-02
+Last verified: 2026-06-04 for docs freshness. Latest recorded runtime
+verification remains the 2026-06-02 command set below.
 
 ## Current State
 
-- Backend focused M35 tests:
+- Backend focused allocation/API tests:
   `uv run pytest tests/unit/test_ui_aggregate_api.py -q` -> `10 passed`.
 - Backend full suite: `make test` -> `220 passed, 1 skipped`.
 - Frontend tests: `make test-ui` -> `25 passed`.

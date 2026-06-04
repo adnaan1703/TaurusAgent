@@ -2,7 +2,7 @@
 
 Taurus is an observable, paper-trading-first algo trading MVP for Indian cash equities.
 
-The paper-trading MVP and the M21-M30 functional migration sequence are complete. The React run-loop observability dashboard is the primary local UI. Runtime market data is Kite-only: Taurus can sync Kite instruments, import Kite daily candles, persist latest OHLC/LTP quote snapshots, run graph-aware backtests, analyst reports, bull/bear debate, position-aware trader proposals, deterministic risk review, final approval with optional LLM explanations, PaperBroker execution, scheduled paper loops, opt-in market-hours position monitoring, replay, backup/restore, API, React dashboard, Streamlit fallback dashboard, Prometheus metrics, and Grafana dashboards.
+The paper-trading MVP and completed M21-M43 migration/allocation sequence are in place. The React run-loop observability dashboard is the primary local UI. Runtime market data is Kite-only: Taurus can sync Kite instruments, import Kite daily candles, persist latest OHLC/LTP quote snapshots, run graph-aware backtests, analyst reports, bull/bear debate, position-aware trader proposals, deterministic risk review, final approval with optional LLM explanations, PaperBroker execution, scheduled full-universe paper loops, opt-in market-hours position monitoring, replay, backup/restore, API, React dashboard, Streamlit fallback dashboard, Prometheus metrics, and Grafana dashboards.
 
 Broker order routing is not part of the current roadmap. Taurus remains a local paper simulator unless a future milestone explicitly changes that direction.
 Kite Connect support is data-only: it can sync instruments, import historical

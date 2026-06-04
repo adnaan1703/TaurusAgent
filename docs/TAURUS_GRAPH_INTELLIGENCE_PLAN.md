@@ -1,12 +1,11 @@
 # Taurus Graph Intelligence Plan
 
-Last updated: 2026-05-27
+Last updated: 2026-06-04
 
 This is the repo-specific implementation plan for adding graph-based trading
-intelligence to Taurus. `docs/TAURUS_DATA_INTEGRATION.md` is treated as outside
-source material and reference context, not as direct implementation authority.
-When the outside plan conflicts with Taurus conventions, this document and
-`docs/TAURUS_MILESTONE_TODO.md` take precedence.
+intelligence to Taurus. The original outside graph integration reference was
+removed during docs cleanup; this document and `docs/TAURUS_MILESTONE_TODO.md`
+remain the active graph references.
 
 ## Current Repo Fit
 
@@ -67,8 +66,7 @@ Acceptance criteria:
 
 - This document exists and references actual Taurus paths.
 - `docs/TAURUS_MILESTONE_TODO.md` tracks the `M20.x` milestones.
-- `docs/TAURUS_DATA_INTEGRATION.md` is documented as reference-only source
-  material.
+- This document records the repo-specific graph implementation plan.
 - `make test` and `make lint` pass, or failures are recorded.
 
 ### M20.1 - Postgres Graph Foundation
