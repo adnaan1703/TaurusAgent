@@ -74,6 +74,7 @@ removed during docs cleanup. Use Git history for detailed historical plans.
 | Ops progress UI | Done | Rich/plain stderr progress for Kite candle import, graph stats computation, and graph-enabled Kite paper loops. |
 | M36-M43 | Done | Full-universe ranking, decomposed paper loop, run-level dynamic allocation, all-symbol risk/final decisions, allocation observability, replay/backtest/command alignment, and default full-universe Kite paper loop enablement. |
 | M44-M50 plan document | Done | Created the flat next-open AMO-style paper settlement plan covering baseline tests, pending order schema, pending EOD order creation, settlement, EOD loop integration, dashboard/replay/metrics polish, and final cleanup. Implementation milestones remain planned, not complete. |
+| M44 | Done | Added xfail-free baseline unit tests for next-open AMO-style paper settlement. The new target tests intentionally fail against the existing immediate after-close fill behavior; implementation remains planned for later milestones. |
 
 ### M44-M50 Plan Document Completion Summary
 
@@ -83,6 +84,16 @@ removed during docs cleanup. Use Git history for detailed historical plans.
 - Mocks created: None.
 - Mocks used: None.
 
+### M44 Completion Summary
+
+- Assumptions made: Default mock final approval creates after-close BUY
+  decisions; existing `TraderProposal.evaluation_mode` is the future routing
+  boundary between after-close and market-hours monitor decisions; M44 should
+  not intentionally change runtime paper execution behavior.
+- Mocks created: None.
+- Mocks used: Existing `FakeLLMProvider`, mock final approval helpers, and
+  deterministic test market-data fixtures.
+
 ## Planned Next-Open AMO Settlement Sequence
 
 Execute these milestones in order. Each row should be run separately with fresh
@@ -90,7 +101,7 @@ context, then documented with the standard completion summary before moving on.
 
 | Order | Milestone | Status | Plan | Purpose |
 |---:|---|---|---|---|
-| 26 | M44 | Planned | `docs/TAURUS_NEXT_OPEN_AMO_SETTLEMENT_PLAN.md` | Add baseline tests and tracker setup for next-open AMO-style paper settlement. |
+| 26 | M44 | Done | `docs/TAURUS_NEXT_OPEN_AMO_SETTLEMENT_PLAN.md` | Add baseline tests and tracker setup for next-open AMO-style paper settlement. |
 | 27 | M45 | Planned | `docs/TAURUS_NEXT_OPEN_AMO_SETTLEMENT_PLAN.md` | Add pending next-open order schema, repository support, API status handling, and UI status support. |
 | 28 | M46 | Planned | `docs/TAURUS_NEXT_OPEN_AMO_SETTLEMENT_PLAN.md` | Change after-close paper decisions to create `PENDING_NEXT_OPEN` orders while preserving immediate market-hours monitor routing. |
 | 29 | M47 | Planned | `docs/TAURUS_NEXT_OPEN_AMO_SETTLEMENT_PLAN.md` | Settle pending orders at the first newer daily candle open and calculate fills, cash, positions, and P&L. |

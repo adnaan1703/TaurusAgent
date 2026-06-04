@@ -23,6 +23,7 @@ from taurus_core.db.models import (
     PaperPositionModel,
 )
 from taurus_core.db.repositories import (
+    CandleRepository,
     ExecutionRepository,
     IntelligenceRepository,
     ResearchRepository,
@@ -114,6 +115,112 @@ def test_paper_broker_executes_approved_decision_and_api_returns_artifacts(
     assert len(fills_response.json()) == 2
     assert positions_response.json()[0]["quantity"] == decision.approved_quantity
     assert account_response.json()["account_id"] == account.account_id
+
+
+def test_after_close_buy_decision_creates_pending_order_without_fills(
+    tmp_path: Path,
+) -> None:
+    settings = _settings_for_temp_db(tmp_path)
+    session_factory, decision, order = _route_default_after_close_buy(settings)
+
+    with session_factory() as session:
+        fills = ExecutionRepository(session).list_fills(
+            final_decision_id=decision.final_decision_id,
+            limit=None,
+        )
+
+    assert decision.final_action == "BUY"
+    assert order is not None
+    assert order.filled_quantity == 0
+    assert order.remaining_quantity == decision.approved_quantity
+    assert order.gross_value_inr == Decimal("0.0000")
+    assert order.total_cost_inr == Decimal("0.0000")
+    assert fills == []
+
+
+def test_after_close_buy_decision_preserves_cash_until_next_open(
+    tmp_path: Path,
+) -> None:
+    settings = _settings_for_temp_db(tmp_path)
+    session_factory, decision, order = _route_default_after_close_buy(settings)
+
+    with session_factory() as session:
+        account_model = ExecutionRepository(session).latest_account_by_portfolio(
+            portfolio_id=settings.taurus_paper_portfolio_id,
+        )
+        account = PaperAccount.model_validate(account_model.payload)
+
+    assert decision.final_action == "BUY"
+    assert order is not None
+    assert account.available_cash_inr == account.starting_cash_inr
+
+
+def test_after_close_buy_order_status_waits_for_next_open(tmp_path: Path) -> None:
+    settings = _settings_for_temp_db(tmp_path)
+    _session_factory, decision, order = _route_default_after_close_buy(settings)
+
+    assert decision.final_action == "BUY"
+    assert order is not None
+    assert order.status == "PENDING_NEXT_OPEN"
+    assert order.status_history == ["CREATED", "ACCEPTED", "PENDING_NEXT_OPEN"]
+
+
+def test_after_close_order_does_not_fill_at_same_day_candle_open(
+    tmp_path: Path,
+) -> None:
+    settings = _settings_for_temp_db(tmp_path)
+    _prepare_market_data_db(settings)
+    session_factory = build_session_factory(settings)
+    with session_factory() as session:
+        latest_candle = _latest_candle(session, "INFY")
+
+    run_mock_final_approval(symbol="INFY", settings=settings)
+    with session_factory() as session:
+        decision = _latest_final_decision(session, "INFY")
+        assert _proposal_evaluation_mode(session, decision) == "after_close"
+        order = ExecutionRouter(session, settings).route_decision(decision)
+
+    with session_factory() as session:
+        fills = ExecutionRepository(session).list_fills(
+            final_decision_id=decision.final_decision_id,
+            limit=None,
+        )
+
+    assert order is not None
+    same_day_open_fills = [
+        fill
+        for fill in fills
+        if fill.trade_date == latest_candle.trade_date
+        and fill.reference_price_inr == latest_candle.open
+    ]
+    assert same_day_open_fills == []
+
+
+def test_market_hours_monitor_decision_still_routes_immediately(tmp_path: Path) -> None:
+    settings = _settings_for_temp_db(tmp_path)
+    _prepare_market_data_db(settings)
+    run_mock_final_approval(symbol="INFY", settings=settings)
+    session_factory = build_session_factory(settings)
+
+    with session_factory() as session:
+        decision = _latest_final_decision(session, "INFY")
+        _mark_proposal_as_market_hours(session, decision)
+
+    with session_factory() as session:
+        decision = _latest_final_decision(session, "INFY")
+        assert _proposal_evaluation_mode(session, decision) == "market_hours"
+        order = ExecutionRouter(session, settings).route_decision(decision)
+
+    with session_factory() as session:
+        fills = ExecutionRepository(session).list_fills(
+            final_decision_id=decision.final_decision_id,
+            limit=None,
+        )
+
+    assert order is not None
+    assert order.status == "FILLED"
+    assert order.filled_quantity == decision.approved_quantity
+    assert fills
 
 
 def test_paper_execution_is_deterministic_and_not_duplicated(tmp_path: Path) -> None:
@@ -375,6 +482,40 @@ def _latest_final_decision(session, symbol: str) -> FinalDecision:
     )
     assert model is not None
     return FinalDecision.model_validate(model.payload)
+
+
+def _route_default_after_close_buy(settings: Settings):
+    _prepare_market_data_db(settings)
+    run_mock_final_approval(symbol="INFY", settings=settings)
+    session_factory = build_session_factory(settings)
+    with session_factory() as session:
+        decision = _latest_final_decision(session, "INFY")
+        assert _proposal_evaluation_mode(session, decision) == "after_close"
+        order = ExecutionRouter(session, settings).route_decision(decision)
+    return session_factory, decision, order
+
+
+def _proposal_evaluation_mode(session, decision: FinalDecision) -> str:
+    proposal_model = ResearchRepository(session).get_trader_proposal(decision.proposal_id)
+    assert proposal_model is not None
+    return proposal_model.evaluation_mode
+
+
+def _mark_proposal_as_market_hours(session, decision: FinalDecision) -> None:
+    proposal_model = ResearchRepository(session).get_trader_proposal(decision.proposal_id)
+    assert proposal_model is not None
+    payload = dict(proposal_model.payload)
+    payload["evaluation_mode"] = "market_hours"
+    payload["market_session_date"] = "2024-12-17"
+    proposal_model.evaluation_mode = "market_hours"
+    proposal_model.payload = payload
+    session.commit()
+
+
+def _latest_candle(session, symbol: str):
+    candles = CandleRepository(session).get_by_symbol_and_date_range(symbol=symbol)
+    assert candles
+    return candles[-1]
 
 
 def _settings_for_temp_db(tmp_path: Path) -> Settings:
