@@ -217,10 +217,10 @@ def _assert_outputs(
         raise AssertionError("Final decision broker flags are inconsistent.")
 
     order = paper_once["order"]
-    if not isinstance(order, dict) or order["status"] != "FILLED":
-        raise AssertionError("Paper once did not create a filled paper order.")
-    if order["filled_quantity"] <= 0:
-        raise AssertionError("Paper order did not fill any quantity.")
+    if not isinstance(order, dict) or order["status"] != "PENDING_NEXT_OPEN":
+        raise AssertionError("Paper once did not queue a pending next-open paper order.")
+    if order["filled_quantity"] != 0:
+        raise AssertionError("Pending next-open paper order should not fill immediately.")
     if not paper_loop or paper_loop[0]["status"] != "COMPLETED":
         raise AssertionError("Paper loop did not complete.")
     if replay["decision_id"] != paper_once["final_decision"]["decision_id"]:
@@ -230,6 +230,10 @@ def _assert_outputs(
     if not api or any(status != 200 for status in api.values()):
         raise AssertionError("API smoke did not return all 200 responses.")
     for name, count in counts.items():
+        if name == "paper_fills":
+            if count != 0:
+                raise AssertionError("M47 smoke expected no paper fills before settlement.")
+            continue
         if count < 1:
             raise AssertionError(f"Expected at least one persisted {name} row.")
 

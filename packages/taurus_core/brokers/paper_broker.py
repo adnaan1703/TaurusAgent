@@ -14,6 +14,8 @@ from taurus_core.db.repositories import CandleRepository, ExecutionRepository
 from taurus_core.execution.costs import IndiaPaperCostModel
 from taurus_core.execution.schemas import (
     ExecutionPolicy,
+    NextOpenSettlementOrderDetail,
+    NextOpenSettlementSummary,
     OrderSide,
     PaperAccount,
     PaperFill,
@@ -333,6 +335,218 @@ class PaperBroker(BrokerAdapter):
         )
         return PaperAccount.model_validate(row.payload) if row is not None else None
 
+    def settle_pending_next_open_orders(
+        self,
+        *,
+        portfolio_id: str,
+        run_id: str,
+        settled_at: datetime,
+        symbol: str | None = None,
+    ) -> NextOpenSettlementSummary:
+        timestamp = _as_utc(settled_at)
+        repo = ExecutionRepository(self.session)
+        pending_rows = repo.list_pending_next_open_orders(
+            portfolio_id=portfolio_id,
+            symbol=symbol,
+            limit=None,
+        )
+        account_state, positions = self._rebuild_state_from_fills(
+            run_id=run_id,
+            portfolio_id=portfolio_id,
+            updated_at=timestamp,
+        )
+
+        settled = 0
+        rejected = 0
+        still_pending = 0
+        skipped = 0
+        terminal_sequence = 0
+        details: list[NextOpenSettlementOrderDetail] = []
+        alert_orders: list[tuple[PaperOrder, list[str]]] = []
+
+        for row in pending_rows:
+            pending_order = PaperOrder.model_validate(row.payload)
+            if pending_order.signal_trade_date is None:
+                skipped += 1
+                details.append(
+                    self._settlement_detail(
+                        order=pending_order,
+                        quantity=0,
+                        status=pending_order.status,
+                        outcome_reason="missing_signal_trade_date",
+                    )
+                )
+                continue
+
+            execution_candle = self._first_candle_after_signal(
+                symbol=pending_order.symbol,
+                signal_trade_date=pending_order.signal_trade_date,
+            )
+            if execution_candle is None:
+                still_pending += 1
+                details.append(
+                    self._settlement_detail(
+                        order=pending_order,
+                        quantity=0,
+                        status=pending_order.status,
+                        outcome_reason="waiting_for_next_candle",
+                    )
+                )
+                continue
+
+            requested_quantity = pending_order.remaining_quantity
+            if requested_quantity <= 0:
+                requested_quantity = max(
+                    0,
+                    pending_order.quantity - pending_order.filled_quantity,
+                )
+            reference_price = _money(execution_candle.open)
+            if requested_quantity <= 0:
+                terminal_sequence += 1
+                rejected_order = self._terminal_pending_order(
+                    order=pending_order,
+                    status="REJECTED",
+                    updated_at=timestamp + timedelta(seconds=terminal_sequence),
+                    filled_trade_date=execution_candle.trade_date,
+                    rejection_reason="No remaining quantity available for next-open settlement.",
+                )
+                repo.replace_pending_next_open_order(
+                    order_id=pending_order.order_id,
+                    order=rejected_order,
+                    fills=[],
+                )
+                rejected += 1
+                details.append(
+                    self._settlement_detail(
+                        order=rejected_order,
+                        quantity=0,
+                        status=rejected_order.status,
+                        execution_trade_date=execution_candle.trade_date,
+                        reference_price=reference_price,
+                        rejection_reason=rejected_order.rejection_reason,
+                    )
+                )
+                alert_orders.append((rejected_order, []))
+                continue
+
+            preview_fill = self._build_next_open_fill(
+                order=pending_order,
+                run_id=run_id,
+                quantity=requested_quantity,
+                reference_price=reference_price,
+                trade_date=execution_candle.trade_date,
+                filled_at=timestamp,
+            )
+            affordable_quantity = self._affordable_quantity(
+                side=pending_order.side,
+                requested_quantity=requested_quantity,
+                fills=[preview_fill],
+                available_cash=account_state.available_cash_inr,
+                positions=positions,
+                symbol=pending_order.symbol,
+            )
+            if affordable_quantity <= 0:
+                terminal_sequence += 1
+                reason = (
+                    "Insufficient paper cash for next-open settlement."
+                    if pending_order.side == "BUY"
+                    else "No paper holdings available for next-open settlement."
+                )
+                rejected_order = self._terminal_pending_order(
+                    order=pending_order,
+                    status="REJECTED",
+                    updated_at=timestamp + timedelta(seconds=terminal_sequence),
+                    filled_trade_date=execution_candle.trade_date,
+                    rejection_reason=reason,
+                )
+                repo.replace_pending_next_open_order(
+                    order_id=pending_order.order_id,
+                    order=rejected_order,
+                    fills=[],
+                )
+                rejected += 1
+                details.append(
+                    self._settlement_detail(
+                        order=rejected_order,
+                        quantity=0,
+                        status=rejected_order.status,
+                        execution_trade_date=execution_candle.trade_date,
+                        reference_price=reference_price,
+                        rejection_reason=reason,
+                    )
+                )
+                alert_orders.append((rejected_order, []))
+                continue
+
+            terminal_sequence += 1
+            fill = self._build_next_open_fill(
+                order=pending_order,
+                run_id=run_id,
+                quantity=affordable_quantity,
+                reference_price=reference_price,
+                trade_date=execution_candle.trade_date,
+                filled_at=timestamp + timedelta(seconds=terminal_sequence),
+            )
+            self._apply_fill(account_state=account_state, positions=positions, fill=fill)
+            status = (
+                "FILLED"
+                if affordable_quantity == requested_quantity
+                else "PARTIALLY_FILLED"
+            )
+            settled_order = self._terminal_pending_order(
+                order=pending_order,
+                status=status,
+                updated_at=fill.filled_at,
+                filled_trade_date=execution_candle.trade_date,
+                fill=fill,
+            )
+            repo.replace_pending_next_open_order(
+                order_id=pending_order.order_id,
+                order=settled_order,
+                fills=[fill],
+            )
+            settled += 1
+            details.append(
+                self._settlement_detail(
+                    order=settled_order,
+                    quantity=fill.quantity,
+                    status=settled_order.status,
+                    execution_trade_date=execution_candle.trade_date,
+                    reference_price=reference_price,
+                    fill=fill,
+                )
+            )
+            alert_orders.append((settled_order, [fill.fill_id]))
+
+        self._mark_latest_prices_for_positions(positions)
+        account_updated_at = timestamp + timedelta(seconds=terminal_sequence)
+        account, position_models = self._account_and_positions(
+            account_state=account_state,
+            positions=positions,
+            updated_at=account_updated_at,
+        )
+        repo.replace_account_state(
+            run_id=run_id,
+            portfolio_id=portfolio_id,
+            account=account,
+            positions=position_models,
+        )
+        self.session.commit()
+
+        for order, fill_ids in alert_orders:
+            self._log_order(order, fill_ids=fill_ids)
+            self._send_order_alert(order, fill_ids=fill_ids)
+
+        return NextOpenSettlementSummary(
+            portfolio_id=portfolio_id,
+            run_id=run_id,
+            settled=settled,
+            rejected=rejected,
+            still_pending=still_pending,
+            skipped=skipped,
+            details=details,
+        )
+
     def _validate_decision(self, decision: FinalDecision) -> None:
         if self.settings.live_trading_enabled:
             raise ValueError("PaperBroker cannot run while live trading is enabled.")
@@ -383,6 +597,13 @@ class PaperBroker(BrokerAdapter):
     def _latest_candle(self, symbol: str):
         candles = CandleRepository(self.session).get_by_symbol_and_date_range(symbol=symbol)
         return candles[-1] if candles else None
+
+    def _first_candle_after_signal(self, *, symbol: str, signal_trade_date):
+        candles = CandleRepository(self.session).get_by_symbol_and_date_range(
+            symbol=symbol,
+            start_date=signal_trade_date + timedelta(days=1),
+        )
+        return candles[0] if candles else None
 
     def _execution_quantity(
         self,
@@ -477,6 +698,56 @@ class PaperBroker(BrokerAdapter):
                 )
             )
         return fills
+
+    def _build_next_open_fill(
+        self,
+        *,
+        order: PaperOrder,
+        run_id: str,
+        quantity: int,
+        reference_price: Decimal,
+        trade_date,
+        filled_at: datetime,
+    ) -> PaperFill:
+        fill_price = self.slippage_model.fill_price(
+            reference_price_inr=reference_price,
+            side=order.side,
+        )
+        gross_value = _money(fill_price * Decimal(quantity))
+        costs = self.cost_model.calculate(gross_value)
+        slippage_value = self.slippage_model.slippage_value(
+            reference_price_inr=reference_price,
+            fill_price_inr=fill_price,
+            quantity=quantity,
+        )
+        return PaperFill(
+            fill_id=paper_fill_id(
+                order_id=order.order_id,
+                fill_sequence=1,
+                quantity=quantity,
+                reference_price=reference_price,
+            ),
+            order_id=order.order_id,
+            final_decision_id=order.final_decision_id,
+            run_id=run_id,
+            portfolio_id=order.portfolio_id,
+            symbol=order.symbol,
+            trade_date=trade_date,
+            side=order.side,
+            quantity=quantity,
+            reference_price_inr=reference_price,
+            fill_price_inr=fill_price,
+            gross_value_inr=gross_value,
+            brokerage_inr=costs.brokerage_inr,
+            exchange_txn_charge_inr=costs.exchange_txn_charge_inr,
+            tax_levy_inr=costs.tax_levy_inr,
+            cost_inr=costs.total_inr,
+            slippage_bps=self.settings.taurus_paper_slippage_bps,
+            slippage_inr=slippage_value,
+            fill_sequence=1,
+            filled_at=filled_at,
+            model_version=self.model_version,
+        )
 
     def _fill_plan(self, quantity: int) -> list[int]:
         if quantity <= 0:
@@ -644,6 +915,17 @@ class PaperBroker(BrokerAdapter):
         if symbol.upper() in positions:
             positions[symbol.upper()].last_price_inr = _money(last_price)
 
+    def _mark_latest_prices_for_positions(
+        self,
+        positions: dict[str, _PositionState],
+    ) -> None:
+        for symbol, position in list(positions.items()):
+            if position.quantity <= 0:
+                continue
+            candle = self._latest_candle(symbol)
+            if candle is not None:
+                self._mark_prices(positions=positions, symbol=symbol, last_price=candle.close)
+
     def _filled_order(
         self,
         *,
@@ -730,6 +1012,66 @@ class PaperBroker(BrokerAdapter):
             submitted_at=timestamp,
             updated_at=timestamp,
             model_version=self.model_version,
+        )
+
+    def _terminal_pending_order(
+        self,
+        *,
+        order: PaperOrder,
+        status,
+        updated_at: datetime,
+        filled_trade_date,
+        fill: PaperFill | None = None,
+        rejection_reason: str = "",
+    ) -> PaperOrder:
+        filled_quantity = fill.quantity if fill is not None else 0
+        gross_value = fill.gross_value_inr if fill is not None else SCORE_ZERO
+        total_cost = fill.cost_inr if fill is not None else SCORE_ZERO
+        total_slippage = fill.slippage_inr if fill is not None else SCORE_ZERO
+        average_fill_price = fill.fill_price_inr if fill is not None else SCORE_ZERO
+        history = list(order.status_history)
+        if status not in history:
+            history.append(status)
+        return order.model_copy(
+            update={
+                "status": status,
+                "filled_quantity": filled_quantity,
+                "remaining_quantity": max(0, order.quantity - filled_quantity),
+                "average_fill_price_inr": average_fill_price,
+                "gross_value_inr": gross_value,
+                "total_cost_inr": total_cost,
+                "total_slippage_inr": total_slippage,
+                "rejection_reason": rejection_reason,
+                "status_history": history,
+                "filled_trade_date": filled_trade_date,
+                "updated_at": updated_at,
+            }
+        )
+
+    def _settlement_detail(
+        self,
+        *,
+        order: PaperOrder,
+        quantity: int,
+        status,
+        execution_trade_date=None,
+        reference_price: Decimal | None = None,
+        fill: PaperFill | None = None,
+        rejection_reason: str = "",
+        outcome_reason: str = "",
+    ) -> NextOpenSettlementOrderDetail:
+        return NextOpenSettlementOrderDetail(
+            order_id=order.order_id,
+            symbol=order.symbol,
+            side=order.side,
+            signal_trade_date=order.signal_trade_date,
+            execution_trade_date=execution_trade_date,
+            reference_price_inr=reference_price,
+            fill_price_inr=fill.fill_price_inr if fill is not None else None,
+            quantity=quantity,
+            status=status,
+            rejection_reason=rejection_reason,
+            outcome_reason=outcome_reason,
         )
 
     def _rejected_order(

@@ -71,7 +71,7 @@ def test_dashboard_queries_and_metrics_expose_m8_panels(tmp_path: Path) -> None:
 
     assert snapshot["latest_account"]["equity_inr"] > 0
     assert snapshot["latest_final_decision"]["status"] == "APPROVED_FOR_PAPER"
-    assert snapshot["latest_order"]["status"] == "FILLED"
+    assert snapshot["latest_order"]["status"] == "PENDING_NEXT_OPEN"
     assert equity
     assert len(reports) == 5
     assert debates[0]["consensus"]
@@ -79,9 +79,9 @@ def test_dashboard_queries_and_metrics_expose_m8_panels(tmp_path: Path) -> None:
     assert reviews[0]["status"] == "APPROVED"
     assert hard_rules
     assert decisions[0]["can_send_to_broker"] is True
-    assert positions[0]["quantity"] > 0
-    assert orders[0]["filled"] == positions[0]["quantity"]
-    assert len(fills) == 2
+    assert positions == []
+    assert orders[0]["filled"] == 0
+    assert len(fills) == 0
     assert events[0]["document_id"]
     assert any(row["source"] == "daily_candles" for row in freshness)
 

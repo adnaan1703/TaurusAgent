@@ -128,6 +128,39 @@ class PaperAccount(BaseModel):
     model_version: str = "paper_broker_v1"
 
 
+class NextOpenSettlementOrderDetail(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    order_id: str
+    symbol: str
+    side: OrderSide
+    signal_trade_date: date | None = None
+    execution_trade_date: date | None = None
+    reference_price_inr: Decimal | None = None
+    fill_price_inr: Decimal | None = None
+    quantity: int = Field(ge=0)
+    status: OrderStatus
+    rejection_reason: str = ""
+    outcome_reason: str = ""
+
+    @field_validator("symbol")
+    @classmethod
+    def normalize_symbol(cls, value: str) -> str:
+        return value.upper()
+
+
+class NextOpenSettlementSummary(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    portfolio_id: str
+    run_id: str
+    settled: int = Field(ge=0)
+    rejected: int = Field(ge=0)
+    still_pending: int = Field(ge=0)
+    skipped: int = Field(ge=0)
+    details: list[NextOpenSettlementOrderDetail] = Field(default_factory=list)
+
+
 def paper_account_id(*, portfolio_id: str, run_id: str) -> str:
     return stable_id("pa", portfolio_id, run_id)
 

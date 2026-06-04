@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
 
@@ -15,6 +15,7 @@ from scripts.run_final_approval import run_mock_final_approval
 from taurus_core.agents.portfolio_manager import PortfolioManagerAgent
 from taurus_core.agents.runner import DEFAULT_ANALYST_RUN_ID, run_analyst_suite
 from taurus_core.agents.trader_agent import TraderAgent
+from taurus_core.brokers.paper_broker import PaperBroker
 from taurus_core.config import Settings
 from taurus_core.db.models import (
     PaperAccountModel,
@@ -22,6 +23,7 @@ from taurus_core.db.models import (
     PaperOrderModel,
     PaperPositionModel,
 )
+from taurus_core.domain.market_data import DailyCandle
 from taurus_core.db.repositories import (
     CandleRepository,
     ExecutionRepository,
@@ -495,6 +497,304 @@ def test_paper_broker_queues_after_close_exit_for_position_opened_in_prior_run(
     assert account.portfolio_id == settings.taurus_paper_portfolio_id
 
 
+def test_next_open_settlement_fills_pending_buy_at_first_newer_open(
+    tmp_path: Path,
+) -> None:
+    settings = _settings_for_temp_db(tmp_path)
+    session_factory, decision, pending_order = _route_default_after_close_buy(settings)
+    settlement_timestamp = datetime(2024, 12, 19, 4, 0, tzinfo=timezone.utc)
+
+    with session_factory() as session:
+        signal_candle = _latest_candle(session, "INFY")
+        execution_candle = _append_manual_daily_candle(
+            session,
+            symbol="INFY",
+            trade_date=_next_trading_day(signal_candle.trade_date),
+            open_price=Decimal("151.0000"),
+            close_price=Decimal("152.0000"),
+        )
+        _append_manual_daily_candle(
+            session,
+            symbol="INFY",
+            trade_date=_next_trading_day(execution_candle.trade_date),
+            open_price=Decimal("999.0000"),
+            close_price=Decimal("1000.0000"),
+        )
+        session.commit()
+
+    with session_factory() as session:
+        summary = PaperBroker(session, settings).settle_pending_next_open_orders(
+            portfolio_id=settings.taurus_paper_portfolio_id,
+            run_id="settlement-run",
+            settled_at=settlement_timestamp,
+            symbol="infy",
+        )
+
+    with session_factory() as session:
+        repo = ExecutionRepository(session)
+        settled_order = PaperOrder.model_validate(repo.get_order(pending_order.order_id).payload)
+        fills = [
+            PaperFill.model_validate(row.payload)
+            for row in repo.list_fills(order_id=pending_order.order_id, limit=None)
+        ]
+        account = PaperAccount.model_validate(repo.latest_account(run_id="settlement-run").payload)
+        position = PaperPosition.model_validate(
+            repo.latest_open_position_by_portfolio_symbol(
+                portfolio_id=settings.taurus_paper_portfolio_id,
+                symbol="INFY",
+            ).payload
+        )
+
+    assert decision.final_action == "BUY"
+    assert summary.settled == 1
+    assert summary.rejected == 0
+    assert summary.still_pending == 0
+    assert summary.skipped == 0
+    assert summary.details[0].order_id == pending_order.order_id
+    assert summary.details[0].execution_trade_date == execution_candle.trade_date
+    assert summary.details[0].reference_price_inr == execution_candle.open
+    assert settled_order.status == "FILLED"
+    assert settled_order.filled_trade_date == execution_candle.trade_date
+    assert fills and len(fills) == 1
+    assert fills[0].trade_date == execution_candle.trade_date
+    assert fills[0].reference_price_inr == execution_candle.open
+    assert fills[0].fill_price_inr == Decimal("151.0755")
+    assert fills[0].filled_at == settlement_timestamp + timedelta(seconds=1)
+    assert fills[0].reference_price_inr != signal_candle.open
+    assert fills[0].reference_price_inr != Decimal("999.0000")
+    assert account.available_cash_inr < account.starting_cash_inr
+    assert position.quantity == pending_order.quantity
+    assert position.last_price_inr == Decimal("1000.0000")
+
+
+def test_next_open_settlement_leaves_order_pending_without_newer_candle(
+    tmp_path: Path,
+) -> None:
+    settings = _settings_for_temp_db(tmp_path)
+    session_factory, _decision, pending_order = _route_default_after_close_buy(settings)
+
+    with session_factory() as session:
+        summary = PaperBroker(session, settings).settle_pending_next_open_orders(
+            portfolio_id=settings.taurus_paper_portfolio_id,
+            run_id="settlement-run",
+            settled_at=datetime(2024, 12, 19, 4, 0, tzinfo=timezone.utc),
+            symbol="INFY",
+        )
+
+    with session_factory() as session:
+        repo = ExecutionRepository(session)
+        order = PaperOrder.model_validate(repo.get_order(pending_order.order_id).payload)
+        fills = repo.list_fills(order_id=pending_order.order_id, limit=None)
+
+    assert summary.settled == 0
+    assert summary.rejected == 0
+    assert summary.still_pending == 1
+    assert summary.skipped == 0
+    assert summary.details[0].status == "PENDING_NEXT_OPEN"
+    assert summary.details[0].outcome_reason == "waiting_for_next_candle"
+    assert order.status == "PENDING_NEXT_OPEN"
+    assert order.filled_trade_date is None
+    assert fills == []
+
+
+def test_next_open_settlement_partially_fills_buy_when_cash_caps_quantity(
+    tmp_path: Path,
+) -> None:
+    settings = _settings_for_temp_db(tmp_path)
+    session_factory, decision, pending_order = _route_default_after_close_buy(settings)
+
+    with session_factory() as session:
+        signal_candle = _latest_candle(session, "INFY")
+        resized_order = pending_order.model_copy(
+            update={
+                "order_id": paper_order_id(
+                    final_decision_id=decision.final_decision_id,
+                    decision_id=decision.decision_id,
+                    quantity=10,
+                ),
+                "quantity": 10,
+                "remaining_quantity": 10,
+            }
+        )
+        ExecutionRepository(session).store_pending_next_open_order(order=resized_order)
+        _append_manual_daily_candle(
+            session,
+            symbol="INFY",
+            trade_date=_next_trading_day(signal_candle.trade_date),
+            open_price=Decimal("120000.0000"),
+            close_price=Decimal("120100.0000"),
+        )
+        session.commit()
+
+    with session_factory() as session:
+        summary = PaperBroker(session, settings).settle_pending_next_open_orders(
+            portfolio_id=settings.taurus_paper_portfolio_id,
+            run_id="settlement-run",
+            settled_at=datetime(2024, 12, 19, 4, 0, tzinfo=timezone.utc),
+        )
+
+    with session_factory() as session:
+        repo = ExecutionRepository(session)
+        order = PaperOrder.model_validate(repo.get_order(resized_order.order_id).payload)
+        fills = [
+            PaperFill.model_validate(row.payload)
+            for row in repo.list_fills(order_id=resized_order.order_id, limit=None)
+        ]
+
+    assert summary.settled == 1
+    assert summary.rejected == 0
+    assert order.status == "PARTIALLY_FILLED"
+    assert order.filled_quantity == 8
+    assert order.remaining_quantity == 2
+    assert fills and fills[0].quantity == 8
+    assert summary.details[0].quantity == 8
+    assert summary.details[0].status == "PARTIALLY_FILLED"
+
+
+def test_next_open_settlement_rejects_buy_when_zero_quantity_is_affordable(
+    tmp_path: Path,
+) -> None:
+    settings = _settings_for_temp_db(tmp_path)
+    session_factory, decision, pending_order = _route_default_after_close_buy(settings)
+
+    with session_factory() as session:
+        signal_candle = _latest_candle(session, "INFY")
+        resized_order = pending_order.model_copy(
+            update={
+                "order_id": paper_order_id(
+                    final_decision_id=decision.final_decision_id,
+                    decision_id=decision.decision_id,
+                    quantity=10,
+                ),
+                "quantity": 10,
+                "remaining_quantity": 10,
+            }
+        )
+        ExecutionRepository(session).store_pending_next_open_order(order=resized_order)
+        _append_manual_daily_candle(
+            session,
+            symbol="INFY",
+            trade_date=_next_trading_day(signal_candle.trade_date),
+            open_price=Decimal("1200000.0000"),
+            close_price=Decimal("1200100.0000"),
+        )
+        session.commit()
+
+    with session_factory() as session:
+        summary = PaperBroker(session, settings).settle_pending_next_open_orders(
+            portfolio_id=settings.taurus_paper_portfolio_id,
+            run_id="settlement-run",
+            settled_at=datetime(2024, 12, 19, 4, 0, tzinfo=timezone.utc),
+        )
+
+    with session_factory() as session:
+        repo = ExecutionRepository(session)
+        order = PaperOrder.model_validate(repo.get_order(resized_order.order_id).payload)
+        fills = repo.list_fills(order_id=resized_order.order_id, limit=None)
+
+    assert summary.settled == 0
+    assert summary.rejected == 1
+    assert order.status == "REJECTED"
+    assert order.filled_quantity == 0
+    assert order.remaining_quantity == 10
+    assert "cash" in order.rejection_reason.lower()
+    assert fills == []
+    assert summary.details[0].status == "REJECTED"
+    assert "cash" in summary.details[0].rejection_reason.lower()
+
+
+def test_next_open_settlement_fills_exit_sell_and_realizes_pnl(
+    tmp_path: Path,
+) -> None:
+    settings = _settings_for_temp_db(tmp_path)
+    _prepare_market_data_db(settings)
+    run_mock_final_approval(symbol="INFY", settings=settings)
+    session_factory = build_session_factory(settings)
+
+    with session_factory() as session:
+        buy_decision = _latest_final_decision(session, "INFY")
+        buy_order = ExecutionRouter(session, settings).route_decision(
+            buy_decision,
+            execution_policy="immediate",
+        )
+    assert buy_order is not None
+    assert buy_order.side == "BUY"
+
+    with session_factory() as session:
+        repo = ExecutionRepository(session)
+        position = PaperPosition.model_validate(
+            repo.latest_open_position_by_portfolio_symbol(
+                portfolio_id=settings.taurus_paper_portfolio_id,
+                symbol="INFY",
+            ).payload
+        )
+        proposal = _exit_proposal_from_latest(session, settings, position)
+        ResearchRepository(session).replace_trader_proposal_for_run_symbol(proposal)
+        session.commit()
+
+    with session_factory() as session:
+        review = RiskReviewService(session, settings).run(
+            symbol="INFY",
+            run_id="exit-run",
+            proposal=proposal,
+        )
+    with session_factory() as session:
+        decision = PortfolioManagerAgent(
+            session,
+            settings,
+            enable_llm_explanation=False,
+        ).run(
+            symbol="INFY",
+            run_id="exit-run",
+            risk_review=review,
+        )
+    with session_factory() as session:
+        exit_order = ExecutionRouter(session, settings).route_decision(decision)
+
+    with session_factory() as session:
+        signal_candle = _latest_candle(session, "INFY")
+        execution_candle = _append_manual_daily_candle(
+            session,
+            symbol="INFY",
+            trade_date=_next_trading_day(signal_candle.trade_date),
+            open_price=position.average_cost_inr + Decimal("25.0000"),
+            close_price=position.average_cost_inr + Decimal("30.0000"),
+        )
+        session.commit()
+
+    with session_factory() as session:
+        summary = PaperBroker(session, settings).settle_pending_next_open_orders(
+            portfolio_id=settings.taurus_paper_portfolio_id,
+            run_id="settlement-run",
+            settled_at=datetime(2024, 12, 19, 4, 0, tzinfo=timezone.utc),
+            symbol="INFY",
+        )
+
+    with session_factory() as session:
+        repo = ExecutionRepository(session)
+        settled_order = PaperOrder.model_validate(repo.get_order(exit_order.order_id).payload)
+        fills = [
+            PaperFill.model_validate(row.payload)
+            for row in repo.list_fills(order_id=exit_order.order_id, limit=None)
+        ]
+        open_positions = repo.latest_open_positions_by_portfolio(
+            portfolio_id=settings.taurus_paper_portfolio_id,
+        )
+        account = PaperAccount.model_validate(repo.latest_account(run_id="settlement-run").payload)
+
+    assert decision.final_action == "EXIT"
+    assert summary.settled == 1
+    assert summary.rejected == 0
+    assert settled_order.status == "FILLED"
+    assert settled_order.filled_trade_date == execution_candle.trade_date
+    assert fills and len(fills) == 1
+    assert fills[0].side == "SELL"
+    assert fills[0].reference_price_inr == execution_candle.open
+    assert fills[0].fill_price_inr < execution_candle.open
+    assert open_positions == []
+    assert account.realized_pnl_inr > Decimal("0.0000")
+
+
 def _prepare_paper_db(settings: Settings):
     run_migrations(settings)
     session_factory = build_session_factory(settings)
@@ -647,6 +947,38 @@ def _latest_candle(session, symbol: str):
     return candles[-1]
 
 
+def _append_manual_daily_candle(
+    session,
+    *,
+    symbol: str,
+    trade_date: date,
+    open_price: Decimal,
+    close_price: Decimal,
+) -> DailyCandle:
+    high = max(open_price, close_price)
+    low = min(open_price, close_price)
+    candle = DailyCandle(
+        symbol=symbol.upper(),
+        trade_date=trade_date,
+        open=open_price,
+        high=high,
+        low=low,
+        close=close_price,
+        volume=1_000_000,
+        source="test_manual_next_open",
+        data_available_time=datetime.combine(trade_date, time(18, 0), tzinfo=timezone.utc),
+    )
+    CandleRepository(session).upsert([candle])
+    return candle
+
+
+def _next_trading_day(value: date) -> date:
+    current = value + timedelta(days=1)
+    while current.weekday() >= 5:
+        current += timedelta(days=1)
+    return current
+
+
 def _pending_order_from_decision(
     decision: FinalDecision,
     *,
@@ -742,7 +1074,9 @@ def _fill_for_order(order: PaperOrder, *, trade_date: date) -> PaperFill:
     )
 
 
-def _settings_for_temp_db(tmp_path: Path) -> Settings:
-    return Settings(
-        taurus_paper_partial_fill_threshold=1,
-    )
+def _settings_for_temp_db(tmp_path: Path, **overrides: object) -> Settings:
+    values = {
+        "taurus_paper_partial_fill_threshold": 1,
+    }
+    values.update(overrides)
+    return Settings(**values)

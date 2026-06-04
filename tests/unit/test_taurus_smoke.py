@@ -51,4 +51,4 @@ def test_taurus_smoke_covers_paper_mvp_release_flow(
     assert result["artifacts"]["paper_order_id"].startswith("po-")
     assert result["artifacts"]["paper_loop_run_id"].startswith("pr-")
     assert result["counts"]["paper_orders"] >= 1
-    assert result["counts"]["paper_fills"] >= 1
+    assert result["counts"]["paper_fills"] == 0

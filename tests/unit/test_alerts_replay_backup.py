@@ -59,7 +59,8 @@ def test_mock_alerts_are_stored_and_replay_api_reconstructs_decision_path(
     assert _stage_count(replay, "risk_review") == 1
     assert _stage_count(replay, "final_decision") == 1
     assert _stage_count(replay, "paper_order") == 1
-    assert _stage_count(replay, "paper_fills") == 2
+    assert _stage_count(replay, "paper_fills") == 0
+    assert payload["order"]["status"] == "PENDING_NEXT_OPEN"
 
     session_factory = build_session_factory(settings)
     with session_factory() as session:
@@ -69,7 +70,7 @@ def test_mock_alerts_are_stored_and_replay_api_reconstructs_decision_path(
             )
         )
 
-    assert "alert.paper_fill" in alert_types
+    assert "alert.paper_fill" not in alert_types
     assert "alert.alert_smoke_test" in alert_types
 
 
