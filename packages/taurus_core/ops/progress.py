@@ -146,6 +146,8 @@ class PlainProgressReporter:
         self.stream = stream
         self._now = now or time.monotonic
         self._started_at = self._now()
+        self._last_line_width = 0
+        self._wrote_line = False
 
     def __call__(self, event: str, payload: Mapping[str, object]) -> None:
         snapshot = format_rich_progress_snapshot(self.command, event, payload)
@@ -160,20 +162,30 @@ class PlainProgressReporter:
             eta_seconds=_estimate_eta(elapsed, snapshot.completed, snapshot.total),
         )
         if line is not None:
-            self.stream.write(f"{line}\n")
+            padding = " " * max(self._last_line_width - len(line), 0)
+            self.stream.write(f"\r{line}{padding}")
             self.stream.flush()
+            self._last_line_width = len(line)
+            self._wrote_line = True
 
     def close(self) -> None:
+        if self._wrote_line:
+            self.stream.write("\n")
+            self.stream.flush()
         return None
 
     def fail(self, exc: BaseException) -> None:
         elapsed = self._now() - self._started_at
+        if self._wrote_line:
+            self.stream.write("\r" + (" " * self._last_line_width) + "\r")
         self.stream.write(
             "taurus progress "
             f"{self.command}: failed error_type={exc.__class__.__name__} "
             f"message={str(exc)} elapsed={_format_duration(elapsed)}\n"
         )
         self.stream.flush()
+        self._last_line_width = 0
+        self._wrote_line = False
 
 
 class RichProgressReporter:

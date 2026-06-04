@@ -17,3 +17,19 @@ symbols:
       kite:
         exchange: NSE
         tradingsymbol: TCS
+
+  - symbol: ASIANPAINT
+    name: ASIAN PAINTS LTD.
+    enabled: true
+    providers:
+      kite:
+        exchange: NSE
+        tradingsymbol: ASIANPAINT
+
+  - symbol: CIPLA
+    name: CIPLA LTD.
+    enabled: true
+    providers:
+      kite:
+        exchange: NSE
+        tradingsymbol: CIPLA

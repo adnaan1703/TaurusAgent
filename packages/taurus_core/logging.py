@@ -1,14 +1,16 @@
 from __future__ import annotations
 
 import logging
+import os
 import sys
 from typing import Any
 
 import structlog
 
 
-def configure_logging(log_level: str = "INFO") -> None:
-    level = getattr(logging, log_level.upper(), logging.INFO)
+def configure_logging(log_level: str | None = None) -> None:
+    configured_level = log_level or os.environ.get("TAURUS_LOG_LEVEL", "INFO")
+    level = getattr(logging, configured_level.upper(), logging.INFO)
     logging.basicConfig(format="%(message)s", stream=sys.stdout, level=level)
 
     structlog.configure(

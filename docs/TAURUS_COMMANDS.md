@@ -9,8 +9,8 @@ use Kite commands and `make import-market-data`.
 
 ## Terminal Progress Controls
 
-Long-running terminal commands show progress on stderr and keep their final
-machine-readable summary on stdout:
+Long-running terminal commands show progress on stderr. The plain fallback
+redraws one terminal line instead of printing a line for every progress event:
 
 - `make import-kite-candles`: current symbol, imported candles, cumulative
   candle count, percent, elapsed time, and ETA.
@@ -21,11 +21,28 @@ machine-readable summary on stdout:
   approximate ETA.
 
 `TAURUS_PROGRESS=auto` is the default. Interactive terminals use Rich progress;
-CI and non-TTY logs use plain stderr lines. Set `TAURUS_PROGRESS=false` to
-disable terminal progress:
+CI and non-TTY streams use the plain redraw fallback. Set
+`TAURUS_PROGRESS=false` to disable terminal progress:
 
 ```bash
 TAURUS_PROGRESS=false make compute-graph-stats
+```
+
+`make paper-loop-kite` suppresses the final machine-readable JSON by default so
+the terminal output remains readable. Use `PAPER_LOOP_KITE_JSON=true` to print
+the JSON summary for automation:
+
+```bash
+make paper-loop-kite PAPER_LOOP_KITE_JSON=true
+```
+
+`make paper-loop-kite` also defaults to `TAURUS_LOG_LEVEL=WARNING` so routine
+structured INFO logs do not interrupt the terminal progress display. Use
+`PAPER_LOOP_KITE_LOG_LEVEL=INFO` when debugging and you want the per-event JSON
+logs in the terminal:
+
+```bash
+make paper-loop-kite PAPER_LOOP_KITE_LOG_LEVEL=INFO
 ```
 
 ## M0 Commands Used

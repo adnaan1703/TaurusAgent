@@ -96,6 +96,61 @@ def test_auto_progress_uses_plain_stderr_for_non_tty_stream() -> None:
     assert "compute-graph-stats" in output
     assert "edge=peer:AAA:BBB" in output
     assert "progress=1/3" in output
+    assert output.count("\n") == 1
+
+
+def test_plain_progress_redraws_instead_of_printing_each_event_on_new_line() -> None:
+    stream = io.StringIO()
+
+    with create_progress_reporter(
+        "import-kite-candles",
+        env={"TAURUS_PROGRESS": "plain"},
+        stream=stream,
+    ) as progress:
+        progress(
+            "import.symbol_completed",
+            {
+                "symbol": "INFY",
+                "current": 1,
+                "total": 2,
+                "candles": 252,
+                "cumulative_candles": 252,
+            },
+        )
+        progress(
+            "import.symbol_completed",
+            {
+                "symbol": "TCS",
+                "current": 2,
+                "total": 2,
+                "candles": 252,
+                "cumulative_candles": 504,
+            },
+        )
+
+    output = stream.getvalue()
+    assert "symbol=INFY" in output
+    assert "symbol=TCS" in output
+    assert output.count("\n") == 1
+
+
+def test_plain_progress_failure_does_not_add_extra_close_newline() -> None:
+    stream = io.StringIO()
+
+    try:
+        with create_progress_reporter(
+            "import-kite-candles",
+            env={"TAURUS_PROGRESS": "plain"},
+            stream=stream,
+        ) as progress:
+            progress("import.started", {"total": 2})
+            raise RuntimeError("provider unavailable")
+    except RuntimeError:
+        pass
+
+    output = stream.getvalue()
+    assert "failed error_type=RuntimeError" in output
+    assert output.count("\n") == 1
 
 
 def test_paper_loop_terminal_progress_prefers_terminal_stage_label() -> None:

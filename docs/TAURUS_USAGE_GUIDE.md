@@ -121,9 +121,11 @@ in ignored `.env`.
 
 `make import-kite-candles`, `make compute-graph-stats`, and
 `make paper-loop-kite` show terminal progress on stderr. The default
-`TAURUS_PROGRESS=auto` uses Rich in interactive terminals and plain stderr
-lines in CI/non-TTY logs. Use `TAURUS_PROGRESS=false` when only the final stdout
-summary is desired.
+`TAURUS_PROGRESS=auto` uses Rich in interactive terminals and a plain single-line
+redraw fallback in CI/non-TTY streams. Use `TAURUS_PROGRESS=false` to disable
+terminal progress. `make paper-loop-kite` suppresses the final JSON summary by
+default; run `make paper-loop-kite PAPER_LOOP_KITE_JSON=true` when automation
+needs the machine-readable payload.
 
 ### Paper Workflow
 

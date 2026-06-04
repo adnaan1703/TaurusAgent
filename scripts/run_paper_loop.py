@@ -112,6 +112,11 @@ def _progress_command_from_env() -> str:
     return "paper-loop"
 
 
+def _paper_loop_json_enabled(value: str | None = None) -> bool:
+    raw = os.environ.get("TAURUS_PAPER_LOOP_JSON", "true") if value is None else value
+    return raw.strip().lower() not in {"0", "false", "no", "off", "none", "disabled"}
+
+
 if __name__ == "__main__":
     configure_logging()
     settings = get_settings()
@@ -128,13 +133,14 @@ if __name__ == "__main__":
             strategy_config_path=os.environ.get("STRATEGY") or None,
             progress=progress,
         )
-    print(
-        json.dumps(
-            {
-                "symbols": resolved.symbols,
-                "universe": resolved.universe.model_dump(mode="json"),
-                "runs": payload,
-            },
-            sort_keys=True,
+    if _paper_loop_json_enabled():
+        print(
+            json.dumps(
+                {
+                    "symbols": resolved.symbols,
+                    "universe": resolved.universe.model_dump(mode="json"),
+                    "runs": payload,
+                },
+                sort_keys=True,
+            )
         )
-    )
