@@ -90,6 +90,8 @@ def test_ui_aggregate_endpoints_return_completed_run_trail(tmp_path: Path) -> No
     assert detail.status_code == 200
     detail_payload = detail.json()
     assert detail_payload["run"]["status"] == "COMPLETED"
+    assert detail_payload["artifacts"]["settlement"]["settled"] == 0
+    assert detail_payload["artifacts"]["settlement"]["details"] == []
     assert detail_payload["selection_ledger"][0]["symbol"] == "INFY"
     assert detail_payload["selection_ledger"][0]["reason"] == "paper_order_status:pending_next_open"
     assert detail_payload["symbols"][0]["symbol"] == "INFY"
@@ -205,6 +207,7 @@ def test_disabled_money_management_uses_settings_fallback_allocation(
         "analysis",
         "execution",
         "final_decisions",
+        "settlement",
         "strategy",
         "symbol_scope",
         "symbols",

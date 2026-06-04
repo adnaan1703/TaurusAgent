@@ -22,6 +22,7 @@ from taurus_core.agents.runner import run_analyst_suite
 from taurus_core.agents.schemas import AnalystReport
 from taurus_core.agents.trader_agent import TraderAgent
 from taurus_core.backtesting.graph import GraphBacktestSignal, GraphBacktestSignalLoader
+from taurus_core.brokers.paper_broker import PaperBroker
 from taurus_core.config import Settings, get_settings
 from taurus_core.data.importers import MarketDataImportSummary, import_market_data
 from taurus_core.data.preflight import assert_kite_runtime_preflight
@@ -39,7 +40,7 @@ from taurus_core.db.repositories import (
 from taurus_core.db.session import build_session_factory
 from taurus_core.domain.market_data import DailyCandle
 from taurus_core.execution.order_router import ExecutionRouter
-from taurus_core.execution.schemas import PaperOrder
+from taurus_core.execution.schemas import NextOpenSettlementSummary, PaperAccount, PaperOrder
 from taurus_core.features.store import TechnicalFeatureService
 from taurus_core.graph.preflight import assert_graph_ready_for_paper
 from taurus_core.intelligence.mock_news_provider import MockNewsProvider
@@ -126,6 +127,7 @@ class PaperRunSymbolScope:
     strategy_ranked_symbols: list[str]
     graph_selected_symbols: list[str]
     open_position_symbols: list[str]
+    pending_next_open_order_symbols: list[str]
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -143,6 +145,7 @@ class PaperRunSymbolScope:
             "strategy_ranked_symbols": list(self.strategy_ranked_symbols),
             "graph_selected_symbols": list(self.graph_selected_symbols),
             "open_position_symbols": list(self.open_position_symbols),
+            "pending_next_open_order_symbols": list(self.pending_next_open_order_symbols),
         }
 
 
@@ -225,14 +228,33 @@ class PaperRunService:
             symbols=requested_symbols,
         )
         open_position_symbols = sorted(self._open_position_symbols())
-        input_symbols = _normalize_symbols([*requested_symbols, *open_position_symbols])
+        self._emit_progress(
+            "paper.run.setup_completed",
+            stage="open_positions",
+            symbols=_normalize_symbols([*requested_symbols, *open_position_symbols]),
+            open_position_symbols=open_position_symbols,
+        )
+        self._emit_progress(
+            "paper.run.setup_started",
+            stage="pending_next_open_orders",
+            symbols=requested_symbols,
+        )
+        pending_next_open_order_symbols = sorted(self._pending_next_open_order_symbols())
+        input_symbols = _normalize_symbols(
+            [
+                *requested_symbols,
+                *open_position_symbols,
+                *pending_next_open_order_symbols,
+            ]
+        )
         analysis_symbols = list(input_symbols)
         finalization_symbols = list(input_symbols)
         self._progress_symbol_count = max(len(input_symbols), 1)
         self._emit_progress(
             "paper.run.setup_completed",
-            stage="open_positions",
+            stage="pending_next_open_orders",
             symbols=input_symbols,
+            pending_next_open_order_symbols=pending_next_open_order_symbols,
         )
         started_at = _utc_now()
         run = PaperRun(
@@ -277,11 +299,51 @@ class PaperRunService:
             self._emit_progress(
                 "paper.run.setup_started",
                 run_id=run.run_id,
-                stage="strategy",
+                stage="settlement",
                 symbols=input_symbols,
             )
+            settlement_summary = self._settle_pending_next_open_orders(run_id=run.run_id)
+            post_settlement_account = self._latest_paper_account()
+            post_settlement_open_position_symbols = sorted(self._open_position_symbols())
+            post_settlement_pending_order_symbols = sorted(
+                self._pending_next_open_order_symbols()
+            )
+            settlement_artifact = _settlement_artifact_from_summary(
+                settlement_summary,
+                account=post_settlement_account,
+                open_position_symbols=post_settlement_open_position_symbols,
+                pending_next_open_order_symbols=post_settlement_pending_order_symbols,
+            )
+            strategy_scope_symbols = _normalize_symbols(
+                [
+                    *requested_symbols,
+                    *post_settlement_open_position_symbols,
+                    *pending_next_open_order_symbols,
+                    *post_settlement_pending_order_symbols,
+                ]
+            )
+            self._progress_symbol_count = max(len(strategy_scope_symbols), 1)
+            self._emit_progress(
+                "paper.run.setup_completed",
+                run_id=run.run_id,
+                stage="settlement",
+                symbols=strategy_scope_symbols,
+                settled_count=settlement_summary.settled,
+                rejected_count=settlement_summary.rejected,
+                still_pending_count=settlement_summary.still_pending,
+                skipped_count=settlement_summary.skipped,
+            )
+            self._emit_progress(
+                "paper.run.setup_started",
+                run_id=run.run_id,
+                stage="strategy",
+                symbols=strategy_scope_symbols,
+            )
             strategy_summary = self._generate_strategy_summary(
-                symbols=requested_symbols,
+                symbols=strategy_scope_symbols,
+                requested_symbols=requested_symbols,
+                pre_settlement_pending_order_symbols=pending_next_open_order_symbols,
+                pending_next_open_order_symbols=post_settlement_pending_order_symbols,
                 universe=run.universe,
                 strategy_config_path=strategy_config_path,
             )
@@ -289,27 +351,27 @@ class PaperRunService:
                 "paper.run.setup_completed",
                 run_id=run.run_id,
                 stage="strategy",
-                symbols=input_symbols,
+                symbols=strategy_scope_symbols,
             )
             self._emit_progress(
                 "paper.run.setup_started",
                 run_id=run.run_id,
                 stage="money_management",
-                symbols=input_symbols,
+                symbols=strategy_scope_symbols,
             )
             money_management_summary = self._generate_money_management_summary()
             self._emit_progress(
                 "paper.run.setup_completed",
                 run_id=run.run_id,
                 stage="money_management",
-                symbols=input_symbols,
+                symbols=strategy_scope_symbols,
             )
             core_basket_symbols = _core_basket_symbols_from_summary(money_management_summary)
             self._emit_progress(
                 "paper.run.setup_started",
                 run_id=run.run_id,
                 stage="symbol_selection",
-                symbols=input_symbols,
+                symbols=strategy_scope_symbols,
             )
             symbol_scope = _symbol_scope_for_run(
                 settings=self.settings,
@@ -359,6 +421,7 @@ class PaperRunService:
             return self._store_run(failed, audit_event="paper_run.failed")
 
         artifacts: dict[str, Any] = {
+            "settlement": settlement_artifact,
             "strategy": strategy_summary,
             "symbol_scope": symbol_scope.to_dict(),
             "analysis": {},
@@ -366,6 +429,9 @@ class PaperRunService:
         }
         if money_management_summary is not None:
             artifacts["money_management"] = money_management_summary
+        settlement_by_symbol = settlement_artifact.get("by_symbol")
+        if not isinstance(settlement_by_symbol, dict):
+            settlement_by_symbol = {}
         succeeded_symbols: list[str] = []
         failed_symbols: list[str] = []
         errors: list[PaperRunError] = []
@@ -399,6 +465,8 @@ class PaperRunService:
                     finalization_required=finalization_required,
                     finalization_status="pending" if finalization_required else "not_selected",
                 )
+                if symbol in settlement_by_symbol:
+                    artifacts["analysis"][symbol]["settlement"] = settlement_by_symbol[symbol]
                 if finalization_required:
                     pending_finalization_symbols.append(symbol)
                 else:
@@ -590,6 +658,8 @@ class PaperRunService:
                 )
                 finalizations_by_symbol[symbol] = finalization
                 result = _symbol_artifact_from_results(analysis, finalization)
+                if symbol in settlement_by_symbol:
+                    result["settlement"] = settlement_by_symbol[symbol]
                 artifacts["symbols"][symbol] = result
                 artifacts["analysis"][symbol]["finalization_status"] = "completed"
                 artifacts["final_decisions"] = _final_decision_artifact(
@@ -1490,6 +1560,9 @@ class PaperRunService:
         self,
         *,
         symbols: list[str],
+        requested_symbols: list[str] | None = None,
+        pre_settlement_pending_order_symbols: list[str] | None = None,
+        pending_next_open_order_symbols: list[str] | None = None,
         universe: PaperRunUniverse | None,
         strategy_config_path: str | Path | None,
     ) -> dict[str, object]:
@@ -1497,6 +1570,12 @@ class PaperRunService:
         strategy_config = load_strategy_config(path)
         strategy = build_strategy(strategy_config)
         current_positions = self._open_position_symbols()
+        run_scope_symbols = _normalize_symbols(symbols)
+        requested_for_metadata = _normalize_symbols(requested_symbols or symbols)
+        pre_settlement_pending_symbols = _normalize_symbols(
+            pre_settlement_pending_order_symbols or []
+        )
+        pending_next_open_symbols = _normalize_symbols(pending_next_open_order_symbols or [])
         strategy_input_symbols = _normalize_symbols([*symbols, *current_positions])
         graph_profile_enabled = _graph_profile_enabled(
             settings=self.settings,
@@ -1560,11 +1639,18 @@ class PaperRunService:
                 if graph_profile_enabled
                 else None,
                 "select_targets_with_graph_called": False,
+                "run_scope_symbols": run_scope_symbols,
+                "requested_symbols": requested_for_metadata,
+                "pre_settlement_pending_next_open_order_symbols": pre_settlement_pending_symbols,
+                "pending_next_open_order_symbols": pending_next_open_symbols,
                 "open_position_symbols": sorted(current_positions),
                 "symbol_selection": _symbol_selection_metadata(
-                    requested_symbols=symbols,
+                    requested_symbols=requested_for_metadata,
                     selected_symbols=[],
                     current_positions=current_positions,
+                    pending_next_open_order_symbols=set(
+                        [*pre_settlement_pending_symbols, *pending_next_open_symbols]
+                    ),
                     graph_signals_by_symbol={},
                     universe=universe,
                     select_targets_with_graph_called=False,
@@ -1660,11 +1746,18 @@ class PaperRunService:
             if graph_profile_enabled
             else None,
             "select_targets_with_graph_called": select_targets_with_graph_called,
+            "run_scope_symbols": run_scope_symbols,
+            "requested_symbols": requested_for_metadata,
+            "pre_settlement_pending_next_open_order_symbols": pre_settlement_pending_symbols,
+            "pending_next_open_order_symbols": pending_next_open_symbols,
             "open_position_symbols": sorted(current_positions),
             "symbol_selection": _symbol_selection_metadata(
-                requested_symbols=symbols,
+                requested_symbols=requested_for_metadata,
                 selected_symbols=selected_symbols,
                 current_positions=current_positions,
+                pending_next_open_order_symbols=set(
+                    [*pre_settlement_pending_symbols, *pending_next_open_symbols]
+                ),
                 graph_signals_by_symbol=graph_signals_by_symbol,
                 universe=universe,
                 select_targets_with_graph_called=select_targets_with_graph_called,
@@ -1735,6 +1828,29 @@ class PaperRunService:
                 portfolio_id=self.settings.taurus_paper_portfolio_id,
             )
         return {position.symbol.upper() for position in positions if position.quantity > 0}
+
+    def _pending_next_open_order_symbols(self) -> set[str]:
+        with self.session_factory() as session:
+            rows = ExecutionRepository(session).list_pending_next_open_orders(
+                portfolio_id=self.settings.taurus_paper_portfolio_id,
+                limit=None,
+            )
+        return {row.symbol.upper() for row in rows}
+
+    def _settle_pending_next_open_orders(self, *, run_id: str) -> NextOpenSettlementSummary:
+        with self.session_factory() as session:
+            return PaperBroker(session, self.settings).settle_pending_next_open_orders(
+                portfolio_id=self.settings.taurus_paper_portfolio_id,
+                run_id=run_id,
+                settled_at=_utc_now(),
+            )
+
+    def _latest_paper_account(self) -> PaperAccount | None:
+        with self.session_factory() as session:
+            row = ExecutionRepository(session).latest_account_by_portfolio(
+                portfolio_id=self.settings.taurus_paper_portfolio_id,
+            )
+        return PaperAccount.model_validate(row.payload) if row is not None else None
 
     def _store_run(self, run: PaperRun, *, audit_event: str | None = None) -> PaperRun:
         with self.session_factory() as session:
@@ -1948,6 +2064,74 @@ def _allocation_artifact_from_result(
     return artifact
 
 
+def _settlement_artifact_from_summary(
+    summary: NextOpenSettlementSummary,
+    *,
+    account: PaperAccount | None,
+    open_position_symbols: list[str],
+    pending_next_open_order_symbols: list[str],
+) -> dict[str, object]:
+    details = [detail.model_dump(mode="json") for detail in summary.details]
+    still_pending_orders = [
+        detail
+        for detail in details
+        if detail.get("status") == "PENDING_NEXT_OPEN"
+        or detail.get("outcome_reason") == "waiting_for_next_candle"
+    ]
+    by_symbol: dict[str, dict[str, object]] = {}
+    for detail in details:
+        symbol = str(detail.get("symbol") or "").upper()
+        if not symbol:
+            continue
+        symbol_artifact = by_symbol.setdefault(
+            symbol,
+            {
+                "symbol": symbol,
+                "settled": 0,
+                "rejected": 0,
+                "still_pending": 0,
+                "skipped": 0,
+                "details": [],
+            },
+        )
+        if detail.get("status") in {"FILLED", "PARTIALLY_FILLED"}:
+            symbol_artifact["settled"] = int(symbol_artifact["settled"]) + 1
+        elif detail.get("status") == "REJECTED":
+            symbol_artifact["rejected"] = int(symbol_artifact["rejected"]) + 1
+        elif detail.get("status") == "PENDING_NEXT_OPEN":
+            symbol_artifact["still_pending"] = int(symbol_artifact["still_pending"]) + 1
+        else:
+            symbol_artifact["skipped"] = int(symbol_artifact["skipped"]) + 1
+        symbol_details = symbol_artifact["details"]
+        if isinstance(symbol_details, list):
+            symbol_details.append(detail)
+
+    for symbol_artifact in by_symbol.values():
+        symbol_details = symbol_artifact.get("details")
+        symbol_artifact["detail_count"] = (
+            len(symbol_details) if isinstance(symbol_details, list) else 0
+        )
+
+    return {
+        "portfolio_id": summary.portfolio_id,
+        "run_id": summary.run_id,
+        "settled": summary.settled,
+        "rejected": summary.rejected,
+        "still_pending": summary.still_pending,
+        "skipped": summary.skipped,
+        "detail_count": len(details),
+        "details": details,
+        "still_pending_order_count": len(still_pending_orders),
+        "still_pending_orders": still_pending_orders,
+        "post_settlement_account": account.model_dump(mode="json")
+        if account is not None
+        else None,
+        "post_settlement_open_position_symbols": list(open_position_symbols),
+        "pending_next_open_order_symbols": list(pending_next_open_order_symbols),
+        "by_symbol": dict(sorted(by_symbol.items())),
+    }
+
+
 def _final_decision_artifact(
     finalizations_by_symbol: dict[str, PaperSymbolFinalization],
 ) -> dict[str, object]:
@@ -2125,6 +2309,21 @@ def _symbol_scope_for_run(
     open_positions = _normalize_symbols(
         [str(symbol) for symbol in strategy_summary.get("open_position_symbols", [])]
     )
+    pending_next_open = _normalize_symbols(
+        [
+            *[
+                str(symbol)
+                for symbol in strategy_summary.get(
+                    "pre_settlement_pending_next_open_order_symbols",
+                    [],
+                )
+            ],
+            *[
+                str(symbol)
+                for symbol in strategy_summary.get("pending_next_open_order_symbols", [])
+            ],
+        ]
+    )
     strategy_selected = _normalize_symbols(
         [str(symbol) for symbol in strategy_summary.get("targets", [])]
     )
@@ -2140,10 +2339,10 @@ def _symbol_scope_for_run(
 
     if settings.taurus_paper_analysis_scope == "full_universe":
         if universe_mode == "market_data_universe":
-            analyzed = _normalize_symbols([*requested, *open_positions])
+            analyzed = _normalize_symbols([*requested, *open_positions, *pending_next_open])
             finalization = list(analyzed)
         else:
-            analyzed = _normalize_symbols([*requested, *open_positions])
+            analyzed = _normalize_symbols([*requested, *open_positions, *pending_next_open])
             finalization = list(analyzed)
     else:
         finalization = _symbols_for_pipeline(
@@ -2168,6 +2367,7 @@ def _symbol_scope_for_run(
         strategy_ranked_symbols=strategy_ranked,
         graph_selected_symbols=graph_selected,
         open_position_symbols=open_positions,
+        pending_next_open_order_symbols=pending_next_open,
     )
 
 
@@ -2191,6 +2391,9 @@ def _strategy_summary_with_symbol_scope(
     scoped["strategy_ranked_symbols"] = list(symbol_scope.strategy_ranked_symbols)
     scoped["graph_selected_symbols"] = list(symbol_scope.graph_selected_symbols)
     scoped["open_position_symbols"] = list(symbol_scope.open_position_symbols)
+    scoped["pending_next_open_order_symbols"] = list(
+        symbol_scope.pending_next_open_order_symbols
+    )
     return scoped
 
 
@@ -2204,9 +2407,23 @@ def _symbols_for_pipeline(
         strategy_key = "graph_selected_symbols" if (
             strategy_summary.get("select_targets_with_graph_called") is True
         ) else "targets"
+        pending_next_open = [
+            *[
+                str(symbol)
+                for symbol in strategy_summary.get(
+                    "pre_settlement_pending_next_open_order_symbols",
+                    [],
+                )
+            ],
+            *[
+                str(symbol)
+                for symbol in strategy_summary.get("pending_next_open_order_symbols", [])
+            ],
+        ]
         selected = [
             *[str(symbol) for symbol in strategy_summary.get(strategy_key, [])],
             *[str(symbol) for symbol in strategy_summary.get("open_position_symbols", [])],
+            *pending_next_open,
         ]
         normalized = _normalize_symbols(selected)
         if not normalized:
@@ -2219,6 +2436,17 @@ def _symbols_for_pipeline(
         [
             *requested_symbols,
             *[str(symbol) for symbol in strategy_summary.get("open_position_symbols", [])],
+            *[
+                str(symbol)
+                for symbol in strategy_summary.get(
+                    "pre_settlement_pending_next_open_order_symbols",
+                    [],
+                )
+            ],
+            *[
+                str(symbol)
+                for symbol in strategy_summary.get("pending_next_open_order_symbols", [])
+            ],
         ]
     )
 
@@ -2359,15 +2587,19 @@ def _symbol_selection_metadata(
     requested_symbols: list[str],
     selected_symbols: list[str],
     current_positions: set[str],
+    pending_next_open_order_symbols: set[str],
     graph_signals_by_symbol: dict[str, GraphBacktestSignal],
     universe: PaperRunUniverse | None,
     select_targets_with_graph_called: bool,
 ) -> dict[str, dict[str, object]]:
     requested = {symbol.upper() for symbol in requested_symbols}
     selected = {symbol.upper() for symbol in selected_symbols}
+    pending_next_open = {symbol.upper() for symbol in pending_next_open_order_symbols}
     graph_signal_symbols = set(graph_signals_by_symbol)
     universe_mode = universe.source if universe is not None else "manual_symbols"
-    output_symbols = sorted(requested | selected | current_positions | graph_signal_symbols)
+    output_symbols = sorted(
+        requested | selected | current_positions | pending_next_open | graph_signal_symbols
+    )
     return {
         symbol: {
             "selection_source": _selection_source(
@@ -2375,6 +2607,7 @@ def _symbol_selection_metadata(
                 requested=requested,
                 selected=selected,
                 current_positions=current_positions,
+                pending_next_open_order_symbols=pending_next_open,
                 universe_mode=universe_mode,
                 select_targets_with_graph_called=select_targets_with_graph_called,
             ),
@@ -2383,6 +2616,7 @@ def _symbol_selection_metadata(
                 select_targets_with_graph_called and symbol in selected
             ),
             "included_from_open_position": symbol in current_positions,
+            "included_from_pending_next_open_order": symbol in pending_next_open,
             "has_graph_signal": symbol in graph_signal_symbols,
             "graph_signal": graph_signals_by_symbol[symbol].to_dict()
             if symbol in graph_signals_by_symbol
@@ -2499,6 +2733,7 @@ def _selection_source(
     requested: set[str],
     selected: set[str],
     current_positions: set[str],
+    pending_next_open_order_symbols: set[str],
     universe_mode: str,
     select_targets_with_graph_called: bool,
 ) -> str:
@@ -2508,6 +2743,8 @@ def _selection_source(
         return "graph_aware_strategy"
     if symbol in current_positions:
         return "open_position"
+    if symbol in pending_next_open_order_symbols:
+        return "pending_next_open_order"
     if symbol in requested:
         return "configured_universe"
     return "graph_signal_only"

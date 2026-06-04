@@ -691,6 +691,7 @@ def test_next_open_settlement_rejects_buy_when_zero_quantity_is_affordable(
         repo = ExecutionRepository(session)
         order = PaperOrder.model_validate(repo.get_order(resized_order.order_id).payload)
         fills = repo.list_fills(order_id=resized_order.order_id, limit=None)
+        account = repo.latest_account(run_id="settlement-run")
 
     assert summary.settled == 0
     assert summary.rejected == 1
@@ -699,8 +700,45 @@ def test_next_open_settlement_rejects_buy_when_zero_quantity_is_affordable(
     assert order.remaining_quantity == 10
     assert "cash" in order.rejection_reason.lower()
     assert fills == []
+    assert account is not None
     assert summary.details[0].status == "REJECTED"
     assert "cash" in summary.details[0].rejection_reason.lower()
+
+    with session_factory() as session:
+        proposal_model = ResearchRepository(session).get_trader_proposal(decision.proposal_id)
+        assert proposal_model is not None
+        base_proposal = TraderProposal.model_validate(proposal_model.payload)
+        replacement_proposal = base_proposal.model_copy(
+            update={
+                "proposal_id": trader_proposal_id(
+                    run_id="settlement-run",
+                    symbol=base_proposal.symbol,
+                    debate_id=base_proposal.debate_id,
+                    source_report_ids=list(base_proposal.source_report_ids),
+                ),
+                "run_id": "settlement-run",
+                "portfolio_id": settings.taurus_paper_portfolio_id,
+                "reason_summary": "Same-run replacement after rejected settlement.",
+            }
+        )
+        ResearchRepository(session).replace_trader_proposal_for_run_symbol(
+            replacement_proposal
+        )
+        session.commit()
+
+    with session_factory() as session:
+        repo = ExecutionRepository(session)
+        preserved_row = repo.get_order(resized_order.order_id)
+        preserved_account = repo.latest_account(run_id="settlement-run")
+        preserved_fills = repo.list_fills(order_id=resized_order.order_id, limit=None)
+
+    assert preserved_row is not None
+    preserved_order = PaperOrder.model_validate(preserved_row.payload)
+    assert preserved_order.status == "REJECTED"
+    assert preserved_order.execution_policy == "next_open"
+    assert preserved_order.scheduled_fill_session == "next_open"
+    assert preserved_account is not None
+    assert preserved_fills == []
 
 
 def test_next_open_settlement_fills_exit_sell_and_realizes_pnl(

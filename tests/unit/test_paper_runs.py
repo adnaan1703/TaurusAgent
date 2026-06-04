@@ -40,7 +40,11 @@ from taurus_core.paper_trading.service import (
 )
 from taurus_core.portfolio import ActiveAllocationPosition, load_money_management_policy
 from tests.llm_fakes import FakeLLMProvider
-from tests.market_data_fixtures import FakeKiteMarketDataProvider, TEST_INSTRUMENTS
+from tests.market_data_fixtures import (
+    FakeKiteMarketDataProvider,
+    TEST_INSTRUMENTS,
+    build_test_candles_for_symbol,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -247,6 +251,123 @@ def test_paper_run_includes_open_position_symbols_across_runs(tmp_path: Path) ->
         "included_from_open_position"
     ] is True
     assert second.artifacts["strategy"]["symbol_selection"]["TCS"]["requested_explicitly"] is True
+
+
+def test_eod_paper_run_settles_prior_pending_orders_before_new_decisions(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings = _settings_for_temp_db(tmp_path, enabled_analysts="technical")
+    candle_count = {"value": 252}
+
+    class AdvancingFakeKiteMarketDataProvider(FakeKiteMarketDataProvider):
+        def get_daily_candles(self, symbol: str):
+            symbols = [instrument.symbol for instrument in TEST_INSTRUMENTS]
+            symbol_index = symbols.index(symbol.upper())
+            return build_test_candles_for_symbol(
+                symbol=symbol.upper(),
+                symbol_index=symbol_index,
+                candle_count=candle_count["value"],
+                source="kite:historical:NSE",
+            )
+
+    monkeypatch.setattr(
+        "taurus_core.paper_trading.service.build_market_data_provider",
+        lambda settings: AdvancingFakeKiteMarketDataProvider(),
+    )
+
+    first = PaperRunService(settings, schedule_name="m48_buy_queue").run_once(symbols=["INFY"])
+    assert first.status == "COMPLETED"
+    assert first.artifacts["settlement"]["settled"] == 0
+    assert first.artifacts["symbols"]["INFY"]["order_status"] == "PENDING_NEXT_OPEN"
+
+    candle_count["value"] = 253
+    forced_actions = {"INFY": "EXIT"}
+    _force_trader_actions(monkeypatch, forced_actions)
+    second = PaperRunService(settings, schedule_name="m48_buy_settle_exit_queue").run_once(
+        symbols=["INFY"]
+    )
+    second_settlement = second.artifacts["settlement"]
+    second_symbol = second.artifacts["symbols"]["INFY"]
+
+    assert second.status == "COMPLETED"
+    assert second_settlement["settled"] == 1
+    assert second_settlement["rejected"] == 0
+    assert second_settlement["still_pending"] == 0
+    assert second_settlement["details"][0]["side"] == "BUY"
+    assert second_settlement["details"][0]["status"] == "FILLED"
+    assert second_symbol["settlement"]["settled"] == 1
+    assert second_symbol["current_position_quantity"] > 0
+    assert second_symbol["proposal_action"] == "EXIT"
+    assert second_symbol["order_status"] == "PENDING_NEXT_OPEN"
+    assert second_symbol["order_reason"] == "queued_for_next_open_settlement"
+
+    session_factory = build_session_factory(settings)
+    with session_factory() as session:
+        second_fills = ExecutionRepository(session).list_fills_by_portfolio(
+            portfolio_id=settings.taurus_paper_portfolio_id,
+            symbol="INFY",
+        )
+        second_positions = ExecutionRepository(session).latest_open_positions_by_portfolio(
+            portfolio_id=settings.taurus_paper_portfolio_id,
+        )
+
+    assert [fill.side for fill in second_fills] == ["BUY"]
+    assert {position.symbol: position.quantity for position in second_positions}["INFY"] > 0
+
+    candle_count["value"] = 254
+    forced_actions["INFY"] = "NO_TRADE"
+    third = PaperRunService(settings, schedule_name="m48_exit_settle").run_once(
+        symbols=["INFY"]
+    )
+    third_settlement = third.artifacts["settlement"]
+
+    with session_factory() as session:
+        third_fills = ExecutionRepository(session).list_fills_by_portfolio(
+            portfolio_id=settings.taurus_paper_portfolio_id,
+            symbol="INFY",
+        )
+        latest_account = ExecutionRepository(session).latest_account_by_portfolio(
+            portfolio_id=settings.taurus_paper_portfolio_id,
+        )
+        latest_positions = ExecutionRepository(session).latest_open_positions_by_portfolio(
+            portfolio_id=settings.taurus_paper_portfolio_id,
+        )
+
+    assert third.status == "COMPLETED"
+    assert third_settlement["settled"] == 1
+    assert third_settlement["details"][0]["side"] == "SELL"
+    assert third_settlement["details"][0]["status"] == "FILLED"
+    assert [fill.side for fill in third_fills] == ["BUY", "SELL"]
+    assert latest_account is not None
+    assert Decimal(str(latest_account.realized_pnl_inr)) != Decimal("0")
+    assert latest_positions == []
+
+
+def test_eod_paper_run_records_pending_orders_waiting_for_newer_candle(
+    tmp_path: Path,
+) -> None:
+    settings = _settings_for_temp_db(tmp_path, enabled_analysts="technical")
+    first = PaperRunService(settings, schedule_name="m48_waiting_seed").run_once(symbols=["INFY"])
+    second = PaperRunService(settings, schedule_name="m48_waiting_review").run_once(
+        symbols=["TCS"]
+    )
+
+    settlement = second.artifacts["settlement"]
+    scope = second.artifacts["symbol_scope"]
+
+    assert first.artifacts["symbols"]["INFY"]["order_status"] == "PENDING_NEXT_OPEN"
+    assert second.status == "COMPLETED"
+    assert settlement["settled"] == 0
+    assert settlement["still_pending"] == 1
+    assert settlement["still_pending_order_count"] == 1
+    assert settlement["still_pending_orders"][0]["symbol"] == "INFY"
+    assert settlement["still_pending_orders"][0]["outcome_reason"] == "waiting_for_next_candle"
+    assert "INFY" in scope["pending_next_open_order_symbols"]
+    assert "INFY" in scope["analyzed_symbols"]
+    assert second.artifacts["strategy"]["symbol_selection"]["INFY"][
+        "included_from_pending_next_open_order"
+    ] is True
 
 
 def test_money_management_paper_run_creates_shariah_equity_core_decisions(

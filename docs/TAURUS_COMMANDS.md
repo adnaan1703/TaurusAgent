@@ -114,6 +114,14 @@ make paper-loop-dashboard
 make position-monitor POSITION_MONITOR_ENABLED=true POSITION_MONITOR_ITERATIONS=1
 ```
 
+Manual EOD paper loop commands, including `make paper-loop-kite`, first import
+the latest daily candles, settle any previous `PENDING_NEXT_OPEN` orders at the
+first imported candle open after each order's signal trade date, and then run
+new after-close analysis/allocation/risk/final approval. Orders created by the
+same EOD run remain queued for the next available open and do not mutate cash or
+positions during that run. If an operator skips a trading day, settlement still
+uses the first available newer daily candle after the original signal date.
+
 Replay, alerts, and backup:
 
 ```bash

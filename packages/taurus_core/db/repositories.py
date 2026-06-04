@@ -2195,38 +2195,89 @@ def _delete_paper_artifacts_for_run_symbol(
     symbol: str,
 ) -> None:
     normalized_symbol = symbol.upper()
-    session.execute(
-        delete(PaperFillModel).where(
-            PaperFillModel.run_id == run_id,
-            PaperFillModel.symbol == normalized_symbol,
+    protected_settlement_order_ids = set(
+        session.scalars(
+            select(PaperFillModel.order_id)
+            .join(PaperOrderModel, PaperOrderModel.order_id == PaperFillModel.order_id)
+            .where(
+                PaperFillModel.run_id == run_id,
+                PaperFillModel.symbol == normalized_symbol,
+                PaperOrderModel.status.in_(("FILLED", "PARTIALLY_FILLED")),
+                PaperOrderModel.payload["execution_policy"].as_string() == "next_open",
+                PaperOrderModel.payload["scheduled_fill_session"].as_string() == "next_open",
+            )
+            .distinct()
         )
     )
-    session.execute(
-        delete(PaperOrderModel).where(
-            PaperOrderModel.run_id == run_id,
+    run_model = session.get(PaperRunModel, run_id)
+    account_model = session.scalar(
+        select(PaperAccountModel)
+        .where(PaperAccountModel.run_id == run_id)
+        .order_by(PaperAccountModel.updated_at.desc(), PaperAccountModel.account_id)
+        .limit(1)
+    )
+    if run_model is not None or account_model is not None:
+        rejected_settlement_orders = select(PaperOrderModel.order_id).where(
             PaperOrderModel.symbol == normalized_symbol,
+            PaperOrderModel.status == "REJECTED",
+            PaperOrderModel.payload["execution_policy"].as_string() == "next_open",
+            PaperOrderModel.payload["scheduled_fill_session"].as_string() == "next_open",
+            PaperOrderModel.payload["filled_trade_date"].as_string().is_not(None),
         )
+        if run_model is not None:
+            rejected_settlement_orders = rejected_settlement_orders.where(
+                PaperOrderModel.updated_at >= run_model.started_at
+            )
+        if account_model is not None:
+            rejected_settlement_orders = rejected_settlement_orders.where(
+                PaperOrderModel.updated_at <= account_model.updated_at
+            )
+        protected_settlement_order_ids.update(session.scalars(rejected_settlement_orders))
+    protected_settlement_order_ids_list = sorted(protected_settlement_order_ids)
+    fill_delete = delete(PaperFillModel).where(
+        PaperFillModel.run_id == run_id,
+        PaperFillModel.symbol == normalized_symbol,
     )
-    session.execute(
-        delete(PaperPositionModel).where(
-            PaperPositionModel.run_id == run_id,
-            PaperPositionModel.symbol == normalized_symbol,
+    order_delete = delete(PaperOrderModel).where(
+        PaperOrderModel.run_id == run_id,
+        PaperOrderModel.symbol == normalized_symbol,
+    )
+    if protected_settlement_order_ids_list:
+        fill_delete = fill_delete.where(
+            PaperFillModel.order_id.not_in(protected_settlement_order_ids_list)
         )
-    )
-    session.execute(
-        delete(AuditLogModel).where(
-            AuditLogModel.event_type.like("paper.%"),
-            AuditLogModel.payload["run_id"].as_string() == run_id,
-            AuditLogModel.payload["symbol"].as_string() == normalized_symbol,
+        order_delete = order_delete.where(
+            PaperOrderModel.order_id.not_in(protected_settlement_order_ids_list)
         )
+
+    session.execute(fill_delete)
+    session.execute(order_delete)
+    if not protected_settlement_order_ids_list:
+        session.execute(
+            delete(PaperPositionModel).where(
+                PaperPositionModel.run_id == run_id,
+                PaperPositionModel.symbol == normalized_symbol,
+            )
+        )
+    audit_delete = delete(AuditLogModel).where(
+        AuditLogModel.event_type.like("paper.%"),
+        AuditLogModel.payload["run_id"].as_string() == run_id,
+        AuditLogModel.payload["symbol"].as_string() == normalized_symbol,
     )
+    if protected_settlement_order_ids_list:
+        audit_delete = audit_delete.where(
+            AuditLogModel.payload["order_id"].as_string().not_in(
+                protected_settlement_order_ids_list
+            )
+        )
+    session.execute(audit_delete)
     remaining_fills = int(
         session.scalar(
             select(func.count()).select_from(PaperFillModel).where(PaperFillModel.run_id == run_id)
         )
         or 0
     )
-    if remaining_fills == 0:
+    if remaining_fills == 0 and not protected_settlement_order_ids_list:
         session.execute(delete(PaperAccountModel).where(PaperAccountModel.run_id == run_id))
 
 

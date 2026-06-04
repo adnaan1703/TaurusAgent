@@ -31,9 +31,9 @@ removed during docs cleanup. Use Git history for detailed historical plans.
 - Runtime LLM providers are real providers only: LM Studio by default, with
   OpenAI and Gemini as explicit opt-ins.
 - Execution routes only through local `PaperBroker` simulation.
-- Pending next-open paper orders can be settled through the standalone
-  `PaperBroker` settlement engine; automatic EOD loop integration remains
-  planned for M48.
+- Manual EOD paper loops import latest daily candles, settle previous
+  `PENDING_NEXT_OPEN` orders through the `PaperBroker` settlement engine, then
+  analyze the new after-close state and queue new next-open paper orders.
 - `make paper-loop-kite` is the canonical real-data profile. It runs
   full-universe analysis, graph-aware ranking, run-level allocation,
   risk/final decisions for analyzed symbols, and allocated-only paper routing.
@@ -81,6 +81,7 @@ removed during docs cleanup. Use Git history for detailed historical plans.
 | M45 | Done | Added pending next-open paper order schema metadata, repository insert/list/replace helpers, API aggregate pending-stage handling, React queued status display, and operator docs. PaperBroker after-close pending creation remains planned for M46. |
 | M46 | Done | After-close paper decisions now create `PENDING_NEXT_OPEN` orders with no fills or cash/position mutation, while market-hours monitor and explicit immediate routing continue to fill immediately. Settlement remains planned for M47. |
 | M47 | Done | Added the standalone PaperBroker next-open settlement engine, summary artifacts, deterministic one-fill AMO settlement, cash/position/P&L rebuilding, partial fill/rejection handling, and focused tests. EOD loop integration remains planned for M48. |
+| M48 | Done | Integrated next-open settlement into the manual EOD paper loop before strategy analysis/allocation, exposed top-level and symbol-level settlement artifacts, preserved terminal settlement state during same-run replacements, and documented operator semantics. Dashboard/replay/metrics polish remains planned for M49. |
 
 ### M44-M50 Plan Document Completion Summary
 
@@ -138,6 +139,21 @@ removed during docs cleanup. Use Git history for detailed historical plans.
   deterministic market-data fixtures, and focused manual daily candle fixtures
   in unit tests.
 
+### M48 Completion Summary
+
+- Assumptions made: Manual EOD settlement should run after Kite daily-candle
+  import and before any strategy, allocation, risk, final decision, or new
+  pending-order creation; requested symbols, open-position symbols, and
+  pending-order symbols all belong in the run scope; queued orders created by
+  the current EOD run must not affect cash or positions until a later
+  settlement; terminal settlement orders/fills/account state should survive
+  same-run repository replacement cleanup.
+- Mocks created: None.
+- Mocks used: Existing `FakeLLMProvider`, existing
+  `FakeKiteMarketDataProvider`, deterministic daily-candle fixtures,
+  forced-trader-action monkeypatches in paper-run integration tests, and
+  existing broker settlement test fixtures.
+
 ## Planned Next-Open AMO Settlement Sequence
 
 Execute these milestones in order. Each row should be run separately with fresh
@@ -149,7 +165,7 @@ context, then documented with the standard completion summary before moving on.
 | 27 | M45 | Done | `docs/TAURUS_NEXT_OPEN_AMO_SETTLEMENT_PLAN.md` | Add pending next-open order schema, repository support, API status handling, and UI status support. |
 | 28 | M46 | Done | `docs/TAURUS_NEXT_OPEN_AMO_SETTLEMENT_PLAN.md` | Change after-close paper decisions to create `PENDING_NEXT_OPEN` orders while preserving immediate market-hours monitor routing. |
 | 29 | M47 | Done | `docs/TAURUS_NEXT_OPEN_AMO_SETTLEMENT_PLAN.md` | Settle pending orders at the first newer daily candle open and calculate fills, cash, positions, and P&L. |
-| 30 | M48 | Planned | `docs/TAURUS_NEXT_OPEN_AMO_SETTLEMENT_PLAN.md` | Integrate settlement into the manual EOD paper loop before new analysis and allocation. |
+| 30 | M48 | Done | `docs/TAURUS_NEXT_OPEN_AMO_SETTLEMENT_PLAN.md` | Integrate settlement into the manual EOD paper loop before new analysis and allocation. |
 | 31 | M49 | Planned | `docs/TAURUS_NEXT_OPEN_AMO_SETTLEMENT_PLAN.md` | Polish dashboard, replay, metrics, alerts, and operator docs for pending and settled orders. |
 | 32 | M50 | Planned | `docs/TAURUS_NEXT_OPEN_AMO_SETTLEMENT_PLAN.md` | Run end-to-end regression, verify operator workflow, and close the milestone sequence. |
 

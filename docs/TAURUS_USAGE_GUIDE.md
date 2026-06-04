@@ -159,6 +159,14 @@ real LLM provider where the workflow calls an LLM.
   data and remaining non-market mocks.
 - `make llm-smoke`: checks the configured real LLM provider.
 
+Manual EOD paper loop commands import the latest daily candles, settle previous
+`PENDING_NEXT_OPEN` paper orders at the first newer candle open, and only then
+analyze the new after-close state. The same run can create new pending orders
+for the next trading day, but those queued orders do not change cash, exposure,
+or positions until a later settlement run. If an EOD run is skipped, settlement
+uses the first available daily candle after the original signal date rather than
+requiring the very next calendar day.
+
 ### Position Monitor
 
 - `make position-monitor`: exits without polling because the monitor is disabled
@@ -258,9 +266,12 @@ The canonical loop is Shariah-only when `SYMBOL` and `SYMBOLS` are omitted,
 because it analyzes `TAURUS_MARKET_DATA_UNIVERSE_PATH`, which defaults to
 `configs/market_data/nifty_500_shariah.yaml`. It now performs full-universe
 analysis, run-level allocation, risk/final decisions for analyzed symbols, and
-deferred execution routing for allocated, risk-approved paper decisions. Expect
-longer runtime and higher LLM/API usage than a manual subset; the terminal
-progress output shows where the run is spending time.
+deferred execution routing for allocated, risk-approved paper decisions. Before
+that analysis begins, it imports fresh daily candles and settles any previous
+pending next-open orders for the portfolio, so position-aware analysis sees
+settled cash, exposure, and open quantities. Expect longer runtime and higher
+LLM/API usage than a manual subset; the terminal progress output shows where
+the run is spending time.
 
 For a manual graph-enabled subset:
 
@@ -269,8 +280,8 @@ make paper-loop-kite SYMBOLS=INFY,TCS
 ```
 
 Manual subsets remain bounded to the explicit symbols plus any open paper
-positions, so use them for debugging, prompt checks, or targeted graph/risk
-reviews before running the full universe.
+positions and pending next-open order symbols, so use them for debugging,
+prompt checks, or targeted graph/risk reviews before running the full universe.
 
 For an explicit technical-only manual loop:
 
@@ -533,9 +544,9 @@ For the maintained component-by-component tracker, see
 - Paper costs, slippage, and fill assumptions are placeholder bps settings.
 - Paper fills use daily-candle prices, not live order book or Kite LTP
   execution. The position monitor uses Kite LTP only as trigger evidence.
-- Pending AMO-style paper order payloads can represent queued next-open
-  settlement. Later next-open milestones will enable after-close EOD orders to
-  use that queue before settlement.
+- After-close EOD paper orders are queued as AMO-style `PENDING_NEXT_OPEN`
+  orders. The next manual EOD run settles them against the first newer daily
+  candle open before it creates new pending orders.
 
 ## Technical-Only Flow
 
