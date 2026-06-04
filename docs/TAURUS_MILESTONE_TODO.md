@@ -14,6 +14,8 @@ current operator detail in the usage and command docs.
 - `docs/TAURUS_AGENT_ARCHITECTURE.md`: current agent pipeline and data flow.
 - `docs/TAURUS_DATABASE_TABLES.md`: current Postgres table summary.
 - `docs/TAURUS_GRAPH_INTELLIGENCE_PLAN.md`: completed M20 graph reference.
+- `docs/TAURUS_NEXT_OPEN_AMO_SETTLEMENT_PLAN.md`: planned M44-M50 next-open
+  AMO-style paper settlement work.
 - `docs/agent_improvement_plans/LLM_AGENT_SYSTEM_PROMPTS_BACKLOG.md`: deferred
   prompt backlog for optional analyst upgrades.
 
@@ -71,6 +73,30 @@ removed during docs cleanup. Use Git history for detailed historical plans.
 | M31-M35.1 | Done | Paper money-management policy, core Shariah basket, active/diversifying/experimental sleeve allocation, allocation dashboard, and static policy shortcut cleanup. |
 | Ops progress UI | Done | Rich/plain stderr progress for Kite candle import, graph stats computation, and graph-enabled Kite paper loops. |
 | M36-M43 | Done | Full-universe ranking, decomposed paper loop, run-level dynamic allocation, all-symbol risk/final decisions, allocation observability, replay/backtest/command alignment, and default full-universe Kite paper loop enablement. |
+| M44-M50 plan document | Done | Created the flat next-open AMO-style paper settlement plan covering baseline tests, pending order schema, pending EOD order creation, settlement, EOD loop integration, dashboard/replay/metrics polish, and final cleanup. Implementation milestones remain planned, not complete. |
+
+### M44-M50 Plan Document Completion Summary
+
+- Assumptions made: The next-open AMO settlement work should be executed as
+  flat milestones M44 through M50, each in a separate thread; morning 9:15
+  settlement remains deferred; Kite remains data-only.
+- Mocks created: None.
+- Mocks used: None.
+
+## Planned Next-Open AMO Settlement Sequence
+
+Execute these milestones in order. Each row should be run separately with fresh
+context, then documented with the standard completion summary before moving on.
+
+| Order | Milestone | Status | Plan | Purpose |
+|---:|---|---|---|---|
+| 26 | M44 | Planned | `docs/TAURUS_NEXT_OPEN_AMO_SETTLEMENT_PLAN.md` | Add baseline tests and tracker setup for next-open AMO-style paper settlement. |
+| 27 | M45 | Planned | `docs/TAURUS_NEXT_OPEN_AMO_SETTLEMENT_PLAN.md` | Add pending next-open order schema, repository support, API status handling, and UI status support. |
+| 28 | M46 | Planned | `docs/TAURUS_NEXT_OPEN_AMO_SETTLEMENT_PLAN.md` | Change after-close paper decisions to create `PENDING_NEXT_OPEN` orders while preserving immediate market-hours monitor routing. |
+| 29 | M47 | Planned | `docs/TAURUS_NEXT_OPEN_AMO_SETTLEMENT_PLAN.md` | Settle pending orders at the first newer daily candle open and calculate fills, cash, positions, and P&L. |
+| 30 | M48 | Planned | `docs/TAURUS_NEXT_OPEN_AMO_SETTLEMENT_PLAN.md` | Integrate settlement into the manual EOD paper loop before new analysis and allocation. |
+| 31 | M49 | Planned | `docs/TAURUS_NEXT_OPEN_AMO_SETTLEMENT_PLAN.md` | Polish dashboard, replay, metrics, alerts, and operator docs for pending and settled orders. |
+| 32 | M50 | Planned | `docs/TAURUS_NEXT_OPEN_AMO_SETTLEMENT_PLAN.md` | Run end-to-end regression, verify operator workflow, and close the milestone sequence. |
 
 ## Deferred Work
 
@@ -99,6 +125,27 @@ approvals. Move Taurus-specific approved prefixes into
 `.codex/rules/default.rules` if missing, document them in
 `docs/TAURUS_COMMANDS.md`, and remove them from the global file. Do not copy
 unrelated global approvals.
+
+## Milestone Planning Rules
+
+- Use flat milestone IDs such as `M44`, `M45`, and `M46` for future planned
+  work. Do not create new submilestone IDs such as `M44.1` unless the user
+  explicitly requests submilestones.
+- When a plan naturally has several execution chunks, make each chunk a proper
+  milestone and add it to a tracker table in this file.
+- Every new plan document must be listed in `Active Sources` while it is
+  relevant.
+- Planning work itself must be recorded in `Completed Milestone Summary` when a
+  plan document is created, clearly distinguishing completed planning from
+  planned implementation.
+- The planning completion summary must list assumptions made, mocks created,
+  and mocks used. Use `None` for empty categories.
+- Planned milestone sequence tables must use the established tracker format:
+  `Order`, `Milestone`, `Status`, `Plan`, and `Purpose`.
+- Use `Planned`, `In Progress`, `Done`, or `Deferred` status values
+  consistently.
+- Keep the tracker concise. Detailed implementation instructions belong in the
+  linked plan document.
 
 ## Maintenance Rules
 

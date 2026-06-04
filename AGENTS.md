@@ -62,6 +62,17 @@ Never commit real API keys, broker credentials, Telegram tokens, or user CSV exp
 
 Implement one milestone at a time. Update `docs/TAURUS_MILESTONE_TODO.md` whenever task status changes. Keep Codex command approvals project-local in `.codex/rules/default.rules`; do not broaden global approvals for this repo.
 
+When planning future milestone sequences, use flat milestone IDs such as `M44`, `M45`, and `M46`. Do not create new submilestone identifiers such as `M44.1` unless the user explicitly requests submilestones. If a plan splits work into multiple execution chunks, each chunk must be a proper milestone with its own row in `docs/TAURUS_MILESTONE_TODO.md`.
+
+For every new milestone plan document, update `docs/TAURUS_MILESTONE_TODO.md` in the same planning task:
+
+- Add the plan document to `Active Sources`.
+- Add a completed summary row for the plan-document creation itself, clearly stating that implementation remains planned if no implementation work was done.
+- Add an explicit completion summary for the planning task with assumptions made, mocks created, and mocks used.
+- Add a planned milestone tracker table using the established format: `Order`, `Milestone`, `Status`, `Plan`, and `Purpose`.
+- Use `Planned`, `In Progress`, `Done`, or `Deferred` status values consistently.
+- Keep milestone instructions in the linked plan document and keep the tracker concise.
+
 Treat React dashboard M16 submilestones exactly like main milestones. After a submilestone is complete, verified, cleaned up, and documented with its completion summary, stop and report what was achieved. Do not automatically begin the next M16 submilestone unless the user explicitly asks to proceed.
 
 At the completion of every milestone task, include an explicit completion summary section that lists: assumptions made, mocks created, and mocks used. If any category is empty, state `None` rather than omitting it.
