@@ -1743,7 +1743,7 @@ def _order_status(order: PaperOrderModel) -> StageStatus:
         return "rejected"
     if order.status == "CANCELLED":
         return "blocked"
-    if order.status in {"CREATED", "ACCEPTED", "PENDING_NEXT_OPEN", "PARTIALLY_FILLED"}:
+    if order.status in {"CREATED", "ACCEPTED", "PENDING_NEXT_OPEN"}:
         return "running"
     return "complete"
 
@@ -2938,7 +2938,7 @@ def _replay_order_stage_status(order_status: str) -> StageStatus:
         return "rejected"
     if order_status == "CANCELLED":
         return "blocked"
-    if order_status in {"CREATED", "ACCEPTED", "PENDING_NEXT_OPEN", "PARTIALLY_FILLED"}:
+    if order_status in {"CREATED", "ACCEPTED", "PENDING_NEXT_OPEN"}:
         return "running"
     return "complete"
 

@@ -13,7 +13,14 @@ from taurus_core.compliance import import_halal_stock_compliance, parse_halal_st
 from taurus_core.config import Settings
 from taurus_core.db.repositories import ExecutionRepository, PaperRunRepository
 from taurus_core.db.session import build_session_factory
-from taurus_core.execution.schemas import PaperAccount, PaperOrder, PaperPosition, paper_account_id
+from taurus_core.execution.schemas import (
+    PaperAccount,
+    PaperFill,
+    PaperOrder,
+    PaperPosition,
+    paper_account_id,
+    paper_fill_id,
+)
 from taurus_core.paper_trading.schemas import PaperRun
 from taurus_core.paper_trading.service import PaperRunService
 from tests.llm_fakes import FakeLLMProvider
@@ -201,6 +208,44 @@ def test_ui_aggregate_endpoints_stage_pending_next_open_orders_as_running(
     fill_stage = _find_stage(trail_payload, "paper_fills")
     assert fill_stage["metrics"]["status"] == "PENDING_NEXT_OPEN"
     assert fill_stage["metrics"]["filled_quantity"] == 0
+
+
+def test_ui_aggregate_endpoints_treat_terminal_partial_fills_as_complete(
+    tmp_path: Path,
+) -> None:
+    settings = _settings_for_temp_db(tmp_path)
+    run = PaperRunService(settings).run_once(symbols=["INFY"])
+    session_factory = build_session_factory(settings)
+    decision_id = _mark_latest_order_partially_filled(
+        session_factory,
+        run_id=run.run_id,
+        symbol="INFY",
+    )
+    client = TestClient(create_app(settings))
+
+    detail = client.get(f"/ui/runs/{run.run_id}")
+    trail = client.get(f"/ui/runs/{run.run_id}/symbols/INFY/decision-trail")
+    replay = client.get(f"/ui/replay/{decision_id}")
+
+    assert detail.status_code == 200
+    detail_payload = detail.json()
+    assert detail_payload["symbols"][0]["pipeline_status"] == "complete"
+    assert detail_payload["symbols"][0]["order_status"] == "PARTIALLY_FILLED"
+
+    assert trail.status_code == 200
+    trail_payload = trail.json()
+    assert trail_payload["decision_reason"] == "executed_by_paper_order:partially_filled"
+    assert _stage_status(trail_payload, "paper_order") == "complete"
+    assert _stage_status(trail_payload, "paper_fills") == "complete"
+    trail_order = _stage_artifacts(trail_payload, "paper_order")[0]
+    assert trail_order["status"] == "PARTIALLY_FILLED"
+    assert trail_order["remaining_quantity"] > 0
+
+    assert replay.status_code == 200
+    replay_payload = replay.json()
+    assert _stage_status(replay_payload, "paper_order") == "complete"
+    assert _stage_status(replay_payload, "paper_fills") == "complete"
+    assert _stage_artifacts(replay_payload, "paper_order")[0]["status"] == "PARTIALLY_FILLED"
 
 
 def test_disabled_money_management_uses_settings_fallback_allocation(
@@ -732,6 +777,75 @@ def _queue_latest_order_for_next_open(
                 positions=[],
             )
         session.commit()
+
+
+def _mark_latest_order_partially_filled(
+    session_factory,
+    *,
+    run_id: str,
+    symbol: str,
+) -> str:
+    with session_factory() as session:
+        repo = ExecutionRepository(session)
+        order_model = repo.list_orders(run_id=run_id, symbol=symbol, limit=1)[0]
+        order = PaperOrder.model_validate(order_model.payload)
+        requested_quantity = max(order.quantity, 2)
+        filled_quantity = 1
+        reference_price = Decimal("100.0000")
+        fill_price = Decimal("100.5000")
+        gross_value = fill_price * Decimal(filled_quantity)
+        filled_trade_date = date(2024, 12, 18)
+        partial = order.model_copy(
+            update={
+                "quantity": requested_quantity,
+                "status": "PARTIALLY_FILLED",
+                "filled_quantity": filled_quantity,
+                "remaining_quantity": requested_quantity - filled_quantity,
+                "average_fill_price_inr": fill_price,
+                "gross_value_inr": gross_value,
+                "total_cost_inr": Decimal("0.0000"),
+                "total_slippage_inr": Decimal("0.0000"),
+                "status_history": [
+                    *order.status_history,
+                    "PARTIALLY_FILLED",
+                ],
+                "filled_trade_date": filled_trade_date,
+            }
+        )
+        fill = PaperFill(
+            fill_id=paper_fill_id(
+                order_id=order.order_id,
+                fill_sequence=1,
+                quantity=filled_quantity,
+                reference_price=reference_price,
+            ),
+            order_id=order.order_id,
+            final_decision_id=order.final_decision_id,
+            run_id=order.run_id,
+            portfolio_id=order.portfolio_id,
+            symbol=order.symbol,
+            trade_date=filled_trade_date,
+            side=order.side,
+            quantity=filled_quantity,
+            reference_price_inr=reference_price,
+            fill_price_inr=fill_price,
+            gross_value_inr=gross_value,
+            brokerage_inr=Decimal("0.0000"),
+            exchange_txn_charge_inr=Decimal("0.0000"),
+            tax_levy_inr=Decimal("0.0000"),
+            cost_inr=Decimal("0.0000"),
+            slippage_bps=order.slippage_bps,
+            slippage_inr=Decimal("0.0000"),
+            fill_sequence=1,
+            filled_at=order.updated_at,
+        )
+        repo.replace_pending_next_open_order(
+            order_id=order.order_id,
+            order=partial,
+            fills=[fill],
+        )
+        session.commit()
+        return order.decision_id
 
 
 def _write_money_management_policy(tmp_path: Path) -> Path:
