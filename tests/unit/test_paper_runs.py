@@ -343,6 +343,61 @@ def test_eod_paper_run_settles_prior_pending_orders_before_new_decisions(
     assert Decimal(str(latest_account.realized_pnl_inr)) != Decimal("0")
     assert latest_positions == []
 
+    client = TestClient(create_app(settings))
+    orders_response = client.get("/paper/orders?symbol=INFY")
+    fills_response = client.get("/paper/fills?symbol=INFY")
+    positions_response = client.get("/paper/positions?symbol=INFY")
+    account_response = client.get("/paper/account")
+    overview_response = client.get("/ui/overview")
+    second_detail_response = client.get(f"/ui/runs/{second.run_id}")
+    third_detail_response = client.get(f"/ui/runs/{third.run_id}")
+
+    assert orders_response.status_code == 200
+    assert fills_response.status_code == 200
+    assert positions_response.status_code == 200
+    assert account_response.status_code == 200
+    assert overview_response.status_code == 200
+    assert second_detail_response.status_code == 200
+    assert third_detail_response.status_code == 200
+
+    api_orders = orders_response.json()
+    api_fills = fills_response.json()
+    api_account = account_response.json()
+    api_overview = overview_response.json()
+    second_detail = second_detail_response.json()
+    third_detail = third_detail_response.json()
+    orders_by_side = {order["side"]: order for order in api_orders}
+    fill_sides = {fill["side"] for fill in api_fills}
+
+    assert len(api_orders) == 2
+    assert set(orders_by_side) == {"BUY", "SELL"}
+    assert orders_by_side["BUY"]["status"] == "FILLED"
+    assert orders_by_side["SELL"]["status"] == "FILLED"
+    assert orders_by_side["BUY"]["execution_policy"] == "next_open"
+    assert orders_by_side["SELL"]["execution_policy"] == "next_open"
+    assert (
+        orders_by_side["BUY"]["signal_trade_date"]
+        < orders_by_side["BUY"]["filled_trade_date"]
+    )
+    assert (
+        orders_by_side["SELL"]["signal_trade_date"]
+        < orders_by_side["SELL"]["filled_trade_date"]
+    )
+    assert len(api_fills) == 2
+    assert fill_sides == {"BUY", "SELL"}
+    assert positions_response.json() == []
+    assert api_account["run_id"] == third.run_id
+    assert Decimal(str(api_account["realized_pnl_inr"])) != Decimal("0")
+    assert api_overview["latest_run"]["run_id"] == third.run_id
+    assert api_overview["latest_run"]["settlement_summary"]["settled"] == 1
+    assert api_overview["latest_run"]["settlement_summary"]["status_counts"] == {"FILLED": 1}
+    assert second_detail["symbols"][0]["order_status"] == "FILLED"
+    assert second_detail["artifacts"]["symbols"]["INFY"]["proposal_action"] == "EXIT"
+    assert second_detail["artifacts"]["symbols"]["INFY"]["order_status"] == "PENDING_NEXT_OPEN"
+    assert third_detail["artifacts"]["settlement"]["settled"] == 1
+    assert third_detail["artifacts"]["settlement"]["details"][0]["side"] == "SELL"
+    assert third_detail["artifacts"]["settlement"]["details"][0]["status"] == "FILLED"
+
 
 def test_eod_paper_run_records_pending_orders_waiting_for_newer_candle(
     tmp_path: Path,
