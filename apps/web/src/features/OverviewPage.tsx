@@ -11,6 +11,7 @@ import { MetricCard } from "../components/MetricCard";
 import { RefreshButton } from "../components/RefreshButton";
 import { RunUniverseSummary } from "../components/RunUniverse";
 import { SafetyBanner } from "../components/SafetyBanner";
+import { SettlementPanel } from "../components/SettlementPanel";
 import { ErrorState, LoadingState } from "../components/States";
 import { StatusBadge } from "../components/StatusBadge";
 import { WarningsPanel } from "../components/WarningsPanel";
@@ -155,6 +156,14 @@ export function OverviewPage() {
             </DataPanel>
           )}
 
+          {overviewQuery.data.latest_run && (
+            <SettlementPanel
+              settlement={overviewQuery.data.latest_run.settlement_summary}
+              showDetails={false}
+              title="Latest Settlement"
+            />
+          )}
+
           {overviewQuery.data.recent_runs.length === 0 ? (
             <EmptyState
               commands={emptyDataCommands}
@@ -224,6 +233,11 @@ export function OverviewPage() {
                     header: "Orders",
                     render: (run) => <StatusCounts counts={run.order_status_counts} />,
                   },
+                  {
+                    key: "settlement",
+                    header: "Settlement",
+                    render: (run) => <SettlementCounts run={run} />,
+                  },
                   { key: "errors", header: "Errors", align: "right", render: (run) => run.error_count },
                 ]}
                 emptyLabel="No runs"
@@ -289,6 +303,9 @@ export function OverviewPage() {
                 ["average_fill_price_inr", "Average fill"],
                 ["total_cost_inr", "Costs"],
                 ["slippage_bps", "Slippage"],
+                ["signal_trade_date", "Signal date"],
+                ["scheduled_fill_session", "Fill session"],
+                ["filled_trade_date", "Filled trade date"],
               ]}
               statusKey="status"
               title="Latest Paper Order"
@@ -417,6 +434,38 @@ function StatusCounts({ counts }: { counts: Record<string, number> }) {
           <span className="text-xs text-taurus-muted">{count}</span>
         </span>
       ))}
+    </div>
+  );
+}
+
+function SettlementCounts({ run }: { run: UiRunSummary }) {
+  const settlementSummary = run.settlement_summary ?? {};
+  const settled = Number(getPrimitive(settlementSummary, "settled") ?? 0);
+  const rejected = Number(getPrimitive(settlementSummary, "rejected") ?? 0);
+  const stillPending = Number(getPrimitive(settlementSummary, "still_pending") ?? 0);
+  const skipped = Number(getPrimitive(settlementSummary, "skipped") ?? 0);
+  const entries = [
+    ["FILLED", settled],
+    ["REJECTED", rejected],
+    ["PENDING_NEXT_OPEN", stillPending],
+    ["skipped", skipped],
+  ] as const;
+  if (!Object.keys(settlementSummary).length) {
+    return <span className="text-taurus-muted">Not recorded</span>;
+  }
+  if (entries.every(([, count]) => count === 0)) {
+    return <span className="text-taurus-muted">No activity</span>;
+  }
+  return (
+    <div className="flex flex-wrap gap-2">
+      {entries
+        .filter(([, count]) => count > 0)
+        .map(([status, count]) => (
+          <span className="inline-flex items-center gap-1" key={status}>
+            <StatusBadge status={status} size="sm" />
+            <span className="text-xs text-taurus-muted">{count}</span>
+          </span>
+        ))}
     </div>
   );
 }

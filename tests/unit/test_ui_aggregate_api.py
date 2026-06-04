@@ -83,6 +83,17 @@ def test_ui_aggregate_endpoints_return_completed_run_trail(tmp_path: Path) -> No
     assert selection_preview[0]["reason"] == "paper_order_status:pending_next_open"
     assert overview.json()["latest_run"]["final_status_counts"] == {"APPROVED_FOR_PAPER": 1}
     assert overview.json()["latest_run"]["order_status_counts"] == {"PENDING_NEXT_OPEN": 1}
+    assert overview.json()["latest_run"]["settlement_summary"] == {
+        "settled": 0,
+        "rejected": 0,
+        "still_pending": 0,
+        "skipped": 0,
+        "detail_count": 0,
+        "status_counts": {},
+        "still_pending_order_count": 0,
+        "pending_next_open_order_symbols": [],
+        "has_activity": False,
+    }
 
     assert history.status_code == 200
     assert history.json()["runs"][0]["run_id"] == run.run_id
@@ -124,6 +135,12 @@ def test_ui_aggregate_endpoints_return_completed_run_trail(tmp_path: Path) -> No
     replay_payload = replay.json()
     assert replay_payload["decision_id"] == trail_payload["decision_id"]
     assert _stage_artifact_count(replay_payload, "final_decision") == 1
+    assert _stage_status(replay_payload, "paper_order") == "running"
+    assert _stage_status(replay_payload, "paper_fills") == "running"
+    replay_order = _stage_artifacts(replay_payload, "paper_order")[0]
+    assert replay_order["status"] == "PENDING_NEXT_OPEN"
+    assert replay_order["signal_trade_date"]
+    assert _find_stage(replay_payload, "paper_fills")["metrics"]["status"] == "PENDING_NEXT_OPEN"
     assert replay_payload["stages"][0]["raw"] is not None
 
     assert risk.status_code == 200

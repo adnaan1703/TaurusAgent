@@ -51,8 +51,14 @@ export function DataTable<Row>({
           {safeRows.map((row) => (
             <tr className="hover:bg-taurus-surfaceRaised/60" key={getRowKey(row)}>
               {columns.map((column) => (
-                <td className="px-3 py-3 text-taurus-text" key={column.key}>
-                  <span className={column.align === "right" ? "block text-right" : undefined}>
+                <td className="px-3 py-3 align-top text-taurus-text" key={column.key}>
+                  <span
+                    className={
+                      column.align === "right"
+                        ? "block whitespace-nowrap text-right"
+                        : "block min-w-0 max-w-[28rem] whitespace-normal break-words [overflow-wrap:anywhere]"
+                    }
+                  >
                     {column.render(row)}
                   </span>
                 </td>

@@ -98,6 +98,17 @@ const runSummary = {
   ],
   final_status_counts: { APPROVED_FOR_PAPER: 1 },
   order_status_counts: { FILLED: 1 },
+  settlement_summary: {
+    settled: 1,
+    rejected: 0,
+    still_pending: 0,
+    skipped: 0,
+    detail_count: 1,
+    status_counts: { FILLED: 1 },
+    still_pending_order_count: 0,
+    pending_next_open_order_symbols: [],
+    has_activity: true,
+  },
 };
 
 const monitorStatus = {

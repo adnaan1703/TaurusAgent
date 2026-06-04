@@ -113,6 +113,13 @@ export function formatTimestamp(value: string | null | undefined): string {
   return DATE_TIME_FORMATTER.format(date);
 }
 
+export function formatDate(value: JsonPrimitive | undefined): string {
+  if (value === undefined || value === null || value === "") {
+    return "-";
+  }
+  return String(value);
+}
+
 export function formatDuration(seconds: number | null | undefined): string {
   if (seconds === null || seconds === undefined) {
     return "-";

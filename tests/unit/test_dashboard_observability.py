@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -95,6 +96,11 @@ def test_dashboard_queries_and_metrics_expose_m8_panels(tmp_path: Path) -> None:
     assert "taurus_news_documents_total" in body
     assert "taurus_agent_reports_total" in body
     assert "taurus_trading_artifacts_total" in body
+    assert re.search(
+        r'taurus_trading_artifacts_total\{(?=[^}]*artifact="paper_order")'
+        r'(?=[^}]*symbol="INFY")(?=[^}]*status="PENDING_NEXT_OPEN")[^}]*\} 1\.0',
+        body,
+    )
     assert "taurus_paper_account_equity_inr" in body
     assert "taurus_llm_failures_total" in body
 

@@ -121,6 +121,13 @@ new after-close analysis/allocation/risk/final approval. Orders created by the
 same EOD run remain queued for the next available open and do not mutate cash or
 positions during that run. If an operator skips a trading day, settlement still
 uses the first available newer daily candle after the original signal date.
+Inspect queued and settled orders in the React overview/run detail/portfolio
+pages, or in the Streamlit Orders fallback. Replay shows queued orders with no
+paper-fill stage until settlement; settled replays show the original status
+history and final simulated fill. `/metrics` exposes paper-order status labels,
+including `PENDING_NEXT_OPEN`. Queued orders do not send fill alerts; terminal
+simulated settlement fills and rejections send one alert each. Kite remains
+data-only.
 
 Replay, alerts, and backup:
 

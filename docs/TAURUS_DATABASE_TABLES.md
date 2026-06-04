@@ -24,10 +24,10 @@ tables created during the migration to Kite-backed market data and paper runs.
 
 | Table | Stores |
 |---|---|
-| `paper_runs` | One scheduled/manual paper trading run, including symbols, status, errors, market-data summary, and artifacts. |
+| `paper_runs` | One scheduled/manual paper trading run, including symbols, status, errors, market-data summary, and artifacts such as next-open settlement summaries/details. |
 | `paper_accounts` | Paper account state per run/portfolio: cash, exposure, equity, realized P&L, and unrealized P&L. |
-| `paper_orders` | Paper order records created from final decisions, including pending AMO-style next-open paper orders stored in JSON payload metadata. |
-| `paper_fills` | Simulated fill records for paper orders, including costs, slippage, brokerage, and taxes. |
+| `paper_orders` | Paper order records created from final decisions, including pending AMO-style next-open paper orders stored in JSON payload metadata. Pending rows use `status=PENDING_NEXT_OPEN`, `execution_policy=next_open`, `signal_trade_date`, and `scheduled_fill_session=next_open`; terminal settlement rows keep `status_history` and add `filled_trade_date` when applicable. |
+| `paper_fills` | Simulated fill records for paper orders, including trade date, costs, slippage, brokerage, and taxes. Settlement fills are simulated from the first newer Kite daily candle open; Kite is not used for order routing. |
 | `paper_positions` | Paper portfolio positions by symbol, quantity, cost basis, market value, and P&L. |
 
 ## Agent and Decision Pipeline

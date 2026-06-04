@@ -97,6 +97,7 @@ export type UiRunSummary = {
   selection_preview: UiRunSelectionRow[];
   final_status_counts: Record<string, number>;
   order_status_counts: Record<string, number>;
+  settlement_summary: JsonObject;
   graph_enabled_profile: boolean;
   graph_risk_enabled: boolean;
   graph_signal_count?: number | null;

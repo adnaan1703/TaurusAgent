@@ -167,6 +167,16 @@ or positions until a later settlement run. If an EOD run is skipped, settlement
 uses the first available daily candle after the original signal date rather than
 requiring the very next calendar day.
 
+After each run, use the React dashboard to check queued and settled orders:
+the overview and run detail pages show settlement counts/details, the portfolio
+page shows order `signal_trade_date`, `scheduled_fill_session`, and
+`filled_trade_date`, and decision replay distinguishes queued orders from
+missing fills. The Streamlit Orders fallback shows the same pending status/date
+fields. Prometheus metrics expose paper-order status labels including
+`PENDING_NEXT_OPEN`. Queued orders do not send fill alerts; terminal simulated
+settlement fills and rejections send one alert per final outcome. Kite remains
+data-only.
+
 ### Position Monitor
 
 - `make position-monitor`: exits without polling because the monitor is disabled
@@ -187,6 +197,11 @@ broker orders.
 - `make restore-local BACKUP=... RESTORE_CONFIRM=I_UNDERSTAND`
 - `make alert-smoke`
 - `make alert-test-telegram`
+
+Replay is an audit view over stored artifacts. Pending next-open orders appear
+in the paper-order stage with no paper fills yet. Once settlement runs, replay
+keeps the original order status history and shows the final simulated fill or
+terminal rejection.
 
 ## How To Start Real-Data Paper Trading
 
@@ -547,6 +562,9 @@ For the maintained component-by-component tracker, see
 - After-close EOD paper orders are queued as AMO-style `PENDING_NEXT_OPEN`
   orders. The next manual EOD run settles them against the first newer daily
   candle open before it creates new pending orders.
+- React, Streamlit, replay, alerts, and Prometheus metrics all report queued
+  next-open orders separately from filled, partially filled, and rejected
+  simulated paper orders.
 
 ## Technical-Only Flow
 

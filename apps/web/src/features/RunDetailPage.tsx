@@ -13,6 +13,7 @@ import { MetricCard } from "../components/MetricCard";
 import { RefreshButton } from "../components/RefreshButton";
 import { RunUniverseSummary, runUniverseTitle } from "../components/RunUniverse";
 import { SafetyBanner } from "../components/SafetyBanner";
+import { SettlementPanel } from "../components/SettlementPanel";
 import { ErrorState, LoadingState } from "../components/States";
 import { StatusBadge } from "../components/StatusBadge";
 import { WarningsPanel } from "../components/WarningsPanel";
@@ -225,6 +226,8 @@ export function RunDetailPage() {
           </div>
 
           <CoreBasketPanel artifacts={runQuery.data.artifacts} />
+
+          <SettlementPanel settlement={runQuery.data.artifacts.settlement} />
 
           <DataPanel title="Run Errors">
             <DataTable

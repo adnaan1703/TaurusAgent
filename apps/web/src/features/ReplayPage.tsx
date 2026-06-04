@@ -12,6 +12,7 @@ import { RefreshButton } from "../components/RefreshButton";
 import { ErrorState, LoadingState } from "../components/States";
 import { StatusBadge } from "../components/StatusBadge";
 import {
+  formatDate,
   formatId,
   formatMetricValue,
   formatNumber,
@@ -131,13 +132,15 @@ function ReplayStageTable({ stage }: { stage: UiTimelineStage }) {
   if (stage.artifacts.length === 0) {
     return (
       <div className="rounded-md border border-dashed border-taurus-outline bg-taurus-surface p-4 text-sm text-taurus-muted">
-        No stored artifacts for this replay stage.
+        {stage.id === "paper_fills" && stage.status === "running"
+          ? "No paper fills yet; the queued order is waiting for next-open settlement."
+          : "No stored artifacts for this replay stage."}
       </div>
     );
   }
 
   const metricItems = objectEntries(stage.metrics);
-  const keys = Array.from(new Set(stage.artifacts.flatMap((artifact) => Object.keys(artifact)))).slice(0, 5);
+  const columns = replayColumns(stage);
 
   return (
     <div className="grid gap-4">
@@ -151,12 +154,7 @@ function ReplayStageTable({ stage }: { stage: UiTimelineStage }) {
         </div>
       )}
       <DataTable<JsonObject>
-        columns={keys.map((key) => ({
-          key,
-          header: key.replace(/_/g, " "),
-          render: (row) =>
-            key.endsWith("_id") ? formatId(getString(row, key)) : formatMetricValue(key, getPrimitive(row, key)),
-        }))}
+        columns={columns}
         getRowKey={(row) =>
           getString(row, "report_id") ||
           getString(row, "event_id") ||
@@ -172,4 +170,50 @@ function ReplayStageTable({ stage }: { stage: UiTimelineStage }) {
       />
     </div>
   );
+}
+
+function replayColumns(stage: UiTimelineStage) {
+  if (stage.id === "paper_order") {
+    return [
+      { key: "order", header: "Order", render: (row: JsonObject) => formatId(getString(row, "order_id")) },
+      { key: "status", header: "Status", render: (row: JsonObject) => <StatusBadge status={getString(row, "status")} size="sm" /> },
+      { key: "side", header: "Side", render: (row: JsonObject) => getString(row, "side") || "-" },
+      { key: "qty", header: "Qty", align: "right" as const, render: (row: JsonObject) => formatNumber(getPrimitive(row, "quantity")) },
+      { key: "filled", header: "Filled", align: "right" as const, render: (row: JsonObject) => formatNumber(getPrimitive(row, "filled_quantity")) },
+      { key: "signal", header: "Signal date", render: (row: JsonObject) => formatDate(getPrimitive(row, "signal_trade_date")) },
+      { key: "session", header: "Fill session", render: (row: JsonObject) => getString(row, "scheduled_fill_session") || "-" },
+      { key: "filledTradeDate", header: "Filled trade date", render: (row: JsonObject) => formatDate(getPrimitive(row, "filled_trade_date")) },
+      { key: "history", header: "Status history", render: statusHistory },
+    ];
+  }
+
+  if (stage.id === "paper_fills") {
+    return [
+      { key: "fill", header: "Fill", render: (row: JsonObject) => formatId(getString(row, "fill_id")) },
+      { key: "order", header: "Order", render: (row: JsonObject) => formatId(getString(row, "order_id")) },
+      { key: "symbol", header: "Symbol", render: (row: JsonObject) => getString(row, "symbol") || "-" },
+      { key: "tradeDate", header: "Trade date", render: (row: JsonObject) => formatDate(getPrimitive(row, "trade_date")) },
+      { key: "seq", header: "Seq", align: "right" as const, render: (row: JsonObject) => formatNumber(getPrimitive(row, "fill_sequence")) },
+      { key: "qty", header: "Qty", align: "right" as const, render: (row: JsonObject) => formatNumber(getPrimitive(row, "quantity")) },
+      { key: "reference", header: "Reference", align: "right" as const, render: (row: JsonObject) => formatMetricValue("reference_price_inr", getPrimitive(row, "reference_price_inr")) },
+      { key: "price", header: "Fill price", align: "right" as const, render: (row: JsonObject) => formatMetricValue("fill_price_inr", getPrimitive(row, "fill_price_inr")) },
+      { key: "filled", header: "Filled at", render: (row: JsonObject) => formatTimestamp(getString(row, "filled_at")) },
+    ];
+  }
+
+  const keys = Array.from(new Set(stage.artifacts.flatMap((artifact) => Object.keys(artifact)))).slice(0, 5);
+  return keys.map((key) => ({
+    key,
+    header: key.replace(/_/g, " "),
+    render: (row: JsonObject) =>
+      key.endsWith("_id") ? formatId(getString(row, key)) : formatMetricValue(key, getPrimitive(row, key)),
+  }));
+}
+
+function statusHistory(row: JsonObject) {
+  const history = row.status_history;
+  if (!Array.isArray(history) || history.length === 0) {
+    return "-";
+  }
+  return history.map((status) => String(status)).join(" -> ");
 }

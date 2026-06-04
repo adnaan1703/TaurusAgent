@@ -340,6 +340,11 @@ def list_paper_orders(
             "quantity": order.quantity,
             "filled": order.filled_quantity,
             "status": order.status,
+            "status_display": _paper_order_status_display(order.status),
+            "execution_policy": order.payload.get("execution_policy"),
+            "signal_trade_date": order.payload.get("signal_trade_date"),
+            "scheduled_fill_session": order.payload.get("scheduled_fill_session"),
+            "filled_trade_date": order.payload.get("filled_trade_date"),
             "avg_fill_inr": _number(order.average_fill_price_inr),
             "gross_value_inr": _number(order.gross_value_inr),
             "cost_inr": _number(order.total_cost_inr),
@@ -371,6 +376,7 @@ def list_paper_fills(
             "portfolio_id": fill.portfolio_id,
             "symbol": fill.symbol,
             "side": fill.side,
+            "trade_date": fill.payload.get("trade_date"),
             "quantity": fill.quantity,
             "reference_inr": _number(fill.reference_price_inr),
             "fill_price_inr": _number(fill.fill_price_inr),
@@ -380,6 +386,17 @@ def list_paper_fills(
         }
         for fill in session.scalars(statement)
     ]
+
+
+def _paper_order_status_display(status: str) -> str:
+    labels = {
+        "PENDING_NEXT_OPEN": "Queued next open",
+        "PARTIALLY_FILLED": "Partially filled",
+        "FILLED": "Filled",
+        "REJECTED": "Rejected",
+        "CANCELLED": "Cancelled",
+    }
+    return labels.get(status, status.replace("_", " ").title())
 
 
 def list_events(

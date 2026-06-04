@@ -82,6 +82,7 @@ removed during docs cleanup. Use Git history for detailed historical plans.
 | M46 | Done | After-close paper decisions now create `PENDING_NEXT_OPEN` orders with no fills or cash/position mutation, while market-hours monitor and explicit immediate routing continue to fill immediately. Settlement remains planned for M47. |
 | M47 | Done | Added the standalone PaperBroker next-open settlement engine, summary artifacts, deterministic one-fill AMO settlement, cash/position/P&L rebuilding, partial fill/rejection handling, and focused tests. EOD loop integration remains planned for M48. |
 | M48 | Done | Integrated next-open settlement into the manual EOD paper loop before strategy analysis/allocation, exposed top-level and symbol-level settlement artifacts, preserved terminal settlement state during same-run replacements, and documented operator semantics. Dashboard/replay/metrics polish remains planned for M49. |
+| M49 | Done | Polished React and Streamlit order displays, run settlement summaries/details, decision replay pending/settled semantics, paper-order status metrics coverage, terminal settlement alert tests, and operator docs for queued and settled next-open paper orders. Final cleanup remains planned for M50. |
 
 ### M44-M50 Plan Document Completion Summary
 
@@ -154,6 +155,20 @@ removed during docs cleanup. Use Git history for detailed historical plans.
   forced-trader-action monkeypatches in paper-run integration tests, and
   existing broker settlement test fixtures.
 
+### M49 Completion Summary
+
+- Assumptions made: Settlement counts belong in the existing run summary/API
+  payload rather than a new dashboard page; the existing
+  `taurus_trading_artifacts_total` paper-order status gauge is the right
+  Prometheus pattern for `PENDING_NEXT_OPEN`; no new settlement metric should
+  be added until there is a broader settlement metrics pattern; React should
+  tolerate older API payloads that do not yet include `settlement_summary`;
+  Kite remains data-only and all fills remain simulated.
+- Mocks created: None.
+- Mocks used: Existing `FakeLLMProvider`, existing
+  `FakeKiteMarketDataProvider`, deterministic daily-candle fixtures, and the
+  existing `MockAlertAdapter`.
+
 ## Planned Next-Open AMO Settlement Sequence
 
 Execute these milestones in order. Each row should be run separately with fresh
@@ -166,7 +181,7 @@ context, then documented with the standard completion summary before moving on.
 | 28 | M46 | Done | `docs/TAURUS_NEXT_OPEN_AMO_SETTLEMENT_PLAN.md` | Change after-close paper decisions to create `PENDING_NEXT_OPEN` orders while preserving immediate market-hours monitor routing. |
 | 29 | M47 | Done | `docs/TAURUS_NEXT_OPEN_AMO_SETTLEMENT_PLAN.md` | Settle pending orders at the first newer daily candle open and calculate fills, cash, positions, and P&L. |
 | 30 | M48 | Done | `docs/TAURUS_NEXT_OPEN_AMO_SETTLEMENT_PLAN.md` | Integrate settlement into the manual EOD paper loop before new analysis and allocation. |
-| 31 | M49 | Planned | `docs/TAURUS_NEXT_OPEN_AMO_SETTLEMENT_PLAN.md` | Polish dashboard, replay, metrics, alerts, and operator docs for pending and settled orders. |
+| 31 | M49 | Done | `docs/TAURUS_NEXT_OPEN_AMO_SETTLEMENT_PLAN.md` | Polish dashboard, replay, metrics, alerts, and operator docs for pending and settled orders. |
 | 32 | M50 | Planned | `docs/TAURUS_NEXT_OPEN_AMO_SETTLEMENT_PLAN.md` | Run end-to-end regression, verify operator workflow, and close the milestone sequence. |
 
 ## Deferred Work

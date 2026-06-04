@@ -42,7 +42,8 @@ flowchart TD
     Service --> Migrate[Run DB migrations]
     Migrate --> Preflight[Kite runtime preflight]
     Preflight --> DataImport[Import latest Kite market data]
-    DataImport --> NewsImport[Import mock news feed]
+    DataImport --> Settlement[Settle older PENDING_NEXT_OPEN paper orders]
+    Settlement --> NewsImport[Import mock news feed]
     NewsImport --> Strategy[Generate strategy summary]
 
     Strategy --> GraphReady{Graph profile enabled?}
@@ -113,11 +114,14 @@ flowchart TD
 
     FinalDecisions --> Router[ExecutionRouter]
     Router --> Orders[paper_orders]
-    Router --> Fills[paper_fills]
-    Router --> Accounts[paper_accounts]
-    Router --> Positions[paper_positions]
+    Orders --> Pending{PENDING_NEXT_OPEN?}
+    Pending -- yes --> NextRun[Next manual EOD settlement]
+    Pending -- no --> Fills[paper_fills]
+    NextRun --> Fills
+    Fills --> Accounts[paper_accounts]
+    Fills --> Positions[paper_positions]
 
-    Orders --> Alerts[AlertService]
+    Pending -- terminal rejection --> Alerts[AlertService]
     Fills --> Alerts
 ```
 
@@ -140,8 +144,8 @@ flowchart TD
 | Trade proposal | `TraderAgent` | `debate_reports`, current paper positions/account, LLM advisory | `trader_proposals` | Risk review |
 | Risk review | `RiskReviewService`, `RiskEngine`, risk personas | Trader proposal, settings, current exposures, graph concentration data | `risk_reviews` | Portfolio manager |
 | Final approval | `PortfolioManagerAgent` | Risk review, trader proposal, optional LLM explanation | `final_decisions` | Execution router |
-| Paper execution | `ExecutionRouter` | Final decision, latest risk review, market/account state | `paper_orders`, `paper_fills`, `paper_accounts`, `paper_positions` | Alerts, dashboard, audit |
-| Alerts | `AlertService` | Failures and paper fills | Alert delivery logs/events | Operator |
+| Paper execution | `ExecutionRouter` and `PaperBroker` | Final decision, latest risk review, market/account state, Kite daily candles | `paper_orders`, `paper_fills`, `paper_accounts`, `paper_positions`, settlement artifacts | Alerts, dashboard, audit |
+| Alerts | `AlertService` | Failures, terminal paper fills, and terminal paper rejections | Alert delivery logs/events | Operator |
 
 ## Analyst Layer
 
@@ -253,14 +257,23 @@ flowchart LR
     Final[final_decisions] --> Router[ExecutionRouter]
     Router --> NoAction[No order if NO_ACTION / not routable]
     Router --> Order[paper_orders]
+    Order --> Queued[PENDING_NEXT_OPEN queued order]
+    Queued --> Settlement[Next manual EOD settlement]
     Order --> Fill[paper_fills]
+    Settlement --> Fill
     Fill --> Account[paper_accounts]
     Fill --> Position[paper_positions]
     Fill --> Alert[AlertService]
 ```
 
-Execution is paper-only in the current MVP. Live broker order routing must not be
-added or broadened without a new explicit approved milestone.
+Execution is paper-only in the current MVP. After-close EOD orders are queued
+as `PENDING_NEXT_OPEN` and carry `signal_trade_date`,
+`scheduled_fill_session=next_open`, and eventually `filled_trade_date` when a
+later manual EOD run settles them against the first newer daily candle open.
+Queued orders do not create fills or mutate cash/positions. Terminal settlement
+fills or rejections produce one alert per final outcome. Kite remains data-only;
+live broker order routing must not be added or broadened without a new explicit
+approved milestone.
 
 ## Important Design Properties
 

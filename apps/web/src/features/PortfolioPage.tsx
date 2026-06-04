@@ -13,6 +13,7 @@ import { ErrorState, LoadingState } from "../components/States";
 import { StatusBadge } from "../components/StatusBadge";
 import {
   formatId,
+  formatDate,
   formatInr,
   formatMetric,
   formatNumber,
@@ -109,6 +110,9 @@ export function PortfolioPage() {
                 { key: "avg", header: "Average fill", align: "right", render: (row) => formatInr(getPrimitive(row, "average_fill_price_inr")) },
                 { key: "cost", header: "Costs", align: "right", render: (row) => formatInr(getPrimitive(row, "total_cost_inr")) },
                 { key: "slippage", header: "Slippage", align: "right", render: (row) => `${formatNumber(getPrimitive(row, "slippage_bps"))} bps` },
+                { key: "signal", header: "Signal date", render: (row) => formatDate(getPrimitive(row, "signal_trade_date")) },
+                { key: "session", header: "Fill session", render: (row) => getString(row, "scheduled_fill_session") || "-" },
+                { key: "filledTradeDate", header: "Filled trade date", render: (row) => formatDate(getPrimitive(row, "filled_trade_date")) },
               ]}
               emptyLabel="No orders; approved HOLD/NO_TRADE decisions are no-action"
               getRowKey={(row) => getString(row, "order_id")}
@@ -122,6 +126,7 @@ export function PortfolioPage() {
                 { key: "fill", header: "Fill", render: (row) => formatId(getString(row, "fill_id")) },
                 { key: "order", header: "Order", render: (row) => formatId(getString(row, "order_id")) },
                 { key: "symbol", header: "Symbol", render: (row) => getString(row, "symbol") || "-" },
+                { key: "tradeDate", header: "Trade date", render: (row) => formatDate(getPrimitive(row, "trade_date")) },
                 { key: "seq", header: "Seq", align: "right", render: (row) => formatNumber(getPrimitive(row, "fill_sequence")) },
                 { key: "qty", header: "Qty", align: "right", render: (row) => formatNumber(getPrimitive(row, "quantity")) },
                 { key: "reference", header: "Reference", align: "right", render: (row) => formatInr(getPrimitive(row, "reference_price_inr")) },

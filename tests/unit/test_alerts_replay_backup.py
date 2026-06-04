@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, time, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
 
@@ -13,9 +13,13 @@ from scripts.migrate import run_migrations
 from scripts.run_paper_once import run_mock_paper_once
 from taurus_core.agents.roster import ANALYST_KEYS
 from taurus_core.alerts.templates import risk_review_events
+from taurus_core.brokers.paper_broker import PaperBroker
 from taurus_core.config import Settings
 from taurus_core.db.models import AuditLogModel
+from taurus_core.db.repositories import CandleRepository, ExecutionRepository
 from taurus_core.db.session import build_session_factory
+from taurus_core.domain.market_data import DailyCandle
+from taurus_core.execution.schemas import PaperOrder
 from taurus_core.ops import backup as backup_module
 from taurus_core.ops.backup import create_backup, restore_backup
 from taurus_core.risk.schemas import HardRuleResult, RiskPersonaReview, RiskReview
@@ -72,6 +76,63 @@ def test_mock_alerts_are_stored_and_replay_api_reconstructs_decision_path(
 
     assert "alert.paper_fill" not in alert_types
     assert "alert.alert_smoke_test" in alert_types
+
+
+def test_next_open_settlement_alert_and_ui_replay_show_terminal_fill(
+    tmp_path: Path,
+) -> None:
+    settings = _settings_for_temp_db(tmp_path)
+    run_migrations(settings)
+    session_factory = build_session_factory(settings)
+    with session_factory() as session:
+        seed_test_market_data(session, candle_count=252)
+    payload = run_mock_paper_once(symbol="INFY", settings=settings)
+    decision_id = str(payload["final_decision"]["decision_id"])
+
+    with session_factory() as session:
+        repo = ExecutionRepository(session)
+        order_row = repo.list_orders(
+            portfolio_id=settings.taurus_paper_portfolio_id,
+            symbol="INFY",
+            limit=1,
+        )[0]
+        pending_order = PaperOrder.model_validate(order_row.payload)
+        assert pending_order.status == "PENDING_NEXT_OPEN"
+        execution_trade_date = _append_next_open_candle(session, pending_order)
+        summary = PaperBroker(session, settings).settle_pending_next_open_orders(
+            portfolio_id=settings.taurus_paper_portfolio_id,
+            run_id="settlement-run",
+            settled_at=datetime(2024, 12, 19, 4, 0, tzinfo=timezone.utc),
+        )
+        assert summary.settled == 1
+
+    replay_response = TestClient(create_app(settings)).get(f"/ui/replay/{decision_id}")
+
+    assert replay_response.status_code == 200
+    replay = replay_response.json()
+    assert _stage_status(replay, "paper_order") == "complete"
+    assert _stage_status(replay, "paper_fills") == "complete"
+    replay_order = _stage_artifacts(replay, "paper_order")[0]
+    replay_fill = _stage_artifacts(replay, "paper_fills")[0]
+    assert replay_order["status"] == "FILLED"
+    assert replay_order["status_history"] == [
+        "CREATED",
+        "ACCEPTED",
+        "PENDING_NEXT_OPEN",
+        "FILLED",
+    ]
+    assert replay_order["filled_trade_date"] == execution_trade_date.isoformat()
+    assert replay_fill["trade_date"] == execution_trade_date.isoformat()
+    assert replay_fill["order_id"] == replay_order["order_id"]
+
+    with session_factory() as session:
+        alert_types = list(
+            session.scalars(
+                select(AuditLogModel.event_type).where(AuditLogModel.event_type.like("alert.%"))
+            )
+        )
+    assert alert_types.count("alert.paper_fill") == 1
+    assert "alert.order_rejection" not in alert_types
 
 
 def test_risk_alert_templates_cover_hardening_events() -> None:
@@ -218,6 +279,27 @@ def _settings_for_temp_db(tmp_path: Path) -> Settings:
     )
 
 
+def _append_next_open_candle(session, order: PaperOrder):
+    assert order.signal_trade_date is not None
+    trade_date = order.signal_trade_date + timedelta(days=1)
+    while trade_date.weekday() >= 5:
+        trade_date += timedelta(days=1)
+    candle = DailyCandle(
+        symbol=order.symbol,
+        trade_date=trade_date,
+        open=Decimal("151.0000"),
+        high=Decimal("152.0000"),
+        low=Decimal("150.0000"),
+        close=Decimal("152.0000"),
+        volume=1_000_000,
+        source="test_next_open_settlement",
+        data_available_time=datetime.combine(trade_date, time(18, 0), tzinfo=timezone.utc),
+    )
+    CandleRepository(session).upsert([candle])
+    session.commit()
+    return trade_date
+
+
 def _stage_count(replay: dict[str, object], name: str) -> int:
     stages = replay["stages"]
     assert isinstance(stages, list)
@@ -225,6 +307,26 @@ def _stage_count(replay: dict[str, object], name: str) -> int:
         if stage["name"] == name:
             return int(stage["artifact_count"])
     raise AssertionError(f"Replay stage {name} not found.")
+
+
+def _stage_status(replay: dict[str, object], stage_id: str) -> str:
+    return str(_ui_stage(replay, stage_id)["status"])
+
+
+def _stage_artifacts(replay: dict[str, object], stage_id: str) -> list[dict[str, object]]:
+    artifacts = _ui_stage(replay, stage_id)["artifacts"]
+    assert isinstance(artifacts, list)
+    return artifacts
+
+
+def _ui_stage(replay: dict[str, object], stage_id: str) -> dict[str, object]:
+    stages = replay["stages"]
+    assert isinstance(stages, list)
+    for stage in stages:
+        assert isinstance(stage, dict)
+        if stage["id"] == stage_id:
+            return stage
+    raise AssertionError(f"UI replay stage {stage_id} not found.")
 
 
 def _risk_review(*, hard_rule_results: list[HardRuleResult]) -> RiskReview:

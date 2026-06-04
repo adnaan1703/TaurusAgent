@@ -18,6 +18,7 @@ from taurus_core.agents.trader_agent import TraderAgent
 from taurus_core.brokers.paper_broker import PaperBroker
 from taurus_core.config import Settings
 from taurus_core.db.models import (
+    AuditLogModel,
     PaperAccountModel,
     PaperFillModel,
     PaperOrderModel,
@@ -739,6 +740,55 @@ def test_next_open_settlement_rejects_buy_when_zero_quantity_is_affordable(
     assert preserved_order.scheduled_fill_session == "next_open"
     assert preserved_account is not None
     assert preserved_fills == []
+
+
+def test_next_open_settlement_rejection_sends_one_final_alert(
+    tmp_path: Path,
+) -> None:
+    settings = _settings_for_temp_db(tmp_path, taurus_alert_provider="mock")
+    session_factory, decision, pending_order = _route_default_after_close_buy(settings)
+
+    with session_factory() as session:
+        signal_candle = _latest_candle(session, "INFY")
+        resized_order = pending_order.model_copy(
+            update={
+                "order_id": paper_order_id(
+                    final_decision_id=decision.final_decision_id,
+                    decision_id=decision.decision_id,
+                    quantity=10,
+                ),
+                "quantity": 10,
+                "remaining_quantity": 10,
+            }
+        )
+        ExecutionRepository(session).store_pending_next_open_order(order=resized_order)
+        _append_manual_daily_candle(
+            session,
+            symbol="INFY",
+            trade_date=_next_trading_day(signal_candle.trade_date),
+            open_price=Decimal("1200000.0000"),
+            close_price=Decimal("1200100.0000"),
+        )
+        session.commit()
+
+    with session_factory() as session:
+        summary = PaperBroker(session, settings).settle_pending_next_open_orders(
+            portfolio_id=settings.taurus_paper_portfolio_id,
+            run_id="settlement-run",
+            settled_at=datetime(2024, 12, 19, 4, 0, tzinfo=timezone.utc),
+            symbol="INFY",
+        )
+
+    with session_factory() as session:
+        alert_types = list(
+            session.scalars(
+                select(AuditLogModel.event_type).where(AuditLogModel.event_type.like("alert.%"))
+            )
+        )
+
+    assert summary.rejected == 1
+    assert alert_types.count("alert.order_rejection") == 1
+    assert "alert.paper_fill" not in alert_types
 
 
 def test_next_open_settlement_fills_exit_sell_and_realizes_pnl(

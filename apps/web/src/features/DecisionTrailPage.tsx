@@ -15,6 +15,7 @@ import { StatusBadge } from "../components/StatusBadge";
 import { WarningsPanel } from "../components/WarningsPanel";
 import {
   formatId,
+  formatDate,
   formatInr,
   formatMetricValue,
   formatNumber,
@@ -111,10 +112,10 @@ export function DecisionTrailPage() {
                     onClick={() => setSelectedStageId(stage.id)}
                     type="button"
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
+                    <div className="flex min-w-0 items-start justify-between gap-3">
+                      <div className="min-w-0">
                         <p className="font-medium text-taurus-text">{stage.label}</p>
-                        <p className="mt-2 text-sm leading-6 text-taurus-muted">{stage.summary}</p>
+                        <p className="mt-2 break-words text-sm leading-6 text-taurus-muted [overflow-wrap:anywhere]">{stage.summary}</p>
                       </div>
                       <StatusBadge status={stage.status} size="sm" />
                     </div>
@@ -361,12 +362,14 @@ function StageArtifactTable({ stage }: { stage: UiTimelineStage }) {
       <DataTable
         columns={[
           { key: "fill", header: "Fill", render: (row) => formatId(getString(row, "fill_id")) },
+          { key: "tradeDate", header: "Trade date", render: (row) => formatDate(getPrimitive(row, "trade_date")) },
           { key: "seq", header: "Seq", align: "right", render: (row) => formatNumber(getPrimitive(row, "fill_sequence")) },
           { key: "qty", header: "Qty", align: "right", render: (row) => formatNumber(getPrimitive(row, "quantity")) },
           { key: "reference", header: "Reference", align: "right", render: (row) => formatInr(getPrimitive(row, "reference_price_inr")) },
           { key: "price", header: "Fill price", align: "right", render: (row) => formatInr(getPrimitive(row, "fill_price_inr")) },
           { key: "cost", header: "Costs", align: "right", render: (row) => formatInr(getPrimitive(row, "cost_inr")) },
           { key: "slippage", header: "Slippage", align: "right", render: (row) => `${formatNumber(getPrimitive(row, "slippage_bps"))} bps` },
+          { key: "filled", header: "Filled at", render: (row) => formatTimestamp(getString(row, "filled_at")) },
         ]}
         getRowKey={(row) => getString(row, "fill_id")}
         rows={stage.artifacts}
@@ -385,6 +388,10 @@ function StageArtifactTable({ stage }: { stage: UiTimelineStage }) {
           { key: "filled", header: "Filled", align: "right", render: (row) => formatNumber(getPrimitive(row, "filled_quantity")) },
           { key: "avg", header: "Average fill", align: "right", render: (row) => formatInr(getPrimitive(row, "average_fill_price_inr")) },
           { key: "cost", header: "Costs", align: "right", render: (row) => formatInr(getPrimitive(row, "total_cost_inr")) },
+          { key: "signal", header: "Signal date", render: (row) => formatDate(getPrimitive(row, "signal_trade_date")) },
+          { key: "session", header: "Fill session", render: (row) => getString(row, "scheduled_fill_session") || "-" },
+          { key: "filledTradeDate", header: "Filled trade date", render: (row) => formatDate(getPrimitive(row, "filled_trade_date")) },
+          { key: "history", header: "Status history", render: statusHistory },
         ]}
         getRowKey={(row) => getString(row, "order_id")}
         rows={stage.artifacts}
@@ -414,6 +421,14 @@ function StageArtifactTable({ stage }: { stage: UiTimelineStage }) {
       rows={stage.artifacts}
     />
   );
+}
+
+function statusHistory(row: JsonObject) {
+  const history = row.status_history;
+  if (!Array.isArray(history) || history.length === 0) {
+    return "-";
+  }
+  return history.map((status) => String(status)).join(" -> ");
 }
 
 function genericColumns(rows: JsonObject[]) {

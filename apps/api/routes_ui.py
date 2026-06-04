@@ -151,6 +151,7 @@ class UiRunSummary(BaseModel):
     selection_preview: list[UiRunSelectionRow] = Field(default_factory=list)
     final_status_counts: dict[str, int] = Field(default_factory=dict)
     order_status_counts: dict[str, int] = Field(default_factory=dict)
+    settlement_summary: dict[str, Any] = Field(default_factory=dict)
     graph_enabled_profile: bool = False
     graph_risk_enabled: bool = False
     graph_signal_count: int | None = None
@@ -517,19 +518,12 @@ def get_ui_replay(
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
-    stages = [
-        UiTimelineStage(
-            id=stage.name,
-            label=_stage_label(stage.name),
-            status="complete" if stage.artifact_count else "missing",
-            summary=_replay_stage_summary(stage.name, stage.artifact_count),
-            metrics={"artifact_count": stage.artifact_count},
-            artifact_ids=_artifact_ids_for_replay_stage(stage.name, stage.artifacts),
-            artifacts=_json_safe(stage.artifacts),
-            raw=_json_safe(stage.artifacts),
-        )
-        for stage in replay.stages
-    ]
+    order_artifacts: list[dict[str, object]] = []
+    for stage in replay.stages:
+        if stage.name == "paper_order":
+            order_artifacts = stage.artifacts
+            break
+    stages = [_replay_timeline_stage(stage, order_artifacts=order_artifacts) for stage in replay.stages]
     return UiReplayResponse(
         decision_id=replay.decision_id,
         run_id=replay.run_id,
@@ -854,6 +848,7 @@ def _run_summary(
         ),
         final_status_counts=dict(Counter(row.status for row in final_decisions)),
         order_status_counts=dict(Counter(row.status for row in orders)),
+        settlement_summary=_run_settlement_summary(run),
         graph_enabled_profile=bool(strategy.get("graph_enabled_profile", False)),
         graph_risk_enabled=bool(strategy.get("graph_risk_enabled", False)),
         graph_signal_count=_optional_int(strategy.get("graph_signal_count")),
@@ -952,6 +947,48 @@ def _run_count_payload(
         "risk_rejected_count": int(risk_rejected_count),
         "executed_count": int(executed_count),
     }
+
+
+def _run_settlement_summary(run: PaperRunModel) -> dict[str, Any]:
+    artifacts = run.artifacts if isinstance(run.artifacts, dict) else {}
+    settlement = artifacts.get("settlement")
+    if not isinstance(settlement, dict):
+        return {}
+
+    raw_details = settlement.get("details", [])
+    detail_items = raw_details if isinstance(raw_details, list) else []
+    details = [
+        dict(item)
+        for item in detail_items
+        if isinstance(item, dict)
+    ]
+    status_counts = Counter(str(detail.get("status") or "UNKNOWN") for detail in details)
+    raw_pending_symbols = settlement.get("pending_next_open_order_symbols", [])
+    pending_symbol_items = raw_pending_symbols if isinstance(raw_pending_symbols, list) else []
+    pending_symbols = [
+        str(symbol).upper()
+        for symbol in pending_symbol_items
+        if str(symbol).strip()
+    ]
+    counts = {
+        "settled": _optional_int(settlement.get("settled")) or 0,
+        "rejected": _optional_int(settlement.get("rejected")) or 0,
+        "still_pending": _optional_int(settlement.get("still_pending")) or 0,
+        "skipped": _optional_int(settlement.get("skipped")) or 0,
+    }
+    return _json_safe(
+        {
+            **counts,
+            "detail_count": len(details),
+            "status_counts": dict(status_counts),
+            "still_pending_order_count": (
+                _optional_int(settlement.get("still_pending_order_count"))
+                or counts["still_pending"]
+            ),
+            "pending_next_open_order_symbols": pending_symbols,
+            "has_activity": bool(any(counts.values()) or details or pending_symbols),
+        }
+    )
 
 
 def _selection_rows(
@@ -2837,6 +2874,105 @@ def _order_summary(order: PaperOrderModel) -> str:
         f"Paper order {order.status}; {order.filled_quantity}/{order.quantity} "
         f"{order.side} filled."
     )
+
+
+def _replay_timeline_stage(
+    stage,
+    *,
+    order_artifacts: list[dict[str, object]],
+) -> UiTimelineStage:
+    status: StageStatus = "complete" if stage.artifact_count else "missing"
+    summary = _replay_stage_summary(stage.name, stage.artifact_count)
+    metrics: dict[str, Any] = {"artifact_count": stage.artifact_count}
+    artifact_ids = _artifact_ids_for_replay_stage(stage.name, stage.artifacts)
+
+    if stage.name == "paper_order" and stage.artifacts:
+        order = stage.artifacts[0]
+        order_status = str(order.get("status") or "")
+        status = _replay_order_stage_status(order_status)
+        summary = _replay_order_summary(order)
+        metrics.update(
+            {
+                "status": order_status,
+                "filled_quantity": order.get("filled_quantity"),
+                "remaining_quantity": order.get("remaining_quantity"),
+                "signal_trade_date": order.get("signal_trade_date"),
+                "filled_trade_date": order.get("filled_trade_date"),
+            }
+        )
+    elif stage.name == "paper_fills":
+        pending_order = _first_pending_replay_order(order_artifacts)
+        if stage.artifact_count == 0 and pending_order is not None:
+            status = "running"
+            summary = (
+                "Paper order is queued for next-open settlement; no paper fills "
+                "are expected until settlement."
+            )
+            order_id = pending_order.get("order_id")
+            artifact_ids = [str(order_id)] if order_id else []
+            metrics.update(
+                {
+                    "status": pending_order.get("status"),
+                    "filled_quantity": pending_order.get("filled_quantity"),
+                    "signal_trade_date": pending_order.get("signal_trade_date"),
+                    "scheduled_fill_session": pending_order.get("scheduled_fill_session"),
+                }
+            )
+        elif stage.artifact_count:
+            metrics.update({"fill_count": stage.artifact_count})
+
+    return UiTimelineStage(
+        id=stage.name,
+        label=_stage_label(stage.name),
+        status=status,
+        summary=summary,
+        metrics=_json_safe(metrics),
+        artifact_ids=artifact_ids,
+        artifacts=_json_safe(stage.artifacts),
+        raw=_json_safe(stage.artifacts),
+    )
+
+
+def _replay_order_stage_status(order_status: str) -> StageStatus:
+    if order_status == "REJECTED":
+        return "rejected"
+    if order_status == "CANCELLED":
+        return "blocked"
+    if order_status in {"CREATED", "ACCEPTED", "PENDING_NEXT_OPEN", "PARTIALLY_FILLED"}:
+        return "running"
+    return "complete"
+
+
+def _replay_order_summary(order: dict[str, object]) -> str:
+    status = str(order.get("status") or "UNKNOWN")
+    filled = order.get("filled_quantity")
+    quantity = order.get("quantity")
+    side = order.get("side")
+    history = order.get("status_history")
+    history_text = " -> ".join(str(item) for item in history) if isinstance(history, list) else ""
+    signal_date = order.get("signal_trade_date")
+    filled_date = order.get("filled_trade_date")
+    date_text = []
+    if signal_date:
+        date_text.append(f"signal date {signal_date}")
+    if filled_date:
+        date_text.append(f"filled trade date {filled_date}")
+    suffix_parts = []
+    if history_text:
+        suffix_parts.append(f"history {history_text}")
+    if date_text:
+        suffix_parts.append(", ".join(date_text))
+    suffix = f" ({'; '.join(suffix_parts)})." if suffix_parts else "."
+    return f"Paper order {status}; {filled}/{quantity} {side} filled{suffix}"
+
+
+def _first_pending_replay_order(
+    order_artifacts: list[dict[str, object]],
+) -> dict[str, object] | None:
+    for order in order_artifacts:
+        if order.get("status") == "PENDING_NEXT_OPEN":
+            return order
+    return None
 
 
 def _stage_label(stage_name: str) -> str:
