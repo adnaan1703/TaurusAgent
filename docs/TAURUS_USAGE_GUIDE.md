@@ -533,6 +533,9 @@ For the maintained component-by-component tracker, see
 - Paper costs, slippage, and fill assumptions are placeholder bps settings.
 - Paper fills use daily-candle prices, not live order book or Kite LTP
   execution. The position monitor uses Kite LTP only as trigger evidence.
+- Pending AMO-style paper order payloads can represent queued next-open
+  settlement. Later next-open milestones will enable after-close EOD orders to
+  use that queue before settlement.
 
 ## Technical-Only Flow
 

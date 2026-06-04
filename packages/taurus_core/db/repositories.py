@@ -1184,6 +1184,119 @@ class ExecutionRepository:
         self.session.flush()
         return order_model
 
+    def store_pending_next_open_order(
+        self,
+        *,
+        order: PaperOrder,
+        account: PaperAccount | None = None,
+        positions: list[PaperPosition] | None = None,
+    ) -> PaperOrderModel:
+        if order.status != "PENDING_NEXT_OPEN":
+            raise ValueError("Only PENDING_NEXT_OPEN orders can be stored as pending next-open orders.")
+        if order.execution_policy != "next_open" or order.scheduled_fill_session != "next_open":
+            raise ValueError("Pending next-open orders must use next_open execution metadata.")
+        self.delete_execution_for_final_decision(order.final_decision_id)
+        order_model = _paper_order_to_model(order)
+        self.session.add(order_model)
+        if account is not None or positions is not None:
+            if account is None or positions is None:
+                raise ValueError("Both account and positions are required when replacing account state.")
+            self.replace_account_state(
+                run_id=order.run_id,
+                portfolio_id=order.portfolio_id,
+                account=account,
+                positions=positions,
+            )
+        self.session.add(
+            AuditLogModel(
+                event_type="paper.order_pending_next_open",
+                actor="PaperBroker",
+                payload={
+                    "order_id": order.order_id,
+                    "final_decision_id": order.final_decision_id,
+                    "decision_id": order.decision_id,
+                    "run_id": order.run_id,
+                    "symbol": order.symbol,
+                    "status": order.status,
+                    "execution_policy": order.execution_policy,
+                    "signal_trade_date": order.signal_trade_date.isoformat()
+                    if order.signal_trade_date is not None
+                    else None,
+                    "scheduled_fill_session": order.scheduled_fill_session,
+                },
+                note="PaperBroker queued a paper order for next-open settlement.",
+            )
+        )
+        self.session.flush()
+        return order_model
+
+    def replace_pending_next_open_order(
+        self,
+        *,
+        order_id: str,
+        order: PaperOrder,
+        fills: list[PaperFill],
+        account: PaperAccount | None = None,
+        positions: list[PaperPosition] | None = None,
+    ) -> PaperOrderModel:
+        model = self.session.get(PaperOrderModel, order_id)
+        if model is None:
+            raise ValueError(f"Pending paper order {order_id} not found.")
+        pending_order = PaperOrder.model_validate(model.payload)
+        if pending_order.status != "PENDING_NEXT_OPEN":
+            raise ValueError(f"Paper order {order_id} is not pending next-open settlement.")
+        if order.order_id != order_id:
+            raise ValueError("Pending order replacement must preserve the original order_id.")
+        if order.final_decision_id != pending_order.final_decision_id:
+            raise ValueError("Pending order replacement cannot change final_decision_id.")
+        if order.status not in {"FILLED", "PARTIALLY_FILLED", "REJECTED"}:
+            raise ValueError(
+                "Pending order replacement status must be FILLED, PARTIALLY_FILLED, or REJECTED."
+            )
+        if order.status in {"FILLED", "PARTIALLY_FILLED"} and not fills:
+            raise ValueError("Filled pending order replacements require fill rows.")
+        if order.status == "REJECTED" and fills:
+            raise ValueError("Rejected pending order replacements cannot include fill rows.")
+        for fill in fills:
+            if fill.order_id != order_id:
+                raise ValueError("Pending order replacement fills must preserve order_id.")
+            if fill.final_decision_id != pending_order.final_decision_id:
+                raise ValueError("Pending order replacement fills cannot change final_decision_id.")
+        self.session.execute(delete(PaperFillModel).where(PaperFillModel.order_id == order_id))
+        _update_paper_order_model(model, order)
+        self.session.add_all([_paper_fill_to_model(fill) for fill in fills])
+        if account is not None or positions is not None:
+            if account is None or positions is None:
+                raise ValueError("Both account and positions are required when replacing account state.")
+            self.replace_account_state(
+                run_id=order.run_id,
+                portfolio_id=order.portfolio_id,
+                account=account,
+                positions=positions,
+            )
+        self.session.add(
+            AuditLogModel(
+                event_type="paper.pending_next_open_order_replaced",
+                actor="PaperBroker",
+                payload={
+                    "order_id": order.order_id,
+                    "final_decision_id": order.final_decision_id,
+                    "decision_id": order.decision_id,
+                    "run_id": order.run_id,
+                    "symbol": order.symbol,
+                    "status": order.status,
+                    "filled_quantity": order.filled_quantity,
+                    "fill_count": len(fills),
+                    "filled_trade_date": order.filled_trade_date.isoformat()
+                    if order.filled_trade_date is not None
+                    else None,
+                },
+                note="PaperBroker replaced a pending next-open paper order result.",
+            )
+        )
+        self.session.flush()
+        return model
+
     def store_rejected_order(
         self,
         *,
@@ -1297,6 +1410,27 @@ class ExecutionRepository:
             statement = statement.where(PaperOrderModel.decision_id == decision_id)
         if final_decision_id is not None:
             statement = statement.where(PaperOrderModel.final_decision_id == final_decision_id)
+        if limit is not None:
+            statement = statement.limit(limit)
+        return list(self.session.scalars(statement))
+
+    def list_pending_next_open_orders(
+        self,
+        *,
+        portfolio_id: str,
+        symbol: str | None = None,
+        limit: int | None = None,
+    ) -> list[PaperOrderModel]:
+        statement = (
+            select(PaperOrderModel)
+            .where(
+                PaperOrderModel.portfolio_id == portfolio_id,
+                PaperOrderModel.status == "PENDING_NEXT_OPEN",
+            )
+            .order_by(PaperOrderModel.submitted_at, PaperOrderModel.order_id)
+        )
+        if symbol is not None:
+            statement = statement.where(PaperOrderModel.symbol == symbol.upper())
         if limit is not None:
             statement = statement.limit(limit)
         return list(self.session.scalars(statement))
@@ -2172,7 +2306,7 @@ def _paper_run_to_model(run: PaperRun) -> PaperRunModel:
 
 
 def _paper_order_to_model(order: PaperOrder) -> PaperOrderModel:
-    return PaperOrderModel(
+    model = PaperOrderModel(
         order_id=order.order_id,
         final_decision_id=order.final_decision_id,
         decision_id=order.decision_id,
@@ -2195,6 +2329,30 @@ def _paper_order_to_model(order: PaperOrder) -> PaperOrderModel:
         updated_at=order.updated_at,
         payload=order.model_dump(mode="json"),
     )
+    return model
+
+
+def _update_paper_order_model(model: PaperOrderModel, order: PaperOrder) -> None:
+    model.final_decision_id = order.final_decision_id
+    model.decision_id = order.decision_id
+    model.run_id = order.run_id
+    model.portfolio_id = order.portfolio_id
+    model.symbol = order.symbol.upper()
+    model.side = order.side
+    model.quantity = order.quantity
+    model.order_type = order.order_type
+    model.status = order.status
+    model.filled_quantity = order.filled_quantity
+    model.remaining_quantity = order.remaining_quantity
+    model.average_fill_price_inr = order.average_fill_price_inr
+    model.gross_value_inr = order.gross_value_inr
+    model.total_cost_inr = order.total_cost_inr
+    model.total_slippage_inr = order.total_slippage_inr
+    model.slippage_bps = order.slippage_bps
+    model.rejection_reason = order.rejection_reason
+    model.submitted_at = order.submitted_at
+    model.updated_at = order.updated_at
+    model.payload = order.model_dump(mode="json")
 
 
 def _paper_fill_to_model(fill: PaperFill) -> PaperFillModel:

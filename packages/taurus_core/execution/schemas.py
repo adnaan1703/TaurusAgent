@@ -12,11 +12,14 @@ OrderSide = Literal["BUY", "SELL"]
 OrderStatus = Literal[
     "CREATED",
     "ACCEPTED",
+    "PENDING_NEXT_OPEN",
     "PARTIALLY_FILLED",
     "FILLED",
     "CANCELLED",
     "REJECTED",
 ]
+ExecutionPolicy = Literal["immediate", "next_open"]
+ScheduledFillSession = Literal["next_open"]
 
 
 class PaperOrder(BaseModel):
@@ -32,6 +35,7 @@ class PaperOrder(BaseModel):
     quantity: int = Field(ge=0)
     order_type: str = "MARKET"
     status: OrderStatus
+    execution_policy: ExecutionPolicy = "immediate"
     filled_quantity: int = Field(ge=0)
     remaining_quantity: int = Field(ge=0)
     average_fill_price_inr: Decimal = Field(ge=Decimal("0"))
@@ -41,6 +45,9 @@ class PaperOrder(BaseModel):
     slippage_bps: Decimal = Field(ge=Decimal("0"))
     rejection_reason: str = ""
     status_history: list[OrderStatus] = Field(default_factory=list)
+    signal_trade_date: date | None = None
+    scheduled_fill_session: ScheduledFillSession | None = None
+    filled_trade_date: date | None = None
     submitted_at: datetime
     updated_at: datetime
     model_version: str = "paper_broker_v1"

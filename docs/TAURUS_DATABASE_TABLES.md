@@ -26,7 +26,7 @@ tables created during the migration to Kite-backed market data and paper runs.
 |---|---|
 | `paper_runs` | One scheduled/manual paper trading run, including symbols, status, errors, market-data summary, and artifacts. |
 | `paper_accounts` | Paper account state per run/portfolio: cash, exposure, equity, realized P&L, and unrealized P&L. |
-| `paper_orders` | Paper order records created from final decisions. |
+| `paper_orders` | Paper order records created from final decisions, including pending AMO-style next-open paper orders stored in JSON payload metadata. |
 | `paper_fills` | Simulated fill records for paper orders, including costs, slippage, brokerage, and taxes. |
 | `paper_positions` | Paper portfolio positions by symbol, quantity, cost basis, market value, and P&L. |
 

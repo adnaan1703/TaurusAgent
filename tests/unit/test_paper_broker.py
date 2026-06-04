@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
 
@@ -31,7 +31,14 @@ from taurus_core.db.repositories import (
 )
 from taurus_core.db.session import build_session_factory
 from taurus_core.execution.order_router import ExecutionRouter
-from taurus_core.execution.schemas import PaperAccount, PaperOrder, PaperPosition
+from taurus_core.execution.schemas import (
+    PaperAccount,
+    PaperFill,
+    PaperOrder,
+    PaperPosition,
+    paper_fill_id,
+    paper_order_id,
+)
 from taurus_core.intelligence.documents import NewsEvent, RawDocument, document_checksum, stable_id
 from taurus_core.intelligence.mock_news_provider import MockNewsProvider
 from tests.llm_fakes import FakeLLMProvider
@@ -115,6 +122,120 @@ def test_paper_broker_executes_approved_decision_and_api_returns_artifacts(
     assert len(fills_response.json()) == 2
     assert positions_response.json()[0]["quantity"] == decision.approved_quantity
     assert account_response.json()["account_id"] == account.account_id
+
+
+def test_paper_order_schema_preserves_legacy_payload_defaults() -> None:
+    as_of = datetime(2026, 6, 4, 10, 0, tzinfo=timezone.utc)
+
+    order = PaperOrder.model_validate(
+        {
+            "order_id": "po-legacy",
+            "final_decision_id": "final-legacy",
+            "decision_id": "decision-legacy",
+            "run_id": "run-legacy",
+            "portfolio_id": "local-paper",
+            "symbol": "infy",
+            "side": "BUY",
+            "quantity": 10,
+            "order_type": "MARKET",
+            "status": "FILLED",
+            "filled_quantity": 10,
+            "remaining_quantity": 0,
+            "average_fill_price_inr": "100.0000",
+            "gross_value_inr": "1000.0000",
+            "total_cost_inr": "10.0000",
+            "total_slippage_inr": "1.0000",
+            "slippage_bps": "5.0000",
+            "rejection_reason": "",
+            "status_history": ["CREATED", "ACCEPTED", "FILLED"],
+            "submitted_at": as_of.isoformat(),
+            "updated_at": as_of.isoformat(),
+            "model_version": "paper_broker_v1",
+        }
+    )
+
+    assert order.symbol == "INFY"
+    assert order.execution_policy == "immediate"
+    assert order.signal_trade_date is None
+    assert order.scheduled_fill_session is None
+    assert order.filled_trade_date is None
+
+
+def test_pending_next_open_order_repository_and_api_round_trip(tmp_path: Path) -> None:
+    settings = _settings_for_temp_db(tmp_path)
+    _prepare_market_data_db(settings)
+    run_mock_final_approval(symbol="INFY", settings=settings)
+    session_factory = build_session_factory(settings)
+
+    with session_factory() as session:
+        decision = _latest_final_decision(session, "INFY")
+        pending = _pending_order_from_decision(
+            decision,
+            portfolio_id=settings.taurus_paper_portfolio_id,
+            signal_trade_date=date(2024, 12, 17),
+        )
+        ExecutionRepository(session).store_pending_next_open_order(order=pending)
+        session.commit()
+
+    with session_factory() as session:
+        repo = ExecutionRepository(session)
+        pending_rows = repo.list_pending_next_open_orders(
+            portfolio_id=settings.taurus_paper_portfolio_id,
+            symbol="infy",
+        )
+        listed_rows = repo.list_orders(
+            portfolio_id=settings.taurus_paper_portfolio_id,
+            symbol="INFY",
+            limit=None,
+        )
+        row = repo.get_order(pending.order_id)
+
+    assert len(pending_rows) == 1
+    assert len(listed_rows) == 1
+    assert row is not None
+    assert pending_rows[0].order_id == pending.order_id
+    assert row.status == "PENDING_NEXT_OPEN"
+    validated = PaperOrder.model_validate(row.payload)
+    assert validated.execution_policy == "next_open"
+    assert validated.signal_trade_date == date(2024, 12, 17)
+    assert validated.scheduled_fill_session == "next_open"
+
+    response = TestClient(create_app(settings)).get("/paper/orders?symbol=INFY")
+
+    assert response.status_code == 200
+    assert response.json()[0]["order_id"] == pending.order_id
+    assert response.json()[0]["status"] == "PENDING_NEXT_OPEN"
+    assert response.json()[0]["execution_policy"] == "next_open"
+    assert response.json()[0]["signal_trade_date"] == "2024-12-17"
+    assert response.json()[0]["scheduled_fill_session"] == "next_open"
+
+    filled_trade_date = date(2024, 12, 18)
+    settled = _filled_pending_order(pending, filled_trade_date=filled_trade_date)
+    fill = _fill_for_order(settled, trade_date=filled_trade_date)
+    with session_factory() as session:
+        updated = ExecutionRepository(session).replace_pending_next_open_order(
+            order_id=pending.order_id,
+            order=settled,
+            fills=[fill],
+        )
+        session.commit()
+        assert updated.order_id == pending.order_id
+
+    with session_factory() as session:
+        repo = ExecutionRepository(session)
+        updated_row = repo.get_order(pending.order_id)
+        updated_fills = repo.list_fills(order_id=pending.order_id, limit=None)
+        pending_rows = repo.list_pending_next_open_orders(
+            portfolio_id=settings.taurus_paper_portfolio_id,
+            symbol="INFY",
+        )
+
+    assert updated_row is not None
+    assert updated_row.order_id == pending.order_id
+    assert updated_row.status == "FILLED"
+    assert PaperOrder.model_validate(updated_row.payload).filled_trade_date == filled_trade_date
+    assert [fill.order_id for fill in updated_fills] == [pending.order_id]
+    assert pending_rows == []
 
 
 def test_after_close_buy_decision_creates_pending_order_without_fills(
@@ -516,6 +637,101 @@ def _latest_candle(session, symbol: str):
     candles = CandleRepository(session).get_by_symbol_and_date_range(symbol=symbol)
     assert candles
     return candles[-1]
+
+
+def _pending_order_from_decision(
+    decision: FinalDecision,
+    *,
+    portfolio_id: str,
+    signal_trade_date: date,
+) -> PaperOrder:
+    timestamp = decision.as_of
+    if timestamp.tzinfo is None:
+        timestamp = timestamp.replace(tzinfo=timezone.utc)
+    side = "BUY" if decision.final_action == "BUY" else "SELL"
+    return PaperOrder(
+        order_id=paper_order_id(
+            final_decision_id=decision.final_decision_id,
+            decision_id=decision.decision_id,
+            quantity=decision.approved_quantity,
+        ),
+        final_decision_id=decision.final_decision_id,
+        decision_id=decision.decision_id,
+        run_id=decision.run_id,
+        portfolio_id=portfolio_id,
+        symbol=decision.symbol,
+        side=side,
+        quantity=decision.approved_quantity,
+        order_type="MARKET",
+        status="PENDING_NEXT_OPEN",
+        execution_policy="next_open",
+        filled_quantity=0,
+        remaining_quantity=decision.approved_quantity,
+        average_fill_price_inr=Decimal("0.0000"),
+        gross_value_inr=Decimal("0.0000"),
+        total_cost_inr=Decimal("0.0000"),
+        total_slippage_inr=Decimal("0.0000"),
+        slippage_bps=Decimal("5.0000"),
+        rejection_reason="",
+        status_history=["CREATED", "ACCEPTED", "PENDING_NEXT_OPEN"],
+        signal_trade_date=signal_trade_date,
+        scheduled_fill_session="next_open",
+        filled_trade_date=None,
+        submitted_at=timestamp,
+        updated_at=timestamp,
+        model_version="paper_broker_v1",
+    )
+
+
+def _filled_pending_order(order: PaperOrder, *, filled_trade_date: date) -> PaperOrder:
+    fill_price = Decimal("100.5000")
+    gross_value = Decimal(order.quantity) * fill_price
+    return order.model_copy(
+        update={
+            "status": "FILLED",
+            "filled_quantity": order.quantity,
+            "remaining_quantity": 0,
+            "average_fill_price_inr": fill_price,
+            "gross_value_inr": gross_value,
+            "status_history": [*order.status_history, "FILLED"],
+            "filled_trade_date": filled_trade_date,
+            "updated_at": order.updated_at + timedelta(minutes=1),
+        }
+    )
+
+
+def _fill_for_order(order: PaperOrder, *, trade_date: date) -> PaperFill:
+    reference_price = Decimal("100.0000")
+    fill_price = Decimal("100.5000")
+    gross_value = Decimal(order.quantity) * fill_price
+    return PaperFill(
+        fill_id=paper_fill_id(
+            order_id=order.order_id,
+            fill_sequence=1,
+            quantity=order.quantity,
+            reference_price=reference_price,
+        ),
+        order_id=order.order_id,
+        final_decision_id=order.final_decision_id,
+        run_id=order.run_id,
+        portfolio_id=order.portfolio_id,
+        symbol=order.symbol,
+        trade_date=trade_date,
+        side=order.side,
+        quantity=order.quantity,
+        reference_price_inr=reference_price,
+        fill_price_inr=fill_price,
+        gross_value_inr=gross_value,
+        brokerage_inr=Decimal("0.0000"),
+        exchange_txn_charge_inr=Decimal("0.0000"),
+        tax_levy_inr=Decimal("0.0000"),
+        cost_inr=Decimal("0.0000"),
+        slippage_bps=Decimal("5.0000"),
+        slippage_inr=Decimal("0.0000"),
+        fill_sequence=1,
+        filled_at=order.updated_at,
+        model_version="paper_broker_v1",
+    )
 
 
 def _settings_for_temp_db(tmp_path: Path) -> Settings:

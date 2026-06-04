@@ -55,6 +55,7 @@ const STATUS_MAP: Record<string, StatusConfig> = {
 
   CREATED: { label: "Created", tone: "info", icon: Circle },
   ACCEPTED: { label: "Accepted", tone: "info", icon: CheckCircle2 },
+  PENDING_NEXT_OPEN: { label: "Queued next open", tone: "info", icon: Clock3 },
   PARTIALLY_FILLED: { label: "Partially filled", tone: "caution", icon: Clock3 },
   FILLED: { label: "Filled", tone: "success", icon: CheckCircle2 },
   CANCELLED: { label: "Cancelled", tone: "neutral", icon: MinusCircle },

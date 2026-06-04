@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from pathlib import Path
 
@@ -13,7 +13,7 @@ from taurus_core.compliance import import_halal_stock_compliance, parse_halal_st
 from taurus_core.config import Settings
 from taurus_core.db.repositories import ExecutionRepository, PaperRunRepository
 from taurus_core.db.session import build_session_factory
-from taurus_core.execution.schemas import PaperAccount, PaperPosition, paper_account_id
+from taurus_core.execution.schemas import PaperAccount, PaperOrder, PaperPosition, paper_account_id
 from taurus_core.paper_trading.schemas import PaperRun
 from taurus_core.paper_trading.service import PaperRunService
 from tests.llm_fakes import FakeLLMProvider
@@ -138,6 +138,50 @@ def test_ui_aggregate_endpoints_return_completed_run_trail(tmp_path: Path) -> No
     assert portfolio.json()["allocation"]["enabled"] is False
     assert len(portfolio.json()["orders"]) == 1
     assert len(portfolio.json()["fills"]) == 2
+
+
+def test_ui_aggregate_endpoints_stage_pending_next_open_orders_as_running(
+    tmp_path: Path,
+) -> None:
+    settings = _settings_for_temp_db(tmp_path)
+    run = PaperRunService(settings).run_once(symbols=["INFY"])
+    session_factory = build_session_factory(settings)
+    _queue_latest_order_for_next_open(
+        session_factory,
+        settings,
+        run_id=run.run_id,
+        symbol="INFY",
+    )
+    client = TestClient(create_app(settings))
+
+    overview = client.get("/ui/overview")
+    detail = client.get(f"/ui/runs/{run.run_id}")
+    trail = client.get(f"/ui/runs/{run.run_id}/symbols/INFY/decision-trail")
+
+    assert overview.status_code == 200
+    latest_run = overview.json()["latest_run"]
+    assert latest_run["executed_count"] == 1
+    assert latest_run["order_status_counts"] == {"PENDING_NEXT_OPEN": 1}
+    assert latest_run["selection_preview"][0]["execution_status"] == "PENDING_NEXT_OPEN"
+    assert latest_run["selection_preview"][0]["reason"] == "paper_order_status:pending_next_open"
+
+    assert detail.status_code == 200
+    detail_payload = detail.json()
+    assert detail_payload["symbols"][0]["pipeline_status"] == "running"
+    assert detail_payload["symbols"][0]["order_status"] == "PENDING_NEXT_OPEN"
+    assert detail_payload["selection_ledger"][0]["reason"] == "paper_order_status:pending_next_open"
+
+    assert trail.status_code == 200
+    trail_payload = trail.json()
+    assert trail_payload["decision_reason"] == "paper_order_status:pending_next_open"
+    assert _stage_status(trail_payload, "paper_order") == "running"
+    assert _stage_status(trail_payload, "paper_fills") == "running"
+    order_artifact = _stage_artifacts(trail_payload, "paper_order")[0]
+    assert order_artifact["execution_policy"] == "next_open"
+    assert order_artifact["scheduled_fill_session"] == "next_open"
+    fill_stage = _find_stage(trail_payload, "paper_fills")
+    assert fill_stage["metrics"]["status"] == "PENDING_NEXT_OPEN"
+    assert fill_stage["metrics"]["filled_quantity"] == 0
 
 
 def test_disabled_money_management_uses_settings_fallback_allocation(
@@ -613,6 +657,60 @@ def _settings_for_temp_db(tmp_path: Path) -> Settings:
         taurus_llm_model="",
         taurus_paper_partial_fill_threshold=1,
     )
+
+
+def _queue_latest_order_for_next_open(
+    session_factory,
+    settings: Settings,
+    *,
+    run_id: str,
+    symbol: str,
+) -> None:
+    with session_factory() as session:
+        repo = ExecutionRepository(session)
+        order_model = repo.list_orders(run_id=run_id, symbol=symbol, limit=1)[0]
+        order = PaperOrder.model_validate(order_model.payload)
+        account_model = repo.latest_account(run_id=run_id)
+        queued_account = None
+        if account_model is not None:
+            account = PaperAccount.model_validate(account_model.payload)
+            queued_account = account.model_copy(
+                update={
+                    "available_cash_inr": account.starting_cash_inr,
+                    "reserved_cash_inr": Decimal("0.0000"),
+                    "realized_pnl_inr": Decimal("0.0000"),
+                    "unrealized_pnl_inr": Decimal("0.0000"),
+                    "gross_exposure_inr": Decimal("0.0000"),
+                    "equity_inr": account.starting_cash_inr,
+                    "updated_at": order.updated_at,
+                }
+            )
+        pending = order.model_copy(
+            update={
+                "status": "PENDING_NEXT_OPEN",
+                "execution_policy": "next_open",
+                "filled_quantity": 0,
+                "remaining_quantity": order.quantity,
+                "average_fill_price_inr": Decimal("0.0000"),
+                "gross_value_inr": Decimal("0.0000"),
+                "total_cost_inr": Decimal("0.0000"),
+                "total_slippage_inr": Decimal("0.0000"),
+                "rejection_reason": "",
+                "status_history": ["CREATED", "ACCEPTED", "PENDING_NEXT_OPEN"],
+                "signal_trade_date": date(2024, 12, 17),
+                "scheduled_fill_session": "next_open",
+                "filled_trade_date": None,
+            }
+        )
+        if queued_account is None:
+            repo.store_pending_next_open_order(order=pending)
+        else:
+            repo.store_pending_next_open_order(
+                order=pending,
+                account=queued_account,
+                positions=[],
+            )
+        session.commit()
 
 
 def _write_money_management_policy(tmp_path: Path) -> Path:

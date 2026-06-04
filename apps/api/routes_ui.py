@@ -1576,6 +1576,20 @@ def _fill_stage(
                 status="skipped",
                 summary="Paper order was rejected, so no fills were generated.",
             )
+        if orders[0].status == "PENDING_NEXT_OPEN":
+            return _stage(
+                id="paper_fills",
+                label="Paper Fills",
+                status="running",
+                summary="Paper order is queued for next-open settlement; no fills are expected yet.",
+                timestamp=orders[0].submitted_at,
+                artifact_ids=[orders[0].order_id],
+                metrics={
+                    "order_count": len(orders),
+                    "status": orders[0].status,
+                    "filled_quantity": orders[0].filled_quantity,
+                },
+            )
         if final_decision is not None and final_decision.status != "APPROVED_FOR_PAPER":
             return _stage(
                 id="paper_fills",
@@ -1656,6 +1670,8 @@ def _pipeline_status(
 ) -> StageStatus:
     if errors:
         return "failed"
+    if any(stage.status == "running" for stage in stages):
+        return "running"
     if final_decision is not None:
         return _final_status(final_decision)
     if run.status == "RUNNING":
@@ -1690,7 +1706,7 @@ def _order_status(order: PaperOrderModel) -> StageStatus:
         return "rejected"
     if order.status == "CANCELLED":
         return "blocked"
-    if order.status in {"CREATED", "ACCEPTED", "PARTIALLY_FILLED"}:
+    if order.status in {"CREATED", "ACCEPTED", "PENDING_NEXT_OPEN", "PARTIALLY_FILLED"}:
         return "running"
     return "complete"
 
@@ -2812,6 +2828,11 @@ def _final_metrics(decision: FinalDecisionModel | None) -> dict[str, Any]:
 def _order_summary(order: PaperOrderModel) -> str:
     if order.status == "REJECTED":
         return order.rejection_reason or "Paper order was rejected."
+    if order.status == "PENDING_NEXT_OPEN":
+        return (
+            f"Paper order queued for next-open settlement; {order.filled_quantity}/"
+            f"{order.quantity} {order.side} filled."
+        )
     return (
         f"Paper order {order.status}; {order.filled_quantity}/{order.quantity} "
         f"{order.side} filled."

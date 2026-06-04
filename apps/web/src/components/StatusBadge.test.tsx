@@ -11,6 +11,12 @@ describe("StatusBadge", () => {
     expect(screen.getByText("Approved for paper")).toBeInTheDocument();
   });
 
+  it("renders pending next-open orders as queued", () => {
+    renderWithQueryClient(<StatusBadge status="PENDING_NEXT_OPEN" />);
+
+    expect(screen.getByText("Queued next open")).toBeInTheDocument();
+  });
+
   it("humanizes unknown statuses", () => {
     renderWithQueryClient(<StatusBadge status="CUSTOM_STATUS" />);
 
