@@ -5,8 +5,8 @@ from sqlalchemy.orm import Session
 from taurus_core.agents.runner import DEFAULT_ANALYST_RUN_ID
 from taurus_core.brokers.paper_broker import PaperBroker
 from taurus_core.config import Settings, get_settings
-from taurus_core.db.repositories import RiskRepository
-from taurus_core.execution.schemas import PaperOrder
+from taurus_core.db.repositories import PaperRunRepository, ResearchRepository, RiskRepository
+from taurus_core.execution.schemas import ExecutionPolicy, PaperOrder
 from taurus_core.risk.schemas import FinalDecision
 
 
@@ -18,16 +18,23 @@ class ExecutionRouter:
         self.settings = settings or get_settings()
         self.paper_broker = PaperBroker(session, self.settings)
 
-    def route_decision(self, decision: FinalDecision) -> PaperOrder | None:
+    def route_decision(
+        self,
+        decision: FinalDecision,
+        *,
+        execution_policy: ExecutionPolicy | None = None,
+    ) -> PaperOrder | None:
         if not self._is_paper_routable(decision):
             return None
-        return self.paper_broker.place_order(decision)
+        policy = execution_policy or self._execution_policy_for_decision(decision)
+        return self.paper_broker.place_order(decision, execution_policy=policy)
 
     def route_latest_for_symbol(
         self,
         *,
         symbol: str,
         run_id: str = DEFAULT_ANALYST_RUN_ID,
+        execution_policy: ExecutionPolicy | None = None,
     ) -> PaperOrder | None:
         model = RiskRepository(self.session).latest_final_decision(
             symbol=symbol,
@@ -38,7 +45,10 @@ class ExecutionRouter:
                 f"No final decision found for {symbol.upper()} run_id={run_id}. "
                 "Run make final-approval-mock first."
             )
-        return self.route_decision(FinalDecision.model_validate(model.payload))
+        return self.route_decision(
+            FinalDecision.model_validate(model.payload),
+            execution_policy=execution_policy,
+        )
 
     def _is_paper_routable(self, decision: FinalDecision) -> bool:
         return (
@@ -49,3 +59,17 @@ class ExecutionRouter:
             and decision.approved_quantity > 0
             and decision.final_action in {"BUY", "REDUCE", "EXIT"}
         )
+
+    def _execution_policy_for_decision(self, decision: FinalDecision) -> ExecutionPolicy:
+        proposal = ResearchRepository(self.session).get_trader_proposal(decision.proposal_id)
+        if proposal is not None:
+            if proposal.evaluation_mode == "market_hours":
+                return "immediate"
+            if proposal.evaluation_mode == "after_close":
+                return "next_open"
+
+        run = PaperRunRepository(self.session).get(decision.run_id)
+        if run is not None:
+            return "next_open" if run.run_after_market_close else "immediate"
+
+        return "immediate"

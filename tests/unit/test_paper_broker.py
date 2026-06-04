@@ -61,7 +61,7 @@ def fake_llm_provider(monkeypatch: pytest.MonkeyPatch) -> None:
     )
 
 
-def test_paper_broker_executes_approved_decision_and_api_returns_artifacts(
+def test_paper_broker_queues_after_close_decision_and_api_returns_artifacts(
     tmp_path: Path,
 ) -> None:
     settings = _settings_for_temp_db(tmp_path)
@@ -84,29 +84,25 @@ def test_paper_broker_executes_approved_decision_and_api_returns_artifacts(
                 portfolio_id=settings.taurus_paper_portfolio_id,
             ).payload
         )
-        position = PaperPosition.model_validate(
-            repo.latest_open_positions_by_portfolio(
-                portfolio_id=settings.taurus_paper_portfolio_id,
-            )[0].payload
+        positions = repo.latest_open_positions_by_portfolio(
+            portfolio_id=settings.taurus_paper_portfolio_id,
         )
 
     assert order is not None
-    assert order.status == "FILLED"
-    assert order.filled_quantity == decision.approved_quantity
-    assert order.remaining_quantity == 0
-    assert order.total_cost_inr > 0
-    assert order.total_slippage_inr > 0
-    assert "PARTIALLY_FILLED" in order.status_history
+    assert order.status == "PENDING_NEXT_OPEN"
+    assert order.execution_policy == "next_open"
+    assert order.filled_quantity == 0
+    assert order.remaining_quantity == decision.approved_quantity
+    assert order.total_cost_inr == Decimal("0.0000")
+    assert order.total_slippage_inr == Decimal("0.0000")
+    assert order.scheduled_fill_session == "next_open"
     assert order_count == 1
-    assert fill_count == 2
-    assert position_count == 1
+    assert fill_count == 0
+    assert position_count == 0
     assert account_count == 1
-    assert position.symbol == "INFY"
-    assert position.quantity == decision.approved_quantity
-    assert account.available_cash_inr == (
-        account.starting_cash_inr - order.gross_value_inr - order.total_cost_inr
-    )
-    assert account.gross_exposure_inr == position.market_value_inr
+    assert positions == []
+    assert account.available_cash_inr == account.starting_cash_inr
+    assert account.gross_exposure_inr == Decimal("0.0000")
 
     client = TestClient(create_app(settings))
     orders_response = client.get("/paper/orders?symbol=INFY")
@@ -119,8 +115,10 @@ def test_paper_broker_executes_approved_decision_and_api_returns_artifacts(
     assert positions_response.status_code == 200
     assert account_response.status_code == 200
     assert orders_response.json()[0]["order_id"] == order.order_id
-    assert len(fills_response.json()) == 2
-    assert positions_response.json()[0]["quantity"] == decision.approved_quantity
+    assert orders_response.json()[0]["status"] == "PENDING_NEXT_OPEN"
+    assert orders_response.json()[0]["execution_policy"] == "next_open"
+    assert fills_response.json() == []
+    assert positions_response.json() == []
     assert account_response.json()["account_id"] == account.account_id
 
 
@@ -362,8 +360,9 @@ def test_paper_execution_is_deterministic_and_not_duplicated(tmp_path: Path) -> 
     assert first is not None
     assert second is not None
     assert first.model_dump(mode="json") == second.model_dump(mode="json")
+    assert first.status == "PENDING_NEXT_OPEN"
     assert order_count == 1
-    assert fill_count == 2
+    assert fill_count == 0
 
 
 def test_execution_router_does_not_send_rejected_decision_to_paper_broker(
@@ -416,7 +415,9 @@ def test_event_risk_blocked_final_decision_does_not_create_paper_order(
     assert order_count == 0
 
 
-def test_paper_broker_exits_position_opened_in_prior_run(tmp_path: Path) -> None:
+def test_paper_broker_queues_after_close_exit_for_position_opened_in_prior_run(
+    tmp_path: Path,
+) -> None:
     settings = _settings_for_temp_db(tmp_path)
     _prepare_market_data_db(settings)
     run_mock_final_approval(symbol="INFY", settings=settings)
@@ -424,7 +425,10 @@ def test_paper_broker_exits_position_opened_in_prior_run(tmp_path: Path) -> None
 
     with session_factory() as session:
         buy_decision = _latest_final_decision(session, "INFY")
-        buy_order = ExecutionRouter(session, settings).route_decision(buy_decision)
+        buy_order = ExecutionRouter(session, settings).route_decision(
+            buy_decision,
+            execution_policy="immediate",
+        )
     assert buy_order is not None
     assert buy_order.side == "BUY"
 
@@ -481,9 +485,13 @@ def test_paper_broker_exits_position_opened_in_prior_run(tmp_path: Path) -> None
     assert decision.approved_quantity == original_quantity
     assert exit_order is not None
     assert exit_order.side == "SELL"
-    assert exit_order.filled_quantity == original_quantity
-    assert open_positions == []
-    assert {fill.side for fill in fills} == {"BUY", "SELL"}
+    assert exit_order.status == "PENDING_NEXT_OPEN"
+    assert exit_order.execution_policy == "next_open"
+    assert exit_order.filled_quantity == 0
+    assert exit_order.remaining_quantity == original_quantity
+    assert len(open_positions) == 1
+    assert PaperPosition.model_validate(open_positions[0].payload).quantity == original_quantity
+    assert {fill.side for fill in fills} == {"BUY"}
     assert account.portfolio_id == settings.taurus_paper_portfolio_id
 
 

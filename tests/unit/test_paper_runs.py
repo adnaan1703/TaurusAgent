@@ -24,7 +24,7 @@ from taurus_core.db.models import (
     RiskReviewModel,
     TraderProposalModel,
 )
-from taurus_core.db.repositories import GraphRepository, InstrumentRepository
+from taurus_core.db.repositories import ExecutionRepository, GraphRepository, InstrumentRepository
 from taurus_core.db.repositories import ResearchRepository
 from taurus_core.db.session import build_session_factory
 from taurus_core.domain.instruments import Instrument
@@ -68,7 +68,8 @@ def test_paper_run_service_executes_full_chain_and_api_returns_runs(tmp_path: Pa
     assert run.market_data_summary["candle_count"] >= 252
     assert run.artifacts["strategy"]["strategy_name"]
     assert run.artifacts["symbols"]["INFY"]["final_status"] == "APPROVED_FOR_PAPER"
-    assert run.artifacts["symbols"]["INFY"]["order_status"] == "FILLED"
+    assert run.artifacts["symbols"]["INFY"]["order_status"] == "PENDING_NEXT_OPEN"
+    assert run.artifacts["symbols"]["INFY"]["order_reason"] == "queued_for_next_open_settlement"
     assert run.artifacts["symbols"]["INFY"]["analyst_roster"] == {
         "enabled": ["technical"],
         "skipped": ["news", "sentiment", "fundamentals", "graph"],
@@ -230,9 +231,11 @@ def test_paper_run_succeeds_with_technical_only_roster(tmp_path: Path) -> None:
 
 def test_paper_run_includes_open_position_symbols_across_runs(tmp_path: Path) -> None:
     settings = _settings_for_temp_db(tmp_path, enabled_analysts="technical")
-    first = PaperRunService(settings, schedule_name="open_position_seed").run_once(
-        symbols=["INFY"]
-    )
+    first = PaperRunService(
+        settings,
+        schedule_name="open_position_seed",
+        run_after_market_close=False,
+    ).run_once(symbols=["INFY"])
     second = PaperRunService(settings, schedule_name="open_position_review").run_once(
         symbols=["TCS"]
     )
@@ -579,7 +582,7 @@ def test_full_universe_finalizes_all_symbols_before_allocated_execution(
     original_route = ExecutionRouter.route_decision
     original_place_order = PaperBroker.place_order
 
-    def recording_route(router, decision):
+    def recording_route(router, decision, **kwargs):
         session_factory = build_session_factory(settings)
         with session_factory() as session:
             route_final_counts.append(
@@ -590,9 +593,9 @@ def test_full_universe_finalizes_all_symbols_before_allocated_execution(
                 )
                 or 0
             )
-        return original_route(router, decision)
+        return original_route(router, decision, **kwargs)
 
-    def recording_place_order(broker, decision):
+    def recording_place_order(broker, decision, **kwargs):
         broker_decisions.append(
             (
                 decision.symbol,
@@ -602,7 +605,7 @@ def test_full_universe_finalizes_all_symbols_before_allocated_execution(
                 else None,
             )
         )
-        return original_place_order(broker, decision)
+        return original_place_order(broker, decision, **kwargs)
 
     monkeypatch.setattr(
         "taurus_core.execution.order_router.ExecutionRouter.route_decision",
@@ -778,7 +781,11 @@ def test_full_universe_manual_symbols_remain_explicit_plus_open_positions(
         tmp_path,
         paper_analysis_scope="full_universe",
     )
-    first = PaperRunService(settings, schedule_name="manual_open_seed").run_once(
+    first = PaperRunService(
+        settings,
+        schedule_name="manual_open_seed",
+        run_after_market_close=False,
+    ).run_once(
         symbols=["INFY"],
         universe=_paper_run_universe(source="manual_symbols", symbols=["INFY"]),
     )
@@ -825,9 +832,11 @@ def test_open_position_lifecycle_actions_survive_full_universe_finalization(
     expect_order: bool,
 ) -> None:
     settings = _settings_for_temp_db(tmp_path, paper_analysis_scope="full_universe")
-    seed = PaperRunService(settings, schedule_name=f"seed_{action.lower()}").run_once(
-        symbols=["INFY"]
-    )
+    seed = PaperRunService(
+        settings,
+        schedule_name=f"seed_{action.lower()}",
+        run_after_market_close=False,
+    ).run_once(symbols=["INFY"])
     assert seed.status == "COMPLETED"
     assert seed.artifacts["symbols"]["INFY"]["order_status"] == "FILLED"
 
@@ -839,13 +848,24 @@ def test_open_position_lifecycle_actions_survive_full_universe_finalization(
     )
     symbol_artifact = run.artifacts["symbols"]["INFY"]
     execution = run.artifacts["execution"]
+    session_factory = build_session_factory(settings)
+    with session_factory() as session:
+        fill_sides = {
+            row.side
+            for row in ExecutionRepository(session).list_fills_by_portfolio(
+                portfolio_id=settings.taurus_paper_portfolio_id,
+                symbol="INFY",
+            )
+        }
 
     assert run.status == "COMPLETED"
     assert symbol_artifact["proposal_action"] == action
     assert symbol_artifact["final_action"] == action
     if expect_order:
         assert execution["execution_set"][0]["reason"] == "open_position_lifecycle"
-        assert symbol_artifact["order_status"] in {"FILLED", "PARTIALLY_FILLED"}
+        assert symbol_artifact["order_status"] == "PENDING_NEXT_OPEN"
+        assert symbol_artifact["order_reason"] == "queued_for_next_open_settlement"
+        assert fill_sides == {"BUY"}
     else:
         assert symbol_artifact["no_paper_order_expected"] is True
         assert symbol_artifact["order_id"] is None
@@ -977,10 +997,12 @@ def test_decomposed_symbol_analysis_and_stored_finalization_keep_legacy_artifact
         "no_paper_order_expected",
         "order_id",
         "order_status",
+        "order_reason",
         "account_id",
     }
     assert artifact["final_status"] == "APPROVED_FOR_PAPER"
-    assert artifact["order_status"] == "FILLED"
+    assert artifact["order_status"] == "PENDING_NEXT_OPEN"
+    assert artifact["order_reason"] == "queued_for_next_open_settlement"
     assert risk_count == 1
     assert final_count == 1
     assert order_count == 1

@@ -326,6 +326,9 @@ def _seed_monitor_fixture(settings: Settings) -> None:
             llm_provider=FakeLLMProvider(),
         ).run(symbol="INFY", risk_review=review)
     with session_factory() as session:
-        order = ExecutionRouter(session, settings).route_decision(decision)
+        order = ExecutionRouter(session, settings).route_decision(
+            decision,
+            execution_policy="immediate",
+        )
         assert order is not None
         assert order.status == "FILLED"

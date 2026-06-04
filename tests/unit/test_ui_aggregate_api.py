@@ -79,10 +79,10 @@ def test_ui_aggregate_endpoints_return_completed_run_trail(tmp_path: Path) -> No
     assert selection_preview[0]["symbol"] == "INFY"
     assert selection_preview[0]["allocation_status"] == "selected"
     assert selection_preview[0]["final_status"] == "APPROVED_FOR_PAPER"
-    assert selection_preview[0]["execution_status"] == "FILLED"
-    assert selection_preview[0]["reason"] == "executed_by_paper_order:filled"
+    assert selection_preview[0]["execution_status"] == "PENDING_NEXT_OPEN"
+    assert selection_preview[0]["reason"] == "paper_order_status:pending_next_open"
     assert overview.json()["latest_run"]["final_status_counts"] == {"APPROVED_FOR_PAPER": 1}
-    assert overview.json()["latest_run"]["order_status_counts"] == {"FILLED": 1}
+    assert overview.json()["latest_run"]["order_status_counts"] == {"PENDING_NEXT_OPEN": 1}
 
     assert history.status_code == 200
     assert history.json()["runs"][0]["run_id"] == run.run_id
@@ -91,10 +91,10 @@ def test_ui_aggregate_endpoints_return_completed_run_trail(tmp_path: Path) -> No
     detail_payload = detail.json()
     assert detail_payload["run"]["status"] == "COMPLETED"
     assert detail_payload["selection_ledger"][0]["symbol"] == "INFY"
-    assert detail_payload["selection_ledger"][0]["reason"] == "executed_by_paper_order:filled"
+    assert detail_payload["selection_ledger"][0]["reason"] == "paper_order_status:pending_next_open"
     assert detail_payload["symbols"][0]["symbol"] == "INFY"
-    assert detail_payload["symbols"][0]["pipeline_status"] == "complete"
-    assert detail_payload["symbols"][0]["order_status"] == "FILLED"
+    assert detail_payload["symbols"][0]["pipeline_status"] == "running"
+    assert detail_payload["symbols"][0]["order_status"] == "PENDING_NEXT_OPEN"
     assert detail_payload["symbols"][0]["analyst_roster"] == {
         "enabled": ["technical"],
         "skipped": ["news", "sentiment", "fundamentals", "graph"],
@@ -108,13 +108,13 @@ def test_ui_aggregate_endpoints_return_completed_run_trail(tmp_path: Path) -> No
     assert [stage["id"] for stage in trail_payload["stages"]] == EXPECTED_TRAIL_STAGES
     assert trail_payload["final_status"] == "APPROVED_FOR_PAPER"
     assert trail_payload["selection_decision"]["allocation_status"] == "selected"
-    assert trail_payload["decision_reason"] == "executed_by_paper_order:filled"
+    assert trail_payload["decision_reason"] == "paper_order_status:pending_next_open"
     proposal_stage = _stage_artifacts(trail_payload, "trader_proposal")[0]
     assert proposal_stage["evaluation_mode"] == "after_close"
     assert proposal_stage["lifecycle_trigger"] == "new_entry"
     assert trail_payload["analyst_roster"] == detail_payload["symbols"][0]["analyst_roster"]
-    assert _stage_status(trail_payload, "paper_order") == "complete"
-    assert _stage_status(trail_payload, "paper_fills") == "complete"
+    assert _stage_status(trail_payload, "paper_order") == "running"
+    assert _stage_status(trail_payload, "paper_fills") == "running"
     assert trail_payload["decision_id"]
 
     replay = client.get(f"/ui/replay/{trail_payload['decision_id']}")
@@ -137,7 +137,7 @@ def test_ui_aggregate_endpoints_return_completed_run_trail(tmp_path: Path) -> No
     assert portfolio.json()["money_management"] == risk.json()["money_management"]
     assert portfolio.json()["allocation"]["enabled"] is False
     assert len(portfolio.json()["orders"]) == 1
-    assert len(portfolio.json()["fills"]) == 2
+    assert portfolio.json()["fills"] == []
 
 
 def test_ui_aggregate_endpoints_stage_pending_next_open_orders_as_running(
@@ -242,6 +242,7 @@ def test_disabled_money_management_uses_settings_fallback_allocation(
         "no_paper_order_expected",
         "order_id",
         "order_status",
+        "order_reason",
         "account_id",
         "allocation_decision",
     }
@@ -464,7 +465,7 @@ def test_ui_aggregate_endpoints_show_partial_failure_and_404s(tmp_path: Path) ->
     detail_payload = detail.json()
     assert detail_payload["run"]["status"] == "PARTIAL_FAILED"
     assert {row["symbol"]: row["pipeline_status"] for row in detail_payload["symbols"]} == {
-        "INFY": "complete",
+        "INFY": "running",
         "MISSING": "failed",
     }
 

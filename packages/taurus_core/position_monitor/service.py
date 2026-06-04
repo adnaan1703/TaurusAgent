@@ -420,7 +420,10 @@ class PositionMonitorService:
             ).run(symbol=symbol, run_id=run_id, risk_review=review)
 
         with self.session_factory() as session:
-            order = ExecutionRouter(session, self.settings).route_decision(decision)
+            order = ExecutionRouter(session, self.settings).route_decision(
+                decision,
+                execution_policy="immediate",
+            )
             order_status = order.status if order is not None else "not_routed"
             if decision.final_action in {"EXIT", "REDUCE"}:
                 record_position_monitor_paper_route(

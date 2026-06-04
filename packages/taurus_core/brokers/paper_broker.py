@@ -13,6 +13,7 @@ from taurus_core.config import Settings, get_settings
 from taurus_core.db.repositories import CandleRepository, ExecutionRepository
 from taurus_core.execution.costs import IndiaPaperCostModel
 from taurus_core.execution.schemas import (
+    ExecutionPolicy,
     OrderSide,
     PaperAccount,
     PaperFill,
@@ -64,7 +65,14 @@ class PaperBroker(BrokerAdapter):
             slippage_bps=self.settings.taurus_paper_slippage_bps,
         )
 
-    def place_order(self, decision: FinalDecision) -> PaperOrder:
+    def place_order(
+        self,
+        decision: FinalDecision,
+        *,
+        execution_policy: ExecutionPolicy = "immediate",
+    ) -> PaperOrder:
+        if execution_policy not in {"immediate", "next_open"}:
+            raise ValueError("PaperBroker execution_policy must be immediate or next_open.")
         self._validate_decision(decision)
         timestamp = _as_utc(decision.as_of)
         repo = ExecutionRepository(self.session)
@@ -87,6 +95,7 @@ class PaperBroker(BrokerAdapter):
                 account_state=account_state,
                 positions=positions,
                 reason=f"No candle data available for {decision.symbol}.",
+                execution_policy=execution_policy,
             )
             repo.store_rejected_order(order=order, account=account, positions=position_models)
             self.session.commit()
@@ -109,8 +118,62 @@ class PaperBroker(BrokerAdapter):
                 account_state=account_state,
                 positions=positions,
                 reason="No existing paper position or positive executable quantity for action.",
+                execution_policy=execution_policy,
+                signal_trade_date=candle.trade_date if execution_policy == "next_open" else None,
             )
             repo.store_rejected_order(order=order, account=account, positions=position_models)
+            self.session.commit()
+            self._log_order(order, fill_ids=[])
+            self._send_order_alert(order, fill_ids=[])
+            return order
+
+        if execution_policy == "next_open":
+            affordable_quantity = self._pending_next_open_quantity(
+                decision=decision,
+                side=side,
+                quantity=quantity,
+                timestamp=timestamp,
+                reference_price=candle.close,
+                trade_date=candle.trade_date,
+                account_state=account_state,
+                positions=positions,
+            )
+            if affordable_quantity <= 0:
+                order, account, position_models = self._rejected_order(
+                    decision=decision,
+                    side=side,
+                    quantity=quantity,
+                    timestamp=timestamp,
+                    account_state=account_state,
+                    positions=positions,
+                    reason="Insufficient paper cash or position for approved order.",
+                    execution_policy=execution_policy,
+                    signal_trade_date=candle.trade_date,
+                )
+                repo.store_rejected_order(order=order, account=account, positions=position_models)
+                self.session.commit()
+                self._log_order(order, fill_ids=[])
+                self._send_order_alert(order, fill_ids=[])
+                return order
+
+            self._mark_prices(positions=positions, symbol=decision.symbol, last_price=candle.close)
+            account, position_models = self._account_and_positions(
+                account_state=account_state,
+                positions=positions,
+                updated_at=timestamp,
+            )
+            order = self._pending_next_open_order(
+                decision=decision,
+                side=side,
+                quantity=affordable_quantity,
+                timestamp=timestamp,
+                signal_trade_date=candle.trade_date,
+            )
+            repo.store_pending_next_open_order(
+                order=order,
+                account=account,
+                positions=position_models,
+            )
             self.session.commit()
             self._log_order(order, fill_ids=[])
             self._send_order_alert(order, fill_ids=[])
@@ -139,6 +202,7 @@ class PaperBroker(BrokerAdapter):
                 account_state=account_state,
                 positions=positions,
                 reason="Approved quantity could not produce a valid fill.",
+                execution_policy=execution_policy,
             )
             repo.store_rejected_order(order=order, account=account, positions=position_models)
             self.session.commit()
@@ -163,6 +227,7 @@ class PaperBroker(BrokerAdapter):
                 account_state=account_state,
                 positions=positions,
                 reason="Insufficient paper cash or position for approved order.",
+                execution_policy=execution_policy,
             )
             repo.store_rejected_order(order=order, account=account, positions=position_models)
             self.session.commit()
@@ -460,6 +525,44 @@ class PaperBroker(BrokerAdapter):
             affordable -= 1
         return 0
 
+    def _pending_next_open_quantity(
+        self,
+        *,
+        decision: FinalDecision,
+        side: OrderSide,
+        quantity: int,
+        timestamp: datetime,
+        reference_price: Decimal,
+        trade_date,
+        account_state: _AccountState,
+        positions: dict[str, _PositionState],
+    ) -> int:
+        preview_order_id = paper_order_id(
+            final_decision_id=decision.final_decision_id,
+            decision_id=decision.decision_id,
+            quantity=quantity,
+        )
+        preview_fills = self._build_fills(
+            decision=decision,
+            side=side,
+            quantity=quantity,
+            order_id=preview_order_id,
+            timestamp=timestamp,
+            open_price=reference_price,
+            close_price=reference_price,
+            trade_date=trade_date,
+        )
+        if not preview_fills:
+            return 0
+        return self._affordable_quantity(
+            side=side,
+            requested_quantity=quantity,
+            fills=preview_fills,
+            available_cash=account_state.available_cash_inr,
+            positions=positions,
+            symbol=decision.symbol,
+        )
+
     def _apply_fill(
         self,
         *,
@@ -587,6 +690,48 @@ class PaperBroker(BrokerAdapter):
             model_version=self.model_version,
         )
 
+    def _pending_next_open_order(
+        self,
+        *,
+        decision: FinalDecision,
+        side: OrderSide,
+        quantity: int,
+        timestamp: datetime,
+        signal_trade_date,
+    ) -> PaperOrder:
+        return PaperOrder(
+            order_id=paper_order_id(
+                final_decision_id=decision.final_decision_id,
+                decision_id=decision.decision_id,
+                quantity=quantity,
+            ),
+            final_decision_id=decision.final_decision_id,
+            decision_id=decision.decision_id,
+            run_id=decision.run_id,
+            portfolio_id=self.settings.taurus_paper_portfolio_id,
+            symbol=decision.symbol,
+            side=side,
+            quantity=quantity,
+            order_type="MARKET",
+            status="PENDING_NEXT_OPEN",
+            execution_policy="next_open",
+            filled_quantity=0,
+            remaining_quantity=quantity,
+            average_fill_price_inr=SCORE_ZERO,
+            gross_value_inr=SCORE_ZERO,
+            total_cost_inr=SCORE_ZERO,
+            total_slippage_inr=SCORE_ZERO,
+            slippage_bps=self.settings.taurus_paper_slippage_bps,
+            rejection_reason="",
+            status_history=["CREATED", "ACCEPTED", "PENDING_NEXT_OPEN"],
+            signal_trade_date=signal_trade_date,
+            scheduled_fill_session="next_open",
+            filled_trade_date=None,
+            submitted_at=timestamp,
+            updated_at=timestamp,
+            model_version=self.model_version,
+        )
+
     def _rejected_order(
         self,
         *,
@@ -597,6 +742,8 @@ class PaperBroker(BrokerAdapter):
         account_state: _AccountState,
         positions: dict[str, _PositionState],
         reason: str,
+        execution_policy: ExecutionPolicy = "immediate",
+        signal_trade_date=None,
     ) -> tuple[PaperOrder, PaperAccount, list[PaperPosition]]:
         account, position_models = self._account_and_positions(
             account_state=account_state,
@@ -618,6 +765,7 @@ class PaperBroker(BrokerAdapter):
             quantity=quantity,
             order_type="MARKET",
             status="REJECTED",
+            execution_policy=execution_policy,
             filled_quantity=0,
             remaining_quantity=quantity,
             average_fill_price_inr=SCORE_ZERO,
@@ -627,6 +775,7 @@ class PaperBroker(BrokerAdapter):
             slippage_bps=self.settings.taurus_paper_slippage_bps,
             rejection_reason=reason,
             status_history=["CREATED", "REJECTED"],
+            signal_trade_date=signal_trade_date,
             submitted_at=timestamp,
             updated_at=timestamp,
             model_version=self.model_version,

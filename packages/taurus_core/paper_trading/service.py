@@ -1118,7 +1118,11 @@ class PaperRunService:
             failed_count=failed_count,
         )
         with self.session_factory() as session:
-            order = ExecutionRouter(session, self.settings).route_decision(decision)
+            execution_policy = "next_open" if self.run_after_market_close else "immediate"
+            order = ExecutionRouter(session, self.settings).route_decision(
+                decision,
+                execution_policy=execution_policy,
+            )
             repo = ExecutionRepository(session)
             account = repo.latest_account(run_id=run_id)
             return order, account
@@ -1174,6 +1178,7 @@ class PaperRunService:
                 if isinstance(symbol_artifact, dict):
                     symbol_artifact["order_id"] = order.order_id if order is not None else None
                     symbol_artifact["order_status"] = order.status if order is not None else None
+                    symbol_artifact["order_reason"] = _order_artifact_reason(order)
                     symbol_artifact["account_id"] = (
                         account.account_id if account is not None else None
                     )
@@ -1194,6 +1199,7 @@ class PaperRunService:
                         "symbol": symbol,
                         "order_id": order.order_id,
                         "order_status": order.status,
+                        "reason": _order_artifact_reason(order),
                         "final_decision_id": order.final_decision_id,
                         "allocation_status": execution_entry.status,
                     }
@@ -1923,6 +1929,7 @@ def _symbol_artifact_from_results(
         "no_paper_order_expected": decision.status == "NO_ACTION",
         "order_id": order.order_id if order is not None else None,
         "order_status": order.status if order is not None else None,
+        "order_reason": _order_artifact_reason(order),
         "account_id": account.account_id if account is not None else None,
     }
     if proposal.allocation_decision is not None:
@@ -2027,6 +2034,14 @@ def _final_decision_not_routed_reason(decision: FinalDecision) -> str:
     if decision.approved_quantity <= 0:
         return "final_decision_not_broker_routable:zero_approved_quantity"
     return "execution_router_returned_no_order"
+
+
+def _order_artifact_reason(order: PaperOrder | None) -> str | None:
+    if order is None:
+        return None
+    if order.status == "PENDING_NEXT_OPEN":
+        return "queued_for_next_open_settlement"
+    return f"executed_by_paper_order:{order.status.lower()}"
 
 
 def _analysis_artifact_from_result(
