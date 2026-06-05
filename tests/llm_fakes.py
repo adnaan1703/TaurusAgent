@@ -9,6 +9,8 @@ from taurus_core.llm.base import (
     LLMFinalDecisionExplanation,
     LLMResearchManagerOutput,
     LLMTraderOutput,
+    LLMUsageRecord,
+    append_llm_usage_record,
 )
 
 
@@ -29,6 +31,7 @@ class FakeLLMProvider:
         symbol: str,
         context: dict[str, object],
     ) -> LLMAnalystOutput:
+        self._record_usage(agent_name=agent_name, symbol=symbol)
         score = _decimal_context(context, "score", Decimal("0"))
         confidence = _decimal_context(context, "confidence", Decimal("0.55"))
         horizon = str(context.get("horizon") or "short")
@@ -61,6 +64,7 @@ class FakeLLMProvider:
         baseline: dict[str, object],
         evidence_pack: list[dict[str, object]],
     ) -> LLMBullThesisOutput:
+        self._record_usage(agent_name=agent_name, symbol=symbol)
         baseline_score = _decimal_context(baseline, "score", Decimal("0"))
         baseline_confidence = _decimal_context(baseline, "confidence", Decimal("0.55"))
         first_report = evidence_pack[0] if evidence_pack else {}
@@ -90,6 +94,7 @@ class FakeLLMProvider:
         baseline: dict[str, object],
         evidence_pack: list[dict[str, object]],
     ) -> LLMBearThesisOutput:
+        self._record_usage(agent_name=agent_name, symbol=symbol)
         baseline_score = _decimal_context(baseline, "score", Decimal("0"))
         baseline_confidence = _decimal_context(baseline, "confidence", Decimal("0.55"))
         first_report = evidence_pack[0] if evidence_pack else {}
@@ -118,6 +123,7 @@ class FakeLLMProvider:
         symbol: str,
         context: dict[str, object],
     ) -> LLMResearchManagerOutput:
+        self._record_usage(agent_name=agent_name, symbol=symbol)
         baseline = context.get("deterministic_baseline")
         if not isinstance(baseline, dict):
             baseline = {}
@@ -151,6 +157,7 @@ class FakeLLMProvider:
         symbol: str,
         context: dict[str, object],
     ) -> LLMTraderOutput:
+        self._record_usage(agent_name=agent_name, symbol=symbol)
         fallback = context.get("deterministic_fallback")
         if not isinstance(fallback, dict):
             fallback = {}
@@ -189,6 +196,7 @@ class FakeLLMProvider:
         symbol: str,
         context: dict[str, object],
     ) -> LLMFinalDecisionExplanation:
+        self._record_usage(agent_name=agent_name, symbol=symbol)
         decision = context.get("deterministic_decision")
         if not isinstance(decision, dict):
             decision = {}
@@ -204,6 +212,23 @@ class FakeLLMProvider:
                 f"for {final_action} on {symbol.upper()}."
             ),
             model_version=self.model_version,
+        )
+
+    def _record_usage(self, *, agent_name: str, symbol: str) -> None:
+        append_llm_usage_record(
+            self,
+            LLMUsageRecord(
+                provider="fake",
+                model_version=self.model_version,
+                agent_name=agent_name,
+                symbol=symbol,
+                elapsed_seconds=0.5,
+                input_tokens=1000,
+                output_tokens=250,
+                total_tokens=1250,
+                cached_input_tokens=0,
+                reasoning_tokens=0,
+            ),
         )
 
 

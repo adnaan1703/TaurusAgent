@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 import json
+from collections.abc import Iterable, Mapping
 from typing import Protocol
 
 from decimal import Decimal
@@ -15,6 +17,182 @@ class LLMProviderError(RuntimeError):
 
 
 MODEL_VERSION_MAX_CHARS = 160
+
+
+@dataclass(frozen=True, slots=True)
+class LLMUsageRecord:
+    provider: str
+    model_version: str
+    agent_name: str
+    symbol: str
+    elapsed_seconds: float
+    input_tokens: int | None = None
+    output_tokens: int | None = None
+    total_tokens: int | None = None
+    cached_input_tokens: int | None = None
+    reasoning_tokens: int | None = None
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "provider": self.provider,
+            "model_version": self.model_version,
+            "agent_name": self.agent_name,
+            "symbol": self.symbol.upper(),
+            "elapsed_seconds": round(self.elapsed_seconds, 6),
+            "input_tokens": self.input_tokens,
+            "output_tokens": self.output_tokens,
+            "total_tokens": self.total_tokens,
+            "cached_input_tokens": self.cached_input_tokens,
+            "reasoning_tokens": self.reasoning_tokens,
+        }
+
+
+_USAGE_TOKEN_KEYS = (
+    "input_tokens",
+    "output_tokens",
+    "total_tokens",
+    "cached_input_tokens",
+    "reasoning_tokens",
+)
+
+
+def append_llm_usage_record(provider: object | None, record: LLMUsageRecord) -> None:
+    if provider is None:
+        return
+    records = getattr(provider, "_llm_usage_records", None)
+    if records is None:
+        records = []
+        setattr(provider, "_llm_usage_records", records)
+    records.append(record)
+
+
+def get_llm_usage_records(provider: object | None) -> list[LLMUsageRecord]:
+    if provider is None:
+        return []
+    records = getattr(provider, "_llm_usage_records", None)
+    if not isinstance(records, list):
+        return []
+    return [record for record in records if isinstance(record, LLMUsageRecord)]
+
+
+def summarize_llm_usage(records: Iterable[LLMUsageRecord]) -> dict[str, object]:
+    usage_records = list(records)
+    elapsed_seconds = round(sum(record.elapsed_seconds for record in usage_records), 6)
+    summary: dict[str, object] = {
+        "provider": _single_or_mixed(record.provider for record in usage_records),
+        "providers": sorted({record.provider for record in usage_records}),
+        "model_versions": sorted({record.model_version for record in usage_records}),
+        "request_count": len(usage_records),
+        "elapsed_seconds": elapsed_seconds,
+    }
+    for key in _USAGE_TOKEN_KEYS:
+        summary[key] = _sum_optional_record_field(usage_records, key)
+    summary["output_tokens_per_second"] = _tokens_per_second(
+        summary["output_tokens"],
+        elapsed_seconds,
+    )
+    summary["total_tokens_per_second"] = _tokens_per_second(
+        summary["total_tokens"],
+        elapsed_seconds,
+    )
+    summary["by_agent"] = _summarize_llm_usage_by_agent(usage_records)
+    return summary
+
+
+def aggregate_llm_usage_summaries(
+    summaries: Iterable[Mapping[str, object]],
+) -> dict[str, object]:
+    usage_summaries = [summary for summary in summaries if summary]
+    request_count = sum(_int_value(summary.get("request_count")) or 0 for summary in usage_summaries)
+    elapsed_seconds = round(
+        sum(_float_value(summary.get("elapsed_seconds")) or 0.0 for summary in usage_summaries),
+        6,
+    )
+    providers = sorted(
+        {
+            str(provider)
+            for summary in usage_summaries
+            for provider in _list_value(summary.get("providers"))
+        }
+    )
+    model_versions = sorted(
+        {
+            str(model_version)
+            for summary in usage_summaries
+            for model_version in _list_value(summary.get("model_versions"))
+        }
+    )
+    aggregate: dict[str, object] = {
+        "provider": _single_or_mixed(providers),
+        "providers": providers,
+        "model_versions": model_versions,
+        "request_count": request_count,
+        "elapsed_seconds": elapsed_seconds,
+    }
+    for key in _USAGE_TOKEN_KEYS:
+        aggregate[key] = _sum_optional_summary_key(usage_summaries, key)
+    aggregate["output_tokens_per_second"] = _tokens_per_second(
+        aggregate["output_tokens"],
+        elapsed_seconds,
+    )
+    aggregate["total_tokens_per_second"] = _tokens_per_second(
+        aggregate["total_tokens"],
+        elapsed_seconds,
+    )
+    aggregate["by_agent"] = _aggregate_llm_usage_by_agent(usage_summaries)
+    return aggregate
+
+
+def llm_usage_record_from_openai_response(
+    response_payload: Mapping[str, object],
+    *,
+    model_version: str,
+    agent_name: str,
+    symbol: str,
+    elapsed_seconds: float,
+) -> LLMUsageRecord:
+    usage = _mapping_value(response_payload.get("usage"))
+    prompt_details = _mapping_value(usage.get("prompt_tokens_details")) if usage else {}
+    completion_details = (
+        _mapping_value(usage.get("completion_tokens_details")) if usage else {}
+    )
+    return LLMUsageRecord(
+        provider=_provider_from_model_version(model_version),
+        model_version=model_version,
+        agent_name=agent_name,
+        symbol=symbol,
+        elapsed_seconds=elapsed_seconds,
+        input_tokens=_int_value(usage.get("prompt_tokens")) if usage else None,
+        output_tokens=_int_value(usage.get("completion_tokens")) if usage else None,
+        total_tokens=_int_value(usage.get("total_tokens")) if usage else None,
+        cached_input_tokens=_int_value(prompt_details.get("cached_tokens")),
+        reasoning_tokens=_int_value(completion_details.get("reasoning_tokens")),
+    )
+
+
+def llm_usage_record_from_gemini_response(
+    response_payload: Mapping[str, object],
+    *,
+    model_version: str,
+    agent_name: str,
+    symbol: str,
+    elapsed_seconds: float,
+) -> LLMUsageRecord:
+    usage = _mapping_value(response_payload.get("usageMetadata"))
+    return LLMUsageRecord(
+        provider=_provider_from_model_version(model_version),
+        model_version=model_version,
+        agent_name=agent_name,
+        symbol=symbol,
+        elapsed_seconds=elapsed_seconds,
+        input_tokens=_int_value(usage.get("promptTokenCount")) if usage else None,
+        output_tokens=_int_value(usage.get("candidatesTokenCount")) if usage else None,
+        total_tokens=_int_value(usage.get("totalTokenCount")) if usage else None,
+        cached_input_tokens=_int_value(usage.get("cachedContentTokenCount"))
+        if usage
+        else None,
+        reasoning_tokens=_int_value(usage.get("thoughtsTokenCount")) if usage else None,
+    )
 
 
 MODEL_VERSION_JSON_SCHEMA: dict[str, object] = {
@@ -437,6 +615,159 @@ class LLMProvider(Protocol):
         context: dict[str, object],
     ) -> LLMFinalDecisionExplanation:
         ...
+
+
+def _summarize_llm_usage_by_agent(records: list[LLMUsageRecord]) -> list[dict[str, object]]:
+    grouped: dict[str, list[LLMUsageRecord]] = {}
+    for record in records:
+        grouped.setdefault(record.agent_name, []).append(record)
+
+    rows: list[dict[str, object]] = []
+    for agent_name, agent_records in sorted(grouped.items()):
+        elapsed_seconds = round(sum(record.elapsed_seconds for record in agent_records), 6)
+        row: dict[str, object] = {
+            "agent_name": agent_name,
+            "request_count": len(agent_records),
+            "symbols": sorted({record.symbol.upper() for record in agent_records}),
+            "elapsed_seconds": elapsed_seconds,
+        }
+        for key in _USAGE_TOKEN_KEYS:
+            row[key] = _sum_optional_record_field(agent_records, key)
+        row["output_tokens_per_second"] = _tokens_per_second(
+            row["output_tokens"],
+            elapsed_seconds,
+        )
+        row["total_tokens_per_second"] = _tokens_per_second(
+            row["total_tokens"],
+            elapsed_seconds,
+        )
+        rows.append(row)
+    return rows
+
+
+def _aggregate_llm_usage_by_agent(
+    summaries: list[Mapping[str, object]],
+) -> list[dict[str, object]]:
+    grouped: dict[str, list[Mapping[str, object]]] = {}
+    symbols_by_agent: dict[str, set[str]] = {}
+    for summary in summaries:
+        for row in _list_value(summary.get("by_agent")):
+            if not isinstance(row, Mapping):
+                continue
+            agent_name = str(row.get("agent_name") or "")
+            if not agent_name:
+                continue
+            grouped.setdefault(agent_name, []).append(row)
+            symbols_by_agent.setdefault(agent_name, set()).update(
+                str(symbol).upper() for symbol in _list_value(row.get("symbols"))
+            )
+
+    rows: list[dict[str, object]] = []
+    for agent_name, agent_rows in sorted(grouped.items()):
+        elapsed_seconds = round(
+            sum(_float_value(row.get("elapsed_seconds")) or 0.0 for row in agent_rows),
+            6,
+        )
+        row: dict[str, object] = {
+            "agent_name": agent_name,
+            "request_count": sum(
+                _int_value(agent_row.get("request_count")) or 0 for agent_row in agent_rows
+            ),
+            "symbols": sorted(symbols_by_agent.get(agent_name, set())),
+            "elapsed_seconds": elapsed_seconds,
+        }
+        for key in _USAGE_TOKEN_KEYS:
+            row[key] = _sum_optional_summary_key(agent_rows, key)
+        row["output_tokens_per_second"] = _tokens_per_second(
+            row["output_tokens"],
+            elapsed_seconds,
+        )
+        row["total_tokens_per_second"] = _tokens_per_second(
+            row["total_tokens"],
+            elapsed_seconds,
+        )
+        rows.append(row)
+    return rows
+
+
+def _sum_optional_record_field(records: list[LLMUsageRecord], key: str) -> int | None:
+    values = [_int_value(getattr(record, key)) for record in records]
+    known_values = [value for value in values if value is not None]
+    if not known_values:
+        return None
+    return sum(known_values)
+
+
+def _sum_optional_summary_key(summaries: Iterable[Mapping[str, object]], key: str) -> int | None:
+    values = [_int_value(summary.get(key)) for summary in summaries]
+    known_values = [value for value in values if value is not None]
+    if not known_values:
+        return None
+    return sum(known_values)
+
+
+def _tokens_per_second(tokens: object, elapsed_seconds: float) -> float | None:
+    token_count = _int_value(tokens)
+    if token_count is None or elapsed_seconds <= 0:
+        return None
+    return round(token_count / elapsed_seconds, 4)
+
+
+def _provider_from_model_version(model_version: str) -> str:
+    if ":" not in model_version:
+        return "unknown"
+    return model_version.split(":", maxsplit=1)[0] or "unknown"
+
+
+def _single_or_mixed(values: Iterable[str]) -> str | None:
+    unique_values = sorted({value for value in values if value})
+    if not unique_values:
+        return None
+    if len(unique_values) == 1:
+        return unique_values[0]
+    return "mixed"
+
+
+def _int_value(value: object) -> int | None:
+    if value is None or isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        return int(value)
+    if isinstance(value, str) and value.strip():
+        try:
+            return int(value)
+        except ValueError:
+            return None
+    return None
+
+
+def _float_value(value: object) -> float | None:
+    if value is None or isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str) and value.strip():
+        try:
+            return float(value)
+        except ValueError:
+            return None
+    return None
+
+
+def _mapping_value(value: object) -> Mapping[str, object]:
+    if isinstance(value, Mapping):
+        return value
+    return {}
+
+
+def _list_value(value: object) -> list[object]:
+    if isinstance(value, list):
+        return value
+    if isinstance(value, tuple):
+        return list(value)
+    return []
 
 
 def parse_llm_output(raw_content: str, *, fallback_model_version: str) -> LLMAnalystOutput:

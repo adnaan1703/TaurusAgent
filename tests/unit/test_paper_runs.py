@@ -81,6 +81,23 @@ def test_paper_run_service_executes_full_chain_and_api_returns_runs(tmp_path: Pa
         "min_required": 1,
         "status": "enough_reports",
     }
+    llm_usage = run.artifacts["llm_usage"]
+    assert llm_usage["provider"] == "fake"
+    assert llm_usage["request_count"] == 6
+    assert llm_usage["input_tokens"] == 6000
+    assert llm_usage["output_tokens"] == 1500
+    assert llm_usage["total_tokens"] == 7500
+    assert llm_usage["cached_input_tokens"] == 0
+    assert llm_usage["reasoning_tokens"] == 0
+    assert llm_usage["elapsed_seconds"] == 3.0
+    assert {row["agent_name"] for row in llm_usage["by_agent"]} == {
+        "BearResearcherAgent",
+        "BullResearcherAgent",
+        "PortfolioManagerAgent",
+        "ResearchManagerAgent",
+        "TechnicalAnalystAgent",
+        "TraderAgent",
+    }
 
     client = TestClient(create_app(settings))
     runs_response = client.get("/runs")

@@ -14,6 +14,7 @@ from taurus_core.llm.base import (
     LLMProviderError,
     LLMResearchManagerOutput,
     LLMTraderOutput,
+    get_llm_usage_records,
     parse_bear_thesis_output,
     parse_bull_thesis_output,
     parse_final_decision_explanation_output,
@@ -107,6 +108,43 @@ def test_lmstudio_request_shape_and_response(monkeypatch: pytest.MonkeyPatch) ->
     assert "Return JSON only" in payload["messages"][0]["content"]
     assert '"symbol": "INFY"' in payload["messages"][1]["content"]
     assert output.model_version == "lmstudio:local-model"
+
+
+def test_lmstudio_records_openai_compatible_usage(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_urlopen(request, timeout: int):
+        return _Response(
+            _chat_response(
+                "lmstudio:local-model",
+                usage={
+                    "prompt_tokens": 1500,
+                    "completion_tokens": 250,
+                    "total_tokens": 1750,
+                    "prompt_tokens_details": {"cached_tokens": 125},
+                    "completion_tokens_details": {"reasoning_tokens": 40},
+                },
+            )
+        )
+
+    monkeypatch.setattr("taurus_core.llm.lmstudio_provider.urlopen", fake_urlopen)
+    provider = LMStudioProvider()
+
+    provider.complete_analyst_report(
+        agent_name="TechnicalAnalystAgent",
+        symbol="infy",
+        context={"score": "0.2", "key_points": ["momentum"], "risks": ["drawdown"]},
+    )
+
+    [record] = get_llm_usage_records(provider)
+    assert record.provider == "lmstudio"
+    assert record.model_version == "lmstudio:local-model"
+    assert record.agent_name == "TechnicalAnalystAgent"
+    assert record.symbol == "infy"
+    assert record.input_tokens == 1500
+    assert record.output_tokens == 250
+    assert record.total_tokens == 1750
+    assert record.cached_input_tokens == 125
+    assert record.reasoning_tokens == 40
+    assert record.elapsed_seconds >= 0
 
 
 def test_lmstudio_bull_thesis_request_uses_dedicated_prompt(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -423,6 +461,49 @@ def test_gemini_request_shape_uses_api_key_header_and_schema(
     assert output.model_version == "gemini:gemini-2.5-flash"
 
 
+def test_gemini_records_usage_metadata(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_urlopen(request, timeout: int):
+        return _Response(
+            {
+                "candidates": [
+                    {
+                        "content": {
+                            "parts": [{"text": json.dumps(_analyst_payload("gemini:gemini-2.5-flash"))}]
+                        }
+                    }
+                ],
+                "usageMetadata": {
+                    "promptTokenCount": 2400,
+                    "candidatesTokenCount": 320,
+                    "totalTokenCount": 2720,
+                    "cachedContentTokenCount": 200,
+                    "thoughtsTokenCount": 75,
+                },
+            }
+        )
+
+    monkeypatch.setattr("taurus_core.llm.gemini_provider.urlopen", fake_urlopen)
+    provider = GeminiProvider(api_key="gemini-test")
+
+    provider.complete_analyst_report(
+        agent_name="SentimentAnalystAgent",
+        symbol="infy",
+        context={"score": "0", "key_points": ["flat"], "risks": ["noise"]},
+    )
+
+    [record] = get_llm_usage_records(provider)
+    assert record.provider == "gemini"
+    assert record.model_version == "gemini:gemini-2.5-flash"
+    assert record.agent_name == "SentimentAnalystAgent"
+    assert record.symbol == "infy"
+    assert record.input_tokens == 2400
+    assert record.output_tokens == 320
+    assert record.total_tokens == 2720
+    assert record.cached_input_tokens == 200
+    assert record.reasoning_tokens == 75
+    assert record.elapsed_seconds >= 0
+
+
 def test_gemini_bull_thesis_request_uses_dedicated_schema(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -655,8 +736,9 @@ def _chat_response(
     model_version: str,
     *,
     payload: dict[str, object] | None = None,
+    usage: dict[str, object] | None = None,
 ) -> dict[str, object]:
-    return {
+    response: dict[str, object] = {
         "choices": [
             {
                 "message": {
@@ -665,6 +747,9 @@ def _chat_response(
             }
         ]
     }
+    if usage is not None:
+        response["usage"] = usage
+    return response
 
 
 def _analyst_payload(model_version: str) -> dict[str, object]:

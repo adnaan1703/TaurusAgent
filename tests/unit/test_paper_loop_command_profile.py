@@ -4,8 +4,15 @@ import subprocess
 import sys
 from pathlib import Path
 
-from scripts.run_paper_loop import _paper_loop_json_enabled, _resolve_symbols_from_env
+from scripts import run_paper_loop as run_paper_loop_module
+from scripts.run_paper_loop import (
+    _format_compact_number,
+    _paper_loop_json_enabled,
+    _resolve_symbols_from_env,
+    format_llm_usage_summary,
+)
 from taurus_core.config import Settings
+from taurus_core.paper_trading.schemas import PaperRunUniverse
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -44,6 +51,117 @@ def test_paper_loop_json_flag_defaults_on_and_accepts_false_values() -> None:
     assert _paper_loop_json_enabled("true")
     assert not _paper_loop_json_enabled("false")
     assert not _paper_loop_json_enabled("0")
+
+
+def test_llm_usage_compact_number_formatting() -> None:
+    assert _format_compact_number(1_550_000) == "1.55M"
+    assert _format_compact_number(842_000) == "842K"
+    assert _format_compact_number(12_400) == "12.4K"
+    assert _format_compact_number(950) == "950"
+    assert _format_compact_number(None) == "n/a"
+
+
+def test_format_llm_usage_summary_is_human_readable() -> None:
+    summary = format_llm_usage_summary(
+        {
+            "provider": "lmstudio",
+            "model_versions": ["lmstudio:qwen/qwq-32b"],
+            "request_count": 2,
+            "input_tokens": 1_550_000,
+            "output_tokens": 12_400,
+            "total_tokens": 1_562_400,
+            "cached_input_tokens": 842_000,
+            "reasoning_tokens": None,
+            "elapsed_seconds": 10.0,
+            "output_tokens_per_second": 1240.0,
+            "total_tokens_per_second": 156240.0,
+            "by_agent": [
+                {
+                    "agent_name": "TraderAgent",
+                    "request_count": 2,
+                    "input_tokens": 1_550_000,
+                    "output_tokens": 12_400,
+                    "total_tokens": 1_562_400,
+                    "output_tokens_per_second": 1240.0,
+                }
+            ],
+        }
+    )
+
+    assert "LLM Usage Summary" in summary
+    assert "input 1.55M" in summary
+    assert "output 12.4K" in summary
+    assert "cached 842K" in summary
+    assert "reasoning n/a" in summary
+    assert "TraderAgent" in summary
+
+
+def test_paper_loop_summary_prints_after_progress_context_closes(
+    monkeypatch,
+) -> None:
+    events: list[str] = []
+
+    class FakeProgressContext:
+        def __enter__(self):
+            events.append("progress_enter")
+            return lambda event, payload: None
+
+        def __exit__(self, *args: object) -> bool:
+            events.append("progress_exit")
+            return False
+
+    def fake_print_llm_usage_summary(payload, *, stream=sys.stderr) -> None:
+        events.append("summary_print")
+        assert events == ["progress_enter", "progress_exit", "summary_print"]
+
+    monkeypatch.setattr(run_paper_loop_module, "configure_logging", lambda: None)
+    monkeypatch.setattr(run_paper_loop_module, "get_settings", lambda: Settings())
+    monkeypatch.setattr(
+        run_paper_loop_module,
+        "_resolve_symbols_from_env",
+        lambda settings: run_paper_loop_module.ResolvedPaperLoopSymbols(
+            symbols=["INFY"],
+            universe=PaperRunUniverse(
+                source="manual_symbols",
+                provider="kite",
+                selected_symbol_count=1,
+                symbols=["INFY"],
+            ),
+        ),
+    )
+    monkeypatch.setattr(
+        run_paper_loop_module,
+        "create_progress_reporter",
+        lambda command: FakeProgressContext(),
+    )
+    monkeypatch.setattr(
+        run_paper_loop_module,
+        "run_paper_loop",
+        lambda **kwargs: [
+            {
+                "artifacts": {
+                    "llm_usage": {
+                        "request_count": 1,
+                        "input_tokens": 1000,
+                        "output_tokens": 250,
+                        "total_tokens": 1250,
+                        "elapsed_seconds": 0.5,
+                        "by_agent": [],
+                    }
+                }
+            }
+        ],
+    )
+    monkeypatch.setattr(
+        run_paper_loop_module,
+        "print_llm_usage_summary",
+        fake_print_llm_usage_summary,
+    )
+    monkeypatch.setenv("TAURUS_PAPER_LOOP_JSON", "false")
+
+    run_paper_loop_module.main()
+
+    assert events == ["progress_enter", "progress_exit", "summary_print"]
 
 
 def test_taurus_log_level_warning_suppresses_info_json_logs() -> None:

@@ -66,6 +66,7 @@ class OpenAIProvider:
             timeout_seconds=self.timeout_seconds,
             response_format=openai_json_schema_response_format(),
             provider_name="OpenAI",
+            usage_sink=self,
         )
 
     def complete_bull_thesis(
@@ -88,6 +89,7 @@ class OpenAIProvider:
             timeout_seconds=self.timeout_seconds,
             response_format=openai_bull_thesis_json_schema_response_format(),
             provider_name="OpenAI",
+            usage_sink=self,
         )
 
     def complete_bear_thesis(
@@ -110,6 +112,7 @@ class OpenAIProvider:
             timeout_seconds=self.timeout_seconds,
             response_format=openai_bear_thesis_json_schema_response_format(),
             provider_name="OpenAI",
+            usage_sink=self,
         )
 
     def complete_research_manager_summary(
@@ -130,6 +133,7 @@ class OpenAIProvider:
             timeout_seconds=self.timeout_seconds,
             response_format=openai_research_manager_json_schema_response_format(),
             provider_name="OpenAI",
+            usage_sink=self,
         )
 
     def complete_trader_proposal(
@@ -150,6 +154,7 @@ class OpenAIProvider:
             timeout_seconds=self.timeout_seconds,
             response_format=openai_trader_json_schema_response_format(),
             provider_name="OpenAI",
+            usage_sink=self,
         )
 
     def complete_final_decision_explanation(
@@ -170,4 +175,5 @@ class OpenAIProvider:
             timeout_seconds=self.timeout_seconds,
             response_format=openai_final_decision_explanation_json_schema_response_format(),
             provider_name="OpenAI",
+            usage_sink=self,
         )

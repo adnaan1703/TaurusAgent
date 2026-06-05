@@ -1,6 +1,6 @@
 # Taurus Command Reference
 
-Last updated: 2026-06-04
+Last updated: 2026-06-05
 
 This file lists active Taurus commands and project-local Codex approval policy.
 Historical milestone command logs were removed during docs cleanup; use Git
@@ -39,6 +39,11 @@ the JSON summary for automation:
 ```bash
 make paper-loop-kite PAPER_LOOP_KITE_JSON=true
 ```
+
+After the paper loop progress display completes, `make paper-loop-kite` always
+prints a human-readable `LLM Usage Summary` on stderr. Token counts are compacted
+for readability, for example `1.55M`, `842K`, and `12.4K`. This summary is not
+controlled by a separate flag and does not replace the optional JSON payload.
 
 `make paper-loop-kite` also defaults to `TAURUS_LOG_LEVEL=WARNING` so routine
 structured INFO logs do not interrupt the terminal progress display. Use

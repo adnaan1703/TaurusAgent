@@ -45,6 +45,7 @@ from taurus_core.features.store import TechnicalFeatureService
 from taurus_core.graph.preflight import assert_graph_ready_for_paper
 from taurus_core.intelligence.mock_news_provider import MockNewsProvider
 from taurus_core.llm import LLMProvider, build_llm_provider
+from taurus_core.llm.base import get_llm_usage_records, summarize_llm_usage
 from taurus_core.logging import get_logger
 from taurus_core.observability.tracing import bound_trace_context
 from taurus_core.ops.progress import ProgressEventCallback, emit_progress
@@ -447,6 +448,7 @@ class PaperRunService:
         analysis_by_symbol: dict[str, PaperSymbolAnalysis] = {}
         pending_finalization_symbols: list[str] = []
         llm_provider = build_llm_provider(self.settings)
+        self._refresh_llm_usage_artifact(artifacts, llm_provider)
         for symbol_index, symbol in enumerate(analysis_symbols, start=1):
             finalization_required = symbol in finalization_symbol_set
             abort_run = False
@@ -529,6 +531,7 @@ class PaperRunService:
                         message=error.message,
                     )
             finally:
+                self._refresh_llm_usage_artifact(artifacts, llm_provider)
                 partial_status = "FAILED" if abort_run else _status_for(
                     succeeded_symbols,
                     failed_symbols,
@@ -586,6 +589,7 @@ class PaperRunService:
                         "allocation_rejected_count"
                     ],
                 )
+                self._refresh_llm_usage_artifact(artifacts, llm_provider)
                 run = run.model_copy(update={"artifacts": artifacts})
                 self._store_run(run)
             except Exception as exc:
@@ -602,6 +606,7 @@ class PaperRunService:
                 )
                 errors.append(error)
                 self._log_failure(run.run_id, error)
+                self._refresh_llm_usage_artifact(artifacts, llm_provider)
                 run = run.model_copy(
                     update={
                         "status": _status_for(succeeded_symbols, failed_symbols),
@@ -612,6 +617,7 @@ class PaperRunService:
                 )
                 self._store_run(run)
                 if _should_abort_paper_run(exc):
+                    self._refresh_llm_usage_artifact(artifacts, llm_provider)
                     failed = run.model_copy(
                         update={
                             "status": "FAILED",
@@ -724,6 +730,7 @@ class PaperRunService:
                         message=error.message,
                     )
             finally:
+                self._refresh_llm_usage_artifact(artifacts, llm_provider)
                 partial_status = "FAILED" if abort_run else _status_for(
                     succeeded_symbols,
                     failed_symbols,
@@ -763,6 +770,7 @@ class PaperRunService:
                 if error.symbol not in failed_symbols:
                     failed_symbols.append(error.symbol)
                 errors.append(error)
+            self._refresh_llm_usage_artifact(artifacts, llm_provider)
             run = run.model_copy(
                 update={
                     "status": _status_for(succeeded_symbols, failed_symbols),
@@ -774,10 +782,12 @@ class PaperRunService:
             )
             self._store_run(run)
 
+        self._refresh_llm_usage_artifact(artifacts, llm_provider)
         completed = run.model_copy(
             update={
                 "status": _status_for(succeeded_symbols, failed_symbols),
                 "completed_at": _utc_now(),
+                "artifacts": artifacts,
             }
         )
         return self._store_run(completed, audit_event=f"paper_run.{completed.status.lower()}")
@@ -1851,6 +1861,13 @@ class PaperRunService:
                 portfolio_id=self.settings.taurus_paper_portfolio_id,
             )
         return PaperAccount.model_validate(row.payload) if row is not None else None
+
+    def _refresh_llm_usage_artifact(
+        self,
+        artifacts: dict[str, Any],
+        llm_provider: LLMProvider | None,
+    ) -> None:
+        artifacts["llm_usage"] = summarize_llm_usage(get_llm_usage_records(llm_provider))
 
     def _store_run(self, run: PaperRun, *, audit_event: str | None = None) -> PaperRun:
         with self.session_factory() as session:

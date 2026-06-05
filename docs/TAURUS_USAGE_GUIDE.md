@@ -124,9 +124,11 @@ in ignored `.env`.
 `make paper-loop-kite` show terminal progress on stderr. The default
 `TAURUS_PROGRESS=auto` uses Rich in interactive terminals and a plain single-line
 redraw fallback in CI/non-TTY streams. Use `TAURUS_PROGRESS=false` to disable
-terminal progress. `make paper-loop-kite` suppresses the final JSON summary by
-default; run `make paper-loop-kite PAPER_LOOP_KITE_JSON=true` when automation
-needs the machine-readable payload.
+terminal progress. After paper-loop progress completes, Taurus always prints a
+human-readable LLM usage summary with compact token counts. `make paper-loop-kite`
+suppresses the final JSON summary by default; run
+`make paper-loop-kite PAPER_LOOP_KITE_JSON=true` when automation needs the
+machine-readable payload.
 
 ### Paper Workflow
 
@@ -286,7 +288,8 @@ that analysis begins, it imports fresh daily candles and settles any previous
 pending next-open orders for the portfolio, so position-aware analysis sees
 settled cash, exposure, and open quantities. Expect longer runtime and higher
 LLM/API usage than a manual subset; the terminal progress output shows where
-the run is spending time.
+the run is spending time, and the post-progress LLM usage summary shows
+provider-reported token counts and throughput.
 
 For a manual graph-enabled subset:
 

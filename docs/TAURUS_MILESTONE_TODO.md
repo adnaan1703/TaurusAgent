@@ -1,6 +1,6 @@
 # Taurus Milestone TODO
 
-Last updated: 2026-06-04
+Last updated: 2026-06-05
 
 This is the active tracker for Taurus milestone work. Keep it concise and keep
 current operator detail in the usage and command docs.
@@ -30,6 +30,8 @@ removed during docs cleanup. Use Git history for detailed historical plans.
 - Runtime market data is Kite-only.
 - Runtime LLM providers are real providers only: LM Studio by default, with
   OpenAI and Gemini as explicit opt-ins.
+- Paper loops record provider-reported LLM usage in run artifacts and always
+  print a post-progress LLM usage summary with compact token counts.
 - Execution routes only through local `PaperBroker` simulation.
 - Manual EOD paper loops import latest daily candles, settle previous
   `PENDING_NEXT_OPEN` orders through the `PaperBroker` settlement engine, then
@@ -75,6 +77,7 @@ removed during docs cleanup. Use Git history for detailed historical plans.
 | M21-M30 | Done | Docker Postgres-only persistence, real LLM provider migration, Kite-only runtime market data, graph-enabled Kite paper loop, LLM-backed research/trader/final explanation flow, portfolio continuity, and market-hours position monitoring. |
 | M31-M35.1 | Done | Paper money-management policy, core Shariah basket, active/diversifying/experimental sleeve allocation, allocation dashboard, and static policy shortcut cleanup. |
 | Ops progress UI | Done | Rich/plain stderr progress for Kite candle import, graph stats computation, and graph-enabled Kite paper loops. |
+| Ops LLM usage summary | Done | Added provider-reported LLM usage capture, paper-run artifacts, and mandatory post-progress paper-loop terminal summaries with compact token formatting. |
 | M36-M43 | Done | Full-universe ranking, decomposed paper loop, run-level dynamic allocation, all-symbol risk/final decisions, allocation observability, replay/backtest/command alignment, and default full-universe Kite paper loop enablement. |
 | M44-M50 plan document | Done | Created the flat next-open AMO-style paper settlement plan covering baseline tests, pending order schema, pending EOD order creation, settlement, EOD loop integration, dashboard/replay/metrics polish, and final cleanup. Implementation milestones are complete through M50. |
 | M44 | Done | Added xfail-free baseline unit tests for next-open AMO-style paper settlement. The baseline tests defined target behavior later implemented across M45-M50. |
@@ -185,6 +188,16 @@ removed during docs cleanup. Use Git history for detailed historical plans.
   `FakeKiteMarketDataProvider`, forced trader-action monkeypatches in the
   paper-run integration smoke test, deterministic daily-candle fixtures, and
   FastAPI `TestClient` API inspection against the test database.
+
+### Ops LLM Usage Summary Completion Summary
+
+- Assumptions made: Token counts should rely only on provider-returned usage
+  metadata; unavailable token fields should remain `n/a`; the mandatory
+  human-readable summary belongs after progress closes and should not break
+  optional JSON automation output.
+- Mocks created: None.
+- Mocks used: Existing `FakeLLMProvider`, extended with deterministic usage
+  records for paper-run tests.
 
 ## Completed Next-Open AMO Settlement Sequence
 

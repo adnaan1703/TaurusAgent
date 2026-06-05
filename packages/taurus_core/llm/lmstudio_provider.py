@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import time
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -19,9 +20,12 @@ from taurus_core.llm.base import (
     LLMResearchManagerOutput,
     LLMTraderOutput,
     LLMProviderError,
+    LLMUsageRecord,
+    append_llm_usage_record,
     analyst_output_system_prompt,
     bear_thesis_system_prompt,
     bull_thesis_system_prompt,
+    llm_usage_record_from_openai_response,
     portfolio_manager_system_prompt,
     research_manager_system_prompt,
     trader_system_prompt,
@@ -84,6 +88,7 @@ class LMStudioProvider:
                 ANALYST_OUTPUT_JSON_SCHEMA,
             ),
             provider_name="LM Studio",
+            usage_sink=self,
         )
 
     def complete_bull_thesis(
@@ -109,6 +114,7 @@ class LMStudioProvider:
                 BULL_THESIS_OUTPUT_JSON_SCHEMA,
             ),
             provider_name="LM Studio",
+            usage_sink=self,
         )
 
     def complete_bear_thesis(
@@ -134,6 +140,7 @@ class LMStudioProvider:
                 BEAR_THESIS_OUTPUT_JSON_SCHEMA,
             ),
             provider_name="LM Studio",
+            usage_sink=self,
         )
 
     def complete_research_manager_summary(
@@ -157,6 +164,7 @@ class LMStudioProvider:
                 RESEARCH_MANAGER_OUTPUT_JSON_SCHEMA,
             ),
             provider_name="LM Studio",
+            usage_sink=self,
         )
 
     def complete_trader_proposal(
@@ -180,6 +188,7 @@ class LMStudioProvider:
                 TRADER_OUTPUT_JSON_SCHEMA,
             ),
             provider_name="LM Studio",
+            usage_sink=self,
         )
 
     def complete_final_decision_explanation(
@@ -203,6 +212,7 @@ class LMStudioProvider:
                 FINAL_DECISION_EXPLANATION_JSON_SCHEMA,
             ),
             provider_name="LM Studio",
+            usage_sink=self,
         )
 
 
@@ -218,11 +228,15 @@ def _openai_compatible_completion(
     timeout_seconds: int,
     response_format: dict[str, object] | None = None,
     provider_name: str = "LLM provider",
+    usage_sink: object | None = None,
 ) -> LLMAnalystOutput:
-    content = _openai_compatible_chat_content(
+    content, usage_record = _openai_compatible_chat_content(
         base_url=base_url,
         api_key=api_key,
         model=model,
+        model_version=model_version,
+        agent_name=agent_name,
+        symbol=symbol,
         system_prompt=analyst_output_system_prompt(),
         user_payload={
             "agent_name": agent_name,
@@ -233,7 +247,9 @@ def _openai_compatible_completion(
         response_format=response_format,
         provider_name=provider_name,
     )
-    return parse_llm_output(str(content), fallback_model_version=model_version)
+    output = parse_llm_output(str(content), fallback_model_version=model_version)
+    append_llm_usage_record(usage_sink, usage_record)
+    return output
 
 
 def _openai_compatible_bull_thesis_completion(
@@ -249,11 +265,15 @@ def _openai_compatible_bull_thesis_completion(
     timeout_seconds: int,
     response_format: dict[str, object] | None = None,
     provider_name: str = "LLM provider",
+    usage_sink: object | None = None,
 ) -> LLMBullThesisOutput:
-    content = _openai_compatible_chat_content(
+    content, usage_record = _openai_compatible_chat_content(
         base_url=base_url,
         api_key=api_key,
         model=model,
+        model_version=model_version,
+        agent_name=agent_name,
+        symbol=symbol,
         system_prompt=bull_thesis_system_prompt(),
         user_payload={
             "agent_name": agent_name,
@@ -272,7 +292,9 @@ def _openai_compatible_bull_thesis_completion(
         response_format=response_format,
         provider_name=provider_name,
     )
-    return parse_bull_thesis_output(str(content), fallback_model_version=model_version)
+    output = parse_bull_thesis_output(str(content), fallback_model_version=model_version)
+    append_llm_usage_record(usage_sink, usage_record)
+    return output
 
 
 def _openai_compatible_bear_thesis_completion(
@@ -288,11 +310,15 @@ def _openai_compatible_bear_thesis_completion(
     timeout_seconds: int,
     response_format: dict[str, object] | None = None,
     provider_name: str = "LLM provider",
+    usage_sink: object | None = None,
 ) -> LLMBearThesisOutput:
-    content = _openai_compatible_chat_content(
+    content, usage_record = _openai_compatible_chat_content(
         base_url=base_url,
         api_key=api_key,
         model=model,
+        model_version=model_version,
+        agent_name=agent_name,
+        symbol=symbol,
         system_prompt=bear_thesis_system_prompt(),
         user_payload={
             "agent_name": agent_name,
@@ -311,7 +337,9 @@ def _openai_compatible_bear_thesis_completion(
         response_format=response_format,
         provider_name=provider_name,
     )
-    return parse_bear_thesis_output(str(content), fallback_model_version=model_version)
+    output = parse_bear_thesis_output(str(content), fallback_model_version=model_version)
+    append_llm_usage_record(usage_sink, usage_record)
+    return output
 
 
 def _openai_compatible_research_manager_completion(
@@ -326,11 +354,15 @@ def _openai_compatible_research_manager_completion(
     timeout_seconds: int,
     response_format: dict[str, object] | None = None,
     provider_name: str = "LLM provider",
+    usage_sink: object | None = None,
 ) -> LLMResearchManagerOutput:
-    content = _openai_compatible_chat_content(
+    content, usage_record = _openai_compatible_chat_content(
         base_url=base_url,
         api_key=api_key,
         model=model,
+        model_version=model_version,
+        agent_name=agent_name,
+        symbol=symbol,
         system_prompt=research_manager_system_prompt(),
         user_payload={
             "agent_name": agent_name,
@@ -349,7 +381,9 @@ def _openai_compatible_research_manager_completion(
         response_format=response_format,
         provider_name=provider_name,
     )
-    return parse_research_manager_output(str(content), fallback_model_version=model_version)
+    output = parse_research_manager_output(str(content), fallback_model_version=model_version)
+    append_llm_usage_record(usage_sink, usage_record)
+    return output
 
 
 def _openai_compatible_trader_completion(
@@ -364,11 +398,15 @@ def _openai_compatible_trader_completion(
     timeout_seconds: int,
     response_format: dict[str, object] | None = None,
     provider_name: str = "LLM provider",
+    usage_sink: object | None = None,
 ) -> LLMTraderOutput:
-    content = _openai_compatible_chat_content(
+    content, usage_record = _openai_compatible_chat_content(
         base_url=base_url,
         api_key=api_key,
         model=model,
+        model_version=model_version,
+        agent_name=agent_name,
+        symbol=symbol,
         system_prompt=trader_system_prompt(),
         user_payload={
             "agent_name": agent_name,
@@ -390,7 +428,9 @@ def _openai_compatible_trader_completion(
         response_format=response_format,
         provider_name=provider_name,
     )
-    return parse_trader_output(str(content), fallback_model_version=model_version)
+    output = parse_trader_output(str(content), fallback_model_version=model_version)
+    append_llm_usage_record(usage_sink, usage_record)
+    return output
 
 
 def _openai_compatible_final_decision_explanation_completion(
@@ -405,11 +445,15 @@ def _openai_compatible_final_decision_explanation_completion(
     timeout_seconds: int,
     response_format: dict[str, object] | None = None,
     provider_name: str = "LLM provider",
+    usage_sink: object | None = None,
 ) -> LLMFinalDecisionExplanation:
-    content = _openai_compatible_chat_content(
+    content, usage_record = _openai_compatible_chat_content(
         base_url=base_url,
         api_key=api_key,
         model=model,
+        model_version=model_version,
+        agent_name=agent_name,
+        symbol=symbol,
         system_prompt=portfolio_manager_system_prompt(),
         user_payload={
             "agent_name": agent_name,
@@ -424,10 +468,12 @@ def _openai_compatible_final_decision_explanation_completion(
         response_format=response_format,
         provider_name=provider_name,
     )
-    return parse_final_decision_explanation_output(
+    output = parse_final_decision_explanation_output(
         str(content),
         fallback_model_version=model_version,
     )
+    append_llm_usage_record(usage_sink, usage_record)
+    return output
 
 
 def _openai_compatible_chat_content(
@@ -435,12 +481,15 @@ def _openai_compatible_chat_content(
     base_url: str,
     api_key: str,
     model: str,
+    model_version: str,
+    agent_name: str,
+    symbol: str,
     system_prompt: str,
     user_payload: dict[str, object],
     timeout_seconds: int,
     response_format: dict[str, object] | None,
     provider_name: str,
-) -> str:
+) -> tuple[str, LLMUsageRecord]:
     payload = {
         "model": model,
         "messages": [
@@ -470,17 +519,26 @@ def _openai_compatible_chat_content(
         },
         method="POST",
     )
+    started_at = time.perf_counter()
     try:
         with urlopen(request, timeout=timeout_seconds) as response:
             response_payload = json.loads(response.read().decode("utf-8"))
     except (HTTPError, URLError, TimeoutError, json.JSONDecodeError) as exc:
         raise LLMProviderError(f"{provider_name} request failed") from exc
+    elapsed_seconds = time.perf_counter() - started_at
 
     try:
         content = response_payload["choices"][0]["message"]["content"]
     except (KeyError, IndexError, TypeError) as exc:
         raise LLMProviderError(f"{provider_name} response did not include chat content") from exc
-    return str(content)
+    usage_record = llm_usage_record_from_openai_response(
+        response_payload,
+        model_version=model_version,
+        agent_name=agent_name,
+        symbol=symbol,
+        elapsed_seconds=elapsed_seconds,
+    )
+    return str(content), usage_record
 
 
 def openai_json_schema_response_format() -> dict[str, object]:

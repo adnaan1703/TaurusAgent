@@ -269,6 +269,7 @@ def test_disabled_money_management_uses_settings_fallback_allocation(
         "analysis",
         "execution",
         "final_decisions",
+        "llm_usage",
         "settlement",
         "strategy",
         "symbol_scope",

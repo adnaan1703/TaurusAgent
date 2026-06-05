@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import time
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote
 from urllib.request import Request, urlopen
@@ -20,9 +21,12 @@ from taurus_core.llm.base import (
     LLMResearchManagerOutput,
     LLMTraderOutput,
     LLMProviderError,
+    LLMUsageRecord,
+    append_llm_usage_record,
     analyst_output_system_prompt,
     bear_thesis_system_prompt,
     bull_thesis_system_prompt,
+    llm_usage_record_from_gemini_response,
     portfolio_manager_system_prompt,
     research_manager_system_prompt,
     trader_system_prompt,
@@ -56,6 +60,43 @@ class GeminiProvider:
     @property
     def model_version(self) -> str:
         return f"gemini:{self.model}"
+
+    def _generate_content(
+        self,
+        payload: dict[str, object],
+        *,
+        agent_name: str,
+        symbol: str,
+    ) -> tuple[str, LLMUsageRecord]:
+        request = Request(
+            f"{self.base_url}/models/{quote(self.model, safe='')}:generateContent",
+            data=json.dumps(payload).encode("utf-8"),
+            headers={
+                "Content-Type": "application/json",
+                "x-goog-api-key": self.api_key,
+            },
+            method="POST",
+        )
+        started_at = time.perf_counter()
+        try:
+            with urlopen(request, timeout=self.timeout_seconds) as response:
+                response_payload = json.loads(response.read().decode("utf-8"))
+        except (HTTPError, URLError, TimeoutError, json.JSONDecodeError) as exc:
+            raise LLMProviderError("Gemini request failed") from exc
+        elapsed_seconds = time.perf_counter() - started_at
+
+        try:
+            content = response_payload["candidates"][0]["content"]["parts"][0]["text"]
+        except (KeyError, IndexError, TypeError) as exc:
+            raise LLMProviderError("Gemini response did not include generated JSON text") from exc
+        usage_record = llm_usage_record_from_gemini_response(
+            response_payload,
+            model_version=self.model_version,
+            agent_name=agent_name,
+            symbol=symbol,
+            elapsed_seconds=elapsed_seconds,
+        )
+        return str(content), usage_record
 
     def complete_analyst_report(
         self,
@@ -92,26 +133,14 @@ class GeminiProvider:
                 "responseJsonSchema": ANALYST_OUTPUT_JSON_SCHEMA,
             },
         }
-        request = Request(
-            f"{self.base_url}/models/{quote(self.model, safe='')}:generateContent",
-            data=json.dumps(payload).encode("utf-8"),
-            headers={
-                "Content-Type": "application/json",
-                "x-goog-api-key": self.api_key,
-            },
-            method="POST",
+        content, usage_record = self._generate_content(
+            payload,
+            agent_name=agent_name,
+            symbol=symbol,
         )
-        try:
-            with urlopen(request, timeout=self.timeout_seconds) as response:
-                response_payload = json.loads(response.read().decode("utf-8"))
-        except (HTTPError, URLError, TimeoutError, json.JSONDecodeError) as exc:
-            raise LLMProviderError("Gemini request failed") from exc
-
-        try:
-            content = response_payload["candidates"][0]["content"]["parts"][0]["text"]
-        except (KeyError, IndexError, TypeError) as exc:
-            raise LLMProviderError("Gemini response did not include generated JSON text") from exc
-        return parse_llm_output(str(content), fallback_model_version=self.model_version)
+        output = parse_llm_output(str(content), fallback_model_version=self.model_version)
+        append_llm_usage_record(self, usage_record)
+        return output
 
     def complete_bull_thesis(
         self,
@@ -157,26 +186,14 @@ class GeminiProvider:
                 "responseJsonSchema": BULL_THESIS_OUTPUT_JSON_SCHEMA,
             },
         }
-        request = Request(
-            f"{self.base_url}/models/{quote(self.model, safe='')}:generateContent",
-            data=json.dumps(payload).encode("utf-8"),
-            headers={
-                "Content-Type": "application/json",
-                "x-goog-api-key": self.api_key,
-            },
-            method="POST",
+        content, usage_record = self._generate_content(
+            payload,
+            agent_name=agent_name,
+            symbol=symbol,
         )
-        try:
-            with urlopen(request, timeout=self.timeout_seconds) as response:
-                response_payload = json.loads(response.read().decode("utf-8"))
-        except (HTTPError, URLError, TimeoutError, json.JSONDecodeError) as exc:
-            raise LLMProviderError("Gemini request failed") from exc
-
-        try:
-            content = response_payload["candidates"][0]["content"]["parts"][0]["text"]
-        except (KeyError, IndexError, TypeError) as exc:
-            raise LLMProviderError("Gemini response did not include generated JSON text") from exc
-        return parse_bull_thesis_output(str(content), fallback_model_version=self.model_version)
+        output = parse_bull_thesis_output(str(content), fallback_model_version=self.model_version)
+        append_llm_usage_record(self, usage_record)
+        return output
 
     def complete_bear_thesis(
         self,
@@ -225,26 +242,14 @@ class GeminiProvider:
                 "responseJsonSchema": BEAR_THESIS_OUTPUT_JSON_SCHEMA,
             },
         }
-        request = Request(
-            f"{self.base_url}/models/{quote(self.model, safe='')}:generateContent",
-            data=json.dumps(payload).encode("utf-8"),
-            headers={
-                "Content-Type": "application/json",
-                "x-goog-api-key": self.api_key,
-            },
-            method="POST",
+        content, usage_record = self._generate_content(
+            payload,
+            agent_name=agent_name,
+            symbol=symbol,
         )
-        try:
-            with urlopen(request, timeout=self.timeout_seconds) as response:
-                response_payload = json.loads(response.read().decode("utf-8"))
-        except (HTTPError, URLError, TimeoutError, json.JSONDecodeError) as exc:
-            raise LLMProviderError("Gemini request failed") from exc
-
-        try:
-            content = response_payload["candidates"][0]["content"]["parts"][0]["text"]
-        except (KeyError, IndexError, TypeError) as exc:
-            raise LLMProviderError("Gemini response did not include generated JSON text") from exc
-        return parse_bear_thesis_output(str(content), fallback_model_version=self.model_version)
+        output = parse_bear_thesis_output(str(content), fallback_model_version=self.model_version)
+        append_llm_usage_record(self, usage_record)
+        return output
 
     def complete_research_manager_summary(
         self,
@@ -300,26 +305,14 @@ class GeminiProvider:
                 "responseJsonSchema": RESEARCH_MANAGER_OUTPUT_JSON_SCHEMA,
             },
         }
-        request = Request(
-            f"{self.base_url}/models/{quote(self.model, safe='')}:generateContent",
-            data=json.dumps(payload).encode("utf-8"),
-            headers={
-                "Content-Type": "application/json",
-                "x-goog-api-key": self.api_key,
-            },
-            method="POST",
+        content, usage_record = self._generate_content(
+            payload,
+            agent_name=agent_name,
+            symbol=symbol,
         )
-        try:
-            with urlopen(request, timeout=self.timeout_seconds) as response:
-                response_payload = json.loads(response.read().decode("utf-8"))
-        except (HTTPError, URLError, TimeoutError, json.JSONDecodeError) as exc:
-            raise LLMProviderError("Gemini request failed") from exc
-
-        try:
-            content = response_payload["candidates"][0]["content"]["parts"][0]["text"]
-        except (KeyError, IndexError, TypeError) as exc:
-            raise LLMProviderError("Gemini response did not include generated JSON text") from exc
-        return parse_research_manager_output(str(content), fallback_model_version=self.model_version)
+        output = parse_research_manager_output(str(content), fallback_model_version=self.model_version)
+        append_llm_usage_record(self, usage_record)
+        return output
 
     def complete_trader_proposal(
         self,
@@ -369,26 +362,14 @@ class GeminiProvider:
                 "responseJsonSchema": TRADER_OUTPUT_JSON_SCHEMA,
             },
         }
-        request = Request(
-            f"{self.base_url}/models/{quote(self.model, safe='')}:generateContent",
-            data=json.dumps(payload).encode("utf-8"),
-            headers={
-                "Content-Type": "application/json",
-                "x-goog-api-key": self.api_key,
-            },
-            method="POST",
+        content, usage_record = self._generate_content(
+            payload,
+            agent_name=agent_name,
+            symbol=symbol,
         )
-        try:
-            with urlopen(request, timeout=self.timeout_seconds) as response:
-                response_payload = json.loads(response.read().decode("utf-8"))
-        except (HTTPError, URLError, TimeoutError, json.JSONDecodeError) as exc:
-            raise LLMProviderError("Gemini request failed") from exc
-
-        try:
-            content = response_payload["candidates"][0]["content"]["parts"][0]["text"]
-        except (KeyError, IndexError, TypeError) as exc:
-            raise LLMProviderError("Gemini response did not include generated JSON text") from exc
-        return parse_trader_output(str(content), fallback_model_version=self.model_version)
+        output = parse_trader_output(str(content), fallback_model_version=self.model_version)
+        append_llm_usage_record(self, usage_record)
+        return output
 
     def complete_final_decision_explanation(
         self,
@@ -432,26 +413,14 @@ class GeminiProvider:
                 "responseJsonSchema": FINAL_DECISION_EXPLANATION_JSON_SCHEMA,
             },
         }
-        request = Request(
-            f"{self.base_url}/models/{quote(self.model, safe='')}:generateContent",
-            data=json.dumps(payload).encode("utf-8"),
-            headers={
-                "Content-Type": "application/json",
-                "x-goog-api-key": self.api_key,
-            },
-            method="POST",
+        content, usage_record = self._generate_content(
+            payload,
+            agent_name=agent_name,
+            symbol=symbol,
         )
-        try:
-            with urlopen(request, timeout=self.timeout_seconds) as response:
-                response_payload = json.loads(response.read().decode("utf-8"))
-        except (HTTPError, URLError, TimeoutError, json.JSONDecodeError) as exc:
-            raise LLMProviderError("Gemini request failed") from exc
-
-        try:
-            content = response_payload["candidates"][0]["content"]["parts"][0]["text"]
-        except (KeyError, IndexError, TypeError) as exc:
-            raise LLMProviderError("Gemini response did not include generated JSON text") from exc
-        return parse_final_decision_explanation_output(
+        output = parse_final_decision_explanation_output(
             str(content),
             fallback_model_version=self.model_version,
         )
+        append_llm_usage_record(self, usage_record)
+        return output
