@@ -1,6 +1,6 @@
 # Taurus Milestone TODO
 
-Last updated: 2026-06-05
+Last updated: 2026-06-07
 
 This is the active tracker for Taurus milestone work. Keep it concise and keep
 current operator detail in the usage and command docs.
@@ -87,6 +87,7 @@ removed during docs cleanup. Use Git history for detailed historical plans.
 | M48 | Done | Integrated next-open settlement into the manual EOD paper loop before strategy analysis/allocation, exposed top-level and symbol-level settlement artifacts, preserved terminal settlement state during same-run replacements, and documented operator semantics. Dashboard/replay/metrics polish followed in M49. |
 | M49 | Done | Polished React and Streamlit order displays, run settlement summaries/details, decision replay pending/settled semantics, paper-order status metrics coverage, terminal settlement alert tests, and operator docs for queued and settled next-open paper orders. |
 | M50 | Done | Completed the end-to-end regression and cleanup pass for the M44-M50 next-open AMO-style paper settlement sequence. The deterministic operator smoke path covers BUY queue, next-open BUY settlement, EXIT queue, following-open EXIT settlement, realized P&L, empty final positions, and API inspection for `/paper/orders`, `/paper/fills`, `/paper/positions`, `/paper/account`, `/ui/overview`, and `/ui/runs/{run_id}`. |
+| Ops LM Studio reasoning fallback | Done | Added a narrow LM Studio compatibility fallback that uses non-empty `message.reasoning_content` only when `message.content` is empty, while keeping existing parser and schema validation as the contract authority. |
 
 ### M44-M50 Plan Document Completion Summary
 
@@ -198,6 +199,16 @@ removed during docs cleanup. Use Git history for detailed historical plans.
 - Mocks created: None.
 - Mocks used: Existing `FakeLLMProvider`, extended with deterministic usage
   records for paper-run tests.
+
+### Ops LM Studio Reasoning Fallback Completion Summary
+
+- Assumptions made: The compatibility fallback applies only to LM Studio
+  OpenAI-compatible responses; non-empty `message.content` remains authoritative;
+  existing parser and schema validation functions remain the only contract
+  authority for analyst, research, trader, and final-decision outputs.
+- Mocks created: None.
+- Mocks used: Monkeypatched LM Studio HTTP responses in
+  `tests/unit/test_llm_provider.py`.
 
 ## Completed Next-Open AMO Settlement Sequence
 

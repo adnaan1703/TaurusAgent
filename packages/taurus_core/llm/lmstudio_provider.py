@@ -528,9 +528,21 @@ def _openai_compatible_chat_content(
     elapsed_seconds = time.perf_counter() - started_at
 
     try:
-        content = response_payload["choices"][0]["message"]["content"]
+        message = response_payload["choices"][0]["message"]
     except (KeyError, IndexError, TypeError) as exc:
         raise LLMProviderError(f"{provider_name} response did not include chat content") from exc
+    content = _non_empty_string(message.get("content") if isinstance(message, dict) else None)
+    if content is None and provider_name == "LM Studio" and isinstance(message, dict):
+        content = _non_empty_string(message.get("reasoning_content"))
+    if content is None:
+        if provider_name == "LM Studio":
+            raise LLMProviderError(
+                "LM Studio response did not include usable message.content or fallback "
+                "message.reasoning_content"
+            )
+        raise LLMProviderError(
+            f"{provider_name} response did not include usable message.content"
+        )
     usage_record = llm_usage_record_from_openai_response(
         response_payload,
         model_version=model_version,
@@ -538,7 +550,16 @@ def _openai_compatible_chat_content(
         symbol=symbol,
         elapsed_seconds=elapsed_seconds,
     )
-    return str(content), usage_record
+    return content, usage_record
+
+
+def _non_empty_string(value: object) -> str | None:
+    if not isinstance(value, str):
+        return None
+    content = value.strip()
+    if not content:
+        return None
+    return content
 
 
 def openai_json_schema_response_format() -> dict[str, object]:

@@ -147,6 +147,84 @@ def test_lmstudio_records_openai_compatible_usage(monkeypatch: pytest.MonkeyPatc
     assert record.elapsed_seconds >= 0
 
 
+def test_lmstudio_uses_reasoning_content_when_content_is_empty(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    payload = _analyst_payload("reasoning output used a verbose model version")
+
+    def fake_urlopen(request, timeout: int):
+        return _Response(
+            _chat_response_with_message(
+                content="",
+                reasoning_content=json.dumps(payload),
+            )
+        )
+
+    monkeypatch.setattr("taurus_core.llm.lmstudio_provider.urlopen", fake_urlopen)
+    provider = LMStudioProvider()
+
+    output = provider.complete_analyst_report(
+        agent_name="TechnicalAnalystAgent",
+        symbol="infy",
+        context={"score": "0.2", "key_points": ["momentum"], "risks": ["drawdown"]},
+    )
+
+    assert output.key_points == ["Schema-valid provider output."]
+    assert output.model_version == "lmstudio:local-model"
+
+
+def test_lmstudio_rejects_invalid_reasoning_content_when_content_is_empty(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_urlopen(request, timeout: int):
+        return _Response(
+            _chat_response_with_message(
+                content="",
+                reasoning_content="not-json",
+            )
+        )
+
+    monkeypatch.setattr("taurus_core.llm.lmstudio_provider.urlopen", fake_urlopen)
+    provider = LMStudioProvider()
+
+    with pytest.raises(LLMProviderError, match="not valid JSON"):
+        provider.complete_analyst_report(
+            agent_name="TechnicalAnalystAgent",
+            symbol="infy",
+            context={
+                "score": "0.2",
+                "key_points": ["momentum"],
+                "risks": ["drawdown"],
+            },
+        )
+
+
+def test_lmstudio_does_not_use_reasoning_content_when_content_is_non_empty(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_urlopen(request, timeout: int):
+        return _Response(
+            _chat_response_with_message(
+                content="not-json",
+                reasoning_content=json.dumps(_analyst_payload("lmstudio:local-model")),
+            )
+        )
+
+    monkeypatch.setattr("taurus_core.llm.lmstudio_provider.urlopen", fake_urlopen)
+    provider = LMStudioProvider()
+
+    with pytest.raises(LLMProviderError, match="not valid JSON"):
+        provider.complete_analyst_report(
+            agent_name="TechnicalAnalystAgent",
+            symbol="infy",
+            context={
+                "score": "0.2",
+                "key_points": ["momentum"],
+                "risks": ["drawdown"],
+            },
+        )
+
+
 def test_lmstudio_bull_thesis_request_uses_dedicated_prompt(monkeypatch: pytest.MonkeyPatch) -> None:
     seen: dict[str, object] = {}
 
@@ -750,6 +828,16 @@ def _chat_response(
     if usage is not None:
         response["usage"] = usage
     return response
+
+
+def _chat_response_with_message(**message: object) -> dict[str, object]:
+    return {
+        "choices": [
+            {
+                "message": message,
+            }
+        ]
+    }
 
 
 def _analyst_payload(model_version: str) -> dict[str, object]:
