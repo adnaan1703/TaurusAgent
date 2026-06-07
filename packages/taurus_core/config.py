@@ -198,7 +198,7 @@ class Settings(BaseSettings):
         validation_alias="TAURUS_MARKET_DATA_LOOKBACK_DAYS",
     )
     taurus_initial_capital_inr: int = Field(
-        default=1_000_000,
+        default=10_000,
         gt=0,
         validation_alias="TAURUS_INITIAL_CAPITAL_INR",
     )

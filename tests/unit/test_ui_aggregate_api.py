@@ -362,7 +362,7 @@ def test_ui_risk_and_portfolio_include_money_management_metadata_when_enabled(
     assert allocation["enabled"] is True
     assert allocation["policy_version"] == "ui_test_policy"
     assert allocation["cash"]["target_cash_pct_nav"] == 5
-    assert allocation["cash"]["undeployed_capacity_inr"] == 950000
+    assert allocation["cash"]["undeployed_capacity_inr"] == 9500
     assert allocation["open_risk"]["limit_pct_nav"] == 5
     assert allocation["open_risk"]["used_risk_inr"] == 0
     assert allocation["sleeves"][0]["sleeve_id"] == "core_shariah"

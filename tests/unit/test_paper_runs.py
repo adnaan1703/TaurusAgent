@@ -1367,6 +1367,7 @@ def _settings_for_temp_db(
     return Settings(
         taurus_paper_partial_fill_threshold=1,
         taurus_enabled_analysts=enabled_analysts,
+        taurus_initial_capital_inr=1_000_000,
         taurus_graph_enabled=graph_enabled,
         taurus_graph_risk_enabled=graph_risk_enabled,
         taurus_money_management_enabled=money_management_enabled,

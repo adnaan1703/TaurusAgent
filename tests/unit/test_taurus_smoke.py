@@ -35,6 +35,7 @@ def test_taurus_smoke_covers_paper_mvp_release_flow(
     settings = Settings(
         taurus_alert_provider="mock",
         taurus_enabled_analysts=FULL_ANALYST_ROSTER,
+        taurus_initial_capital_inr=1_000_000,
         taurus_paper_partial_fill_threshold=1,
     )
     run_migrations(settings)

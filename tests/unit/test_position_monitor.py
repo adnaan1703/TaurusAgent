@@ -250,6 +250,7 @@ def _settings(*, paper_analysis_scope: str = "strategy_selected") -> Settings:
         taurus_position_monitor_market_hours_only=False,
         taurus_position_monitor_max_iterations=1,
         taurus_alert_provider="disabled",
+        taurus_initial_capital_inr=1_000_000,
         taurus_paper_partial_fill_threshold=1,
         taurus_paper_analysis_scope=paper_analysis_scope,
     )

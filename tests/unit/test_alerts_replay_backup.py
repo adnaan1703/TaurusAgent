@@ -275,6 +275,7 @@ def _settings_for_temp_db(tmp_path: Path) -> Settings:
     return Settings(
         taurus_alert_provider="mock",
         taurus_enabled_analysts=FULL_ANALYST_ROSTER,
+        taurus_initial_capital_inr=1_000_000,
         taurus_paper_partial_fill_threshold=1,
     )
 

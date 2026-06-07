@@ -46,6 +46,7 @@ def fake_llm_provider(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_dashboard_queries_and_metrics_expose_m8_panels(tmp_path: Path) -> None:
     settings = Settings(
         taurus_enabled_analysts=FULL_ANALYST_ROSTER,
+        taurus_initial_capital_inr=1_000_000,
         taurus_paper_partial_fill_threshold=1,
     )
     run_migrations(settings)

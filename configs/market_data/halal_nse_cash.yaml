@@ -30,6 +30,13 @@ symbols:
     kite:
       exchange: NSE
       tradingsymbol: AAKAAR
+- symbol: AAKASH
+  name: Aakash Exploration Services Ltd
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: AAKASH
 - symbol: AAREYDRUGS
   name: AAREY DRUGS & PHARMACEUTICALS LTD.
   enabled: true
@@ -408,13 +415,6 @@ symbols:
     kite:
       exchange: NSE
       tradingsymbol: AHCL
-- symbol: AHLADA
-  name: AHLADA ENGINEERS
-  enabled: true
-  providers:
-    kite:
-      exchange: NSE
-      tradingsymbol: AHLADA
 - symbol: AHLUCONT
   name: AHLUWALIA CONTRACTS (INDIA) LTD.
   enabled: true
@@ -429,13 +429,6 @@ symbols:
     kite:
       exchange: NSE
       tradingsymbol: AIAENG
-- symbol: AILIMITED
-  name: ABHISHEK INTEGR.
-  enabled: true
-  providers:
-    kite:
-      exchange: NSE
-      tradingsymbol: AILIMITED
 - symbol: AIMTRON
   name: AIMTRON ELECTRONICS LIMITED
   enabled: true
@@ -744,13 +737,6 @@ symbols:
     kite:
       exchange: NSE
       tradingsymbol: ANLON
-- symbol: ANNAPURNA
-  name: ANNAPURNA SWADISHT LIMITED
-  enabled: true
-  providers:
-    kite:
-      exchange: NSE
-      tradingsymbol: ANNAPURNA
 - symbol: ANONDITA
   name: Anondita Medicare Ltd
   enabled: true
@@ -961,13 +947,6 @@ symbols:
     kite:
       exchange: NSE
       tradingsymbol: ARTEMISMED
-- symbol: ARTNIRMAN
-  name: ART NIRMAN LTD
-  enabled: true
-  providers:
-    kite:
-      exchange: NSE
-      tradingsymbol: ARTNIRMAN
 - symbol: ARVEE
   name: ARVEE LABORAT.
   enabled: true
@@ -1031,13 +1010,6 @@ symbols:
     kite:
       exchange: NSE
       tradingsymbol: ASIANPAINT
-- symbol: ASIANTILES
-  name: ASIAN GRANITO INDIA LTD.
-  enabled: true
-  providers:
-    kite:
-      exchange: NSE
-      tradingsymbol: ASIANTILES
 - symbol: ASKAUTOLTD
   name: ASK Automotive Ltd
   enabled: true
@@ -1717,13 +1689,6 @@ symbols:
     kite:
       exchange: NSE
       tradingsymbol: BLUESTARCO
-- symbol: BLUEWATER
-  name: Blue Water Logistics Limited
-  enabled: true
-  providers:
-    kite:
-      exchange: NSE
-      tradingsymbol: BLUEWATER
 - symbol: BLUSPRING
   name: Bluspring Enterprises Limited
   enabled: true
@@ -1738,6 +1703,13 @@ symbols:
     kite:
       exchange: NSE
       tradingsymbol: BMETRICS
+- symbol: BMLL
+  name: Bio Medica Laboratories Limited
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: BMLL
 - symbol: BOHRAIND
   name: BOHRA INDUSTRIES
   enabled: true
@@ -1871,6 +1843,13 @@ symbols:
     kite:
       exchange: NSE
       tradingsymbol: BUTTERFLY
+- symbol: BVCL
+  name: BARAK VALLEY CEMENTS LTD.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: BVCL
 - symbol: C2C
   name: C2C Advanced Systems Limited
   enabled: true
@@ -2445,13 +2424,6 @@ symbols:
     kite:
       exchange: NSE
       tradingsymbol: DATAPATTNS
-- symbol: DAVANGERE
-  name: Davangere Sugar
-  enabled: true
-  providers:
-    kite:
-      exchange: NSE
-      tradingsymbol: DAVANGERE
 - symbol: DBEIL
   name: Deepak Builders & Engineers India Limited
   enabled: true
@@ -2515,13 +2487,6 @@ symbols:
     kite:
       exchange: NSE
       tradingsymbol: DECCANCE
-- symbol: DEEDEV
-  name: DEE DEVELOPMENT ENGINEERS LIMITED
-  enabled: true
-  providers:
-    kite:
-      exchange: NSE
-      tradingsymbol: DEEDEV
 - symbol: DEEPAKNTR
   name: DEEPAK NITRITE LTD.
   enabled: true
@@ -2662,13 +2627,6 @@ symbols:
     kite:
       exchange: NSE
       tradingsymbol: DHTL
-- symbol: DIACABS
-  name: DIAMOND POWER INFRASTRUCTURE LIMITED
-  enabled: true
-  providers:
-    kite:
-      exchange: NSE
-      tradingsymbol: DIACABS
 - symbol: DIAMINESQ
   name: DIAMINES & CHEMICALS LTD.
   enabled: true
@@ -2753,13 +2711,6 @@ symbols:
     kite:
       exchange: NSE
       tradingsymbol: DJML
-- symbol: DKEGL
-  name: D.K. ENTERPRISES GLOBAL LIMITED
-  enabled: true
-  providers:
-    kite:
-      exchange: NSE
-      tradingsymbol: DKEGL
 - symbol: DLINKINDIA
   name: D-LINK (INDIA) LTD
   enabled: true
@@ -2816,6 +2767,13 @@ symbols:
     kite:
       exchange: NSE
       tradingsymbol: DPABHUSHAN
+- symbol: DPEL
+  name: DIVINE POWER ENERGY LIMITED
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: DPEL
 - symbol: DPSCLTD
   name: INDIA POWER CORP
   enabled: true
@@ -2935,13 +2893,6 @@ symbols:
     kite:
       exchange: NSE
       tradingsymbol: DYNPRO
-- symbol: E2ERAIL
-  name: E To E Transportation Infrastructure Limited
-  enabled: true
-  providers:
-    kite:
-      exchange: NSE
-      tradingsymbol: E2ERAIL
 - symbol: EBGNG
   name: GNG Electronics Limited
   enabled: true
@@ -3306,13 +3257,6 @@ symbols:
     kite:
       exchange: NSE
       tradingsymbol: EUREKAFORB
-- symbol: EUROBOND
-  name: Euro Panel Products Limited
-  enabled: true
-  providers:
-    kite:
-      exchange: NSE
-      tradingsymbol: EUROBOND
 - symbol: EUROPRATIK
   name: Euro Pratik Sales
   enabled: true
@@ -3579,13 +3523,6 @@ symbols:
     kite:
       exchange: NSE
       tradingsymbol: FRACTAL
-- symbol: FRESHARA
-  name: Freshara Agro Exports Limited
-  enabled: true
-  providers:
-    kite:
-      exchange: NSE
-      tradingsymbol: FRESHARA
 - symbol: FROG
   name: FROG CELLSAT LIMITED
   enabled: true
@@ -3621,13 +3558,6 @@ symbols:
     kite:
       exchange: NSE
       tradingsymbol: GAIL
-- symbol: GAJANAND
-  name: Gajanand International Limited
-  enabled: true
-  providers:
-    kite:
-      exchange: NSE
-      tradingsymbol: GAJANAND
 - symbol: GALAPREC
   name: Gala Precision Engineering Limited
   enabled: true
@@ -3740,13 +3670,6 @@ symbols:
     kite:
       exchange: NSE
       tradingsymbol: GCHOTELS
-- symbol: GEEKAYWIRE
-  name: GEEKAY WIRES
-  enabled: true
-  providers:
-    kite:
-      exchange: NSE
-      tradingsymbol: GEEKAYWIRE
 - symbol: GEMAROMA
   name: Gem Aromatics Ltd
   enabled: true
@@ -4132,13 +4055,6 @@ symbols:
     kite:
       exchange: NSE
       tradingsymbol: GRMOVER
-- symbol: GROBTEA
-  name: GROB TEA CO
-  enabled: true
-  providers:
-    kite:
-      exchange: NSE
-      tradingsymbol: GROBTEA
 - symbol: GRPLTD
   name: GRP LTD.
   enabled: true
@@ -4251,6 +4167,13 @@ symbols:
     kite:
       exchange: NSE
       tradingsymbol: GULFPETRO
+- symbol: GULPOLY
+  name: GULSHAN POLYOLS LTD.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: GULPOLY
 - symbol: GURUNANAK
   name: Gurunanak Agriculture India Limited
   enabled: true
@@ -4524,13 +4447,6 @@ symbols:
     kite:
       exchange: NSE
       tradingsymbol: HLEGLAS
-- symbol: HMAAGRO
-  name: HMA Agro Industries Ltd
-  enabled: true
-  providers:
-    kite:
-      exchange: NSE
-      tradingsymbol: HMAAGRO
 - symbol: HMVL
   name: HINDUSTAN MEDIA VENTURES LTD.
   enabled: true
@@ -5126,13 +5042,6 @@ symbols:
     kite:
       exchange: NSE
       tradingsymbol: IVALUE
-- symbol: IWARE
-  name: Iware Supplychain Services Limited
-  enabled: true
-  providers:
-    kite:
-      exchange: NSE
-      tradingsymbol: IWARE
 - symbol: IWEL
   name: INOX WIND ENERGY LTD
   enabled: true
@@ -5259,6 +5168,13 @@ symbols:
     kite:
       exchange: NSE
       tradingsymbol: JETKNIT
+- symbol: JEYYAM
+  name: Jeyyam Global Foods Limited
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: JEYYAM
 - symbol: JFLLIFE
   name: JFL LIFE SCIENCES LIMITED
   enabled: true
@@ -5273,13 +5189,6 @@ symbols:
     kite:
       exchange: NSE
       tradingsymbol: JGCHEM
-- symbol: JHS
-  name: JHS SVENDGAARD LABORATORIES LTD.
-  enabled: true
-  providers:
-    kite:
-      exchange: NSE
-      tradingsymbol: JHS
 - symbol: JINDALSTEL
   name: JINDAL STEEL & POWER LTD.
   enabled: true
@@ -5329,13 +5238,6 @@ symbols:
     kite:
       exchange: NSE
       tradingsymbol: JKLAKSHMI
-- symbol: JKPAPER
-  name: JK PAPER LTD.
-  enabled: true
-  providers:
-    kite:
-      exchange: NSE
-      tradingsymbol: JKPAPER
 - symbol: JLHL
   name: Jupiter Life Lin
   enabled: true
@@ -5616,6 +5518,13 @@ symbols:
     kite:
       exchange: NSE
       tradingsymbol: KCK
+- symbol: KCP
+  name: KCP LTD.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: KCP
 - symbol: KCPSUGIND
   name: KCP SUGAR & INDUSTRIES CORPORATION LTD.
   enabled: true
@@ -5735,6 +5644,13 @@ symbols:
     kite:
       exchange: NSE
       tradingsymbol: KINGFA
+- symbol: KIRIINDUS
+  name: KIRI INDUSTRIES LTD.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: KIRIINDUS
 - symbol: KIRLOSBROS
   name: KIRLOSKAR BROTHERS LTD.
   enabled: true
@@ -5833,6 +5749,13 @@ symbols:
     kite:
       exchange: NSE
       tradingsymbol: KOTHARIPET
+- symbol: KOTHARIPRO
+  name: KOTHARI PRODUCTS LTD.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: KOTHARIPRO
 - symbol: KOTYARK
   name: KOTYARK INDUSTRIES LIMITED
   enabled: true
@@ -6421,6 +6344,13 @@ symbols:
     kite:
       exchange: NSE
       tradingsymbol: MANALIPETC
+- symbol: MANAV
+  name: MANAV INFRA
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: MANAV
 - symbol: MANDEEP
   name: MANDEEP AUTO INDUSTRIES LIMITED
   enabled: true
@@ -6491,13 +6421,6 @@ symbols:
     kite:
       exchange: NSE
       tradingsymbol: MARINE
-- symbol: MARINETRAN
-  name: Marinetrans India Ltd
-  enabled: true
-  providers:
-    kite:
-      exchange: NSE
-      tradingsymbol: MARINETRAN
 - symbol: MARKSANS
   name: MARKSANS PHARMA LTD.
   enabled: true
@@ -6547,13 +6470,6 @@ symbols:
     kite:
       exchange: NSE
       tradingsymbol: MATRIMONY
-- symbol: MAWANASUG
-  name: MAWANA SUGARS LTD.
-  enabled: true
-  providers:
-    kite:
-      exchange: NSE
-      tradingsymbol: MAWANASUG
 - symbol: MAXHEALTH
   name: MAX HEALTHCARE INSTITUTE LTD
   enabled: true
@@ -6834,13 +6750,6 @@ symbols:
     kite:
       exchange: NSE
       tradingsymbol: MOBILISE
-- symbol: MODISONLTD
-  name: MODISON LTD.
-  enabled: true
-  providers:
-    kite:
-      exchange: NSE
-      tradingsymbol: MODISONLTD
 - symbol: MODTHREAD
   name: Modern Threads (India) Ltd.
   enabled: true
@@ -7114,6 +7023,13 @@ symbols:
     kite:
       exchange: NSE
       tradingsymbol: NCLIND
+- symbol: NDL
+  name: NANDAN DENIM LIMITED
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: NDL
 - symbol: NDRAUTO
   name: NDR AUTO COMPONENTS LTD
   enabled: true
@@ -7128,6 +7044,13 @@ symbols:
     kite:
       exchange: NSE
       tradingsymbol: NDTV
+- symbol: NECLIFE
+  name: NECTAR LIFESCIENCES LTD.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: NECLIFE
 - symbol: NELCAST
   name: NELCAST LTD.
   enabled: true
@@ -7219,6 +7142,13 @@ symbols:
     kite:
       exchange: NSE
       tradingsymbol: NEWJAISA
+- symbol: NFPSAMPOOR
+  name: NFP Sampoorna Foods Limited
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: NFPSAMPOOR
 - symbol: NGIL
   name: NAKODA GROUP OF INDUSTRIES LTD
   enabled: true
@@ -7275,13 +7205,6 @@ symbols:
     kite:
       exchange: NSE
       tradingsymbol: NIPPOBATRY
-- symbol: NIRAJ
-  name: NIRAJ CEMENT STRUCTURALS LTD.
-  enabled: true
-  providers:
-    kite:
-      exchange: NSE
-      tradingsymbol: NIRAJ
 - symbol: NIRMAN
   name: Nirman Agri Genetics Ltd
   enabled: true
@@ -8262,6 +8185,13 @@ symbols:
     kite:
       exchange: NSE
       tradingsymbol: PYRAMID
+- symbol: QLINE
+  name: Q-Line Biotech Limited
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: QLINE
 - symbol: QMSMEDI
   name: QMS MEDICAL ALLIED SERVICES LIMITED
   enabled: true
@@ -8794,6 +8724,13 @@ symbols:
     kite:
       exchange: NSE
       tradingsymbol: RUPA
+- symbol: RUSHIL
+  name: RUSHIL DECOR LTD.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: RUSHIL
 - symbol: RUSTOMJEE
   name: Keystone Realtors Ltd
   enabled: true
@@ -8927,6 +8864,13 @@ symbols:
     kite:
       exchange: NSE
       tradingsymbol: SAILIFE
+- symbol: SAIPARENT
+  name: Sai Parenterals Limited
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: SAIPARENT
 - symbol: SAKAR
   name: SAKAR HEALTHCARE
   enabled: true
@@ -9305,13 +9249,6 @@ symbols:
     kite:
       exchange: NSE
       tradingsymbol: SHADOWFAX
-- symbol: SHAH
-  name: Shah Metacorp
-  enabled: true
-  providers:
-    kite:
-      exchange: NSE
-      tradingsymbol: SHAH
 - symbol: SHAILY
   name: SHAILY ENGINEERING PLASTICS LTD.
   enabled: true
@@ -9445,6 +9382,13 @@ symbols:
     kite:
       exchange: NSE
       tradingsymbol: SHIVASHRIT
+- symbol: SHIVATEX
+  name: SHIVA TEXYARN LTD.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: SHIVATEX
 - symbol: SHIVAUM
   name: SHIV AUM STEELS
   enabled: true
@@ -9949,13 +9893,6 @@ symbols:
     kite:
       exchange: NSE
       tradingsymbol: SPECTSTM
-- symbol: SPIC
-  name: SOUTHERN PETROCHEMICALS LTD.
-  enabled: true
-  providers:
-    kite:
-      exchange: NSE
-      tradingsymbol: SPIC
 - symbol: SPLIL
   name: SPL INDUSTRIES LTD.
   enabled: true
@@ -9970,13 +9907,6 @@ symbols:
     kite:
       exchange: NSE
       tradingsymbol: SPLPETRO
-- symbol: SPPPOLY
-  name: SPP Polymer Limited
-  enabled: true
-  providers:
-    kite:
-      exchange: NSE
-      tradingsymbol: SPPPOLY
 - symbol: SPRL
   name: SP Refractories
   enabled: true
@@ -10110,13 +10040,6 @@ symbols:
     kite:
       exchange: NSE
       tradingsymbol: STEELCAS
-- symbol: STEELXIND
-  name: STEEL EXCHANGE INDIA LTD.
-  enabled: true
-  providers:
-    kite:
-      exchange: NSE
-      tradingsymbol: STEELXIND
 - symbol: STERTOOLS
   name: STERLING TOOLS LTD.
   enabled: true
@@ -10243,6 +10166,13 @@ symbols:
     kite:
       exchange: NSE
       tradingsymbol: SUNPHARMA
+- symbol: SUPERSPIN
+  name: SUPER SPINNING MILLS LTD.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: SUPERSPIN
 - symbol: SUPRAJIT
   name: SUPRAJIT ENGINEERING LTD.
   enabled: true
@@ -10271,13 +10201,6 @@ symbols:
     kite:
       exchange: NSE
       tradingsymbol: SUPRIYA
-- symbol: SURAJEST
-  name: Suraj Estate Developers Ltd
-  enabled: true
-  providers:
-    kite:
-      exchange: NSE
-      tradingsymbol: SURAJEST
 - symbol: SURAKSHA
   name: Suraksha Diagnostic Limited
   enabled: true
@@ -10320,13 +10243,6 @@ symbols:
     kite:
       exchange: NSE
       tradingsymbol: SUVIDHAA
-- symbol: SUYOG
-  name: SUYOG TELEMATICS LTD
-  enabled: true
-  providers:
-    kite:
-      exchange: NSE
-      tradingsymbol: SUYOG
 - symbol: SUZLON
   name: SUZLON ENERGY LTD.
   enabled: true
@@ -10593,6 +10509,13 @@ symbols:
     kite:
       exchange: NSE
       tradingsymbol: TEAMLEASE
+- symbol: TEAMTECH
+  name: Teamtech Formwork Solutions Limited
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: TEAMTECH
 - symbol: TECHD
   name: TechD Cybersecurity
   enabled: true
@@ -10642,13 +10565,6 @@ symbols:
     kite:
       exchange: NSE
       tradingsymbol: TEGA
-- symbol: TEJASCARGO
-  name: Tejas Cargo India Limited
-  enabled: true
-  providers:
-    kite:
-      exchange: NSE
-      tradingsymbol: TEJASCARGO
 - symbol: TEJASNET
   name: Tejas NETWORKS LTD
   enabled: true
@@ -10670,6 +10586,13 @@ symbols:
     kite:
       exchange: NSE
       tradingsymbol: TERASOFT
+- symbol: TEXMOPIPES
+  name: TEXMO PIPES & PRODUCTS LTD.
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: TEXMOPIPES
 - symbol: TEXRAIL
   name: TEXMACO RAIL & ENGINEERING LTD.
   enabled: true
@@ -10957,13 +10880,6 @@ symbols:
     kite:
       exchange: NSE
       tradingsymbol: TVSELECT
-- symbol: TVSSCS
-  name: TVS Supply Chain Solutions Ltd
-  enabled: true
-  providers:
-    kite:
-      exchange: NSE
-      tradingsymbol: TVSSCS
 - symbol: UDS
   name: Updater Services Ltd
   enabled: true
@@ -11314,13 +11230,6 @@ symbols:
     kite:
       exchange: NSE
       tradingsymbol: VGUARD
-- symbol: VHLTD
-  name: VICEROY HOTELS LTD.
-  enabled: true
-  providers:
-    kite:
-      exchange: NSE
-      tradingsymbol: VHLTD
 - symbol: VIAZ
   name: Viaz Tyres Ltd
   enabled: true
@@ -11573,6 +11482,13 @@ symbols:
     kite:
       exchange: NSE
       tradingsymbol: VOLTAS
+- symbol: VPRPL
+  name: Vishnu Prakash R Punglia Ltd
+  enabled: true
+  providers:
+    kite:
+      exchange: NSE
+      tradingsymbol: VPRPL
 - symbol: VR
   name: V R INFRASPACE LIMITED
   enabled: true
@@ -11657,13 +11573,6 @@ symbols:
     kite:
       exchange: NSE
       tradingsymbol: WALPAR
-- symbol: WANBURY
-  name: WANBURY LTD.
-  enabled: true
-  providers:
-    kite:
-      exchange: NSE
-      tradingsymbol: WANBURY
 - symbol: WCIL
   name: Western Carriers (India) Limited
   enabled: true
@@ -11888,13 +11797,6 @@ symbols:
     kite:
       exchange: NSE
       tradingsymbol: YATRA
-- symbol: YCCL
-  name: Yasons Chemex Care Ltd
-  enabled: true
-  providers:
-    kite:
-      exchange: NSE
-      tradingsymbol: YCCL
 - symbol: YUKEN
   name: YUKEN INDIA LTD.
   enabled: true
@@ -11944,13 +11846,6 @@ symbols:
     kite:
       exchange: NSE
       tradingsymbol: ZIMLAB
-- symbol: ZODIAC
-  name: ZODIAC ENERGY
-  enabled: true
-  providers:
-    kite:
-      exchange: NSE
-      tradingsymbol: ZODIAC
 - symbol: ZOTA
   name: ZOTA HEALTH CARE
   enabled: true

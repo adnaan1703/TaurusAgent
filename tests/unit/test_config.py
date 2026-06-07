@@ -56,7 +56,7 @@ def test_default_settings_are_safe() -> None:
     assert settings.configured_llm_model_version == "lmstudio:local-model"
     assert settings.taurus_enabled_analysts == "technical"
     assert settings.enabled_analyst_keys == ("technical",)
-    assert settings.taurus_initial_capital_inr == 1_000_000
+    assert settings.taurus_initial_capital_inr == 10_000
     assert settings.taurus_max_position_pct == 5
     assert settings.taurus_max_open_positions == 8
     assert settings.taurus_money_management_enabled is False

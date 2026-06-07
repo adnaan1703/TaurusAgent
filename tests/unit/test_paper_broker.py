@@ -1164,6 +1164,7 @@ def _fill_for_order(order: PaperOrder, *, trade_date: date) -> PaperFill:
 
 def _settings_for_temp_db(tmp_path: Path, **overrides: object) -> Settings:
     values = {
+        "taurus_initial_capital_inr": 1_000_000,
         "taurus_paper_partial_fill_threshold": 1,
     }
     values.update(overrides)
