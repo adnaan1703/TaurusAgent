@@ -4,7 +4,7 @@ Last updated: 2026-06-04
 
 This is the repo-specific implementation plan for adding graph-based trading
 intelligence to Taurus. The original outside graph integration reference was
-removed during docs cleanup; this document and `docs/TAURUS_MILESTONE_TODO.md`
+removed during docs cleanup; this document and `docs/MILESTONE.md`
 remain the active graph references.
 
 ## Current Repo Fit
@@ -59,13 +59,13 @@ submilestone automatically.
 ### M20.0 - Repo-Specific Plan And Tracker
 
 - Create this plan from the outside integration reference and real repo shape.
-- Update `docs/TAURUS_MILESTONE_TODO.md` with graph milestone tracking.
+- Update `docs/MILESTONE.md` with graph milestone tracking.
 - Confirm no runtime behavior changes.
 
 Acceptance criteria:
 
 - This document exists and references actual Taurus paths.
-- `docs/TAURUS_MILESTONE_TODO.md` tracks the `M20.x` milestones.
+- `docs/MILESTONE.md` tracks the `M20.x` milestones.
 - This document records the repo-specific graph implementation plan.
 - `make test` and `make lint` pass, or failures are recorded.
 

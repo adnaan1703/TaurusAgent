@@ -114,7 +114,7 @@ Risk engine / execution agents = rule-based consumers of stored outputs
 
 The selected functional-MVP sequence now tracks separate migrations for
 LLM-backed debate, trader proposal, and final-decision explanation in
-`docs/TAURUS_MILESTONE_TODO.md`. Risk persona LLM support remains deferred.
+`docs/MILESTONE.md`. Risk persona LLM support remains deferred.
 
 The minimum high-value LLM migration target is:
 
@@ -132,7 +132,7 @@ The advisory risk personas can be upgraded after that. `RiskEngine`,
 ## Mock Migration Checklist
 
 - [x] Complete the ordered functional-MVP sequence in
-      `docs/TAURUS_MILESTONE_TODO.md`.
+      `docs/MILESTONE.md`.
 - [x] Switch market data defaults and runtime path from `mock` to `kite` for
       real-data paper runs.
 - [x] Prevent mixed mock/Kite data in the same database, or make provider-scoped
@@ -188,7 +188,7 @@ Neo4j disabled
 ```
 
 The completed migration/allocation path is summarized in
-`docs/TAURUS_MILESTONE_TODO.md`. Docker Postgres-only persistence, real LLM
+`docs/MILESTONE.md`. Docker Postgres-only persistence, real LLM
 providers, Kite-only runtime market data, graph-enabled Kite paper loops,
 market-hours position monitoring, money management, and full-universe dynamic
 allocation are implemented through M43. Remaining work is deferred outside that

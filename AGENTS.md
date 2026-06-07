@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-Taurus is a Python and React monorepo for an observable, paper-trading-first algo trading MVP. Keep milestone work scoped to `docs/TAURUS_MILESTONE_TODO.md`.
+Taurus is a Python and React monorepo for an observable, paper-trading-first algo trading MVP. Keep milestone work scoped to `docs/MILESTONE.md`.
 
 - `apps/api/`: FastAPI app and route modules.
 - `apps/web/`: primary React run-loop observability dashboard.
@@ -60,11 +60,11 @@ Never commit real API keys, broker credentials, Telegram tokens, or user CSV exp
 
 ## Agent-Specific Instructions
 
-Implement one milestone at a time. Update `docs/TAURUS_MILESTONE_TODO.md` whenever task status changes. Keep Codex command approvals project-local in `.codex/rules/default.rules`; do not broaden global approvals for this repo.
+Implement one milestone at a time. Update `docs/MILESTONE.md` whenever task status changes. Keep Codex command approvals project-local in `.codex/rules/default.rules`; do not broaden global approvals for this repo.
 
-When planning future milestone sequences, use flat milestone IDs such as `M44`, `M45`, and `M46`. Do not create new submilestone identifiers such as `M44.1` unless the user explicitly requests submilestones. If a plan splits work into multiple execution chunks, each chunk must be a proper milestone with its own row in `docs/TAURUS_MILESTONE_TODO.md`.
+When planning future milestone sequences, use flat milestone IDs such as `M44`, `M45`, and `M46`. Do not create new submilestone identifiers such as `M44.1` unless the user explicitly requests submilestones. If a plan splits work into multiple execution chunks, each chunk must be a proper milestone with its own row in `docs/MILESTONE.md`.
 
-For every new milestone plan document, update `docs/TAURUS_MILESTONE_TODO.md` in the same planning task:
+For every new milestone plan document, update `docs/MILESTONE.md` in the same planning task:
 
 - Add the plan document to `Active Sources`.
 - Add a completed summary row for the plan-document creation itself, clearly stating that implementation remains planned if no implementation work was done.

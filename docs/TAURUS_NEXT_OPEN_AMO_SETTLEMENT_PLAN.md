@@ -42,7 +42,7 @@ Day N+1 after latest candles are imported:
   simulation unless the current milestone explicitly changes it.
 - Use existing SQLAlchemy metadata migration patterns in `scripts/migrate.py`;
   Taurus does not use Alembic.
-- Update `docs/TAURUS_MILESTONE_TODO.md` whenever starting or completing a
+- Update `docs/MILESTONE.md` whenever starting or completing a
   milestone.
 - If API payloads, artifacts, or statuses change, update React dashboard tests
   and UI rendering in the same milestone.
@@ -51,7 +51,7 @@ Day N+1 after latest candles are imported:
   `None` for empty categories.
 - At milestone cleanup, inspect `/Users/adnaan/.codex/rules/default.rules` and
   follow the repo's global approval cleanup rule from
-  `docs/TAURUS_MILESTONE_TODO.md`.
+  `docs/MILESTONE.md`.
 
 ## M44 - Baseline Tests And Tracker Setup
 
@@ -67,7 +67,7 @@ Instructions:
   - `packages/taurus_core/paper_trading/service.py`
   - `tests/unit/test_paper_broker.py`
   - `tests/unit/test_paper_runs.py`
-- Update `docs/TAURUS_MILESTONE_TODO.md` with an active M44 entry that points to
+- Update `docs/MILESTONE.md` with an active M44 entry that points to
   this plan and says M44 is in progress.
 - Add tests for the intended behavior, even though they fail before M45/M46:
   - An after-close BUY decision should create an order with no fills and no cash
@@ -90,7 +90,7 @@ Expected code shape:
 
 Acceptance criteria:
 
-- `docs/TAURUS_MILESTONE_TODO.md` records M44 status.
+- `docs/MILESTONE.md` records M44 status.
 - Tests clearly document the target behavior and fail against the old immediate
   EOD fill path before implementation.
 - No runtime behavior is intentionally changed.
@@ -494,7 +494,7 @@ Instructions:
   - `/ui/overview`
   - `/ui/runs/{run_id}` if available.
 - Verify no live broker routing was added and safety defaults remain paper-only.
-- Update `docs/TAURUS_MILESTONE_TODO.md`:
+- Update `docs/MILESTONE.md`:
   - Mark M44-M50 complete.
   - Summarize the final behavior.
   - Remove or archive transient active-plan wording if appropriate.
@@ -511,7 +511,7 @@ Acceptance criteria:
 - Full test and build verification passes, or failures are documented with
   exact causes.
 - Manual EOD semantics are documented and tested.
-- `docs/TAURUS_MILESTONE_TODO.md` accurately reflects M44-M50 completion.
+- `docs/MILESTONE.md` accurately reflects M44-M50 completion.
 - Completion summary includes assumptions made, mocks created, and mocks used.
 
 Verification:
