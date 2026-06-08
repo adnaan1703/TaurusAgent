@@ -92,6 +92,7 @@ class RiskReviewService:
             risk_check_id=risk_check_id,
             decision_id=decision_id,
             run_id=proposal.run_id,
+            portfolio_id=proposal.portfolio_id,
             symbol=symbol,
             proposal_id=proposal.proposal_id,
             debate_id=proposal.debate_id,

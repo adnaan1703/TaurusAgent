@@ -7,6 +7,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from taurus_core.intelligence.documents import stable_id
+from taurus_core.profiles.schemas import DEFAULT_PROFILE_ID, validate_profile_id
 
 AgentStance = Literal["bullish", "bearish", "neutral"]
 ReportHorizon = Literal["intraday", "short", "medium", "long"]
@@ -38,6 +39,7 @@ class AnalystReport(BaseModel):
 
     report_id: str
     run_id: str
+    portfolio_id: str = DEFAULT_PROFILE_ID
     decision_id: str | None = None
     symbol: str
     agent_name: str
@@ -55,6 +57,11 @@ class AnalystReport(BaseModel):
     @classmethod
     def normalize_symbol(cls, value: str) -> str:
         return value.upper()
+
+    @field_validator("portfolio_id")
+    @classmethod
+    def normalize_portfolio_id(cls, value: str) -> str:
+        return validate_profile_id(value)
 
     @field_validator("key_points", "risks", "source_ids")
     @classmethod

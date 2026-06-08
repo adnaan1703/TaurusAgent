@@ -515,6 +515,7 @@ class AnalystReportRepository:
             self.session.add(model)
         else:
             model.run_id = report.run_id
+            model.portfolio_id = report.portfolio_id
             model.decision_id = report.decision_id
             model.symbol = report.symbol
             model.agent_name = report.agent_name
@@ -534,6 +535,7 @@ class AnalystReportRepository:
     def list(
         self,
         *,
+        profile_id: str | None = None,
         symbol: str | None = None,
         limit: int | None = 100,
     ) -> list[AnalystReportModel]:
@@ -541,6 +543,8 @@ class AnalystReportRepository:
             AnalystReportModel.as_of.desc(),
             AnalystReportModel.agent_name,
         )
+        if profile_id is not None:
+            statement = statement.where(AnalystReportModel.portfolio_id == validate_profile_id(profile_id))
         if symbol is not None:
             statement = statement.where(AnalystReportModel.symbol == symbol.upper())
         if limit is not None:
@@ -939,6 +943,7 @@ class ResearchRepository:
     def list_debates(
         self,
         *,
+        profile_id: str | None = None,
         symbol: str | None = None,
         limit: int | None = 100,
     ) -> list[DebateReportModel]:
@@ -946,6 +951,8 @@ class ResearchRepository:
             DebateReportModel.as_of.desc(),
             DebateReportModel.debate_id,
         )
+        if profile_id is not None:
+            statement = statement.where(DebateReportModel.portfolio_id == validate_profile_id(profile_id))
         if symbol is not None:
             statement = statement.where(DebateReportModel.symbol == symbol.upper())
         if limit is not None:
@@ -956,18 +963,23 @@ class ResearchRepository:
         self,
         *,
         run_id: str | None = None,
+        profile_id: str | None = None,
         portfolio_id: str | None = None,
         symbol: str | None = None,
         limit: int | None = 100,
     ) -> list[TraderProposalModel]:
+        portfolio_filter = _profile_filter_value(
+            profile_id=profile_id,
+            portfolio_id=portfolio_id,
+        )
         statement = select(TraderProposalModel).order_by(
             TraderProposalModel.as_of.desc(),
             TraderProposalModel.proposal_id,
         )
         if run_id is not None:
             statement = statement.where(TraderProposalModel.run_id == run_id)
-        if portfolio_id is not None:
-            statement = statement.where(TraderProposalModel.portfolio_id == portfolio_id)
+        if portfolio_filter is not None:
+            statement = statement.where(TraderProposalModel.portfolio_id == portfolio_filter)
         if symbol is not None:
             statement = statement.where(TraderProposalModel.symbol == symbol.upper())
         if limit is not None:
@@ -1080,6 +1092,7 @@ class RiskRepository:
         self,
         *,
         run_id: str | None = None,
+        profile_id: str | None = None,
         symbol: str | None = None,
         limit: int | None = 100,
     ) -> list[RiskReviewModel]:
@@ -1089,6 +1102,8 @@ class RiskRepository:
         )
         if run_id is not None:
             statement = statement.where(RiskReviewModel.run_id == run_id)
+        if profile_id is not None:
+            statement = statement.where(RiskReviewModel.portfolio_id == validate_profile_id(profile_id))
         if symbol is not None:
             statement = statement.where(RiskReviewModel.symbol == symbol.upper())
         if limit is not None:
@@ -1099,6 +1114,7 @@ class RiskRepository:
         self,
         *,
         run_id: str | None = None,
+        profile_id: str | None = None,
         symbol: str | None = None,
         limit: int | None = 100,
     ) -> list[FinalDecisionModel]:
@@ -1108,6 +1124,8 @@ class RiskRepository:
         )
         if run_id is not None:
             statement = statement.where(FinalDecisionModel.run_id == run_id)
+        if profile_id is not None:
+            statement = statement.where(FinalDecisionModel.portfolio_id == validate_profile_id(profile_id))
         if symbol is not None:
             statement = statement.where(FinalDecisionModel.symbol == symbol.upper())
         if limit is not None:
@@ -1265,6 +1283,7 @@ class PaperRunRepository:
             model = _paper_run_to_model(run)
             self.session.add(model)
         else:
+            model.portfolio_id = run.portfolio_id
             model.schedule_name = run.schedule_name
             model.status = run.status
             model.started_at = run.started_at
@@ -1284,11 +1303,18 @@ class PaperRunRepository:
     def get(self, run_id: str) -> PaperRunModel | None:
         return self.session.get(PaperRunModel, run_id)
 
-    def list(self, *, limit: int | None = 100) -> list[PaperRunModel]:
+    def list(
+        self,
+        *,
+        profile_id: str | None = None,
+        limit: int | None = 100,
+    ) -> list[PaperRunModel]:
         statement = select(PaperRunModel).order_by(
             PaperRunModel.started_at.desc(),
             PaperRunModel.run_id,
         )
+        if profile_id is not None:
+            statement = statement.where(PaperRunModel.portfolio_id == validate_profile_id(profile_id))
         if limit is not None:
             statement = statement.limit(limit)
         return list(self.session.scalars(statement))
@@ -2522,9 +2548,28 @@ def _corpus_update_error(profile_id: str) -> ValueError:
     )
 
 
+def _profile_filter_value(
+    *,
+    profile_id: str | None,
+    portfolio_id: str | None,
+) -> str | None:
+    if profile_id is None and portfolio_id is None:
+        return None
+    if profile_id is None:
+        return validate_profile_id(portfolio_id or DEFAULT_PROFILE_ID)
+    if portfolio_id is None:
+        return validate_profile_id(profile_id)
+    normalized_profile_id = validate_profile_id(profile_id)
+    normalized_portfolio_id = validate_profile_id(portfolio_id)
+    if normalized_profile_id != normalized_portfolio_id:
+        raise ValueError("profile_id and portfolio_id filters must match when both are supplied.")
+    return normalized_profile_id
+
+
 def _paper_run_to_model(run: PaperRun) -> PaperRunModel:
     return PaperRunModel(
         run_id=run.run_id,
+        portfolio_id=run.portfolio_id,
         schedule_name=run.schedule_name,
         status=run.status,
         started_at=run.started_at,
@@ -2739,6 +2784,7 @@ def _analyst_report_to_model(report: AnalystReport) -> AnalystReportModel:
     return AnalystReportModel(
         report_id=report.report_id,
         run_id=report.run_id,
+        portfolio_id=report.portfolio_id,
         decision_id=report.decision_id,
         symbol=report.symbol.upper(),
         agent_name=report.agent_name,
@@ -2759,6 +2805,7 @@ def _debate_report_to_model(debate: DebateReport) -> DebateReportModel:
     return DebateReportModel(
         debate_id=debate.debate_id,
         run_id=debate.run_id,
+        portfolio_id=debate.portfolio_id,
         symbol=debate.symbol.upper(),
         as_of=debate.as_of,
         rounds_requested=debate.rounds_requested,
@@ -2812,6 +2859,7 @@ def _risk_review_to_model(review: RiskReview) -> RiskReviewModel:
         risk_check_id=review.risk_check_id,
         decision_id=review.decision_id,
         run_id=review.run_id,
+        portfolio_id=review.portfolio_id,
         symbol=review.symbol.upper(),
         proposal_id=review.proposal_id,
         debate_id=review.debate_id,
@@ -2835,6 +2883,7 @@ def _final_decision_to_model(decision: FinalDecision) -> FinalDecisionModel:
         final_decision_id=decision.final_decision_id,
         decision_id=decision.decision_id,
         run_id=decision.run_id,
+        portfolio_id=decision.portfolio_id,
         symbol=decision.symbol.upper(),
         proposal_id=decision.proposal_id,
         risk_check_id=decision.risk_check_id,

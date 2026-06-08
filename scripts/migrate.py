@@ -28,6 +28,7 @@ def run_migrations(settings: Settings | None = None) -> None:
     _add_missing_daily_candle_columns(engine)
     _widen_graph_edge_columns(engine)
     _add_missing_m28_position_lifecycle_columns(engine)
+    _add_missing_m52_profile_lineage_columns(engine)
     _widen_agent_model_version_columns(engine)
 
 
@@ -232,6 +233,68 @@ def _add_missing_m28_position_lifecycle_columns(engine: Engine) -> None:
             table_name = statement.split(" ON ", 1)[1].split(" ", 1)[0]
             if table_name in table_names:
                 connection.execute(text(statement))
+
+
+def _add_missing_m52_profile_lineage_columns(engine: Engine) -> None:
+    if engine.dialect.name != "postgresql":
+        return
+
+    inspector = inspect(engine)
+    table_names = set(inspector.get_table_names())
+    lineage_tables = (
+        "paper_runs",
+        "analyst_reports",
+        "debate_reports",
+        "risk_reviews",
+        "final_decisions",
+    )
+    statements: list[str] = []
+    for table in lineage_tables:
+        if table not in table_names:
+            continue
+        columns = {column["name"] for column in inspector.get_columns(table)}
+        if "portfolio_id" not in columns:
+            statements.append(
+                f"ALTER TABLE {table} "
+                "ADD COLUMN portfolio_id VARCHAR(128) NOT NULL DEFAULT 'local-paper'"
+            )
+
+    index_statements = [
+        "CREATE INDEX IF NOT EXISTS ix_paper_runs_portfolio_started_at "
+        "ON paper_runs (portfolio_id, started_at)",
+        "CREATE INDEX IF NOT EXISTS ix_paper_runs_portfolio_status "
+        "ON paper_runs (portfolio_id, status)",
+        "CREATE INDEX IF NOT EXISTS ix_analyst_reports_portfolio_as_of "
+        "ON analyst_reports (portfolio_id, as_of)",
+        "CREATE INDEX IF NOT EXISTS ix_debate_reports_portfolio_as_of "
+        "ON debate_reports (portfolio_id, as_of)",
+        "CREATE INDEX IF NOT EXISTS ix_risk_reviews_portfolio_as_of "
+        "ON risk_reviews (portfolio_id, as_of)",
+        "CREATE INDEX IF NOT EXISTS ix_final_decisions_portfolio_as_of "
+        "ON final_decisions (portfolio_id, as_of)",
+    ]
+
+    payload_backfills = [
+        f"UPDATE {table} "
+        "SET payload = (COALESCE(payload::jsonb, '{}'::jsonb) "
+        "|| jsonb_build_object('portfolio_id', portfolio_id))::json "
+        "WHERE payload IS NULL OR NOT (payload::jsonb ? 'portfolio_id')"
+        for table in lineage_tables
+        if table in table_names
+    ]
+
+    if not statements and not any(table in table_names for table in lineage_tables):
+        return
+
+    with engine.begin() as connection:
+        for statement in statements:
+            connection.execute(text(statement))
+        for statement in index_statements:
+            table_name = statement.split(" ON ", 1)[1].split(" ", 1)[0]
+            if table_name in table_names:
+                connection.execute(text(statement))
+        for statement in payload_backfills:
+            connection.execute(text(statement))
 
 
 def _widen_agent_model_version_columns(engine: Engine) -> None:

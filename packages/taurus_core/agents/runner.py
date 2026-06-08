@@ -21,6 +21,7 @@ from taurus_core.llm.base import LLMProvider
 from taurus_core.logging import get_logger
 from taurus_core.observability.metrics import record_agent_run, record_graph_agent_failure
 from taurus_core.observability.tracing import bound_trace_context
+from taurus_core.profiles.schemas import DEFAULT_PROFILE_ID, validate_profile_id
 
 DEFAULT_ANALYST_RUN_ID = "analyst-latest"
 
@@ -39,9 +40,11 @@ def run_analyst_suite(
     symbol: str,
     llm_provider: LLMProvider,
     run_id: str = DEFAULT_ANALYST_RUN_ID,
+    portfolio_id: str = DEFAULT_PROFILE_ID,
     enabled_analysts: str | Sequence[str] | None = None,
 ) -> list[AnalystReport]:
     symbol = symbol.upper()
+    profile_id = validate_profile_id(portfolio_id)
     if InstrumentRepository(session).get(symbol) is None:
         raise ValueError(
             f"Instrument {symbol} is not available. Run make kite-sync-instruments or "
@@ -56,7 +59,9 @@ def run_analyst_suite(
     for agent in agents:
         started_at = time.perf_counter()
         try:
-            report = agent.run(symbol=symbol, run_id=run_id)
+            report = agent.run(symbol=symbol, run_id=run_id).model_copy(
+                update={"portfolio_id": profile_id}
+            )
         except Exception as exc:
             if isinstance(agent, GraphAnalystAgent):
                 record_graph_agent_failure(

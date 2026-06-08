@@ -6,6 +6,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from taurus_core.intelligence.documents import stable_id
+from taurus_core.profiles.schemas import DEFAULT_PROFILE_ID, validate_profile_id
 
 PaperRunStatus = Literal["RUNNING", "COMPLETED", "PARTIAL_FAILED", "FAILED"]
 PaperRunUniverseSource = Literal["manual_symbols", "market_data_universe"]
@@ -46,6 +47,7 @@ class PaperRun(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     run_id: str
+    portfolio_id: str = DEFAULT_PROFILE_ID
     schedule_name: str = "daily_after_close"
     status: PaperRunStatus
     started_at: datetime
@@ -66,8 +68,27 @@ class PaperRun(BaseModel):
     def normalize_symbols(cls, value: list[str]) -> list[str]:
         return [symbol.upper() for symbol in value if symbol.strip()]
 
+    @field_validator("portfolio_id")
+    @classmethod
+    def normalize_portfolio_id(cls, value: str) -> str:
+        return validate_profile_id(value)
 
-def paper_run_id(*, started_at: datetime, symbols: list[str], schedule_name: str) -> str:
+
+def paper_run_id(
+    *,
+    started_at: datetime,
+    symbols: list[str],
+    schedule_name: str,
+    portfolio_id: str | None = None,
+) -> str:
+    if portfolio_id is not None:
+        return stable_id(
+            "pr",
+            validate_profile_id(portfolio_id),
+            started_at.isoformat(),
+            ",".join(sorted(symbol.upper() for symbol in symbols)),
+            schedule_name,
+        )
     return stable_id(
         "pr",
         started_at.isoformat(),

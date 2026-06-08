@@ -9,6 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from taurus_core.agents.schemas import ReportHorizon
 from taurus_core.allocation_schemas import AllocationDecision
 from taurus_core.intelligence.documents import stable_id
+from taurus_core.profiles.schemas import DEFAULT_PROFILE_ID, validate_profile_id
 
 ConsensusLabel = Literal["bullish", "mild_bullish", "neutral", "mild_bearish", "bearish"]
 TraderAction = Literal["BUY", "SELL", "HOLD", "NO_TRADE", "REDUCE", "EXIT"]
@@ -95,6 +96,7 @@ class DebateReport(BaseModel):
 
     debate_id: str
     run_id: str
+    portfolio_id: str = DEFAULT_PROFILE_ID
     symbol: str
     as_of: datetime
     rounds_requested: int = Field(ge=1, le=10)
@@ -110,6 +112,11 @@ class DebateReport(BaseModel):
     def normalize_symbol(cls, value: str) -> str:
         return value.upper()
 
+    @field_validator("portfolio_id")
+    @classmethod
+    def normalize_portfolio_id(cls, value: str) -> str:
+        return validate_profile_id(value)
+
     @field_validator("source_report_ids")
     @classmethod
     def clean_source_ids(cls, value: list[str]) -> list[str]:
@@ -121,7 +128,7 @@ class TraderProposal(BaseModel):
 
     proposal_id: str
     run_id: str
-    portfolio_id: str = "local-paper"
+    portfolio_id: str = DEFAULT_PROFILE_ID
     symbol: str
     debate_id: str
     as_of: datetime
@@ -159,6 +166,11 @@ class TraderProposal(BaseModel):
     @classmethod
     def normalize_symbol(cls, value: str) -> str:
         return value.upper()
+
+    @field_validator("portfolio_id")
+    @classmethod
+    def normalize_portfolio_id(cls, value: str) -> str:
+        return validate_profile_id(value)
 
     @field_validator("invalid_if", "source_report_ids")
     @classmethod

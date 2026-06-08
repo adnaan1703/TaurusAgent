@@ -18,6 +18,7 @@ from taurus_core.db.repositories import (
 from taurus_core.llm import LLMProvider, build_llm_provider
 from taurus_core.logging import get_logger
 from taurus_core.observability.tracing import bound_trace_context
+from taurus_core.profiles.schemas import DEFAULT_PROFILE_ID, validate_profile_id
 from taurus_core.research.schemas import (
     DebateReport,
     DebateRound,
@@ -50,6 +51,7 @@ class ResearchDebateService:
         *,
         symbol: str,
         run_id: str = DEFAULT_ANALYST_RUN_ID,
+        profile_id: str | None = None,
         rounds_requested: int = DEFAULT_DEBATE_ROUNDS,
     ) -> DebateReport:
         if rounds_requested < 1 or rounds_requested > 10:
@@ -63,6 +65,7 @@ class ResearchDebateService:
             )
 
         reports = self._load_reports(symbol=symbol, run_id=run_id)
+        portfolio_id = validate_profile_id(profile_id or _reports_profile_id(reports))
         bull_thesis = self.bull_researcher.run(symbol=symbol, reports=reports)
         bear_thesis = self.bear_researcher.run(symbol=symbol, reports=reports)
         rounds = self._build_rounds(
@@ -87,6 +90,7 @@ class ResearchDebateService:
                 source_report_ids=source_report_ids,
             ),
             run_id=run_id,
+            portfolio_id=portfolio_id,
             symbol=symbol,
             as_of=_latest_as_of(reports),
             rounds_requested=rounds_requested,
@@ -157,3 +161,10 @@ def _as_utc(value: datetime) -> datetime:
     if value.tzinfo is None:
         return value.replace(tzinfo=timezone.utc)
     return value.astimezone(timezone.utc)
+
+
+def _reports_profile_id(reports: list[AnalystReport]) -> str:
+    profile_ids = {report.portfolio_id for report in reports}
+    if len(profile_ids) > 1:
+        raise ValueError("Analyst reports for a debate must belong to one profile.")
+    return next(iter(profile_ids), DEFAULT_PROFILE_ID)

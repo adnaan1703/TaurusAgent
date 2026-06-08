@@ -685,10 +685,12 @@ class AnalystReportModel(Base):
     __table_args__ = (
         UniqueConstraint("run_id", "symbol", "agent_name", name="uq_analyst_reports_run_symbol_agent"),
         Index("ix_analyst_reports_symbol_as_of", "symbol", "as_of"),
+        Index("ix_analyst_reports_portfolio_as_of", "portfolio_id", "as_of"),
     )
 
     report_id: Mapped[str] = mapped_column(String(128), primary_key=True)
     run_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    portfolio_id: Mapped[str] = mapped_column(String(128), nullable=False, default="local-paper")
     decision_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
     symbol: Mapped[str] = mapped_column(
         String(32),
@@ -856,10 +858,12 @@ class DebateReportModel(Base):
     __table_args__ = (
         UniqueConstraint("run_id", "symbol", name="uq_debate_reports_run_symbol"),
         Index("ix_debate_reports_symbol_as_of", "symbol", "as_of"),
+        Index("ix_debate_reports_portfolio_as_of", "portfolio_id", "as_of"),
     )
 
     debate_id: Mapped[str] = mapped_column(String(128), primary_key=True)
     run_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    portfolio_id: Mapped[str] = mapped_column(String(128), nullable=False, default="local-paper")
     symbol: Mapped[str] = mapped_column(
         String(32),
         ForeignKey("instruments.symbol", ondelete="CASCADE"),
@@ -938,11 +942,13 @@ class RiskReviewModel(Base):
     __table_args__ = (
         UniqueConstraint("run_id", "symbol", name="uq_risk_reviews_run_symbol"),
         Index("ix_risk_reviews_symbol_as_of", "symbol", "as_of"),
+        Index("ix_risk_reviews_portfolio_as_of", "portfolio_id", "as_of"),
     )
 
     risk_check_id: Mapped[str] = mapped_column(String(128), primary_key=True)
     decision_id: Mapped[str] = mapped_column(String(128), nullable=False)
     run_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    portfolio_id: Mapped[str] = mapped_column(String(128), nullable=False, default="local-paper")
     symbol: Mapped[str] = mapped_column(
         String(32),
         ForeignKey("instruments.symbol", ondelete="CASCADE"),
@@ -974,11 +980,13 @@ class FinalDecisionModel(Base):
     __table_args__ = (
         UniqueConstraint("run_id", "symbol", name="uq_final_decisions_run_symbol"),
         Index("ix_final_decisions_symbol_as_of", "symbol", "as_of"),
+        Index("ix_final_decisions_portfolio_as_of", "portfolio_id", "as_of"),
     )
 
     final_decision_id: Mapped[str] = mapped_column(String(128), primary_key=True)
     decision_id: Mapped[str] = mapped_column(String(128), nullable=False)
     run_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    portfolio_id: Mapped[str] = mapped_column(String(128), nullable=False, default="local-paper")
     symbol: Mapped[str] = mapped_column(
         String(32),
         ForeignKey("instruments.symbol", ondelete="CASCADE"),
@@ -1012,9 +1020,12 @@ class PaperRunModel(Base):
     __table_args__ = (
         Index("ix_paper_runs_started_at", "started_at"),
         Index("ix_paper_runs_status", "status"),
+        Index("ix_paper_runs_portfolio_started_at", "portfolio_id", "started_at"),
+        Index("ix_paper_runs_portfolio_status", "portfolio_id", "status"),
     )
 
     run_id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    portfolio_id: Mapped[str] = mapped_column(String(128), nullable=False, default="local-paper")
     schedule_name: Mapped[str] = mapped_column(String(128), nullable=False, default="daily_after_close")
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="RUNNING")
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)

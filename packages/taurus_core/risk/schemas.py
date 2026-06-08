@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from taurus_core.allocation_schemas import AllocationDecision
 from taurus_core.intelligence.documents import stable_id
+from taurus_core.profiles.schemas import DEFAULT_PROFILE_ID, validate_profile_id
 from taurus_core.research.schemas import TraderAction
 
 RiskRuleStatus = Literal["passed", "warn", "reduced", "rejected", "blocked"]
@@ -47,6 +48,7 @@ class RiskReview(BaseModel):
     risk_check_id: str
     decision_id: str
     run_id: str
+    portfolio_id: str = DEFAULT_PROFILE_ID
     symbol: str
     proposal_id: str
     debate_id: str
@@ -68,6 +70,11 @@ class RiskReview(BaseModel):
     def normalize_symbol(cls, value: str) -> str:
         return value.upper()
 
+    @field_validator("portfolio_id")
+    @classmethod
+    def normalize_portfolio_id(cls, value: str) -> str:
+        return validate_profile_id(value)
+
     @field_validator("source_report_ids")
     @classmethod
     def clean_source_ids(cls, value: list[str]) -> list[str]:
@@ -80,6 +87,7 @@ class FinalDecision(BaseModel):
     final_decision_id: str
     decision_id: str
     run_id: str
+    portfolio_id: str = DEFAULT_PROFILE_ID
     symbol: str
     proposal_id: str
     risk_check_id: str
@@ -98,6 +106,11 @@ class FinalDecision(BaseModel):
     @classmethod
     def normalize_symbol(cls, value: str) -> str:
         return value.upper()
+
+    @field_validator("portfolio_id")
+    @classmethod
+    def normalize_portfolio_id(cls, value: str) -> str:
+        return validate_profile_id(value)
 
 
 def decision_id_for_proposal(*, run_id: str, symbol: str, proposal_id: str) -> str:

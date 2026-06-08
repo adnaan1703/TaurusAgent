@@ -130,6 +130,7 @@ class PositionMonitorService:
                 "position_monitor.iteration_started",
                 payload={
                     "run_id": run.run_id,
+                    "portfolio_id": run.portfolio_id,
                     "symbols": symbols,
                     "market_session_date": market_session_date,
                     "provider": self.settings.taurus_position_monitor_provider,
@@ -555,7 +556,9 @@ class PositionMonitorService:
                 started_at=now,
                 symbols=symbols,
                 schedule_name=MONITOR_SCHEDULE_NAME,
+                portfolio_id=self.settings.taurus_paper_portfolio_id,
             ),
+            portfolio_id=self.settings.taurus_paper_portfolio_id,
             schedule_name=MONITOR_SCHEDULE_NAME,
             status="RUNNING",
             started_at=now,
@@ -599,6 +602,7 @@ class PositionMonitorService:
             "position_monitor.iteration_completed",
             payload={
                 "run_id": completed.run_id,
+                "portfolio_id": completed.portfolio_id,
                 "symbols": completed.symbols,
                 "status": status,
                 "succeeded_symbols": succeeded_symbols,

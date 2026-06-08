@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from pathlib import Path
 
@@ -18,6 +18,7 @@ from taurus_core.brokers.paper_broker import PaperBroker
 from taurus_core.db.models import (
     AnalystReportModel,
     AuditLogModel,
+    DebateReportModel,
     FinalDecisionModel,
     PaperOrderModel,
     PaperRunModel,
@@ -25,11 +26,11 @@ from taurus_core.db.models import (
     TraderProposalModel,
 )
 from taurus_core.db.repositories import ExecutionRepository, GraphRepository, InstrumentRepository
-from taurus_core.db.repositories import ResearchRepository
+from taurus_core.db.repositories import PaperRunRepository, ResearchRepository, RiskRepository
 from taurus_core.db.session import build_session_factory
 from taurus_core.domain.instruments import Instrument
 from taurus_core.execution.order_router import ExecutionRouter
-from taurus_core.paper_trading.schemas import PaperRunUniverse
+from taurus_core.paper_trading.schemas import PaperRun, PaperRunUniverse, paper_run_id
 from taurus_core.paper_trading.service import (
     ANALYSIS_STAGE_NAMES,
     FINALIZATION_STAGE_NAMES,
@@ -116,6 +117,137 @@ def test_paper_run_service_executes_full_chain_and_api_returns_runs(tmp_path: Pa
     assert dashboard_runs[0]["run_id"] == run.run_id
     assert dashboard_runs[0]["status"] == "COMPLETED"
     assert order_count == 1
+
+
+def test_paper_run_profile_lineage_and_repository_filters(tmp_path: Path) -> None:
+    client_settings = _settings_for_temp_db(tmp_path, profile_id="client-a")
+    local_settings = _settings_for_temp_db(tmp_path, profile_id="local-paper")
+    client_run = PaperRunService(client_settings).run_once(symbols=["INFY"])
+    local_run = PaperRunService(local_settings).run_once(symbols=["TCS"])
+
+    assert client_run.portfolio_id == "client-a"
+    assert local_run.portfolio_id == "local-paper"
+    assert client_run.run_id == paper_run_id(
+        started_at=client_run.started_at,
+        symbols=client_run.symbols,
+        schedule_name=client_run.schedule_name,
+        portfolio_id="client-a",
+    )
+    assert client_run.run_id != paper_run_id(
+        started_at=client_run.started_at,
+        symbols=client_run.symbols,
+        schedule_name=client_run.schedule_name,
+    )
+
+    session_factory = build_session_factory(client_settings)
+    with session_factory() as session:
+        stored_run = session.get(PaperRunModel, client_run.run_id)
+        assert stored_run is not None
+        assert stored_run.portfolio_id == "client-a"
+        assert stored_run.payload["portfolio_id"] == "client-a"
+
+        audit_payloads = [
+            row.payload
+            for row in session.scalars(
+                select(AuditLogModel)
+                .where(AuditLogModel.payload["run_id"].as_string() == client_run.run_id)
+                .where(AuditLogModel.event_type.in_(["paper_run.started", "paper_run.completed"]))
+            )
+        ]
+        assert audit_payloads
+        assert {payload["portfolio_id"] for payload in audit_payloads} == {"client-a"}
+
+        assert {run.run_id for run in PaperRunRepository(session).list(profile_id="client-a")} == {
+            client_run.run_id
+        }
+        assert {run.run_id for run in PaperRunRepository(session).list(profile_id="local-paper")} == {
+            local_run.run_id
+        }
+
+        research_repo = ResearchRepository(session)
+        risk_repo = RiskRepository(session)
+        assert {
+            debate.run_id
+            for debate in research_repo.list_debates(profile_id="client-a", limit=None)
+        } == {client_run.run_id}
+        assert {
+            proposal.run_id
+            for proposal in research_repo.list_trader_proposals(profile_id="client-a", limit=None)
+        } == {client_run.run_id}
+        assert {
+            review.run_id
+            for review in risk_repo.list_risk_reviews(profile_id="client-a", limit=None)
+        } == {client_run.run_id}
+        assert {
+            decision.run_id
+            for decision in risk_repo.list_final_decisions(profile_id="client-a", limit=None)
+        } == {client_run.run_id}
+        assert {
+            decision.run_id
+            for decision in risk_repo.list_final_decisions(profile_id="local-paper", limit=None)
+        } == {local_run.run_id}
+
+        for model in (
+            session.scalars(select(AnalystReportModel).where(AnalystReportModel.run_id == client_run.run_id)).all(),
+            session.scalars(select(DebateReportModel).where(DebateReportModel.run_id == client_run.run_id)).all(),
+            session.scalars(select(TraderProposalModel).where(TraderProposalModel.run_id == client_run.run_id)).all(),
+            session.scalars(select(RiskReviewModel).where(RiskReviewModel.run_id == client_run.run_id)).all(),
+            session.scalars(select(FinalDecisionModel).where(FinalDecisionModel.run_id == client_run.run_id)).all(),
+        ):
+            assert model
+            assert {row.portfolio_id for row in model} == {"client-a"}
+            assert {row.payload["portfolio_id"] for row in model} == {"client-a"}
+
+
+def test_legacy_paper_run_payload_without_profile_defaults_to_local_paper(
+    tmp_path: Path,
+) -> None:
+    settings = _settings_for_temp_db(tmp_path)
+    as_of = datetime(2026, 6, 8, 15, 30, tzinfo=timezone.utc)
+    legacy_payload = {
+        "run_id": "pr-legacy-no-profile",
+        "schedule_name": "daily_after_close",
+        "status": "COMPLETED",
+        "started_at": as_of.isoformat(),
+        "completed_at": as_of.isoformat(),
+        "symbols": ["INFY"],
+        "succeeded_symbols": ["INFY"],
+        "failed_symbols": [],
+        "errors": [],
+        "market_data_summary": {},
+        "artifacts": {},
+        "timezone": "Asia/Kolkata",
+        "run_after_market_close": True,
+        "universe": None,
+        "model_version": "paper_run_v1",
+    }
+    session_factory = build_session_factory(settings)
+    with session_factory() as session:
+        session.add(
+            PaperRunModel(
+                run_id="pr-legacy-no-profile",
+                portfolio_id="local-paper",
+                schedule_name="daily_after_close",
+                status="COMPLETED",
+                started_at=as_of,
+                completed_at=as_of,
+                symbols=["INFY"],
+                succeeded_symbols=["INFY"],
+                failed_symbols=[],
+                errors=[],
+                market_data_summary={},
+                artifacts={},
+                timezone="Asia/Kolkata",
+                run_after_market_close=True,
+                payload=legacy_payload,
+            )
+        )
+        session.commit()
+
+    with session_factory() as session:
+        stored_run = PaperRunRepository(session).get("pr-legacy-no-profile")
+        assert stored_run is not None
+        assert PaperRun.model_validate(stored_run.payload).portfolio_id == "local-paper"
 
 
 def test_paper_run_records_symbol_failure_without_losing_success(
@@ -1363,8 +1495,10 @@ def _settings_for_temp_db(
     paper_analysis_scope: str = "strategy_selected",
     paper_execution_scope: str = "allocated_only",
     max_open_positions: int = 8,
+    profile_id: str = "local-paper",
 ) -> Settings:
     return Settings(
+        taurus_profile_id=profile_id,
         taurus_paper_partial_fill_threshold=1,
         taurus_enabled_analysts=enabled_analysts,
         taurus_initial_capital_inr=1_000_000,

@@ -263,7 +263,9 @@ class PaperRunService:
                 started_at=started_at,
                 symbols=input_symbols,
                 schedule_name=self.schedule_name,
+                portfolio_id=self.settings.taurus_paper_portfolio_id,
             ),
+            portfolio_id=self.settings.taurus_paper_portfolio_id,
             schedule_name=self.schedule_name,
             status="RUNNING",
             started_at=started_at,
@@ -987,6 +989,7 @@ class PaperRunService:
                 session,
                 symbol=symbol,
                 run_id=run_id,
+                portfolio_id=self.settings.taurus_paper_portfolio_id,
                 llm_provider=llm_provider,
                 enabled_analysts=enabled_analysts,
             )
@@ -1020,6 +1023,7 @@ class PaperRunService:
             ).run(
                 symbol=symbol,
                 run_id=run_id,
+                profile_id=self.settings.taurus_paper_portfolio_id,
                 rounds_requested=self.rounds_requested,
             )
 
@@ -1880,6 +1884,7 @@ class PaperRunService:
                         actor="paper_run_service",
                         payload={
                             "run_id": run.run_id,
+                            "portfolio_id": run.portfolio_id,
                             "status": run.status,
                             "symbols": list(run.symbols),
                             "succeeded_symbols": list(run.succeeded_symbols),

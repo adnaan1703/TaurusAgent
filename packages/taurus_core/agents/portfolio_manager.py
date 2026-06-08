@@ -115,6 +115,7 @@ class PortfolioManagerAgent:
             ),
             decision_id=risk_review.decision_id,
             run_id=risk_review.run_id,
+            portfolio_id=risk_review.portfolio_id,
             symbol=symbol,
             proposal_id=risk_review.proposal_id,
             risk_check_id=risk_review.risk_check_id,
