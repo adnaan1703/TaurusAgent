@@ -57,6 +57,9 @@ def test_default_settings_are_safe() -> None:
     assert settings.taurus_enabled_analysts == "technical"
     assert settings.enabled_analyst_keys == ("technical",)
     assert settings.taurus_initial_capital_inr == 10_000
+    assert settings.taurus_profile_id == "local-paper"
+    assert settings.taurus_paper_portfolio_id == "local-paper"
+    assert settings.effective_profile_id == "local-paper"
     assert settings.taurus_max_position_pct == 5
     assert settings.taurus_max_open_positions == 8
     assert settings.taurus_money_management_enabled is False
@@ -65,6 +68,47 @@ def test_default_settings_are_safe() -> None:
     )
     assert settings.taurus_paper_analysis_scope == "strategy_selected"
     assert settings.taurus_paper_execution_scope == "allocated_only"
+
+
+def test_profile_id_preferred_alias_sets_legacy_portfolio_id(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("TAURUS_PROFILE_ID", "client-a")
+
+    settings = Settings()
+
+    assert settings.taurus_profile_id == "client-a"
+    assert settings.taurus_paper_portfolio_id == "client-a"
+    assert settings.effective_profile_id == "client-a"
+
+
+def test_legacy_paper_portfolio_id_still_sets_effective_profile(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("TAURUS_PAPER_PORTFOLIO_ID", "legacy_profile")
+
+    settings = Settings()
+
+    assert settings.taurus_profile_id == "legacy_profile"
+    assert settings.taurus_paper_portfolio_id == "legacy_profile"
+    assert settings.effective_profile_id == "legacy_profile"
+
+
+def test_profile_aliases_must_match_when_both_are_set(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("TAURUS_PROFILE_ID", "client-a")
+    monkeypatch.setenv("TAURUS_PAPER_PORTFOLIO_ID", "client-b")
+
+    with pytest.raises(ValidationError, match="both set but differ"):
+        Settings()
+
+
+def test_profile_id_must_be_lowercase_slug(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("TAURUS_PROFILE_ID", "Client A")
+
+    with pytest.raises(ValidationError, match="profile_id"):
+        Settings()
 
 
 def test_live_trading_cannot_be_enabled(monkeypatch: pytest.MonkeyPatch) -> None:

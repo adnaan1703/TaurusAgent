@@ -1,4 +1,4 @@
-.PHONY: setup setup-ui dev-up dev-down api ui build-ui test-ui dashboard migrate backtest-mock import-mock-news import-screener import-market-data import-taurus-graph compute-graph-stats project-neo4j-graph sync-halal-stocks kite-login-url kite-exchange-token kite-sync-instruments import-kite-candles kite-ltp-smoke run-analysts-mock debate-mock trader-proposal-mock risk-review-mock final-approval-mock paper-once-mock paper-loop-once paper-loop-start paper-loop-kite position-monitor paper-loop-dashboard alert-smoke alert-test-telegram replay-decision backup-local backup-db restore-local taurus-smoke llm-smoke test lint
+.PHONY: setup setup-ui dev-up dev-down api ui build-ui test-ui dashboard migrate profile-list profile-create profile-archive profile-update-corpus backtest-mock import-mock-news import-screener import-market-data import-taurus-graph compute-graph-stats project-neo4j-graph sync-halal-stocks kite-login-url kite-exchange-token kite-sync-instruments import-kite-candles kite-ltp-smoke run-analysts-mock debate-mock trader-proposal-mock risk-review-mock final-approval-mock paper-once-mock paper-loop-once paper-loop-start paper-loop-kite position-monitor paper-loop-dashboard alert-smoke alert-test-telegram replay-decision backup-local backup-db restore-local taurus-smoke llm-smoke test lint
 
 UV ?= uv
 PNPM ?= pnpm
@@ -21,6 +21,10 @@ DATA_DIR ?= configs/taurus_data
 AS_OF ?=
 DECISION_ID ?= sample
 BACKUP_DIR ?= backups
+PROFILE_ID ?= client-a
+PROFILE_DISPLAY_NAME ?= Client A
+PROFILE_CORPUS_INR ?= 250000
+PROFILE_CURRENCY ?= INR
 
 setup:
 	$(UV) sync --dev
@@ -61,6 +65,18 @@ dashboard:
 
 migrate:
 	DATABASE_URL="$(DATABASE_URL)" PYTHONPATH=packages:. $(UV) run python scripts/migrate.py
+
+profile-list:
+	DATABASE_URL="$(DATABASE_URL)" PYTHONPATH=packages:. $(UV) run python scripts/manage_profiles.py list
+
+profile-create:
+	DATABASE_URL="$(DATABASE_URL)" PYTHONPATH=packages:. $(UV) run python scripts/manage_profiles.py create --profile-id "$(PROFILE_ID)" --display-name "$(PROFILE_DISPLAY_NAME)" --corpus-inr "$(PROFILE_CORPUS_INR)" --currency "$(PROFILE_CURRENCY)"
+
+profile-archive:
+	DATABASE_URL="$(DATABASE_URL)" PYTHONPATH=packages:. $(UV) run python scripts/manage_profiles.py archive --profile-id "$(PROFILE_ID)"
+
+profile-update-corpus:
+	DATABASE_URL="$(DATABASE_URL)" PYTHONPATH=packages:. $(UV) run python scripts/manage_profiles.py update-corpus --profile-id "$(PROFILE_ID)" --corpus-inr "$(PROFILE_CORPUS_INR)"
 
 backtest-mock:
 	DATABASE_URL="$(DATABASE_URL)" STRATEGY="$(STRATEGY)" PYTHONPATH=packages:. $(UV) run python scripts/run_backtest.py

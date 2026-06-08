@@ -4,6 +4,7 @@ from datetime import date, datetime, timezone
 from decimal import Decimal
 
 from sqlalchemy import (
+    CheckConstraint,
     JSON,
     BigInteger,
     Date,
@@ -24,6 +25,29 @@ def utc_now() -> datetime:
 
 class Base(DeclarativeBase):
     pass
+
+
+class TaurusProfileModel(Base):
+    __tablename__ = "taurus_profiles"
+    __table_args__ = (
+        CheckConstraint("status IN ('ACTIVE', 'ARCHIVED')", name="ck_taurus_profiles_status"),
+        Index("ix_taurus_profiles_status", "status"),
+    )
+
+    profile_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    display_name: Mapped[str] = mapped_column(String(128), nullable=False)
+    starting_corpus_inr: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
+    currency: Mapped[str] = mapped_column(String(8), nullable=False, default="INR")
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="ACTIVE")
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    profile_metadata: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc_now,
+        onupdate=utc_now,
+    )
 
 
 class InstrumentModel(Base):

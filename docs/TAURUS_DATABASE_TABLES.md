@@ -6,9 +6,9 @@ tables created during the migration to Kite-backed market data and paper runs.
 
 ## Summary
 
-- Active application tables: 37
+- Active application tables: 38
 - Legacy mock archive tables: 11
-- Total tables: 48
+- Total tables: 49
 
 ## Market Data and Instruments
 
@@ -24,6 +24,7 @@ tables created during the migration to Kite-backed market data and paper runs.
 
 | Table | Stores |
 |---|---|
+| `taurus_profiles` | First-class paper profile catalog keyed by `profile_id`, including display name, starting corpus, currency, status (`ACTIVE` or `ARCHIVED`), description, metadata, and timestamps. The default seeded profile is `local-paper` with INR 10,000 starting corpus. |
 | `paper_runs` | One scheduled/manual paper trading run, including symbols, status, errors, market-data summary, and artifacts such as next-open settlement summaries/details. |
 | `paper_accounts` | Paper account state per run/portfolio: cash, exposure, equity, realized P&L, and unrealized P&L. |
 | `paper_orders` | Paper order records created from final decisions, including pending AMO-style next-open paper orders stored in JSON payload metadata. Pending rows use `status=PENDING_NEXT_OPEN`, `execution_policy=next_open`, `signal_trade_date`, and `scheduled_fill_session=next_open`; terminal settlement rows keep `status_history` and add `filled_trade_date` when applicable. |

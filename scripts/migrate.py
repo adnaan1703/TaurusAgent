@@ -4,8 +4,14 @@ from sqlalchemy import inspect, text
 from sqlalchemy.engine import Engine
 
 from taurus_core.config import Settings, get_settings
-from taurus_core.db.models import Base
+from taurus_core.db.models import Base, TaurusProfileModel
 from taurus_core.db.session import create_engine_from_url
+from taurus_core.profiles.schemas import (
+    DEFAULT_PROFILE_CURRENCY,
+    DEFAULT_PROFILE_DISPLAY_NAME,
+    DEFAULT_PROFILE_ID,
+    DEFAULT_PROFILE_STARTING_CORPUS_INR,
+)
 
 
 def run_migrations(settings: Settings | None = None) -> None:
@@ -17,11 +23,37 @@ def run_migrations(settings: Settings | None = None) -> None:
     settings = settings or get_settings()
     engine = create_engine_from_url(settings.database_url)
     Base.metadata.create_all(bind=engine)
+    _seed_default_profile(engine)
     _add_missing_backtest_signal_columns(engine)
     _add_missing_daily_candle_columns(engine)
     _widen_graph_edge_columns(engine)
     _add_missing_m28_position_lifecycle_columns(engine)
     _widen_agent_model_version_columns(engine)
+
+
+def _seed_default_profile(engine: Engine) -> None:
+    inspector = inspect(engine)
+    if "taurus_profiles" not in inspector.get_table_names():
+        return
+
+    with engine.begin() as connection:
+        existing = connection.execute(
+            text("SELECT profile_id FROM taurus_profiles WHERE profile_id = :profile_id"),
+            {"profile_id": DEFAULT_PROFILE_ID},
+        ).first()
+        if existing is not None:
+            return
+        connection.execute(
+            TaurusProfileModel.__table__.insert().values(
+                profile_id=DEFAULT_PROFILE_ID,
+                display_name=DEFAULT_PROFILE_DISPLAY_NAME,
+                starting_corpus_inr=DEFAULT_PROFILE_STARTING_CORPUS_INR,
+                currency=DEFAULT_PROFILE_CURRENCY,
+                status="ACTIVE",
+                description="",
+                profile_metadata={},
+            )
+        )
 
 
 def _add_missing_backtest_signal_columns(engine: Engine) -> None:

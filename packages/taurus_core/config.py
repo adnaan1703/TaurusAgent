@@ -10,6 +10,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from taurus_core import __version__
 from taurus_core.agents.roster import DEFAULT_ENABLED_ANALYSTS, parse_enabled_analysts
+from taurus_core.profiles.schemas import DEFAULT_PROFILE_ID, validate_profile_id
 
 
 DEFAULT_DATABASE_URL = "postgresql+psycopg://taurus:taurus@localhost:5432/taurus"
@@ -203,9 +204,12 @@ class Settings(BaseSettings):
         validation_alias="TAURUS_INITIAL_CAPITAL_INR",
     )
     taurus_paper_portfolio_id: str = Field(
-        default="local-paper",
-        min_length=1,
+        default="",
         validation_alias="TAURUS_PAPER_PORTFOLIO_ID",
+    )
+    taurus_profile_id: str = Field(
+        default="",
+        validation_alias="TAURUS_PROFILE_ID",
     )
     taurus_max_position_pct: int = Field(
         default=5,
@@ -343,6 +347,13 @@ class Settings(BaseSettings):
         cleaned = value.strip()
         return LEGACY_PAPER_EXECUTION_SCOPE_ALIASES.get(cleaned, cleaned)
 
+    @field_validator("taurus_profile_id", "taurus_paper_portfolio_id", mode="before")
+    @classmethod
+    def normalize_profile_alias(cls, value: str | None) -> str:
+        if value is None:
+            return ""
+        return str(value).strip()
+
     @model_validator(mode="after")
     def enforce_trading_safety(self) -> Settings:
         if self.taurus_mode not in {"paper", "backtest"}:
@@ -373,6 +384,23 @@ class Settings(BaseSettings):
                 "Unsupported Taurus paper execution scope. Supported values: "
                 f"{', '.join(SUPPORTED_PAPER_EXECUTION_SCOPES)}."
             )
+        profile_id = self.taurus_profile_id
+        legacy_portfolio_id = self.taurus_paper_portfolio_id
+        if profile_id and legacy_portfolio_id:
+            profile_id = validate_profile_id(profile_id)
+            legacy_portfolio_id = validate_profile_id(legacy_portfolio_id)
+            if profile_id != legacy_portfolio_id:
+                raise ValueError(
+                    "TAURUS_PROFILE_ID and TAURUS_PAPER_PORTFOLIO_ID both set but differ. "
+                    "Set only TAURUS_PROFILE_ID, or make the legacy alias match."
+                )
+            effective_profile_id = profile_id
+        else:
+            effective_profile_id = validate_profile_id(
+                profile_id or legacy_portfolio_id or DEFAULT_PROFILE_ID
+            )
+        self.taurus_profile_id = effective_profile_id
+        self.taurus_paper_portfolio_id = effective_profile_id
         if self.taurus_llm_provider not in set(SUPPORTED_LLM_PROVIDERS):
             raise ValueError(
                 "Unsupported Taurus LLM provider. Supported values: "
@@ -391,6 +419,10 @@ class Settings(BaseSettings):
     @property
     def graph_stats_windows(self) -> tuple[int, ...]:
         return _parse_graph_stats_windows(self.taurus_graph_stats_windows)
+
+    @property
+    def effective_profile_id(self) -> str:
+        return self.taurus_profile_id
 
     @property
     def configured_llm_model(self) -> str:

@@ -43,7 +43,9 @@ from taurus_core.db.models import (
     RawDocumentModel,
     RiskReviewModel,
     SentimentScoreModel,
+    TaurusProfileModel,
     TraderProposalModel,
+    utc_now,
 )
 from taurus_core.domain.instruments import Instrument
 from taurus_core.domain.market_data import DailyCandle, MarketPriceSnapshot
@@ -53,6 +55,16 @@ from taurus_core.research.schemas import DebateReport, TraderProposal
 from taurus_core.risk.schemas import FinalDecision, RiskReview
 from taurus_core.execution.schemas import PaperAccount, PaperFill, PaperOrder, PaperPosition
 from taurus_core.paper_trading.schemas import PaperRun
+from taurus_core.profiles.schemas import (
+    DEFAULT_PROFILE_CURRENCY,
+    DEFAULT_PROFILE_DISPLAY_NAME,
+    DEFAULT_PROFILE_ID,
+    DEFAULT_PROFILE_STARTING_CORPUS_INR,
+    TaurusProfileCreate,
+    TaurusProfileUpdate,
+    normalize_money,
+    validate_profile_id,
+)
 
 
 class InstrumentRepository:
@@ -1101,6 +1113,146 @@ class RiskRepository:
         if limit is not None:
             statement = statement.limit(limit)
         return list(self.session.scalars(statement))
+
+
+class TaurusProfileRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def ensure_default_profile(self) -> TaurusProfileModel:
+        model = self.session.get(TaurusProfileModel, DEFAULT_PROFILE_ID)
+        if model is None:
+            model = _profile_create_to_model(
+                TaurusProfileCreate(
+                    profile_id=DEFAULT_PROFILE_ID,
+                    display_name=DEFAULT_PROFILE_DISPLAY_NAME,
+                    starting_corpus_inr=DEFAULT_PROFILE_STARTING_CORPUS_INR,
+                    currency=DEFAULT_PROFILE_CURRENCY,
+                    status="ACTIVE",
+                )
+            )
+            self.session.add(model)
+            self.session.flush()
+        return model
+
+    def get_profile(self, profile_id: str) -> TaurusProfileModel | None:
+        return self.session.get(TaurusProfileModel, validate_profile_id(profile_id))
+
+    def list_profiles(self, *, include_archived: bool = False) -> list[TaurusProfileModel]:
+        statement = select(TaurusProfileModel).order_by(TaurusProfileModel.profile_id)
+        if not include_archived:
+            statement = statement.where(TaurusProfileModel.status == "ACTIVE")
+        return list(self.session.scalars(statement))
+
+    def create_profile(self, profile: TaurusProfileCreate) -> TaurusProfileModel:
+        existing = self.session.get(TaurusProfileModel, profile.profile_id)
+        if existing is not None:
+            raise ValueError(f"Profile {profile.profile_id} already exists.")
+        model = _profile_create_to_model(profile)
+        self.session.add(model)
+        self.session.flush()
+        return model
+
+    def archive_profile(self, profile_id: str) -> TaurusProfileModel:
+        model = self.get_profile(profile_id)
+        if model is None:
+            raise ValueError(f"Profile {profile_id} not found.")
+        model.status = "ARCHIVED"
+        model.updated_at = utc_now()
+        self.session.flush()
+        return model
+
+    def update_profile_corpus(
+        self,
+        profile_id: str,
+        starting_corpus_inr: Decimal | int | str,
+    ) -> TaurusProfileModel:
+        model = self.get_profile(profile_id)
+        if model is None:
+            raise ValueError(f"Profile {profile_id} not found.")
+        corpus = normalize_money(starting_corpus_inr)
+        self._ensure_corpus_update_allowed(model.profile_id)
+        model.starting_corpus_inr = corpus
+        model.updated_at = utc_now()
+        self._sync_initial_account_snapshots(model.profile_id, corpus)
+        self.session.flush()
+        return model
+
+    def update_profile(self, profile_id: str, update: TaurusProfileUpdate) -> TaurusProfileModel:
+        model = self.get_profile(profile_id)
+        if model is None:
+            raise ValueError(f"Profile {profile_id} not found.")
+        if update.display_name is not None:
+            model.display_name = update.display_name
+        if update.currency is not None:
+            model.currency = update.currency
+        if update.status is not None:
+            model.status = update.status
+        if update.description is not None:
+            model.description = update.description
+        if update.profile_metadata is not None:
+            model.profile_metadata = _json_safe(update.profile_metadata)
+        if update.starting_corpus_inr is not None:
+            self._ensure_corpus_update_allowed(model.profile_id)
+            model.starting_corpus_inr = update.starting_corpus_inr
+            self._sync_initial_account_snapshots(model.profile_id, update.starting_corpus_inr)
+        model.updated_at = utc_now()
+        self.session.flush()
+        return model
+
+    def _ensure_corpus_update_allowed(self, profile_id: str) -> None:
+        if self._count(PaperFillModel, profile_id) > 0:
+            raise _corpus_update_error(profile_id)
+        if self._count(PaperOrderModel, profile_id) > 0:
+            raise _corpus_update_error(profile_id)
+        nonzero_positions = self.session.scalar(
+            select(func.count())
+            .select_from(PaperPositionModel)
+            .where(
+                PaperPositionModel.portfolio_id == profile_id,
+                PaperPositionModel.quantity != 0,
+            )
+        ) or 0
+        if nonzero_positions > 0:
+            raise _corpus_update_error(profile_id)
+
+        accounts = list(
+            self.session.scalars(
+                select(PaperAccountModel).where(PaperAccountModel.portfolio_id == profile_id)
+            )
+        )
+        if any(not _is_initial_account_snapshot(account) for account in accounts):
+            raise _corpus_update_error(profile_id)
+
+    def _count(self, model: type[PaperFillModel] | type[PaperOrderModel], profile_id: str) -> int:
+        return int(
+            self.session.scalar(
+                select(func.count()).select_from(model).where(model.portfolio_id == profile_id)
+            )
+            or 0
+        )
+
+    def _sync_initial_account_snapshots(self, profile_id: str, corpus: Decimal) -> None:
+        accounts = list(
+            self.session.scalars(
+                select(PaperAccountModel).where(PaperAccountModel.portfolio_id == profile_id)
+            )
+        )
+        for account in accounts:
+            account.starting_cash_inr = corpus
+            account.available_cash_inr = corpus
+            account.equity_inr = corpus
+            account.updated_at = utc_now()
+            payload = dict(account.payload or {})
+            payload.update(
+                {
+                    "starting_cash_inr": str(corpus),
+                    "available_cash_inr": str(corpus),
+                    "equity_inr": str(corpus),
+                    "updated_at": account.updated_at.isoformat(),
+                }
+            )
+            account.payload = payload
 
 
 class PaperRunRepository:
@@ -2335,6 +2487,39 @@ def _json_safe(value: Any) -> Any:
     if isinstance(value, Decimal):
         return str(value)
     return value
+
+
+def _profile_create_to_model(profile: TaurusProfileCreate) -> TaurusProfileModel:
+    return TaurusProfileModel(
+        profile_id=profile.profile_id,
+        display_name=profile.display_name,
+        starting_corpus_inr=profile.starting_corpus_inr,
+        currency=profile.currency,
+        status=profile.status,
+        description=profile.description,
+        profile_metadata=_json_safe(profile.profile_metadata),
+        created_at=utc_now(),
+        updated_at=utc_now(),
+    )
+
+
+def _is_initial_account_snapshot(account: PaperAccountModel) -> bool:
+    zero = Decimal("0")
+    return (
+        account.available_cash_inr == account.starting_cash_inr
+        and account.equity_inr == account.starting_cash_inr
+        and account.reserved_cash_inr == zero
+        and account.realized_pnl_inr == zero
+        and account.unrealized_pnl_inr == zero
+        and account.gross_exposure_inr == zero
+    )
+
+
+def _corpus_update_error(profile_id: str) -> ValueError:
+    return ValueError(
+        f"Cannot update starting corpus for profile {profile_id} after trading activity exists. "
+        "Deposits and withdrawals require a later capital-events milestone."
+    )
 
 
 def _paper_run_to_model(run: PaperRun) -> PaperRunModel:

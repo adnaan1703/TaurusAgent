@@ -83,6 +83,10 @@ Database and data:
 
 ```bash
 make migrate
+make profile-list
+make profile-create PROFILE_ID=client-a PROFILE_DISPLAY_NAME="Client A" PROFILE_CORPUS_INR=250000
+make profile-archive PROFILE_ID=client-a
+make profile-update-corpus PROFILE_ID=client-a PROFILE_CORPUS_INR=500000
 make import-market-data
 make import-screener CSV=/path/to/screener.csv
 make import-taurus-graph DATA_DIR=configs/taurus_data
@@ -90,6 +94,27 @@ make compute-graph-stats AS_OF=YYYY-MM-DD
 make project-neo4j-graph
 make sync-halal-stocks
 ```
+
+Profile management uses `scripts/manage_profiles.py` behind the Make wrappers.
+The preferred paper profile setting is `TAURUS_PROFILE_ID`; the existing
+`TAURUS_PAPER_PORTFOLIO_ID` setting remains a legacy alias and must match if
+both are set. `make migrate` creates `taurus_profiles` and seeds the
+`local-paper` profile with display name `Local Paper`, INR 10,000 starting
+corpus, currency `INR`, and status `ACTIVE`.
+
+Equivalent direct CLI commands:
+
+```bash
+DATABASE_URL="$DATABASE_URL" PYTHONPATH=packages:. uv run python scripts/manage_profiles.py list
+DATABASE_URL="$DATABASE_URL" PYTHONPATH=packages:. uv run python scripts/manage_profiles.py create --profile-id client-a --display-name "Client A" --corpus-inr 250000
+DATABASE_URL="$DATABASE_URL" PYTHONPATH=packages:. uv run python scripts/manage_profiles.py archive --profile-id client-a
+DATABASE_URL="$DATABASE_URL" PYTHONPATH=packages:. uv run python scripts/manage_profiles.py update-corpus --profile-id client-a --corpus-inr 500000
+```
+
+Starting corpus can be changed only before trading activity exists for that
+profile. Once fills, queued orders, nonzero positions, or non-initial account
+snapshots exist, corpus changes are rejected until a later capital-events
+milestone adds deposits and withdrawals.
 
 Kite:
 
