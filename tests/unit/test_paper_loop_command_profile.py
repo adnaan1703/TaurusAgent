@@ -27,6 +27,7 @@ def test_paper_loop_kite_profile_enables_full_universe_allocated_execution() -> 
     assert "TAURUS_GRAPH_RISK_ENABLED=true" in output
     assert "TAURUS_PAPER_ANALYSIS_SCOPE=full_universe" in output
     assert "TAURUS_PAPER_EXECUTION_SCOPE=allocated_only" in output
+    assert 'TAURUS_PROFILE_ID="local-paper"' in output
     assert 'TAURUS_LOG_LEVEL="WARNING"' in output
     assert 'TAURUS_PAPER_LOOP_JSON="false"' in output
     assert "STRATEGY=configs/strategies/graph_aware_score_v1.yaml" in output
@@ -38,6 +39,12 @@ def test_paper_loop_kite_profile_allows_json_override() -> None:
     output = _make_dry_run("paper-loop-kite", "PAPER_LOOP_KITE_JSON=true")
 
     assert 'TAURUS_PAPER_LOOP_JSON="true"' in output
+
+
+def test_paper_loop_kite_profile_id_override_sets_runtime_profile() -> None:
+    output = _make_dry_run("paper-loop-kite", "PROFILE_ID=client-a")
+
+    assert 'TAURUS_PROFILE_ID="client-a"' in output
 
 
 def test_paper_loop_kite_profile_allows_log_level_override() -> None:
@@ -65,6 +72,7 @@ def test_format_llm_usage_summary_is_human_readable() -> None:
     summary = format_llm_usage_summary(
         {
             "provider": "lmstudio",
+            "profile_id": "client-a",
             "model_versions": ["lmstudio:qwen/qwq-32b"],
             "request_count": 2,
             "input_tokens": 1_550_000,
@@ -89,6 +97,7 @@ def test_format_llm_usage_summary_is_human_readable() -> None:
     )
 
     assert "LLM Usage Summary" in summary
+    assert "Profile: client-a" in summary
     assert "input 1.55M" in summary
     assert "output 12.4K" in summary
     assert "cached 842K" in summary

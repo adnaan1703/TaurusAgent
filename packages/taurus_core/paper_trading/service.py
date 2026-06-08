@@ -73,6 +73,7 @@ from taurus_core.portfolio import (
     severe_negative_symbols,
 )
 from taurus_core.portfolio.run_allocation import SELECTED_LEDGER_STATUSES
+from taurus_core.profiles.runtime import RuntimeProfile, resolve_runtime_profile
 from taurus_core.research.debate_service import DEFAULT_DEBATE_ROUNDS, ResearchDebateService
 from taurus_core.research.schemas import DebateReport, TraderProposal
 from taurus_core.risk.review_service import RiskReviewService
@@ -178,6 +179,7 @@ class PaperRunService:
         self._progress_iteration = 1
         self._progress_iterations = 1
         self._progress_symbol_count = 1
+        self._runtime_profile: RuntimeProfile | None = None
 
     def configure_progress_context(
         self,
@@ -214,14 +216,32 @@ class PaperRunService:
         self._progress_symbol_count = max(len(requested_symbols), 1)
         self._emit_progress(
             "paper.run.setup_started",
+            stage="profile",
+            symbols=requested_symbols,
+            profile_id=self.settings.effective_profile_id,
+        )
+        runtime_profile = self._resolve_runtime_profile()
+        self._emit_progress(
+            "paper.run.setup_completed",
+            stage="profile",
+            symbols=requested_symbols,
+            profile_id=runtime_profile.profile_id,
+            starting_corpus_inr=str(runtime_profile.starting_corpus_inr),
+        )
+        self._emit_progress(
+            "paper.run.setup_started",
             stage="migrations",
             symbols=requested_symbols,
+            profile_id=runtime_profile.profile_id,
+            starting_corpus_inr=str(runtime_profile.starting_corpus_inr),
         )
         run_migrations(self.settings)
         self._emit_progress(
             "paper.run.setup_completed",
             stage="migrations",
             symbols=requested_symbols,
+            profile_id=runtime_profile.profile_id,
+            starting_corpus_inr=str(runtime_profile.starting_corpus_inr),
         )
         self._emit_progress(
             "paper.run.setup_started",
@@ -263,9 +283,9 @@ class PaperRunService:
                 started_at=started_at,
                 symbols=input_symbols,
                 schedule_name=self.schedule_name,
-                portfolio_id=self.settings.taurus_paper_portfolio_id,
+                portfolio_id=runtime_profile.profile_id,
             ),
-            portfolio_id=self.settings.taurus_paper_portfolio_id,
+            portfolio_id=runtime_profile.profile_id,
             schedule_name=self.schedule_name,
             status="RUNNING",
             started_at=started_at,
@@ -282,6 +302,8 @@ class PaperRunService:
             run_id=run.run_id,
             stage="run_created",
             symbols=input_symbols,
+            profile_id=runtime_profile.profile_id,
+            starting_corpus_inr=str(runtime_profile.starting_corpus_inr),
         )
         self._store_run(run, audit_event="paper_run.started")
 
@@ -410,6 +432,7 @@ class PaperRunService:
                     "completed_at": _utc_now(),
                     "failed_symbols": analysis_symbols,
                     "errors": [error],
+                    "artifacts": {"profile": runtime_profile.to_artifact()},
                 }
             )
             self._log_failure(failed.run_id, error)
@@ -424,6 +447,7 @@ class PaperRunService:
             return self._store_run(failed, audit_event="paper_run.failed")
 
         artifacts: dict[str, Any] = {
+            "profile": runtime_profile.to_artifact(),
             "settlement": settlement_artifact,
             "strategy": strategy_summary,
             "symbol_scope": symbol_scope.to_dict(),
@@ -1401,15 +1425,16 @@ class PaperRunService:
             account = execution_repo.latest_account_by_portfolio(
                 portfolio_id=self.settings.taurus_paper_portfolio_id,
             )
+            starting_corpus = self._starting_corpus_inr(session)
             nav_inr = (
                 account.equity_inr
                 if account is not None
-                else Decimal(str(self.settings.taurus_initial_capital_inr))
+                else starting_corpus
             )
             available_cash = (
                 account.available_cash_inr
                 if account is not None
-                else Decimal(str(self.settings.taurus_initial_capital_inr))
+                else starting_corpus
             )
             open_positions = tuple(
                 ActiveAllocationPosition(
@@ -1437,9 +1462,7 @@ class PaperRunService:
                     strategy_name=strategy_name,
                     nav_inr=nav_inr,
                     available_cash_inr=available_cash,
-                    portfolio_starting_nav_estimate_inr=Decimal(
-                        str(self.settings.taurus_initial_capital_inr)
-                    ),
+                    portfolio_starting_nav_estimate_inr=starting_corpus,
                     current_positions=open_positions,
                     sleeve_snapshots=_sleeve_snapshots_for_allocation(
                         policy=policy,
@@ -1484,15 +1507,16 @@ class PaperRunService:
             account = execution_repo.latest_account_by_portfolio(
                 portfolio_id=self.settings.taurus_paper_portfolio_id,
             )
+            starting_corpus = self._starting_corpus_inr(session)
             nav_inr = (
                 account.equity_inr
                 if account is not None
-                else Decimal(str(self.settings.taurus_initial_capital_inr))
+                else starting_corpus
             )
             available_cash = (
                 account.available_cash_inr
                 if account is not None
-                else Decimal(str(self.settings.taurus_initial_capital_inr))
+                else starting_corpus
             )
             open_positions = tuple(
                 ActiveAllocationPosition(
@@ -1539,9 +1563,7 @@ class PaperRunService:
                     proposals=proposals,
                     nav_inr=nav_inr,
                     available_cash_inr=available_cash,
-                    portfolio_starting_nav_estimate_inr=Decimal(
-                        str(self.settings.taurus_initial_capital_inr)
-                    ),
+                    portfolio_starting_nav_estimate_inr=starting_corpus,
                     current_positions=open_positions,
                     sleeve_snapshots=sleeve_snapshots,
                     histories_by_symbol=histories_by_symbol,
@@ -1813,13 +1835,17 @@ class PaperRunService:
                 symbols=universe_symbols,
             )
             last_core_rebalance_date = _last_core_rebalance_date(
-                PaperRunRepository(session).list(limit=None)
+                PaperRunRepository(session).list(
+                    profile_id=self.settings.effective_profile_id,
+                    limit=None,
+                )
             )
+            starting_corpus = self._starting_corpus_inr(session)
 
         nav_inr = (
             account.equity_inr
             if account is not None
-            else Decimal(str(self.settings.taurus_initial_capital_inr))
+            else starting_corpus
         )
         return {
             "policy": policy.to_metadata(),
@@ -1871,7 +1897,23 @@ class PaperRunService:
         artifacts: dict[str, Any],
         llm_provider: LLMProvider | None,
     ) -> None:
-        artifacts["llm_usage"] = summarize_llm_usage(get_llm_usage_records(llm_provider))
+        llm_usage = summarize_llm_usage(get_llm_usage_records(llm_provider))
+        llm_usage["profile_id"] = self.settings.effective_profile_id
+        artifacts["llm_usage"] = llm_usage
+
+    def _resolve_runtime_profile(self) -> RuntimeProfile:
+        with self.session_factory() as session:
+            runtime_profile = resolve_runtime_profile(session, self.settings)
+        self._runtime_profile = runtime_profile
+        return runtime_profile
+
+    def _starting_corpus_inr(self, session: Session) -> Decimal:
+        if (
+            self._runtime_profile is not None
+            and self._runtime_profile.profile_id == self.settings.effective_profile_id
+        ):
+            return self._runtime_profile.starting_corpus_inr
+        return resolve_runtime_profile(session, self.settings).starting_corpus_inr
 
     def _store_run(self, run: PaperRun, *, audit_event: str | None = None) -> PaperRun:
         with self.session_factory() as session:

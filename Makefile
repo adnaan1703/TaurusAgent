@@ -21,7 +21,9 @@ DATA_DIR ?= configs/taurus_data
 AS_OF ?=
 DECISION_ID ?= sample
 BACKUP_DIR ?= backups
-PROFILE_ID ?= client-a
+PROFILE_ID ?=
+PROFILE_COMMAND_ID ?= $(if $(PROFILE_ID),$(PROFILE_ID),client-a)
+PAPER_PROFILE_ID ?= $(if $(PROFILE_ID),$(PROFILE_ID),local-paper)
 PROFILE_DISPLAY_NAME ?= Client A
 PROFILE_CORPUS_INR ?= 250000
 PROFILE_CURRENCY ?= INR
@@ -70,13 +72,13 @@ profile-list:
 	DATABASE_URL="$(DATABASE_URL)" PYTHONPATH=packages:. $(UV) run python scripts/manage_profiles.py list
 
 profile-create:
-	DATABASE_URL="$(DATABASE_URL)" PYTHONPATH=packages:. $(UV) run python scripts/manage_profiles.py create --profile-id "$(PROFILE_ID)" --display-name "$(PROFILE_DISPLAY_NAME)" --corpus-inr "$(PROFILE_CORPUS_INR)" --currency "$(PROFILE_CURRENCY)"
+	DATABASE_URL="$(DATABASE_URL)" PYTHONPATH=packages:. $(UV) run python scripts/manage_profiles.py create --profile-id "$(PROFILE_COMMAND_ID)" --display-name "$(PROFILE_DISPLAY_NAME)" --corpus-inr "$(PROFILE_CORPUS_INR)" --currency "$(PROFILE_CURRENCY)"
 
 profile-archive:
-	DATABASE_URL="$(DATABASE_URL)" PYTHONPATH=packages:. $(UV) run python scripts/manage_profiles.py archive --profile-id "$(PROFILE_ID)"
+	DATABASE_URL="$(DATABASE_URL)" PYTHONPATH=packages:. $(UV) run python scripts/manage_profiles.py archive --profile-id "$(PROFILE_COMMAND_ID)"
 
 profile-update-corpus:
-	DATABASE_URL="$(DATABASE_URL)" PYTHONPATH=packages:. $(UV) run python scripts/manage_profiles.py update-corpus --profile-id "$(PROFILE_ID)" --corpus-inr "$(PROFILE_CORPUS_INR)"
+	DATABASE_URL="$(DATABASE_URL)" PYTHONPATH=packages:. $(UV) run python scripts/manage_profiles.py update-corpus --profile-id "$(PROFILE_COMMAND_ID)" --corpus-inr "$(PROFILE_CORPUS_INR)"
 
 backtest-mock:
 	DATABASE_URL="$(DATABASE_URL)" STRATEGY="$(STRATEGY)" PYTHONPATH=packages:. $(UV) run python scripts/run_backtest.py
@@ -141,7 +143,7 @@ paper-loop-start:
 	DATABASE_URL="$(DATABASE_URL)" SYMBOLS="$(SYMBOLS)" PAPER_LOOP_ITERATIONS="$(PAPER_LOOP_ITERATIONS)" PAPER_LOOP_INTERVAL_SECONDS="$(PAPER_LOOP_INTERVAL_SECONDS)" PYTHONPATH=packages:. $(UV) run python scripts/run_paper_loop.py
 
 paper-loop-kite:
-	DATABASE_URL="$(DATABASE_URL)" TAURUS_LOG_LEVEL="$(PAPER_LOOP_KITE_LOG_LEVEL)" TAURUS_MARKET_DATA_PROVIDER=kite TAURUS_ENABLED_ANALYSTS=technical,graph TAURUS_GRAPH_ENABLED=true TAURUS_GRAPH_RISK_ENABLED=true TAURUS_PAPER_ANALYSIS_SCOPE=full_universe TAURUS_PAPER_EXECUTION_SCOPE=allocated_only TAURUS_PAPER_LOOP_JSON="$(PAPER_LOOP_KITE_JSON)" STRATEGY=configs/strategies/graph_aware_score_v1.yaml SYMBOL="$(PAPER_LOOP_KITE_SYMBOL)" SYMBOLS="$(PAPER_LOOP_KITE_SYMBOLS)" PAPER_LOOP_ITERATIONS="$(PAPER_LOOP_ITERATIONS)" PAPER_LOOP_INTERVAL_SECONDS="$(PAPER_LOOP_INTERVAL_SECONDS)" PYTHONPATH=packages:. $(UV) run python scripts/run_paper_loop.py
+	DATABASE_URL="$(DATABASE_URL)" TAURUS_PROFILE_ID="$(PAPER_PROFILE_ID)" TAURUS_LOG_LEVEL="$(PAPER_LOOP_KITE_LOG_LEVEL)" TAURUS_MARKET_DATA_PROVIDER=kite TAURUS_ENABLED_ANALYSTS=technical,graph TAURUS_GRAPH_ENABLED=true TAURUS_GRAPH_RISK_ENABLED=true TAURUS_PAPER_ANALYSIS_SCOPE=full_universe TAURUS_PAPER_EXECUTION_SCOPE=allocated_only TAURUS_PAPER_LOOP_JSON="$(PAPER_LOOP_KITE_JSON)" STRATEGY=configs/strategies/graph_aware_score_v1.yaml SYMBOL="$(PAPER_LOOP_KITE_SYMBOL)" SYMBOLS="$(PAPER_LOOP_KITE_SYMBOLS)" PAPER_LOOP_ITERATIONS="$(PAPER_LOOP_ITERATIONS)" PAPER_LOOP_INTERVAL_SECONDS="$(PAPER_LOOP_INTERVAL_SECONDS)" PYTHONPATH=packages:. $(UV) run python scripts/run_paper_loop.py
 
 position-monitor:
 	DATABASE_URL="$(DATABASE_URL)" TAURUS_POSITION_MONITOR_ENABLED="$(POSITION_MONITOR_ENABLED)" TAURUS_POSITION_MONITOR_PROVIDER=kite TAURUS_POSITION_MONITOR_MAX_ITERATIONS="$(POSITION_MONITOR_ITERATIONS)" TAURUS_POSITION_MONITOR_INTERVAL_SECONDS="$(POSITION_MONITOR_INTERVAL_SECONDS)" PYTHONPATH=packages:. $(UV) run python scripts/run_position_monitor.py

@@ -102,6 +102,15 @@ both are set. `make migrate` creates `taurus_profiles` and seeds the
 `local-paper` profile with display name `Local Paper`, INR 10,000 starting
 corpus, currency `INR`, and status `ACTIVE`.
 
+`make paper-loop-kite` defaults to `TAURUS_PROFILE_ID=local-paper`. Run
+`PROFILE_ID=client-a make paper-loop-kite` to execute the same Kite-backed paper
+loop for another active profile; the profile's `starting_corpus_inr` drives
+paper cash, account snapshots, allocation fallbacks, and next-open settlement.
+Direct script or shell runs should prefer `TAURUS_PROFILE_ID=client-a`.
+`TAURUS_PAPER_PORTFOLIO_ID=client-a` remains supported for older local scripts
+but is secondary to the preferred profile setting and must match it if both are
+present.
+
 Equivalent direct CLI commands:
 
 ```bash
@@ -140,6 +149,7 @@ make paper-once-mock SYMBOL=INFY
 make paper-loop-once SYMBOLS=INFY,TCS
 make paper-loop-start PAPER_LOOP_ITERATIONS=5
 make paper-loop-kite
+PROFILE_ID=client-a make paper-loop-kite
 make paper-loop-dashboard
 make position-monitor POSITION_MONITOR_ENABLED=true POSITION_MONITOR_ITERATIONS=1
 ```

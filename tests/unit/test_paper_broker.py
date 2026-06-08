@@ -31,6 +31,7 @@ from taurus_core.db.repositories import (
     IntelligenceRepository,
     ResearchRepository,
     RiskRepository,
+    TaurusProfileRepository,
 )
 from taurus_core.db.session import build_session_factory
 from taurus_core.execution.order_router import ExecutionRouter
@@ -45,6 +46,7 @@ from taurus_core.execution.schemas import (
 from taurus_core.intelligence.documents import NewsEvent, RawDocument, document_checksum, stable_id
 from taurus_core.intelligence.mock_news_provider import MockNewsProvider
 from tests.llm_fakes import FakeLLMProvider
+from taurus_core.profiles.schemas import TaurusProfileCreate
 from taurus_core.research.debate_service import ResearchDebateService
 from taurus_core.research.schemas import TraderProposal, trader_proposal_id
 from taurus_core.risk.review_service import RiskReviewService
@@ -160,6 +162,169 @@ def test_paper_order_schema_preserves_legacy_payload_defaults() -> None:
     assert order.signal_trade_date is None
     assert order.scheduled_fill_session is None
     assert order.filled_trade_date is None
+
+
+def test_paper_broker_uses_profile_corpus_and_keeps_accounts_independent(
+    tmp_path: Path,
+) -> None:
+    client_settings = _settings_for_temp_db(
+        tmp_path,
+        taurus_profile_id="client-a",
+        taurus_initial_capital_inr=999_999,
+    )
+    local_settings = _settings_for_temp_db(
+        tmp_path,
+        taurus_profile_id="local-paper",
+        taurus_initial_capital_inr=999_999,
+    )
+    session_factory = _prepare_market_data_db(client_settings)
+    _create_profile(session_factory, profile_id="client-a", corpus_inr=Decimal("250000"))
+    run_mock_final_approval(symbol="INFY", settings=client_settings)
+    with session_factory() as session:
+        client_decision = _latest_final_decision(session, "INFY")
+        client_order = PaperBroker(session, client_settings).place_order(
+            client_decision,
+            execution_policy="immediate",
+        )
+
+    with session_factory() as session:
+        repo = ExecutionRepository(session)
+        client_account = PaperAccount.model_validate(
+            repo.latest_account_by_portfolio(portfolio_id="client-a").payload
+        )
+        local_account_before = repo.latest_account_by_portfolio(portfolio_id="local-paper")
+        client_positions = repo.latest_open_positions_by_portfolio(portfolio_id="client-a")
+        local_positions_before = repo.latest_open_positions_by_portfolio(
+            portfolio_id="local-paper"
+        )
+
+    assert client_order.portfolio_id == "client-a"
+    assert client_account.starting_cash_inr == Decimal("250000.0000")
+    assert client_account.available_cash_inr < Decimal("250000.0000")
+    assert local_account_before is None
+    assert len(client_positions) == 1
+    assert local_positions_before == []
+
+    with session_factory() as session:
+        PaperBroker(session, local_settings).settle_pending_next_open_orders(
+            portfolio_id="local-paper",
+            run_id="local-empty-settlement",
+            settled_at=datetime(2024, 12, 17, 12, 0, tzinfo=timezone.utc),
+        )
+
+    with session_factory() as session:
+        repo = ExecutionRepository(session)
+        client_account_after = PaperAccount.model_validate(
+            repo.latest_account_by_portfolio(portfolio_id="client-a").payload
+        )
+        local_account = PaperAccount.model_validate(
+            repo.latest_account_by_portfolio(portfolio_id="local-paper").payload
+        )
+        client_positions_after = repo.latest_open_positions_by_portfolio(
+            portfolio_id="client-a"
+        )
+        local_positions = repo.latest_open_positions_by_portfolio(portfolio_id="local-paper")
+
+    assert local_account.starting_cash_inr == Decimal("10000.0000")
+    assert client_account_after.model_dump(mode="json") == client_account.model_dump(mode="json")
+    assert len(client_positions_after) == 1
+    assert local_positions == []
+    assert PaperPosition.model_validate(client_positions_after[0].payload).portfolio_id == "client-a"
+
+
+def test_paper_broker_rejects_decision_from_another_selected_profile(
+    tmp_path: Path,
+) -> None:
+    settings = _settings_for_temp_db(tmp_path, taurus_profile_id="client-a")
+    session_factory = _prepare_market_data_db(settings)
+    _create_profile(session_factory, profile_id="client-a", corpus_inr=Decimal("250000"))
+    local_settings = _settings_for_temp_db(tmp_path, taurus_profile_id="local-paper")
+    run_mock_final_approval(symbol="INFY", settings=local_settings)
+
+    with session_factory() as session:
+        mismatched_decision = _latest_final_decision(session, "INFY")
+        with pytest.raises(ValueError, match="does not match selected paper profile"):
+            PaperBroker(session, settings).place_order(
+                mismatched_decision,
+                execution_policy="immediate",
+            )
+
+    with session_factory() as session:
+        assert ExecutionRepository(session).list_orders(limit=None) == []
+        assert ExecutionRepository(session).latest_account_by_portfolio(
+            portfolio_id="client-a"
+        ) is None
+
+
+def test_next_open_settlement_only_settles_selected_profile(
+    tmp_path: Path,
+) -> None:
+    settings = _settings_for_temp_db(tmp_path, taurus_profile_id="client-a")
+    local_settings = _settings_for_temp_db(tmp_path, taurus_profile_id="local-paper")
+    session_factory = _prepare_market_data_db(settings)
+    _create_profile(session_factory, profile_id="client-a", corpus_inr=Decimal("250000"))
+
+    run_mock_final_approval(symbol="INFY", settings=settings)
+    with session_factory() as session:
+        client_decision = _latest_final_decision(session, "INFY")
+        client_pending = ExecutionRouter(session, settings).route_decision(client_decision)
+    run_mock_final_approval(symbol="TCS", settings=local_settings)
+    with session_factory() as session:
+        local_decision = _latest_final_decision(session, "TCS")
+        local_signal_candle = _latest_candle(session, "TCS")
+        local_pending = _pending_order_from_decision(
+            local_decision.model_copy(
+                update={
+                    "approved_quantity": 1,
+                    "final_action": "BUY",
+                    "status": "APPROVED_FOR_PAPER",
+                    "can_send_to_broker": True,
+                }
+            ),
+            portfolio_id="local-paper",
+            signal_trade_date=local_signal_candle.trade_date,
+        )
+        ExecutionRepository(session).store_pending_next_open_order(order=local_pending)
+        session.commit()
+
+    assert client_pending is not None
+    assert local_pending is not None
+    with session_factory() as session:
+        signal_candle = _latest_candle(session, "INFY")
+        execution_candle = _append_manual_daily_candle(
+            session,
+            symbol="INFY",
+            trade_date=_next_trading_day(signal_candle.trade_date),
+            open_price=Decimal("151.0000"),
+            close_price=Decimal("152.0000"),
+        )
+        session.commit()
+
+    with session_factory() as session:
+        summary = PaperBroker(session, settings).settle_pending_next_open_orders(
+            portfolio_id="client-a",
+            run_id="client-settlement",
+            settled_at=datetime(2024, 12, 19, 4, 0, tzinfo=timezone.utc),
+        )
+
+    with session_factory() as session:
+        repo = ExecutionRepository(session)
+        client_order = PaperOrder.model_validate(repo.get_order(client_pending.order_id).payload)
+        local_order = PaperOrder.model_validate(repo.get_order(local_pending.order_id).payload)
+        client_fills = repo.list_fills(order_id=client_pending.order_id, limit=None)
+        local_fills = repo.list_fills(order_id=local_pending.order_id, limit=None)
+        client_account = repo.latest_account_by_portfolio(portfolio_id="client-a")
+        local_account = repo.latest_account_by_portfolio(portfolio_id="local-paper")
+
+    assert summary.portfolio_id == "client-a"
+    assert summary.settled == 1
+    assert summary.details[0].execution_trade_date == execution_candle.trade_date
+    assert client_order.status == "FILLED"
+    assert local_order.status == "PENDING_NEXT_OPEN"
+    assert client_fills
+    assert local_fills == []
+    assert client_account is not None
+    assert local_account is None
 
 
 def test_pending_next_open_order_repository_and_api_round_trip(tmp_path: Path) -> None:
@@ -622,8 +787,8 @@ def test_next_open_settlement_partially_fills_buy_when_cash_caps_quantity(
             session,
             symbol="INFY",
             trade_date=_next_trading_day(signal_candle.trade_date),
-            open_price=Decimal("120000.0000"),
-            close_price=Decimal("120100.0000"),
+            open_price=Decimal("6000.0000"),
+            close_price=Decimal("6010.0000"),
         )
         session.commit()
 
@@ -645,10 +810,10 @@ def test_next_open_settlement_partially_fills_buy_when_cash_caps_quantity(
     assert summary.settled == 1
     assert summary.rejected == 0
     assert order.status == "PARTIALLY_FILLED"
-    assert order.filled_quantity == 8
-    assert order.remaining_quantity == 2
-    assert fills and fills[0].quantity == 8
-    assert summary.details[0].quantity == 8
+    assert order.filled_quantity == 1
+    assert order.remaining_quantity == 9
+    assert fills and fills[0].quantity == 1
+    assert summary.details[0].quantity == 1
     assert summary.details[0].status == "PARTIALLY_FILLED"
 
 
@@ -898,6 +1063,46 @@ def _prepare_market_data_db(settings: Settings):
     with session_factory() as session:
         seed_test_market_data(session, candle_count=252)
     return session_factory
+
+
+def _create_profile(session_factory, *, profile_id: str, corpus_inr: Decimal) -> None:
+    with session_factory() as session:
+        TaurusProfileRepository(session).create_profile(
+            TaurusProfileCreate(
+                profile_id=profile_id,
+                display_name=profile_id.replace("-", " ").title(),
+                starting_corpus_inr=corpus_inr,
+            )
+        )
+        session.commit()
+
+
+def _approved_decision(
+    *,
+    profile_id: str,
+    run_id: str,
+    symbol: str,
+    quantity: int,
+    action: str = "BUY",
+) -> FinalDecision:
+    return FinalDecision(
+        final_decision_id=f"fd-{profile_id}-{run_id}-{symbol}-{action}",
+        decision_id=f"dec-{profile_id}-{run_id}-{symbol}-{action}",
+        run_id=run_id,
+        portfolio_id=profile_id,
+        symbol=symbol,
+        proposal_id=f"tp-{profile_id}-{run_id}-{symbol}",
+        risk_check_id=f"rr-{profile_id}-{run_id}-{symbol}",
+        as_of=datetime(2024, 12, 17, 12, 0, tzinfo=timezone.utc),
+        final_action=action,  # type: ignore[arg-type]
+        status="APPROVED_FOR_PAPER",
+        approved_quantity=quantity,
+        approved_position_pct_nav=Decimal("5.0000"),
+        reason="Approved by focused paper broker test.",
+        is_order=True,
+        can_send_to_broker=True,
+        model_version="test_final_decision",
+    )
 
 
 def _build_trader_proposal(session_factory) -> TraderProposal:

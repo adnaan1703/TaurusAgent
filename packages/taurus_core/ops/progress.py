@@ -369,10 +369,11 @@ def _paper_loop_snapshot(
         completed = max(iteration - 1, 0) * symbol_count
         run_id = _string(payload, "run_id", "pending")
         stage = _string(payload, "stage", "run")
+        profile_details = _profile_details(payload)
         return ProgressSnapshot(
             command,
             f"iteration={iteration}/{iterations} run_id={run_id} "
-            f"stage={stage} selected_symbols={_symbols(payload)}",
+            f"stage={stage} selected_symbols={_symbols(payload)}{profile_details}",
             completed,
             total,
         )
@@ -500,3 +501,13 @@ def _symbols(payload: Mapping[str, object]) -> str:
     if isinstance(value, (list, tuple, set)):
         return ",".join(str(item) for item in value)
     return "-"
+
+
+def _profile_details(payload: Mapping[str, object]) -> str:
+    profile_id = _string(payload, "profile_id", "")
+    if not profile_id:
+        return ""
+    starting_corpus = _string(payload, "starting_corpus_inr", "")
+    if starting_corpus:
+        return f" profile={profile_id} corpus_inr={starting_corpus}"
+    return f" profile={profile_id}"

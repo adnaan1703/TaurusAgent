@@ -28,6 +28,7 @@ from taurus_core.execution.schemas import (
 from taurus_core.execution.slippage import FixedBpsSlippageModel
 from taurus_core.logging import get_logger
 from taurus_core.observability.tracing import bound_trace_context
+from taurus_core.profiles.runtime import resolve_runtime_profile
 from taurus_core.risk.schemas import FinalDecision
 
 MONEY_QUANT = Decimal("0.0001")
@@ -76,6 +77,11 @@ class PaperBroker(BrokerAdapter):
         if execution_policy not in {"immediate", "next_open"}:
             raise ValueError("PaperBroker execution_policy must be immediate or next_open.")
         self._validate_decision(decision)
+        runtime_profile = resolve_runtime_profile(
+            self.session,
+            self.settings,
+            profile_id=decision.portfolio_id,
+        )
         timestamp = _as_utc(decision.as_of)
         repo = ExecutionRepository(self.session)
         repo.delete_execution_for_final_decision(decision.final_decision_id)
@@ -83,7 +89,8 @@ class PaperBroker(BrokerAdapter):
 
         account_state, positions = self._rebuild_state_from_fills(
             run_id=decision.run_id,
-            portfolio_id=self.settings.taurus_paper_portfolio_id,
+            portfolio_id=runtime_profile.profile_id,
+            starting_cash_inr=runtime_profile.starting_corpus_inr,
             updated_at=timestamp,
         )
         side = _side_for_action(decision.final_action)
@@ -344,15 +351,26 @@ class PaperBroker(BrokerAdapter):
         symbol: str | None = None,
     ) -> NextOpenSettlementSummary:
         timestamp = _as_utc(settled_at)
+        if portfolio_id != self.settings.effective_profile_id:
+            raise ValueError(
+                "Settlement profile does not match selected paper profile: "
+                f"portfolio_id={portfolio_id} selected={self.settings.effective_profile_id}."
+            )
+        runtime_profile = resolve_runtime_profile(
+            self.session,
+            self.settings,
+            profile_id=portfolio_id,
+        )
         repo = ExecutionRepository(self.session)
         pending_rows = repo.list_pending_next_open_orders(
-            portfolio_id=portfolio_id,
+            portfolio_id=runtime_profile.profile_id,
             symbol=symbol,
             limit=None,
         )
         account_state, positions = self._rebuild_state_from_fills(
             run_id=run_id,
-            portfolio_id=portfolio_id,
+            portfolio_id=runtime_profile.profile_id,
+            starting_cash_inr=runtime_profile.starting_corpus_inr,
             updated_at=timestamp,
         )
 
@@ -527,7 +545,7 @@ class PaperBroker(BrokerAdapter):
         )
         repo.replace_account_state(
             run_id=run_id,
-            portfolio_id=portfolio_id,
+            portfolio_id=runtime_profile.profile_id,
             account=account,
             positions=position_models,
         )
@@ -538,7 +556,7 @@ class PaperBroker(BrokerAdapter):
             self._send_order_alert(order, fill_ids=fill_ids)
 
         return NextOpenSettlementSummary(
-            portfolio_id=portfolio_id,
+            portfolio_id=runtime_profile.profile_id,
             run_id=run_id,
             settled=settled,
             rejected=rejected,
@@ -558,6 +576,11 @@ class PaperBroker(BrokerAdapter):
             raise ValueError("Final decision is not broker-routable.")
         if decision.approved_quantity <= 0:
             raise ValueError("Final decision approved quantity must be positive.")
+        if decision.portfolio_id != self.settings.effective_profile_id:
+            raise ValueError(
+                "Final decision profile does not match selected paper profile: "
+                f"decision={decision.portfolio_id} selected={self.settings.effective_profile_id}."
+            )
         _side_for_action(decision.final_action)
 
     def _log_order(self, order: PaperOrder, *, fill_ids: list[str]) -> None:
@@ -875,9 +898,18 @@ class PaperBroker(BrokerAdapter):
         *,
         run_id: str,
         portfolio_id: str,
+        starting_cash_inr: Decimal | None = None,
         updated_at: datetime,
     ) -> tuple[_AccountState, dict[str, _PositionState]]:
-        starting_cash = _money(Decimal(str(self.settings.taurus_initial_capital_inr)))
+        starting_cash = _money(
+            starting_cash_inr
+            if starting_cash_inr is not None
+            else resolve_runtime_profile(
+                self.session,
+                self.settings,
+                profile_id=portfolio_id,
+            ).starting_corpus_inr
+        )
         account_state = _AccountState(
             run_id=run_id,
             portfolio_id=portfolio_id,

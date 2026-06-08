@@ -123,14 +123,25 @@ def _paper_loop_json_enabled(value: str | None = None) -> bool:
 
 def llm_usage_summary_from_runs(runs: Iterable[Mapping[str, object]]) -> dict[str, object]:
     summaries: list[Mapping[str, object]] = []
+    profile_ids: set[str] = set()
     for run in runs:
         artifacts = run.get("artifacts")
         if not isinstance(artifacts, Mapping):
             continue
+        profile = artifacts.get("profile")
+        if isinstance(profile, Mapping):
+            profile_id = str(profile.get("profile_id") or "").strip()
+            if profile_id:
+                profile_ids.add(profile_id)
         llm_usage = artifacts.get("llm_usage")
         if isinstance(llm_usage, Mapping):
             summaries.append(llm_usage)
-    return aggregate_llm_usage_summaries(summaries)
+    summary = aggregate_llm_usage_summaries(summaries)
+    sorted_profile_ids = sorted(profile_ids)
+    if sorted_profile_ids:
+        summary["profile_ids"] = sorted_profile_ids
+        summary["profile_id"] = sorted_profile_ids[0] if len(sorted_profile_ids) == 1 else "mixed"
+    return summary
 
 
 def format_llm_usage_summary(summary: Mapping[str, object]) -> str:
@@ -150,6 +161,9 @@ def format_llm_usage_summary(summary: Mapping[str, object]) -> str:
 
     provider = str(summary.get("provider") or "n/a")
     model_versions = _display_list(summary.get("model_versions"))
+    profile_id = str(summary.get("profile_id") or "").strip()
+    if profile_id:
+        lines.append(f"Profile: {profile_id}")
     lines.extend(
         [
             f"Provider: {provider} | Models: {model_versions}",
@@ -353,6 +367,7 @@ def main() -> None:
                 {
                     "symbols": resolved.symbols,
                     "universe": resolved.universe.model_dump(mode="json"),
+                    "profile_id": settings.effective_profile_id,
                     "runs": payload,
                 },
                 sort_keys=True,

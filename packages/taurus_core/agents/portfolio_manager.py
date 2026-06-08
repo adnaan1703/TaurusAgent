@@ -18,6 +18,7 @@ from taurus_core.llm.base import LLMFinalDecisionExplanation
 from taurus_core.logging import get_logger
 from taurus_core.observability.metrics import record_llm_failure
 from taurus_core.observability.tracing import bound_trace_context
+from taurus_core.profiles.runtime import resolve_runtime_profile
 from taurus_core.research.schemas import TraderProposal
 from taurus_core.risk.schemas import (
     FinalDecision,
@@ -376,7 +377,7 @@ class PortfolioManagerAgent:
         equity = (
             account.equity_inr
             if account is not None
-            else Decimal(str(self.settings.taurus_initial_capital_inr))
+            else resolve_runtime_profile(self.session, self.settings).starting_corpus_inr
         )
         notional = equity * approved_position_pct_nav / Decimal("100")
         return int(notional // latest_close)

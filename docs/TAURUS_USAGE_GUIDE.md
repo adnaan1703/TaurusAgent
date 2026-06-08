@@ -153,7 +153,9 @@ real LLM provider where the workflow calls an LLM.
   `TAURUS_GRAPH_ENABLED=true`, `TAURUS_GRAPH_RISK_ENABLED=true`,
   `TAURUS_PAPER_ANALYSIS_SCOPE=full_universe`,
   `TAURUS_PAPER_EXECUTION_SCOPE=allocated_only`, and
-  `STRATEGY=configs/strategies/graph_aware_score_v1.yaml`.
+  `STRATEGY=configs/strategies/graph_aware_score_v1.yaml`. It defaults to
+  `TAURUS_PROFILE_ID=local-paper`; run
+  `PROFILE_ID=client-a make paper-loop-kite` for another active profile.
 - `make paper-loop-dashboard`: starts the stack, imports market data, graph
   prerequisites, and mock news, runs one Kite paper loop, then starts the React
   dashboard.

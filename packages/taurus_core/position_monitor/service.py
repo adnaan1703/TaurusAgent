@@ -36,6 +36,7 @@ from taurus_core.observability.metrics import (
     record_position_monitor_trigger,
 )
 from taurus_core.paper_trading.schemas import PaperRun, PaperRunUniverse, paper_run_id
+from taurus_core.profiles.runtime import RuntimeProfile, resolve_runtime_profile
 from taurus_core.research.schemas import LifecycleTrigger, TraderProposal
 from taurus_core.risk.review_service import RiskReviewService
 
@@ -74,6 +75,7 @@ class PositionMonitorService:
         self.now_func = now_func or (lambda: datetime.now(timezone.utc))
         self.session_factory = build_session_factory(self.settings)
         self.logger = get_logger(__name__)
+        self._runtime_profile: RuntimeProfile | None = None
 
     def run(self) -> list[PositionMonitorIterationResult]:
         if not self.settings.taurus_position_monitor_enabled:
@@ -92,6 +94,7 @@ class PositionMonitorService:
 
     def run_once(self) -> PositionMonitorIterationResult:
         self._validate_runtime()
+        runtime_profile = self._resolve_runtime_profile()
         now = _as_utc(self.now_func())
         market_session_date = _market_session_date(now, self.settings.taurus_paper_timezone)
         if (
@@ -104,6 +107,7 @@ class PositionMonitorService:
                     "position_monitor.trigger_skipped",
                     payload={
                         "run_id": None,
+                        "portfolio_id": runtime_profile.profile_id,
                         "symbols": [],
                         "market_session_date": market_session_date,
                         "reason": "market_closed",
@@ -551,14 +555,19 @@ class PositionMonitorService:
             session.commit()
 
     def _new_run(self, *, now: datetime, symbols: list[str]) -> PaperRun:
+        runtime_profile = self._runtime_profile
+        if runtime_profile is None:
+            with self.session_factory() as session:
+                runtime_profile = resolve_runtime_profile(session, self.settings)
+            self._runtime_profile = runtime_profile
         return PaperRun(
             run_id=paper_run_id(
                 started_at=now,
                 symbols=symbols,
                 schedule_name=MONITOR_SCHEDULE_NAME,
-                portfolio_id=self.settings.taurus_paper_portfolio_id,
+                portfolio_id=runtime_profile.profile_id,
             ),
-            portfolio_id=self.settings.taurus_paper_portfolio_id,
+            portfolio_id=runtime_profile.profile_id,
             schedule_name=MONITOR_SCHEDULE_NAME,
             status="RUNNING",
             started_at=now,
@@ -575,6 +584,7 @@ class PositionMonitorService:
                 "provider": self.settings.taurus_position_monitor_provider,
                 "source": "latest_quote_snapshots",
             },
+            artifacts={"profile": runtime_profile.to_artifact()},
         )
 
     def _complete_run(
@@ -593,7 +603,12 @@ class PositionMonitorService:
                 "completed_at": _as_utc(self.now_func()),
                 "succeeded_symbols": succeeded_symbols,
                 "failed_symbols": failed_symbols,
-                "artifacts": _json_safe(artifacts),
+                "artifacts": _json_safe(
+                    {
+                        "profile": run.artifacts.get("profile"),
+                        **artifacts,
+                    }
+                ),
             }
         )
         PaperRunRepository(session).upsert(completed)
@@ -611,6 +626,12 @@ class PositionMonitorService:
             note="Market-hours position monitor iteration completed.",
         )
         session.commit()
+
+    def _resolve_runtime_profile(self) -> RuntimeProfile:
+        with self.session_factory() as session:
+            runtime_profile = resolve_runtime_profile(session, self.settings)
+        self._runtime_profile = runtime_profile
+        return runtime_profile
 
     def _audit(
         self,

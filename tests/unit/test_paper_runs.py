@@ -25,7 +25,12 @@ from taurus_core.db.models import (
     RiskReviewModel,
     TraderProposalModel,
 )
-from taurus_core.db.repositories import ExecutionRepository, GraphRepository, InstrumentRepository
+from taurus_core.db.repositories import (
+    ExecutionRepository,
+    GraphRepository,
+    InstrumentRepository,
+    TaurusProfileRepository,
+)
 from taurus_core.db.repositories import PaperRunRepository, ResearchRepository, RiskRepository
 from taurus_core.db.session import build_session_factory
 from taurus_core.domain.instruments import Instrument
@@ -40,6 +45,8 @@ from taurus_core.paper_trading.service import (
     _symbol_artifact_from_results,
 )
 from taurus_core.portfolio import ActiveAllocationPosition, load_money_management_policy
+from taurus_core.profiles.runtime import RuntimeProfileError
+from taurus_core.profiles.schemas import TaurusProfileCreate
 from tests.llm_fakes import FakeLLMProvider
 from tests.market_data_fixtures import (
     FakeKiteMarketDataProvider,
@@ -122,11 +129,18 @@ def test_paper_run_service_executes_full_chain_and_api_returns_runs(tmp_path: Pa
 def test_paper_run_profile_lineage_and_repository_filters(tmp_path: Path) -> None:
     client_settings = _settings_for_temp_db(tmp_path, profile_id="client-a")
     local_settings = _settings_for_temp_db(tmp_path, profile_id="local-paper")
+    session_factory = build_session_factory(client_settings)
+    _create_profile(session_factory, profile_id="client-a", corpus_inr=Decimal("250000"))
     client_run = PaperRunService(client_settings).run_once(symbols=["INFY"])
-    local_run = PaperRunService(local_settings).run_once(symbols=["TCS"])
+    local_run = PaperRunService(local_settings).run_once(symbols=["INFY"])
 
     assert client_run.portfolio_id == "client-a"
     assert local_run.portfolio_id == "local-paper"
+    assert client_run.artifacts["profile"] == {
+        "profile_id": "client-a",
+        "starting_corpus_inr": "250000.0000",
+        "currency": "INR",
+    }
     assert client_run.run_id == paper_run_id(
         started_at=client_run.started_at,
         symbols=client_run.symbols,
@@ -139,7 +153,6 @@ def test_paper_run_profile_lineage_and_repository_filters(tmp_path: Path) -> Non
         schedule_name=client_run.schedule_name,
     )
 
-    session_factory = build_session_factory(client_settings)
     with session_factory() as session:
         stored_run = session.get(PaperRunModel, client_run.run_id)
         assert stored_run is not None
@@ -197,6 +210,36 @@ def test_paper_run_profile_lineage_and_repository_filters(tmp_path: Path) -> Non
             assert model
             assert {row.portfolio_id for row in model} == {"client-a"}
             assert {row.payload["portfolio_id"] for row in model} == {"client-a"}
+
+        client_account = ExecutionRepository(session).latest_account_by_portfolio(
+            portfolio_id="client-a"
+        )
+        local_account = ExecutionRepository(session).latest_account_by_portfolio(
+            portfolio_id="local-paper"
+        )
+        assert client_account is not None
+        assert local_account is not None
+        assert client_account.starting_cash_inr == Decimal("250000.0000")
+        assert local_account.starting_cash_inr == Decimal("10000.0000")
+
+
+def test_paper_run_rejects_missing_runtime_profile(tmp_path: Path) -> None:
+    settings = _settings_for_temp_db(tmp_path, profile_id="missing-profile")
+
+    with pytest.raises(RuntimeProfileError, match="Profile missing-profile not found"):
+        PaperRunService(settings).run_once(symbols=["INFY"])
+
+
+def test_paper_run_rejects_archived_runtime_profile(tmp_path: Path) -> None:
+    settings = _settings_for_temp_db(tmp_path, profile_id="client-a")
+    session_factory = build_session_factory(settings)
+    _create_profile(session_factory, profile_id="client-a", corpus_inr=Decimal("250000"))
+    with session_factory() as session:
+        TaurusProfileRepository(session).archive_profile("client-a")
+        session.commit()
+
+    with pytest.raises(RuntimeProfileError, match="Profile client-a is archived"):
+        PaperRunService(settings).run_once(symbols=["INFY"])
 
 
 def test_legacy_paper_run_payload_without_profile_defaults_to_local_paper(
@@ -577,7 +620,16 @@ def test_eod_paper_run_records_pending_orders_waiting_for_newer_candle(
 def test_money_management_paper_run_creates_shariah_equity_core_decisions(
     tmp_path: Path,
 ) -> None:
-    settings = _settings_for_temp_db(tmp_path, money_management_enabled=True)
+    settings = _settings_for_temp_db(
+        tmp_path,
+        money_management_enabled=True,
+        profile_id="client-a",
+    )
+    _create_profile(
+        build_session_factory(settings),
+        profile_id="client-a",
+        corpus_inr=Decimal("1000000"),
+    )
     run = PaperRunService(settings).run_once(symbols=["INFY"])
     universe = load_market_data_universe("configs/market_data/nifty_500_shariah.yaml")
     universe_by_symbol = {entry.symbol: entry for entry in universe.symbols}
@@ -690,6 +742,12 @@ def test_graph_enabled_money_management_run_adds_active_allocation_metadata(
         graph_risk_enabled=True,
         money_management_enabled=True,
         money_management_config_path=str(policy_path),
+        profile_id="client-a",
+    )
+    _create_profile(
+        build_session_factory(settings),
+        profile_id="client-a",
+        corpus_inr=Decimal("1000000"),
     )
     _seed_paper_graph_fixture(settings)
 
@@ -741,7 +799,12 @@ def test_graph_enabled_kite_paper_run_fails_fast_without_graph_nodes(
     assert run.errors[0].stage == "data_update"
     assert run.errors[0].error_type == "GraphReadinessError"
     assert "make import-taurus-graph" in run.errors[0].message
-    assert run.artifacts == {}
+    assert set(run.artifacts) == {"profile"}
+    assert run.artifacts["profile"] == {
+        "profile_id": "local-paper",
+        "starting_corpus_inr": "10000.0000",
+        "currency": "INR",
+    }
 
 
 def test_strategy_selected_market_universe_uses_strategy_targets(
@@ -1510,6 +1573,18 @@ def _settings_for_temp_db(
         taurus_paper_execution_scope=paper_execution_scope,
         taurus_max_open_positions=max_open_positions,
     )
+
+
+def _create_profile(session_factory, *, profile_id: str, corpus_inr: Decimal) -> None:
+    with session_factory() as session:
+        TaurusProfileRepository(session).create_profile(
+            TaurusProfileCreate(
+                profile_id=profile_id,
+                display_name=profile_id.replace("-", " ").title(),
+                starting_corpus_inr=corpus_inr,
+            )
+        )
+        session.commit()
 
 
 def _paper_run_universe(*, source: str, symbols: list[str]) -> PaperRunUniverse:
