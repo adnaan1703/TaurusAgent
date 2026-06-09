@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { taurusApi } from "../api/client";
+import { useSelectedProfileId } from "../app/profileSelection";
 import { DataPanel } from "../components/DataPanel";
 import { DataTable } from "../components/DataTable";
 import { EmptyState } from "../components/EmptyState";
@@ -26,9 +27,10 @@ import { AllocationPanels } from "./AllocationPanels";
 import { emptyDataCommands, PageScaffold } from "./PageScaffold";
 
 export function PortfolioPage() {
+  const { selectedProfileId } = useSelectedProfileId();
   const portfolioQuery = useQuery({
-    queryKey: ["ui", "portfolio"],
-    queryFn: taurusApi.portfolio,
+    queryKey: ["ui", "portfolio", selectedProfileId ?? "default"],
+    queryFn: () => taurusApi.portfolio({ profileId: selectedProfileId }),
     refetchInterval: 15_000,
   });
 

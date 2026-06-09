@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
@@ -28,6 +29,7 @@ from scripts.run_backtest import run_mock_backtest
 from scripts.run_paper_once import run_mock_paper_once
 from taurus_core.agents.roster import ANALYST_KEYS
 from taurus_core.config import Settings
+from taurus_core.db.repositories import TaurusProfileRepository
 from taurus_core.db.session import build_session_factory
 from tests.llm_fakes import FakeLLMProvider
 from tests.market_data_fixtures import seed_test_market_data
@@ -51,6 +53,7 @@ def test_dashboard_queries_and_metrics_expose_m8_panels(tmp_path: Path) -> None:
     )
     run_migrations(settings)
     session_factory = build_session_factory(settings)
+    _set_default_profile_corpus(session_factory)
     with session_factory() as session:
         seed_test_market_data(session, candle_count=252)
     run_mock_backtest(settings)
@@ -104,6 +107,15 @@ def test_dashboard_queries_and_metrics_expose_m8_panels(tmp_path: Path) -> None:
     )
     assert "taurus_paper_account_equity_inr" in body
     assert "taurus_llm_failures_total" in body
+
+
+def _set_default_profile_corpus(session_factory) -> None:
+    with session_factory() as session:
+        TaurusProfileRepository(session).update_profile_corpus(
+            "local-paper",
+            Decimal("1000000"),
+        )
+        session.commit()
 
 
 def test_grafana_dashboards_are_valid_json() -> None:

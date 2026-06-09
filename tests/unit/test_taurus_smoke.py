@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
@@ -8,6 +9,7 @@ from scripts.migrate import run_migrations
 from scripts.taurus_smoke import run_taurus_smoke
 from taurus_core.agents.roster import ANALYST_KEYS
 from taurus_core.config import Settings
+from taurus_core.db.repositories import TaurusProfileRepository
 from taurus_core.db.session import build_session_factory
 from tests.llm_fakes import FakeLLMProvider
 from tests.market_data_fixtures import (
@@ -40,6 +42,7 @@ def test_taurus_smoke_covers_paper_mvp_release_flow(
     )
     run_migrations(settings)
     session_factory = build_session_factory(settings)
+    _set_default_profile_corpus(session_factory)
     with session_factory() as session:
         seed_test_market_data(session, candle_count=252)
 
@@ -53,3 +56,12 @@ def test_taurus_smoke_covers_paper_mvp_release_flow(
     assert result["artifacts"]["paper_loop_run_id"].startswith("pr-")
     assert result["counts"]["paper_orders"] >= 1
     assert result["counts"]["paper_fills"] == 0
+
+
+def _set_default_profile_corpus(session_factory) -> None:
+    with session_factory() as session:
+        TaurusProfileRepository(session).update_profile_corpus(
+            "local-paper",
+            Decimal("1000000"),
+        )
+        session.commit()

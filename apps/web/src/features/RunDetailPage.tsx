@@ -4,6 +4,7 @@ import { Link, useParams } from "react-router-dom";
 
 import { taurusApi } from "../api/client";
 import type { UiRunDetailResponse, UiRunSelectionRow } from "../api/types";
+import { useProfilePath, useSelectedProfileId } from "../app/profileSelection";
 import { DataPanel } from "../components/DataPanel";
 import { DataTable } from "../components/DataTable";
 import { EmptyState } from "../components/EmptyState";
@@ -34,10 +35,12 @@ import { PageScaffold } from "./PageScaffold";
 
 export function RunDetailPage() {
   const { runId = "" } = useParams();
+  const { selectedProfileId } = useSelectedProfileId();
+  const profilePath = useProfilePath();
   const [ledgerQuery, setLedgerQuery] = useState("");
   const runQuery = useQuery({
-    queryKey: ["ui", "run", runId],
-    queryFn: () => taurusApi.run(runId),
+    queryKey: ["ui", "run", runId, selectedProfileId ?? "default"],
+    queryFn: () => taurusApi.run(runId, { profileId: selectedProfileId }),
     enabled: runId.length > 0,
     refetchInterval: (query) => (query.state.data?.run.status === "RUNNING" ? 5_000 : false),
   });
@@ -151,7 +154,7 @@ export function RunDetailPage() {
                     key: "symbol",
                     header: "Symbol",
                     render: (row) => (
-                      <Link className="font-semibold text-taurus-primary hover:text-sky-200" to={`/runs/${row.run_id}/symbols/${row.symbol}`}>
+                      <Link className="font-semibold text-taurus-primary hover:text-sky-200" to={profilePath(`/runs/${row.run_id}/symbols/${row.symbol}`)}>
                         {row.symbol}
                       </Link>
                     ),
@@ -166,7 +169,7 @@ export function RunDetailPage() {
                     header: "Decision",
                     render: (row) =>
                       row.decision_id ? (
-                        <Link className="font-mono text-xs text-taurus-primary hover:text-sky-200" to={`/replay/${row.decision_id}`}>
+                        <Link className="font-mono text-xs text-taurus-primary hover:text-sky-200" to={profilePath(`/replay/${row.decision_id}`)}>
                           {formatId(row.decision_id)}
                         </Link>
                       ) : (
@@ -257,6 +260,7 @@ function SelectionLedgerTable({
   rows: UiRunSelectionRow[];
   runId: string;
 }) {
+  const profilePath = useProfilePath();
   return (
     <DataTable
       columns={[
@@ -264,7 +268,7 @@ function SelectionLedgerTable({
           key: "symbol",
           header: "Symbol",
           render: (row) => (
-            <Link className="font-semibold text-taurus-primary hover:text-sky-200" to={`/runs/${runId}/symbols/${row.symbol}`}>
+            <Link className="font-semibold text-taurus-primary hover:text-sky-200" to={profilePath(`/runs/${runId}/symbols/${row.symbol}`)}>
               {row.symbol}
             </Link>
           ),

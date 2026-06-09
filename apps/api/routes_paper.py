@@ -5,6 +5,7 @@ from collections.abc import Iterator
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session, sessionmaker
 
+from apps.api.profile_context import active_profile
 from taurus_core.config import Settings
 from taurus_core.db.repositories import ExecutionRepository
 from taurus_core.execution.schemas import PaperAccount, PaperFill, PaperOrder, PaperPosition
@@ -21,13 +22,15 @@ def get_db_session(request: Request) -> Iterator[Session]:
 @router.get("/orders", response_model=list[PaperOrder])
 def list_paper_orders(
     request: Request,
+    profile_id: str | None = Query(default=None, min_length=1),
     symbol: str | None = Query(default=None, min_length=1),
     limit: int = Query(default=100, ge=1, le=500),
     session: Session = Depends(get_db_session),
 ) -> list[PaperOrder]:
     settings: Settings = request.app.state.settings
+    profile = active_profile(session, settings, profile_id=profile_id)
     rows = ExecutionRepository(session).list_orders(
-        portfolio_id=settings.taurus_paper_portfolio_id,
+        portfolio_id=profile.profile_id,
         symbol=symbol,
         limit=limit,
     )
@@ -37,13 +40,15 @@ def list_paper_orders(
 @router.get("/fills", response_model=list[PaperFill])
 def list_paper_fills(
     request: Request,
+    profile_id: str | None = Query(default=None, min_length=1),
     symbol: str | None = Query(default=None, min_length=1),
     limit: int = Query(default=100, ge=1, le=500),
     session: Session = Depends(get_db_session),
 ) -> list[PaperFill]:
     settings: Settings = request.app.state.settings
+    profile = active_profile(session, settings, profile_id=profile_id)
     rows = ExecutionRepository(session).list_fills(
-        portfolio_id=settings.taurus_paper_portfolio_id,
+        portfolio_id=profile.profile_id,
         symbol=symbol,
         limit=limit,
     )
@@ -53,12 +58,14 @@ def list_paper_fills(
 @router.get("/positions", response_model=list[PaperPosition])
 def list_paper_positions(
     request: Request,
+    profile_id: str | None = Query(default=None, min_length=1),
     symbol: str | None = Query(default=None, min_length=1),
     session: Session = Depends(get_db_session),
 ) -> list[PaperPosition]:
     settings: Settings = request.app.state.settings
+    profile = active_profile(session, settings, profile_id=profile_id)
     rows = ExecutionRepository(session).latest_open_positions_by_portfolio(
-        portfolio_id=settings.taurus_paper_portfolio_id,
+        portfolio_id=profile.profile_id,
     )
     if symbol is not None:
         rows = [row for row in rows if row.symbol == symbol.upper()]
@@ -68,16 +75,18 @@ def list_paper_positions(
 @router.get("/account", response_model=PaperAccount)
 def get_paper_account(
     request: Request,
+    profile_id: str | None = Query(default=None, min_length=1),
     run_id: str | None = Query(default=None, min_length=1),
     session: Session = Depends(get_db_session),
 ) -> PaperAccount:
     settings: Settings = request.app.state.settings
+    profile = active_profile(session, settings, profile_id=profile_id)
     repo = ExecutionRepository(session)
     row = (
         repo.latest_account(run_id=run_id)
         if run_id is not None
-        else repo.latest_account_by_portfolio(portfolio_id=settings.taurus_paper_portfolio_id)
+        else repo.latest_account_by_portfolio(portfolio_id=profile.profile_id)
     )
-    if row is None:
+    if row is None or row.portfolio_id != profile.profile_id:
         raise HTTPException(status_code=404, detail="Paper account not found.")
     return PaperAccount.model_validate(row.payload)

@@ -6,8 +6,21 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createTaurusQueryClient } from "./providers";
 import { routes } from "./routes";
 
+const profile = {
+  profile_id: "local-paper",
+  display_name: "Local Paper",
+  starting_corpus_inr: "10000.0000",
+  currency: "INR",
+  status: "ACTIVE",
+  description: "",
+  profile_metadata: {},
+  created_at: "2026-06-10T00:00:00Z",
+  updated_at: "2026-06-10T00:00:00Z",
+};
+
 const runSummary = {
   run_id: "pr-test",
+  profile_id: "local-paper",
   status: "COMPLETED",
   schedule_name: "daily_after_close",
   started_at: "2026-05-21T15:00:00Z",
@@ -41,6 +54,8 @@ const disabledAllocation = {
 
 const payloads = {
   overview: {
+    active_profile: profile,
+    available_profiles: [profile],
     safety,
     monitor_status: {
       enabled: false,
@@ -57,6 +72,7 @@ const payloads = {
     warnings: [],
   },
   run: {
+    active_profile: profile,
     safety,
     run: runSummary,
     symbols: [
@@ -79,6 +95,7 @@ const payloads = {
     warnings: [],
   },
   trail: {
+    active_profile: profile,
     run: runSummary,
     symbol: "INFY",
     company_name: "Infosys",
@@ -101,6 +118,7 @@ const payloads = {
     stages: [],
   },
   risk: {
+    active_profile: profile,
     safety,
     money_management: { enabled: false },
     allocation: disabledAllocation,
@@ -111,6 +129,7 @@ const payloads = {
     status_counts: {},
   },
   portfolio: {
+    active_profile: profile,
     safety,
     money_management: { enabled: false },
     allocation: disabledAllocation,
@@ -126,6 +145,7 @@ const payloads = {
     summary_metrics: [],
   },
   history: {
+    active_profile: profile,
     runs: [runSummary],
     status_counts: { COMPLETED: 1 },
     filters_metadata: {},
@@ -152,7 +172,9 @@ describe("route skeletons", () => {
       vi.fn(async (input: RequestInfo | URL) => {
         const url = String(input);
         const payload =
-          url.includes("/ui/runs/pr-test/symbols/INFY/decision-trail")
+          url.includes("/profiles")
+            ? [profile]
+            : url.includes("/ui/runs/pr-test/symbols/INFY/decision-trail")
             ? payloads.trail
             : url.includes("/ui/runs/pr-test")
               ? payloads.run

@@ -125,6 +125,36 @@ profile. Once fills, queued orders, nonzero positions, or non-initial account
 snapshots exist, corpus changes are rejected until a later capital-events
 milestone adds deposits and withdrawals.
 
+Profile APIs:
+
+```bash
+curl http://localhost:8000/profiles
+curl http://localhost:8000/profiles/client-a
+curl -X POST http://localhost:8000/profiles \
+  -H 'Content-Type: application/json' \
+  -d '{"profile_id":"client-a","display_name":"Client A","starting_corpus_inr":"250000"}'
+curl -X PATCH http://localhost:8000/profiles/client-a \
+  -H 'Content-Type: application/json' \
+  -d '{"display_name":"Client Alpha"}'
+curl -X POST http://localhost:8000/profiles/client-a/archive
+```
+
+Profile-scoped read APIs accept `profile_id` and default to the effective
+settings profile when it is omitted:
+
+```bash
+curl 'http://localhost:8000/runs?profile_id=client-a'
+curl 'http://localhost:8000/paper/orders?profile_id=client-a'
+curl 'http://localhost:8000/paper/account?profile_id=client-a'
+curl 'http://localhost:8000/ui/overview?profile_id=client-a'
+curl 'http://localhost:8000/ui/history?profile_id=client-a'
+curl 'http://localhost:8000/ui/portfolio?profile_id=client-a'
+curl 'http://localhost:8000/ui/risk?profile_id=client-a'
+```
+
+The React dashboard profile selector writes the same `profile_id` query
+parameter, so copied dashboard links preserve the selected profile context.
+
 Kite:
 
 ```bash

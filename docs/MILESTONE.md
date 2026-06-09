@@ -1,6 +1,6 @@
 # Taurus Milestone Tracker
 
-Last updated: 2026-06-08
+Last updated: 2026-06-10
 
 This is the active tracker for Taurus milestone work. Keep it concise and keep
 current operator detail in the usage and command docs.
@@ -55,8 +55,12 @@ removed during docs cleanup. Use Git history for detailed historical plans.
   alongside the existing profile-aware trader proposals.
 - M53 corpus-aware paper execution isolation is complete: selected profiles now
   drive paper starting cash, account/position/fill/settlement state, position
-  monitoring scope, and operator paper-loop profile selection. Dashboard profile
-  selection remains deferred to M54-M55.
+  monitoring scope, and operator paper-loop profile selection.
+- M54 profile API and dashboard selection work is complete: profile CRUD APIs,
+  profile-scoped read filters, active-profile UI response metadata, and the
+  read-only React profile selector now scope dashboard views by selected active
+  profile. Final multi-profile regression and smoke documentation remain
+  deferred to M55.
 
 ## Standing Safety Rules
 
@@ -103,6 +107,7 @@ removed during docs cleanup. Use Git history for detailed historical plans.
 | M51 | Done | Added the persistent Taurus profile catalog, default `local-paper` seed, preferred `TAURUS_PROFILE_ID` setting alias, legacy portfolio alias compatibility guard, profile lifecycle repository/service helpers, CLI/Make profile management commands, corpus update guard, docs, and focused tests. Runtime profile isolation remains deferred to M52-M55. |
 | M52 | Done | Added profile lineage to paper runs, profile-aware run IDs, persisted analyst/debate/risk/final artifact profile identity, repository profile filters, idempotent lineage migrations, local-paper legacy defaults, and focused tests. Corpus-aware paper execution remains deferred to M53. |
 | M53 | Done | Added runtime profile resolution for paper services, profile corpus-backed paper cash/account rebuilds, profile-scoped next-open settlement and position monitoring, profile-aware run/operator artifacts, Make command profile selection, docs, and focused regression tests. Dashboard profile selection remains deferred to M54. |
+| M54 | Done | Added profile CRUD APIs, profile-scoped query parameters for run/paper/research/risk/UI read endpoints, active-profile UI metadata, a URL/local-storage-backed read-only React profile selector, profile-aware query keys/links, and focused API/UI tests. M55 final regression remains planned. |
 | Ops LM Studio reasoning fallback | Done | Added a narrow LM Studio compatibility fallback that uses non-empty `message.reasoning_content` only when `message.content` is empty, while keeping existing parser and schema validation as the contract authority. |
 
 ### M51-M55 Plan Document Completion Summary
@@ -149,6 +154,19 @@ removed during docs cleanup. Use Git history for detailed historical plans.
 - mocks used: Existing `FakeLLMProvider`, existing `FakeKiteMarketDataProvider`,
   deterministic market-data fixtures, existing mock final-approval helpers,
   focused manual daily-candle fixtures, and FastAPI `TestClient`.
+
+### M54 Completion Summary
+
+- assumptions made: Omitted profile filters should default to the effective
+  settings profile; archived or missing profiles should fail clearly instead of
+  falling back to all profiles; run-detail links should derive profile identity
+  from the stored run while rejecting explicitly mismatched `profile_id`
+  requests; Graph and Shariah views remain shared platform-level views.
+- mocks created: None.
+- mocks used: Existing `FakeLLMProvider`, existing `FakeKiteMarketDataProvider`,
+  deterministic market-data fixtures, FastAPI `TestClient`, existing React
+  fetch stubs, and legacy mock paper-once smoke helpers with explicitly updated
+  test profile corpus.
 
 ### M44-M50 Plan Document Completion Summary
 
@@ -296,7 +314,7 @@ and documented with the standard completion summary.
 | 33 | M51 | Done | `docs/TAURUS_MULTI_PROFILE_PLAN.md` | Add the profile catalog, settings alias, default profile seed, and CLI/Make profile creation workflow. |
 | 34 | M52 | Done | `docs/TAURUS_MULTI_PROFILE_PLAN.md` | Add profile lineage to paper runs and run-derived agent artifacts so history and decisions can be profile-scoped. |
 | 35 | M53 | Done | `docs/TAURUS_MULTI_PROFILE_PLAN.md` | Make paper execution, settlement, position monitoring, and corpus/P&L state isolated by selected profile. |
-| 36 | M54 | Planned | `docs/TAURUS_MULTI_PROFILE_PLAN.md` | Add profile APIs, profile filters, and a read-only React profile selector for scoped dashboard views. |
+| 36 | M54 | Done | `docs/TAURUS_MULTI_PROFILE_PLAN.md` | Add profile APIs, profile filters, and a read-only React profile selector for scoped dashboard views. |
 | 37 | M55 | Planned | `docs/TAURUS_MULTI_PROFILE_PLAN.md` | Complete multi-profile regression, browser/API smoke, operator docs, and milestone cleanup. |
 
 ## Deferred Work

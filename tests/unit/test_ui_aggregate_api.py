@@ -11,7 +11,11 @@ from apps.api.main import create_app
 from scripts.migrate import run_migrations
 from taurus_core.compliance import import_halal_stock_compliance, parse_halal_stock_rows
 from taurus_core.config import Settings
-from taurus_core.db.repositories import ExecutionRepository, PaperRunRepository
+from taurus_core.db.repositories import (
+    ExecutionRepository,
+    PaperRunRepository,
+    TaurusProfileRepository,
+)
 from taurus_core.db.session import build_session_factory
 from taurus_core.execution.schemas import (
     PaperAccount,
@@ -23,6 +27,7 @@ from taurus_core.execution.schemas import (
 )
 from taurus_core.paper_trading.schemas import PaperRun
 from taurus_core.paper_trading.service import PaperRunService
+from taurus_core.profiles.schemas import TaurusProfileCreate
 from tests.llm_fakes import FakeLLMProvider
 from tests.market_data_fixtures import FakeKiteMarketDataProvider, seed_test_market_data
 
@@ -166,6 +171,133 @@ def test_ui_aggregate_endpoints_return_completed_run_trail(tmp_path: Path) -> No
     assert portfolio.json()["fills"] == []
 
 
+def test_profile_api_creates_updates_lists_and_archives_profiles(tmp_path: Path) -> None:
+    settings = _settings_for_temp_db(tmp_path)
+    run_migrations(settings)
+    client = TestClient(create_app(settings))
+
+    create_response = client.post(
+        "/profiles",
+        json={
+            "profile_id": "client-a",
+            "display_name": "Client A",
+            "starting_corpus_inr": "250000",
+            "currency": "INR",
+            "description": "API test profile",
+            "profile_metadata": {"segment": "sandbox"},
+        },
+    )
+    duplicate_response = client.post(
+        "/profiles",
+        json={
+            "profile_id": "client-a",
+            "display_name": "Client A",
+            "starting_corpus_inr": "250000",
+        },
+    )
+    update_response = client.patch(
+        "/profiles/client-a",
+        json={"display_name": "Client Alpha", "starting_corpus_inr": "300000"},
+    )
+    list_response = client.get("/profiles")
+    archive_response = client.post("/profiles/client-a/archive")
+    active_after_archive = client.get("/profiles")
+    all_after_archive = client.get("/profiles?include_archived=true")
+    invalid_slug = client.get("/profiles/Client-A")
+
+    assert create_response.status_code == 201
+    assert create_response.json()["profile_id"] == "client-a"
+    assert duplicate_response.status_code == 409
+    assert update_response.status_code == 200
+    assert update_response.json()["display_name"] == "Client Alpha"
+    assert update_response.json()["starting_corpus_inr"] in ["300000.0000", 300000.0]
+    assert [profile["profile_id"] for profile in list_response.json()] == [
+        "client-a",
+        "local-paper",
+    ]
+    assert archive_response.status_code == 200
+    assert archive_response.json()["status"] == "ARCHIVED"
+    assert [profile["profile_id"] for profile in active_after_archive.json()] == [
+        "local-paper"
+    ]
+    assert [profile["profile_id"] for profile in all_after_archive.json()] == [
+        "client-a",
+        "local-paper",
+    ]
+    assert invalid_slug.status_code == 422
+
+
+def test_profile_scoped_api_and_dashboard_endpoints_do_not_mix_profiles(
+    tmp_path: Path,
+) -> None:
+    local_settings = _settings_for_temp_db(tmp_path, profile_id="local-paper")
+    client_settings = _settings_for_temp_db(tmp_path, profile_id="client-a")
+    run_migrations(local_settings)
+    session_factory = build_session_factory(local_settings)
+    _create_profile(session_factory, profile_id="client-a", corpus_inr=Decimal("250000"))
+
+    local_run = PaperRunService(local_settings, schedule_name="ui_local").run_once(
+        symbols=["INFY"]
+    )
+    client_run = PaperRunService(client_settings, schedule_name="ui_client").run_once(
+        symbols=["INFY"]
+    )
+    client = TestClient(create_app(local_settings))
+
+    client_overview = client.get("/ui/overview?profile_id=client-a")
+    local_history = client.get("/ui/history?profile_id=local-paper")
+    client_portfolio = client.get("/ui/portfolio?profile_id=client-a")
+    client_risk = client.get("/ui/risk?profile_id=client-a")
+    client_runs = client.get("/runs?profile_id=client-a")
+    client_orders = client.get("/paper/orders?profile_id=client-a")
+    mismatched_detail = client.get(f"/ui/runs/{local_run.run_id}?profile_id=client-a")
+
+    assert client_overview.status_code == 200
+    overview_payload = client_overview.json()
+    assert overview_payload["active_profile"]["profile_id"] == "client-a"
+    assert {profile["profile_id"] for profile in overview_payload["available_profiles"]} == {
+        "client-a",
+        "local-paper",
+    }
+    assert overview_payload["latest_run"]["run_id"] == client_run.run_id
+    assert {run["profile_id"] for run in overview_payload["recent_runs"]} == {"client-a"}
+    assert overview_payload["latest_account"]["portfolio_id"] == "client-a"
+    assert overview_payload["latest_trader_proposal"]["portfolio_id"] == "client-a"
+    assert overview_payload["latest_final_decision"]["portfolio_id"] == "client-a"
+    assert overview_payload["latest_order"]["portfolio_id"] == "client-a"
+
+    assert local_history.status_code == 200
+    assert [run["run_id"] for run in local_history.json()["runs"]] == [local_run.run_id]
+    assert local_history.json()["active_profile"]["profile_id"] == "local-paper"
+
+    assert client_portfolio.status_code == 200
+    assert client_portfolio.json()["active_profile"]["profile_id"] == "client-a"
+    assert client_portfolio.json()["latest_account"]["portfolio_id"] == "client-a"
+    assert {order["portfolio_id"] for order in client_portfolio.json()["orders"]} == {
+        "client-a"
+    }
+
+    assert client_risk.status_code == 200
+    assert client_risk.json()["active_profile"]["profile_id"] == "client-a"
+    assert {row["portfolio_id"] for row in client_risk.json()["latest_risk_reviews"]} == {
+        "client-a"
+    }
+
+    assert client_runs.status_code == 200
+    assert [run["run_id"] for run in client_runs.json()] == [client_run.run_id]
+    assert client_orders.status_code == 200
+    assert {order["portfolio_id"] for order in client_orders.json()} == {"client-a"}
+    assert mismatched_detail.status_code == 404
+
+    with session_factory() as session:
+        TaurusProfileRepository(session).archive_profile("client-a")
+        session.commit()
+
+    archived_overview = client.get("/ui/overview?profile_id=client-a")
+    assert archived_overview.status_code == 422
+    assert archived_overview.json()["detail"] == "Profile client-a is archived."
+
+
 def test_ui_aggregate_endpoints_stage_pending_next_open_orders_as_running(
     tmp_path: Path,
 ) -> None:
@@ -270,6 +402,7 @@ def test_disabled_money_management_uses_settings_fallback_allocation(
         "execution",
         "final_decisions",
         "llm_usage",
+        "profile",
         "settlement",
         "strategy",
         "symbol_scope",
@@ -715,7 +848,7 @@ def test_ui_cors_allows_local_vite_origin(tmp_path: Path) -> None:
     assert response.headers["access-control-allow-origin"] == "http://localhost:5173"
 
 
-def _settings_for_temp_db(tmp_path: Path) -> Settings:
+def _settings_for_temp_db(tmp_path: Path, *, profile_id: str = "local-paper") -> Settings:
     return Settings(
         taurus_alert_provider="mock",
         taurus_graph_enabled=False,
@@ -723,7 +856,20 @@ def _settings_for_temp_db(tmp_path: Path) -> Settings:
         taurus_enabled_analysts="technical",
         taurus_llm_model="",
         taurus_paper_partial_fill_threshold=1,
+        taurus_profile_id=profile_id,
     )
+
+
+def _create_profile(session_factory, *, profile_id: str, corpus_inr: Decimal) -> None:
+    with session_factory() as session:
+        TaurusProfileRepository(session).create_profile(
+            TaurusProfileCreate(
+                profile_id=profile_id,
+                display_name=profile_id.replace("-", " ").title(),
+                starting_corpus_inr=corpus_inr,
+            )
+        )
+        session.commit()
 
 
 def _queue_latest_order_for_next_open(

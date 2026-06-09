@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { taurusApi } from "../api/client";
+import { useProfilePath, useSelectedProfileId } from "../app/profileSelection";
 import { DataPanel } from "../components/DataPanel";
 import { DataTable } from "../components/DataTable";
 import { EmptyState } from "../components/EmptyState";
@@ -22,12 +23,14 @@ import {
 import { emptyDataCommands, PageScaffold } from "./PageScaffold";
 
 export function HistoryPage() {
+  const { selectedProfileId } = useSelectedProfileId();
+  const profilePath = useProfilePath();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [symbolFilter, setSymbolFilter] = useState("all");
   const historyQuery = useQuery({
-    queryKey: ["ui", "history"],
-    queryFn: taurusApi.history,
+    queryKey: ["ui", "history", selectedProfileId ?? "default"],
+    queryFn: () => taurusApi.history({ profileId: selectedProfileId }),
     refetchInterval: 15_000,
   });
 
@@ -129,7 +132,7 @@ export function HistoryPage() {
                     key: "run",
                     header: "Run",
                     render: (run) => (
-                      <Link className="font-mono text-taurus-primary hover:text-sky-200" to={`/runs/${run.run_id}`}>
+                      <Link className="font-mono text-taurus-primary hover:text-sky-200" to={profilePath(`/runs/${run.run_id}`)}>
                         {run.run_id}
                       </Link>
                     ),
@@ -146,7 +149,7 @@ export function HistoryPage() {
                           <Link
                             className="rounded border border-taurus-outline bg-taurus-shell px-2 py-1 font-mono text-xs text-taurus-primary hover:border-taurus-primary"
                             key={symbol}
-                            to={`/runs/${run.run_id}/symbols/${symbol}`}
+                            to={profilePath(`/runs/${run.run_id}/symbols/${symbol}`)}
                           >
                             {symbol}
                           </Link>

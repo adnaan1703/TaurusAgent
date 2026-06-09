@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 
 import { taurusApi } from "../api/client";
+import { useProfilePath, useSelectedProfileId } from "../app/profileSelection";
 import { DataPanel } from "../components/DataPanel";
 import { DataTable } from "../components/DataTable";
 import { EmptyState } from "../components/EmptyState";
@@ -24,9 +25,11 @@ import { AllocationPanels } from "./AllocationPanels";
 import { emptyDataCommands, PageScaffold } from "./PageScaffold";
 
 export function RiskPage() {
+  const { selectedProfileId } = useSelectedProfileId();
+  const profilePath = useProfilePath();
   const riskQuery = useQuery({
-    queryKey: ["ui", "risk"],
-    queryFn: taurusApi.risk,
+    queryKey: ["ui", "risk", selectedProfileId ?? "default"],
+    queryFn: () => taurusApi.risk({ profileId: selectedProfileId }),
     refetchInterval: 15_000,
   });
 
@@ -69,7 +72,7 @@ export function RiskPage() {
                     key: "run",
                     header: "Run / symbol",
                     render: (row) => (
-                      <Link className="text-taurus-primary hover:text-sky-200" to={`/runs/${getString(row, "run_id")}/symbols/${getString(row, "symbol")}`}>
+                      <Link className="text-taurus-primary hover:text-sky-200" to={profilePath(`/runs/${getString(row, "run_id")}/symbols/${getString(row, "symbol")}`)}>
                         {getString(row, "symbol") || "-"}
                       </Link>
                     ),
@@ -79,7 +82,7 @@ export function RiskPage() {
                     header: "Decision",
                     render: (row) =>
                       getString(row, "decision_id") ? (
-                        <Link className="font-mono text-xs text-taurus-primary hover:text-sky-200" to={`/replay/${getString(row, "decision_id")}`}>
+                        <Link className="font-mono text-xs text-taurus-primary hover:text-sky-200" to={profilePath(`/replay/${getString(row, "decision_id")}`)}>
                           {formatId(getString(row, "decision_id"))}
                         </Link>
                       ) : (
@@ -142,7 +145,7 @@ export function RiskPage() {
                   key: "symbol",
                   header: "Symbol",
                   render: (row) => (
-                    <Link className="text-taurus-primary hover:text-sky-200" to={`/runs/${getString(row, "run_id")}/symbols/${getString(row, "symbol")}`}>
+                    <Link className="text-taurus-primary hover:text-sky-200" to={profilePath(`/runs/${getString(row, "run_id")}/symbols/${getString(row, "symbol")}`)}>
                       {getString(row, "symbol") || "-"}
                     </Link>
                   ),

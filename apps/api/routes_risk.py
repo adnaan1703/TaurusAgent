@@ -5,6 +5,8 @@ from collections.abc import Iterator
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session, sessionmaker
 
+from apps.api.profile_context import active_profile
+from taurus_core.config import Settings
 from taurus_core.db.repositories import RiskRepository
 from taurus_core.risk.schemas import FinalDecision, RiskReview
 
@@ -20,11 +22,19 @@ def get_db_session(request: Request) -> Iterator[Session]:
 @router.get("/risk-checks", response_model=list[RiskReview])
 @router.get("/risk-reviews", response_model=list[RiskReview])
 def list_risk_reviews(
+    request: Request,
+    profile_id: str | None = Query(default=None, min_length=1),
     symbol: str | None = Query(default=None, min_length=1),
     limit: int = Query(default=100, ge=1, le=500),
     session: Session = Depends(get_db_session),
 ) -> list[RiskReview]:
-    reviews = RiskRepository(session).list_risk_reviews(symbol=symbol, limit=limit)
+    settings: Settings = request.app.state.settings
+    profile = active_profile(session, settings, profile_id=profile_id)
+    reviews = RiskRepository(session).list_risk_reviews(
+        profile_id=profile.profile_id,
+        symbol=symbol,
+        limit=limit,
+    )
     return [RiskReview.model_validate(review.payload) for review in reviews]
 
 
@@ -42,11 +52,19 @@ def get_risk_review(
 
 @router.get("/final-decisions", response_model=list[FinalDecision])
 def list_final_decisions(
+    request: Request,
+    profile_id: str | None = Query(default=None, min_length=1),
     symbol: str | None = Query(default=None, min_length=1),
     limit: int = Query(default=100, ge=1, le=500),
     session: Session = Depends(get_db_session),
 ) -> list[FinalDecision]:
-    decisions = RiskRepository(session).list_final_decisions(symbol=symbol, limit=limit)
+    settings: Settings = request.app.state.settings
+    profile = active_profile(session, settings, profile_id=profile_id)
+    decisions = RiskRepository(session).list_final_decisions(
+        profile_id=profile.profile_id,
+        symbol=symbol,
+        limit=limit,
+    )
     return [FinalDecision.model_validate(decision.payload) for decision in decisions]
 
 

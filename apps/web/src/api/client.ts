@@ -15,6 +15,7 @@ import type {
   UiRiskResponse,
   UiRunDetailResponse,
   UiShariahResponse,
+  TaurusProfile,
 } from "./types";
 
 export const TAURUS_API_BASE_URL =
@@ -69,9 +70,24 @@ function normalizeErrorDetail(detail: ErrorPayload["detail"]): string | null {
   return detail?.msg ?? null;
 }
 
+type ProfileScopedParams = {
+  profileId?: string | null;
+};
+
+function withProfileParam(path: string, profileId: string | null | undefined): string {
+  if (!profileId) {
+    return path;
+  }
+  const separator = path.includes("?") ? "&" : "?";
+  return `${path}${separator}profile_id=${encodeURIComponent(profileId)}`;
+}
+
 export const taurusApi = {
-  overview: () => apiFetch<UiOverviewResponse>("/ui/overview"),
-  history: () => apiFetch<UiHistoryResponse>("/ui/history"),
+  profiles: () => apiFetch<TaurusProfile[]>("/profiles"),
+  overview: ({ profileId }: ProfileScopedParams = {}) =>
+    apiFetch<UiOverviewResponse>(withProfileParam("/ui/overview", profileId)),
+  history: ({ profileId }: ProfileScopedParams = {}) =>
+    apiFetch<UiHistoryResponse>(withProfileParam("/ui/history", profileId)),
   shariah: ({
     query = "",
     status = "all",
@@ -91,15 +107,20 @@ export const taurusApi = {
     });
     return apiFetch<UiShariahResponse>(`/ui/shariah?${params.toString()}`);
   },
-  run: (runId: string) => apiFetch<UiRunDetailResponse>(`/ui/runs/${runId}`),
-  decisionTrail: (runId: string, symbol: string) =>
+  run: (runId: string, { profileId }: ProfileScopedParams = {}) =>
+    apiFetch<UiRunDetailResponse>(
+      withProfileParam(`/ui/runs/${runId}`, profileId),
+    ),
+  decisionTrail: (runId: string, symbol: string, { profileId }: ProfileScopedParams = {}) =>
     apiFetch<UiDecisionTrailResponse>(
-      `/ui/runs/${runId}/symbols/${symbol}/decision-trail`,
+      withProfileParam(`/ui/runs/${runId}/symbols/${symbol}/decision-trail`, profileId),
     ),
   replay: (decisionId: string) =>
     apiFetch<UiReplayResponse>(`/ui/replay/${decisionId}`),
-  risk: () => apiFetch<UiRiskResponse>("/ui/risk"),
-  portfolio: () => apiFetch<UiPortfolioResponse>("/ui/portfolio"),
+  risk: ({ profileId }: ProfileScopedParams = {}) =>
+    apiFetch<UiRiskResponse>(withProfileParam("/ui/risk", profileId)),
+  portfolio: ({ profileId }: ProfileScopedParams = {}) =>
+    apiFetch<UiPortfolioResponse>(withProfileParam("/ui/portfolio", profileId)),
   graphOverview: () => apiFetch<GraphOverviewResponse>("/graph/overview"),
   graphCompany: ({
     symbol,

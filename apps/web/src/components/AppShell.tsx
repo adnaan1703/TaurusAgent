@@ -9,12 +9,15 @@ import {
   RefreshCw,
   Scale,
   ShieldCheck,
+  Users,
   Wallet,
 } from "lucide-react";
 import { NavLink, Outlet } from "react-router-dom";
 
 import { taurusApi } from "../api/client";
-import type { UiSafetyStatus } from "../api/types";
+import type { TaurusProfile, UiSafetyStatus } from "../api/types";
+import { useSelectedProfileId } from "../app/profileSelection";
+import { formatInr } from "../utils/format";
 import { StatusBadge } from "./StatusBadge";
 
 const navItems = [
@@ -27,13 +30,21 @@ const navItems = [
 ];
 
 export function AppShell() {
+  const { selectedProfileId, setSelectedProfileId } = useSelectedProfileId();
   const overviewQuery = useQuery({
-    queryKey: ["ui", "overview"],
-    queryFn: taurusApi.overview,
+    queryKey: ["ui", "overview", selectedProfileId ?? "default"],
+    queryFn: () => taurusApi.overview({ profileId: selectedProfileId }),
     refetchInterval: 15_000,
+  });
+  const profilesQuery = useQuery({
+    queryKey: ["profiles"],
+    queryFn: taurusApi.profiles,
+    staleTime: 60_000,
   });
 
   const safety = overviewQuery.data?.safety;
+  const profiles = profilesQuery.data ?? overviewQuery.data?.available_profiles ?? [];
+  const activeProfile = overviewQuery.data?.active_profile;
 
   return (
     <div className="min-h-screen bg-taurus-bg text-taurus-text">
@@ -75,7 +86,14 @@ export function AppShell() {
               <ListTree aria-hidden="true" className="h-5 w-5 text-taurus-primary" />
               <span className="text-sm text-taurus-muted">Run-loop dashboard</span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <ProfileSelector
+                activeProfile={activeProfile}
+                isError={overviewQuery.isError}
+                onChange={setSelectedProfileId}
+                profiles={profiles}
+                selectedProfileId={selectedProfileId}
+              />
               <SafetyPills safety={safety} />
               <button
                 aria-label="Refresh safety status"
@@ -102,6 +120,55 @@ export function AppShell() {
         <main className="px-4 py-6 lg:px-8">
           <Outlet />
         </main>
+      </div>
+    </div>
+  );
+}
+
+function ProfileSelector({
+  activeProfile,
+  isError,
+  onChange,
+  profiles,
+  selectedProfileId,
+}: {
+  activeProfile: TaurusProfile | undefined;
+  isError: boolean;
+  onChange: (profileId: string) => void;
+  profiles: TaurusProfile[];
+  selectedProfileId: string | undefined;
+}) {
+  const activeId = activeProfile?.profile_id ?? selectedProfileId ?? profiles[0]?.profile_id ?? "";
+  const selectedProfile =
+    profiles.find((profile) => profile.profile_id === activeId) ?? activeProfile;
+  const hasSelectedOption = profiles.some((profile) => profile.profile_id === activeId);
+
+  return (
+    <div className="flex min-w-0 items-center gap-2 rounded-md border border-taurus-outline bg-taurus-surface px-2 py-1.5">
+      <Users aria-hidden="true" className="h-4 w-4 shrink-0 text-taurus-primary" />
+      <div className="min-w-0">
+        <select
+          aria-label="Paper profile"
+          className="max-w-[13rem] bg-transparent text-sm font-medium text-taurus-text outline-none"
+          onChange={(event) => onChange(event.target.value)}
+          value={hasSelectedOption ? activeId : ""}
+        >
+          {!hasSelectedOption && (
+            <option value="">
+              {isError && selectedProfileId ? selectedProfileId : "Profile unavailable"}
+            </option>
+          )}
+          {profiles.map((profile) => (
+            <option key={profile.profile_id} value={profile.profile_id}>
+              {profile.display_name}
+            </option>
+          ))}
+        </select>
+        <p className="truncate text-[11px] leading-4 text-taurus-muted">
+          {selectedProfile
+            ? `${selectedProfile.profile_id} | ${formatInr(selectedProfile.starting_corpus_inr)}`
+            : "No active profiles"}
+        </p>
       </div>
     </div>
   );

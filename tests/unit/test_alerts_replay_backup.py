@@ -16,7 +16,11 @@ from taurus_core.alerts.templates import risk_review_events
 from taurus_core.brokers.paper_broker import PaperBroker
 from taurus_core.config import Settings
 from taurus_core.db.models import AuditLogModel
-from taurus_core.db.repositories import CandleRepository, ExecutionRepository
+from taurus_core.db.repositories import (
+    CandleRepository,
+    ExecutionRepository,
+    TaurusProfileRepository,
+)
 from taurus_core.db.session import build_session_factory
 from taurus_core.domain.market_data import DailyCandle
 from taurus_core.execution.schemas import PaperOrder
@@ -43,6 +47,7 @@ def test_mock_alerts_are_stored_and_replay_api_reconstructs_decision_path(
     settings = _settings_for_temp_db(tmp_path)
     run_migrations(settings)
     session_factory = build_session_factory(settings)
+    _set_default_profile_corpus(session_factory)
     with session_factory() as session:
         seed_test_market_data(session, candle_count=252)
     payload = run_mock_paper_once(symbol="INFY", settings=settings)
@@ -84,6 +89,7 @@ def test_next_open_settlement_alert_and_ui_replay_show_terminal_fill(
     settings = _settings_for_temp_db(tmp_path)
     run_migrations(settings)
     session_factory = build_session_factory(settings)
+    _set_default_profile_corpus(session_factory)
     with session_factory() as session:
         seed_test_market_data(session, candle_count=252)
     payload = run_mock_paper_once(symbol="INFY", settings=settings)
@@ -278,6 +284,15 @@ def _settings_for_temp_db(tmp_path: Path) -> Settings:
         taurus_initial_capital_inr=1_000_000,
         taurus_paper_partial_fill_threshold=1,
     )
+
+
+def _set_default_profile_corpus(session_factory) -> None:
+    with session_factory() as session:
+        TaurusProfileRepository(session).update_profile_corpus(
+            "local-paper",
+            Decimal("1000000"),
+        )
+        session.commit()
 
 
 def _append_next_open_candle(session, order: PaperOrder):

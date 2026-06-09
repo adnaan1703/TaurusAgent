@@ -4,6 +4,7 @@ import { Link, useParams } from "react-router-dom";
 
 import { taurusApi } from "../api/client";
 import type { JsonObject, UiAnalystRoster, UiRunSelectionRow, UiTimelineStage } from "../api/types";
+import { useProfilePath, useSelectedProfileId } from "../app/profileSelection";
 import { DataPanel } from "../components/DataPanel";
 import { DataTable } from "../components/DataTable";
 import { JsonDrawer } from "../components/JsonDrawer";
@@ -31,10 +32,12 @@ import { PageScaffold } from "./PageScaffold";
 
 export function DecisionTrailPage() {
   const { runId = "", symbol = "" } = useParams();
+  const { selectedProfileId } = useSelectedProfileId();
+  const profilePath = useProfilePath();
   const [selectedStageId, setSelectedStageId] = useState<string | null>(null);
   const trailQuery = useQuery({
-    queryKey: ["ui", "decision-trail", runId, symbol],
-    queryFn: () => taurusApi.decisionTrail(runId, symbol),
+    queryKey: ["ui", "decision-trail", runId, symbol, selectedProfileId ?? "default"],
+    queryFn: () => taurusApi.decisionTrail(runId, symbol, { profileId: selectedProfileId }),
     enabled: runId.length > 0 && symbol.length > 0,
     refetchInterval: (query) => (query.state.data?.run.status === "RUNNING" ? 5_000 : false),
   });
@@ -82,7 +85,7 @@ export function DecisionTrailPage() {
               supportingText={trailQuery.data.decision_id ?? "No decision ID"}
               value={
                 trailQuery.data.decision_id ? (
-                  <Link className="text-taurus-primary hover:text-sky-200" to={`/replay/${trailQuery.data.decision_id}`}>
+                  <Link className="text-taurus-primary hover:text-sky-200" to={profilePath(`/replay/${trailQuery.data.decision_id}`)}>
                     Open replay
                   </Link>
                 ) : (

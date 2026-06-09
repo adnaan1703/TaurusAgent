@@ -13,6 +13,12 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, sessionmaker
 
+from apps.api.profile_context import (
+    active_profile,
+    available_profile_responses,
+    profile_for_run,
+    profile_response,
+)
 from taurus_core.config import Settings
 from taurus_core.db.models import (
     AnalystReportModel,
@@ -39,10 +45,12 @@ from taurus_core.db.repositories import (
     PaperRunRepository,
     ResearchRepository,
     RiskRepository,
+    TaurusProfileRepository,
 )
 from taurus_core.data.universe import load_market_data_universe
 from taurus_core.observability.metrics import current_llm_failure_count
 from taurus_core.portfolio import money_management_metadata
+from taurus_core.profiles.schemas import TaurusProfileResponse
 from taurus_core.replay.service import DecisionReplayService
 
 router = APIRouter(prefix="/ui", tags=["ui"])
@@ -126,6 +134,7 @@ class UiRunSelectionRow(BaseModel):
 
 class UiRunSummary(BaseModel):
     run_id: str
+    profile_id: str
     status: RunStatus
     schedule_name: str
     started_at: datetime
@@ -201,6 +210,8 @@ class UiTimelineStage(BaseModel):
 
 
 class UiOverviewResponse(BaseModel):
+    active_profile: TaurusProfileResponse
+    available_profiles: list[TaurusProfileResponse]
     safety: UiSafetyStatus
     monitor_status: dict[str, Any]
     allocation: dict[str, Any]
@@ -215,6 +226,7 @@ class UiOverviewResponse(BaseModel):
 
 
 class UiRunDetailResponse(BaseModel):
+    active_profile: TaurusProfileResponse
     safety: UiSafetyStatus
     run: UiRunSummary
     symbols: list[UiSymbolPipelineRow]
@@ -227,6 +239,7 @@ class UiRunDetailResponse(BaseModel):
 
 
 class UiDecisionTrailResponse(BaseModel):
+    active_profile: TaurusProfileResponse
     run: UiRunSummary
     symbol: str
     company_name: str | None = None
@@ -254,6 +267,7 @@ class UiReplayResponse(BaseModel):
 
 
 class UiRiskResponse(BaseModel):
+    active_profile: TaurusProfileResponse
     safety: UiSafetyStatus
     money_management: dict[str, Any]
     allocation: dict[str, Any]
@@ -265,6 +279,7 @@ class UiRiskResponse(BaseModel):
 
 
 class UiPortfolioResponse(BaseModel):
+    active_profile: TaurusProfileResponse
     safety: UiSafetyStatus
     money_management: dict[str, Any]
     allocation: dict[str, Any]
@@ -277,6 +292,7 @@ class UiPortfolioResponse(BaseModel):
 
 
 class UiHistoryResponse(BaseModel):
+    active_profile: TaurusProfileResponse
     runs: list[UiRunSummary]
     status_counts: dict[str, int]
     filters_metadata: dict[str, Any]
@@ -350,39 +366,42 @@ def get_db_session(request: Request) -> Iterator[Session]:
 @router.get("/overview", response_model=UiOverviewResponse)
 def get_overview(
     request: Request,
+    profile_id: str | None = Query(default=None, min_length=1),
     limit: int = Query(default=50, ge=1, le=200),
     session: Session = Depends(get_db_session),
 ) -> UiOverviewResponse:
     settings: Settings = request.app.state.settings
+    profile = active_profile(session, settings, profile_id=profile_id)
     run_repo = PaperRunRepository(session)
     research_repo = ResearchRepository(session)
     risk_repo = RiskRepository(session)
     execution_repo = ExecutionRepository(session)
 
-    run_rows = run_repo.list(limit=limit)
+    run_rows = run_repo.list(profile_id=profile.profile_id, limit=limit)
     recent_runs = [
         _run_summary(row, research_repo, risk_repo, execution_repo)
         for row in run_rows
     ]
     latest_run = recent_runs[0] if recent_runs else None
     latest_account = execution_repo.latest_account_by_portfolio(
-        portfolio_id=settings.taurus_paper_portfolio_id,
+        portfolio_id=profile.profile_id,
     )
     latest_account_payload = _payload(latest_account) if latest_account is not None else None
     latest_proposal = research_repo.list_trader_proposals(
-        portfolio_id=settings.taurus_paper_portfolio_id,
+        portfolio_id=profile.profile_id,
         limit=1,
     )
-    latest_final = risk_repo.list_final_decisions(limit=1)
+    latest_final = risk_repo.list_final_decisions(profile_id=profile.profile_id, limit=1)
     latest_orders = execution_repo.list_orders(
-        portfolio_id=settings.taurus_paper_portfolio_id,
+        portfolio_id=profile.profile_id,
         limit=1,
     )
     positions = _monitor_enriched_positions(
         session,
         settings=settings,
+        profile_id=profile.profile_id,
         positions=execution_repo.latest_open_positions_by_portfolio(
-            portfolio_id=settings.taurus_paper_portfolio_id,
+            portfolio_id=profile.profile_id,
         ),
     )
 
@@ -392,11 +411,14 @@ def get_overview(
         latest_final=latest_final[0] if latest_final else None,
     )
     return UiOverviewResponse(
+        active_profile=profile_response(profile),
+        available_profiles=available_profile_responses(session),
         safety=_safety(settings),
         monitor_status=_monitor_status(session, settings),
         allocation=_allocation_dashboard_payload(
             session=session,
             settings=settings,
+            profile_id=profile.profile_id,
             account=latest_account_payload,
             positions=positions,
             latest_run=run_rows[0] if run_rows else None,
@@ -416,10 +438,12 @@ def get_overview(
 def get_ui_run(
     run_id: str,
     request: Request,
+    profile_id: str | None = Query(default=None, min_length=1),
     session: Session = Depends(get_db_session),
 ) -> UiRunDetailResponse:
     settings: Settings = request.app.state.settings
     run = _require_run(session, run_id)
+    profile = profile_for_run(session, settings, run, profile_id=profile_id)
     risk_repo = RiskRepository(session)
     execution_repo = ExecutionRepository(session)
     research_repo = ResearchRepository(session)
@@ -440,6 +464,7 @@ def get_ui_run(
         for symbol in run.symbols
     ]
     return UiRunDetailResponse(
+        active_profile=profile_response(profile),
         safety=_safety(settings),
         run=run_summary,
         symbols=symbols,
@@ -465,9 +490,13 @@ def get_ui_run(
 def get_decision_trail(
     run_id: str,
     symbol: str,
+    request: Request,
+    profile_id: str | None = Query(default=None, min_length=1),
     session: Session = Depends(get_db_session),
 ) -> UiDecisionTrailResponse:
+    settings: Settings = request.app.state.settings
     run = _require_run(session, run_id)
+    profile = profile_for_run(session, settings, run, profile_id=profile_id)
     normalized_symbol = symbol.upper()
     if normalized_symbol not in set(run.symbols):
         raise HTTPException(status_code=404, detail="Symbol was not part of this paper run.")
@@ -482,6 +511,7 @@ def get_decision_trail(
         context=context,
     )
     return UiDecisionTrailResponse(
+        active_profile=profile_response(profile),
         run=_run_summary(
             run,
             ResearchRepository(session),
@@ -538,13 +568,15 @@ def get_ui_replay(
 @router.get("/risk", response_model=UiRiskResponse)
 def get_ui_risk(
     request: Request,
+    profile_id: str | None = Query(default=None, min_length=1),
     limit: int = Query(default=100, ge=1, le=500),
     session: Session = Depends(get_db_session),
 ) -> UiRiskResponse:
     settings: Settings = request.app.state.settings
+    profile = active_profile(session, settings, profile_id=profile_id)
     risk_repo = RiskRepository(session)
-    reviews = risk_repo.list_risk_reviews(limit=limit)
-    decisions = risk_repo.list_final_decisions(limit=limit)
+    reviews = risk_repo.list_risk_reviews(profile_id=profile.profile_id, limit=limit)
+    decisions = risk_repo.list_final_decisions(profile_id=profile.profile_id, limit=limit)
     hard_rules: list[dict[str, Any]] = []
     persona_reviews: list[dict[str, Any]] = []
     for review in reviews:
@@ -573,9 +605,14 @@ def get_ui_risk(
                 )
             )
     return UiRiskResponse(
+        active_profile=profile_response(profile),
         safety=_safety(settings),
         money_management=money_management_metadata(settings),
-        allocation=_allocation_dashboard_payload(session=session, settings=settings),
+        allocation=_allocation_dashboard_payload(
+            session=session,
+            settings=settings,
+            profile_id=profile.profile_id,
+        ),
         latest_risk_reviews=[_risk_review_payload(session, review) for review in reviews],
         hard_rule_results=hard_rules,
         persona_reviews=persona_reviews,
@@ -587,29 +624,32 @@ def get_ui_risk(
 @router.get("/portfolio", response_model=UiPortfolioResponse)
 def get_ui_portfolio(
     request: Request,
+    profile_id: str | None = Query(default=None, min_length=1),
     limit: int = Query(default=100, ge=1, le=500),
     session: Session = Depends(get_db_session),
 ) -> UiPortfolioResponse:
     settings: Settings = request.app.state.settings
+    profile = active_profile(session, settings, profile_id=profile_id)
     execution_repo = ExecutionRepository(session)
-    latest_run_rows = PaperRunRepository(session).list(limit=1)
+    latest_run_rows = PaperRunRepository(session).list(profile_id=profile.profile_id, limit=1)
     account = execution_repo.latest_account_by_portfolio(
-        portfolio_id=settings.taurus_paper_portfolio_id,
+        portfolio_id=profile.profile_id,
     )
     account_payload = _payload(account) if account is not None else None
     run_id = account.run_id if account is not None else None
     positions = _monitor_enriched_positions(
         session,
         settings=settings,
+        profile_id=profile.profile_id,
         positions=execution_repo.latest_open_positions_by_portfolio(
-            portfolio_id=settings.taurus_paper_portfolio_id,
+            portfolio_id=profile.profile_id,
         ),
     )
     orders = [
         _payload(row)
         for row in execution_repo.list_orders(
             run_id=run_id,
-            portfolio_id=settings.taurus_paper_portfolio_id,
+            portfolio_id=profile.profile_id,
             limit=limit,
         )
     ]
@@ -617,16 +657,18 @@ def get_ui_portfolio(
         _payload(row)
         for row in execution_repo.list_fills(
             run_id=run_id,
-            portfolio_id=settings.taurus_paper_portfolio_id,
+            portfolio_id=profile.profile_id,
             limit=limit,
         )
     ]
     return UiPortfolioResponse(
+        active_profile=profile_response(profile),
         safety=_safety(settings),
         money_management=money_management_metadata(settings),
         allocation=_allocation_dashboard_payload(
             session=session,
             settings=settings,
+            profile_id=profile.profile_id,
             account=account_payload,
             positions=positions,
             latest_run=latest_run_rows[0] if latest_run_rows else None,
@@ -642,17 +684,22 @@ def get_ui_portfolio(
 
 @router.get("/history", response_model=UiHistoryResponse)
 def get_ui_history(
+    request: Request,
+    profile_id: str | None = Query(default=None, min_length=1),
     limit: int = Query(default=100, ge=1, le=500),
     session: Session = Depends(get_db_session),
 ) -> UiHistoryResponse:
+    settings: Settings = request.app.state.settings
+    profile = active_profile(session, settings, profile_id=profile_id)
     risk_repo = RiskRepository(session)
     execution_repo = ExecutionRepository(session)
-    rows = PaperRunRepository(session).list(limit=limit)
+    rows = PaperRunRepository(session).list(profile_id=profile.profile_id, limit=limit)
     research_repo = ResearchRepository(session)
     runs = [_run_summary(row, research_repo, risk_repo, execution_repo) for row in rows]
     symbols = sorted({symbol for row in rows for symbol in row.symbols})
     started_values = [row.started_at for row in rows]
     return UiHistoryResponse(
+        active_profile=profile_response(profile),
         runs=runs,
         status_counts=dict(Counter(row.status for row in rows)),
         filters_metadata={
@@ -662,6 +709,7 @@ def get_ui_history(
                 "start": min(started_values).isoformat() if started_values else None,
                 "end": max(started_values).isoformat() if started_values else None,
             },
+            "profile_id": profile.profile_id,
         },
     )
 
@@ -826,6 +874,7 @@ def _run_summary(
     )
     return UiRunSummary(
         run_id=run.run_id,
+        profile_id=run.portfolio_id,
         status=run.status,  # type: ignore[arg-type]
         schedule_name=run.schedule_name,
         started_at=run.started_at,
@@ -1792,13 +1841,18 @@ def _monitor_enriched_positions(
     session: Session,
     *,
     settings: Settings,
+    profile_id: str,
     positions: list[Any],
 ) -> list[dict[str, Any]]:
     research_repo = ResearchRepository(session)
-    allocation_by_symbol = _latest_allocation_decisions_by_symbol(session, settings)
+    allocation_by_symbol = _latest_allocation_decisions_by_symbol(
+        session,
+        settings,
+        profile_id=profile_id,
+    )
     metadata = money_management_metadata(settings)
     policy = metadata.get("policy") if isinstance(metadata.get("policy"), dict) else {}
-    latest_runs = PaperRunRepository(session).list(limit=1)
+    latest_runs = PaperRunRepository(session).list(profile_id=profile_id, limit=1)
     core_sleeve = _core_sleeve_metadata(
         policy=policy,
         latest_run=latest_runs[0] if latest_runs else None,
@@ -1826,7 +1880,7 @@ def _monitor_enriched_positions(
             .limit(1)
         )
         proposals = research_repo.list_trader_proposals(
-            portfolio_id=settings.taurus_paper_portfolio_id,
+            portfolio_id=profile_id,
             symbol=position.symbol,
             limit=20,
         )
@@ -1881,6 +1935,7 @@ def _allocation_dashboard_payload(
     *,
     session: Session,
     settings: Settings,
+    profile_id: str,
     account: dict[str, Any] | None = None,
     positions: list[dict[str, Any]] | None = None,
     latest_run: PaperRunModel | None = None,
@@ -1903,22 +1958,26 @@ def _allocation_dashboard_payload(
     account_payload = account
     if account_payload is None:
         account_row = execution_repo.latest_account_by_portfolio(
-            portfolio_id=settings.taurus_paper_portfolio_id,
+            portfolio_id=profile_id,
         )
         account_payload = _payload(account_row) if account_row is not None else None
 
     if latest_run is None:
-        latest_runs = PaperRunRepository(session).list(limit=1)
+        latest_runs = PaperRunRepository(session).list(profile_id=profile_id, limit=1)
         latest_run = latest_runs[0] if latest_runs else None
 
     policy = metadata.get("policy") if isinstance(metadata.get("policy"), dict) else {}
     position_payloads = positions
     if position_payloads is None:
-        allocation_by_symbol = _latest_allocation_decisions_by_symbol(session, settings)
+        allocation_by_symbol = _latest_allocation_decisions_by_symbol(
+            session,
+            settings,
+            profile_id=profile_id,
+        )
         core_sleeve = _core_sleeve_metadata(policy=policy, latest_run=latest_run)
         position_payloads = []
         for row in execution_repo.latest_open_positions_by_portfolio(
-            portfolio_id=settings.taurus_paper_portfolio_id,
+            portfolio_id=profile_id,
         ):
             payload = _payload(row)
             payload.update(
@@ -1930,13 +1989,24 @@ def _allocation_dashboard_payload(
             )
             position_payloads.append(payload)
 
-    nav_inr = _decimal_or_none(
-        account_payload.get("equity_inr") if account_payload else None
-    ) or Decimal(str(settings.taurus_initial_capital_inr))
+    profile = TaurusProfileRepository(session).get_profile(profile_id)
+    profile_starting_corpus = (
+        _decimal_or_none(profile.starting_corpus_inr) if profile is not None else None
+    )
+    nav_inr = (
+        _decimal_or_none(account_payload.get("equity_inr") if account_payload else None)
+        or profile_starting_corpus
+        or Decimal(str(settings.taurus_initial_capital_inr))
+    )
     available_cash = _decimal_or_none(
         account_payload.get("available_cash_inr") if account_payload else None
     ) or nav_inr
-    allocation_decisions = _latest_allocation_decisions(session, settings, limit=25)
+    allocation_decisions = _latest_allocation_decisions(
+        session,
+        settings,
+        profile_id=profile_id,
+        limit=25,
+    )
     sleeves = _sleeve_allocation_rows(
         policy=policy,
         nav_inr=nav_inr,
@@ -2018,9 +2088,16 @@ def _latest_allocation_decision(context: dict[str, Any]) -> dict[str, Any] | Non
 def _latest_allocation_decisions_by_symbol(
     session: Session,
     settings: Settings,
+    *,
+    profile_id: str,
 ) -> dict[str, dict[str, Any]]:
     decisions: dict[str, dict[str, Any]] = {}
-    for decision in _latest_allocation_decisions(session, settings, limit=200):
+    for decision in _latest_allocation_decisions(
+        session,
+        settings,
+        profile_id=profile_id,
+        limit=200,
+    ):
         symbol = str(decision.get("symbol") or "").upper()
         if symbol and symbol not in decisions:
             decisions[symbol] = decision
@@ -2031,6 +2108,7 @@ def _latest_allocation_decisions(
     session: Session,
     settings: Settings,
     *,
+    profile_id: str,
     limit: int,
 ) -> list[dict[str, Any]]:
     decisions: list[dict[str, Any]] = []
@@ -2038,7 +2116,7 @@ def _latest_allocation_decisions(
     risk_repo = RiskRepository(session)
     execution_repo = ExecutionRepository(session)
 
-    for run in PaperRunRepository(session).list(limit=25):
+    for run in PaperRunRepository(session).list(profile_id=profile_id, limit=25):
         ledger = _allocation_ledger(run)
         if not ledger:
             continue
@@ -2098,7 +2176,7 @@ def _latest_allocation_decisions(
         return decisions[:limit]
 
     for proposal in ResearchRepository(session).list_trader_proposals(
-        portfolio_id=settings.taurus_paper_portfolio_id,
+        portfolio_id=profile_id,
         limit=limit,
     ):
         payload = _payload(proposal)

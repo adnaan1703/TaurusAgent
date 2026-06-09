@@ -13,6 +13,7 @@ from apps.api.routes_health import router as health_router
 from apps.api.routes_intelligence import router as intelligence_router
 from apps.api.routes_kite_auth import router as kite_auth_router
 from apps.api.routes_paper import router as paper_router
+from apps.api.routes_profiles import router as profiles_router
 from apps.api.routes_research import router as research_router
 from apps.api.routes_replay import router as replay_router
 from apps.api.routes_risk import router as risk_router
@@ -43,7 +44,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "http://127.0.0.1:5173",
         ],
         allow_credentials=False,
-        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_methods=["GET", "POST", "PATCH", "OPTIONS"],
         allow_headers=["*"],
     )
     app.include_router(kite_auth_router)
@@ -57,6 +58,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(replay_router)
     app.include_router(risk_router)
     app.include_router(paper_router)
+    app.include_router(profiles_router)
     app.include_router(runs_router)
     app.include_router(ui_router)
 

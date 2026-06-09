@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 
 import { taurusApi } from "../api/client";
 import type { JsonObject, UiRunSelectionRow, UiRunSummary } from "../api/types";
+import { useProfilePath, useSelectedProfileId } from "../app/profileSelection";
 import { DataPanel } from "../components/DataPanel";
 import { DataTable } from "../components/DataTable";
 import { EmptyState } from "../components/EmptyState";
@@ -28,9 +29,11 @@ import { AllocationPanels } from "./AllocationPanels";
 import { emptyDataCommands, PageScaffold } from "./PageScaffold";
 
 export function OverviewPage() {
+  const { selectedProfileId } = useSelectedProfileId();
+  const profilePath = useProfilePath();
   const overviewQuery = useQuery({
-    queryKey: ["ui", "overview"],
-    queryFn: taurusApi.overview,
+    queryKey: ["ui", "overview", selectedProfileId ?? "default"],
+    queryFn: () => taurusApi.overview({ profileId: selectedProfileId }),
     refetchInterval: 15_000,
   });
 
@@ -178,7 +181,7 @@ export function OverviewPage() {
                     key: "run",
                     header: "Run",
                     render: (run) => (
-                      <Link className="font-mono text-taurus-primary hover:text-sky-200" to={`/runs/${run.run_id}`}>
+                      <Link className="font-mono text-taurus-primary hover:text-sky-200" to={profilePath(`/runs/${run.run_id}`)}>
                         {run.run_id}
                       </Link>
                     ),
@@ -373,6 +376,7 @@ function SelectionPreviewTable({
   rows: UiRunSelectionRow[];
   runId: string;
 }) {
+  const profilePath = useProfilePath();
   return (
     <DataTable
       columns={[
@@ -380,7 +384,7 @@ function SelectionPreviewTable({
           key: "symbol",
           header: "Symbol",
           render: (row) => (
-            <Link className="font-semibold text-taurus-primary hover:text-sky-200" to={`/runs/${runId}/symbols/${row.symbol}`}>
+            <Link className="font-semibold text-taurus-primary hover:text-sky-200" to={profilePath(`/runs/${runId}/symbols/${row.symbol}`)}>
               {row.symbol}
             </Link>
           ),
@@ -401,6 +405,7 @@ function SelectionPreviewTable({
 }
 
 function SymbolLinks({ run }: { run: UiRunSummary }) {
+  const profilePath = useProfilePath();
   if (run.symbols.length === 0) {
     return "None";
   }
@@ -411,7 +416,7 @@ function SymbolLinks({ run }: { run: UiRunSummary }) {
         <Link
           className="rounded border border-taurus-outline bg-taurus-shell px-2 py-1 font-mono text-xs text-taurus-primary hover:border-taurus-primary"
           key={symbol}
-          to={`/runs/${run.run_id}/symbols/${symbol}`}
+          to={profilePath(`/runs/${run.run_id}/symbols/${symbol}`)}
         >
           {symbol}
         </Link>

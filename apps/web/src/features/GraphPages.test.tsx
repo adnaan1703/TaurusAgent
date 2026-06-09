@@ -7,7 +7,21 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createTaurusQueryClient } from "../app/providers";
 import { routes } from "../app/routes";
 
+const profile = {
+  profile_id: "local-paper",
+  display_name: "Local Paper",
+  starting_corpus_inr: "10000.0000",
+  currency: "INR",
+  status: "ACTIVE",
+  description: "",
+  profile_metadata: {},
+  created_at: "2026-06-10T00:00:00Z",
+  updated_at: "2026-06-10T00:00:00Z",
+};
+
 const overviewPayload = {
+  active_profile: profile,
+  available_profiles: [profile],
   safety: {
     taurus_mode: "paper",
     broker_provider: "paper",
@@ -22,8 +36,10 @@ const overviewPayload = {
     provider: "kite",
     trigger_count_today: 0,
   },
+  allocation: { enabled: false, config_path: "configs/portfolio/money_management_v1.yaml" },
   latest_account: null,
   latest_run: null,
+  latest_trader_proposal: null,
   latest_final_decision: null,
   latest_order: null,
   recent_runs: [],
@@ -362,6 +378,9 @@ function stubGraphFetch({
 
       if (url.includes("/ui/overview")) {
         return jsonResponse(overviewPayload);
+      }
+      if (url.includes("/profiles")) {
+        return jsonResponse([profile]);
       }
       if (url.includes("/graph/overview")) {
         return jsonResponse(graphOverview);

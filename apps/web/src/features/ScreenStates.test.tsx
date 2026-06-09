@@ -17,8 +17,21 @@ const safety = {
   alert_provider: "mock",
 };
 
+const profile = {
+  profile_id: "local-paper",
+  display_name: "Local Paper",
+  starting_corpus_inr: "10000.0000",
+  currency: "INR",
+  status: "ACTIVE",
+  description: "",
+  profile_metadata: {},
+  created_at: "2026-06-10T00:00:00Z",
+  updated_at: "2026-06-10T00:00:00Z",
+};
+
 const runSummary = {
   run_id: "pr-test",
+  profile_id: "local-paper",
   status: "COMPLETED",
   schedule_name: "daily_after_close",
   started_at: "2026-05-21T15:00:00Z",
@@ -239,6 +252,8 @@ const allocation = {
 };
 
 const emptyOverview = {
+  active_profile: profile,
+  available_profiles: [profile],
   safety,
   monitor_status: monitorStatus,
   allocation: { enabled: false, config_path: "configs/portfolio/money_management_v1.yaml" },
@@ -252,6 +267,8 @@ const emptyOverview = {
 };
 
 const overview = {
+  active_profile: profile,
+  available_profiles: [profile],
   safety,
   monitor_status: { ...monitorStatus, enabled: true, trigger_count_today: 1 },
   allocation,
@@ -669,6 +686,12 @@ function stubFetch(payloads: {
     "fetch",
     vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
+      if (url.includes("/profiles")) {
+        return new Response(JSON.stringify([profile]), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
       const payload =
         url.includes("/ui/runs/pr-test/symbols/INFY/decision-trail")
           ? payloads.trail

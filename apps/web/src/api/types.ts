@@ -13,6 +13,20 @@ export type StageStatus =
   | "skipped";
 export type WarningSeverity = "info" | "warning" | "critical";
 export type MetricTone = "neutral" | "success" | "caution" | "failure";
+export type ProfileStatus = "ACTIVE" | "ARCHIVED";
+export type ProfileMoney = string | number;
+
+export type TaurusProfile = {
+  profile_id: string;
+  display_name: string;
+  starting_corpus_inr: ProfileMoney;
+  currency: string;
+  status: ProfileStatus;
+  description: string;
+  profile_metadata: JsonObject;
+  created_at: string;
+  updated_at: string;
+};
 
 export type UiSafetyStatus = {
   taurus_mode: string;
@@ -72,6 +86,7 @@ export type UiRunSelectionRow = {
 
 export type UiRunSummary = {
   run_id: string;
+  profile_id: string;
   status: RunStatus;
   schedule_name: string;
   started_at: string;
@@ -147,6 +162,8 @@ export type UiTimelineStage = {
 };
 
 export type UiOverviewResponse = {
+  active_profile: TaurusProfile;
+  available_profiles: TaurusProfile[];
   safety: UiSafetyStatus;
   monitor_status: JsonObject;
   allocation: JsonObject;
@@ -161,6 +178,7 @@ export type UiOverviewResponse = {
 };
 
 export type UiRunDetailResponse = {
+  active_profile: TaurusProfile;
   safety: UiSafetyStatus;
   run: UiRunSummary;
   symbols: UiSymbolPipelineRow[];
@@ -173,6 +191,7 @@ export type UiRunDetailResponse = {
 };
 
 export type UiDecisionTrailResponse = {
+  active_profile: TaurusProfile;
   run: UiRunSummary;
   symbol: string;
   company_name?: string | null;
@@ -200,6 +219,7 @@ export type UiReplayResponse = {
 };
 
 export type UiRiskResponse = {
+  active_profile: TaurusProfile;
   safety: UiSafetyStatus;
   money_management: JsonObject;
   allocation: JsonObject;
@@ -211,6 +231,7 @@ export type UiRiskResponse = {
 };
 
 export type UiPortfolioResponse = {
+  active_profile: TaurusProfile;
   safety: UiSafetyStatus;
   money_management: JsonObject;
   allocation: JsonObject;
@@ -223,6 +244,7 @@ export type UiPortfolioResponse = {
 };
 
 export type UiHistoryResponse = {
+  active_profile: TaurusProfile;
   runs: UiRunSummary[];
   status_counts: Record<string, number>;
   filters_metadata: JsonObject;

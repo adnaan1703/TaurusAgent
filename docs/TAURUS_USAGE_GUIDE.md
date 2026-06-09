@@ -1,14 +1,14 @@
 # Taurus Usage Guide
 
-Last verified: 2026-06-04 for docs freshness. Latest recorded runtime
-verification remains the 2026-06-02 command set below.
+Last verified: 2026-06-10.
 
 ## Current State
 
-- Backend focused allocation/API tests:
-  `uv run pytest tests/unit/test_ui_aggregate_api.py -q` -> `10 passed`.
-- Backend full suite: `make test` -> `220 passed, 1 skipped`.
-- Frontend tests: `make test-ui` -> `25 passed`.
+- Backend focused API/broker tests:
+  `uv run pytest tests/unit/test_ui_aggregate_api.py tests/unit/test_paper_broker.py -q`
+  -> `37 passed`.
+- Backend full suite: `make test` -> `319 passed, 1 skipped`.
+- Frontend tests: `make test-ui` -> `28 passed`.
 - Compile check: `make lint` -> passed.
 - Frontend build: `make build-ui` -> passed.
 - Docker Postgres is the canonical Taurus database. Runtime, scripts, and tests
@@ -40,8 +40,9 @@ Taurus is a local, observable paper-trading simulator for Indian cash equities. 
 - Run deterministic risk review and final approval gates before paper routing.
 - Simulate orders, fills, positions, cash, costs, and slippage through
   `PaperBroker`.
-- Preserve one local paper portfolio across run IDs with
-  `TAURUS_PAPER_PORTFOLIO_ID=local-paper`.
+- Manage multiple logical paper profiles with isolated corpus, runs, orders,
+  fills, positions, accounts, and P&L. `TAURUS_PROFILE_ID=local-paper` is the
+  default selected profile; `TAURUS_PAPER_PORTFOLIO_ID` remains a legacy alias.
 - Run scheduled after-close paper loops and an opt-in market-hours position
   monitor for stop-loss/take-profit lifecycle decisions.
 - Expose FastAPI endpoints, a primary React dashboard, and a Streamlit fallback
@@ -162,6 +163,12 @@ real LLM provider where the workflow calls an LLM.
 - `make taurus-smoke`: full MVP smoke test using existing Kite-imported market
   data and remaining non-market mocks.
 - `make llm-smoke`: checks the configured real LLM provider.
+
+The React dashboard has a read-only profile selector in the app shell. It uses
+the `profile_id` URL query parameter, persists the last selected profile in
+local storage, and scopes Overview, History, Risk, Portfolio, run detail, and
+decision-trail pages to the selected active profile. Shariah and Graph pages
+remain shared platform-level views.
 
 Manual EOD paper loop commands import the latest daily candles, settle previous
 `PENDING_NEXT_OPEN` paper orders at the first newer candle open, and only then

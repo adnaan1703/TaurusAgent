@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { taurusApi } from "../api/client";
 import type { JsonObject, UiTimelineStage } from "../api/types";
+import { useProfilePath } from "../app/profileSelection";
 import { DataPanel } from "../components/DataPanel";
 import { DataTable } from "../components/DataTable";
 import { JsonDrawer } from "../components/JsonDrawer";
@@ -26,6 +27,7 @@ import { PageScaffold } from "./PageScaffold";
 export function ReplayPage() {
   const { decisionId = "" } = useParams();
   const navigate = useNavigate();
+  const profilePath = useProfilePath();
   const [searchValue, setSearchValue] = useState(decisionId);
   const replayQuery = useQuery({
     queryKey: ["ui", "replay", decisionId],
@@ -41,7 +43,7 @@ export function ReplayPage() {
     event.preventDefault();
     const nextDecisionId = searchValue.trim();
     if (nextDecisionId) {
-      navigate(`/replay/${nextDecisionId}`);
+      navigate(profilePath(`/replay/${nextDecisionId}`));
     }
   }
 
@@ -77,7 +79,7 @@ export function ReplayPage() {
             <MetricCard
               label="Run"
               value={
-                <Link className="font-mono text-taurus-primary hover:text-sky-200" to={`/runs/${replayQuery.data.run_id}`}>
+                <Link className="font-mono text-taurus-primary hover:text-sky-200" to={profilePath(`/runs/${replayQuery.data.run_id}`)}>
                   {formatId(replayQuery.data.run_id)}
                 </Link>
               }
@@ -85,7 +87,7 @@ export function ReplayPage() {
             <MetricCard
               label="Symbol"
               value={
-                <Link className="font-mono text-taurus-primary hover:text-sky-200" to={`/runs/${replayQuery.data.run_id}/symbols/${replayQuery.data.symbol}`}>
+                <Link className="font-mono text-taurus-primary hover:text-sky-200" to={profilePath(`/runs/${replayQuery.data.run_id}/symbols/${replayQuery.data.symbol}`)}>
                   {replayQuery.data.symbol}
                 </Link>
               }

@@ -5,6 +5,8 @@ from collections.abc import Iterator
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session, sessionmaker
 
+from apps.api.profile_context import active_profile
+from taurus_core.config import Settings
 from taurus_core.db.repositories import ResearchRepository
 from taurus_core.research.schemas import DebateReport, TraderProposal
 
@@ -19,11 +21,19 @@ def get_db_session(request: Request) -> Iterator[Session]:
 
 @router.get("/debates", response_model=list[DebateReport])
 def list_debates(
+    request: Request,
+    profile_id: str | None = Query(default=None, min_length=1),
     symbol: str | None = Query(default=None, min_length=1),
     limit: int = Query(default=100, ge=1, le=500),
     session: Session = Depends(get_db_session),
 ) -> list[DebateReport]:
-    debates = ResearchRepository(session).list_debates(symbol=symbol, limit=limit)
+    settings: Settings = request.app.state.settings
+    profile = active_profile(session, settings, profile_id=profile_id)
+    debates = ResearchRepository(session).list_debates(
+        profile_id=profile.profile_id,
+        symbol=symbol,
+        limit=limit,
+    )
     return [DebateReport.model_validate(debate.payload) for debate in debates]
 
 
@@ -40,9 +50,17 @@ def get_debate(
 
 @router.get("/trader-proposals", response_model=list[TraderProposal])
 def list_trader_proposals(
+    request: Request,
+    profile_id: str | None = Query(default=None, min_length=1),
     symbol: str | None = Query(default=None, min_length=1),
     limit: int = Query(default=100, ge=1, le=500),
     session: Session = Depends(get_db_session),
 ) -> list[TraderProposal]:
-    proposals = ResearchRepository(session).list_trader_proposals(symbol=symbol, limit=limit)
+    settings: Settings = request.app.state.settings
+    profile = active_profile(session, settings, profile_id=profile_id)
+    proposals = ResearchRepository(session).list_trader_proposals(
+        profile_id=profile.profile_id,
+        symbol=symbol,
+        limit=limit,
+    )
     return [TraderProposal.model_validate(proposal.payload) for proposal in proposals]
