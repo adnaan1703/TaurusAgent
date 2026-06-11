@@ -1,6 +1,6 @@
 # Taurus Milestone Tracker
 
-Last updated: 2026-06-10
+Last updated: 2026-06-11
 
 This is the active tracker for Taurus milestone work. Keep it concise and keep
 current operator detail in the usage and command docs.
@@ -16,8 +16,6 @@ current operator detail in the usage and command docs.
 - `docs/TAURUS_GRAPH_INTELLIGENCE_PLAN.md`: completed M20 graph reference.
 - `docs/TAURUS_NEXT_OPEN_AMO_SETTLEMENT_PLAN.md`: completed M44-M50 next-open
   AMO-style paper settlement work.
-- `docs/TAURUS_MULTI_PROFILE_PLAN.md`: planned M51-M55 multi-profile paper
-  trading work.
 - `docs/agent_improvement_plans/LLM_AGENT_SYSTEM_PROMPTS_BACKLOG.md`: deferred
   prompt backlog for optional analyst upgrades.
 
@@ -59,8 +57,11 @@ removed during docs cleanup. Use Git history for detailed historical plans.
 - M54 profile API and dashboard selection work is complete: profile CRUD APIs,
   profile-scoped read filters, active-profile UI response metadata, and the
   read-only React profile selector now scope dashboard views by selected active
-  profile. Final multi-profile regression and smoke documentation remain
-  deferred to M55.
+  profile.
+- M55 multi-profile regression and cleanup is complete: deterministic
+  regression covers two-profile pending/fill/settlement/P&L isolation,
+  profile-scoped API/dashboard payloads, stale profile filters, profile smoke
+  checks, final operator docs, and approval-rules cleanup.
 
 ## Standing Safety Rules
 
@@ -103,11 +104,12 @@ removed during docs cleanup. Use Git history for detailed historical plans.
 | M48 | Done | Integrated next-open settlement into the manual EOD paper loop before strategy analysis/allocation, exposed top-level and symbol-level settlement artifacts, preserved terminal settlement state during same-run replacements, and documented operator semantics. Dashboard/replay/metrics polish followed in M49. |
 | M49 | Done | Polished React and Streamlit order displays, run settlement summaries/details, decision replay pending/settled semantics, paper-order status metrics coverage, terminal settlement alert tests, and operator docs for queued and settled next-open paper orders. |
 | M50 | Done | Completed the end-to-end regression and cleanup pass for the M44-M50 next-open AMO-style paper settlement sequence. The deterministic operator smoke path covers BUY queue, next-open BUY settlement, EXIT queue, following-open EXIT settlement, realized P&L, empty final positions, and API inspection for `/paper/orders`, `/paper/fills`, `/paper/positions`, `/paper/account`, `/ui/overview`, and `/ui/runs/{run_id}`. |
-| M51-M55 plan document | Done | Created the flat multi-profile paper trading plan covering profile catalog/config, run and agent profile lineage, corpus-aware execution isolation, profile APIs/dashboard selector, and final regression/docs. Implementation remains planned. |
+| M51-M55 plan document | Done | Created the flat multi-profile paper trading plan covering profile catalog/config, run and agent profile lineage, corpus-aware execution isolation, profile APIs/dashboard selector, and final regression/docs. Implementation milestones are complete through M55. |
 | M51 | Done | Added the persistent Taurus profile catalog, default `local-paper` seed, preferred `TAURUS_PROFILE_ID` setting alias, legacy portfolio alias compatibility guard, profile lifecycle repository/service helpers, CLI/Make profile management commands, corpus update guard, docs, and focused tests. Runtime profile isolation remains deferred to M52-M55. |
 | M52 | Done | Added profile lineage to paper runs, profile-aware run IDs, persisted analyst/debate/risk/final artifact profile identity, repository profile filters, idempotent lineage migrations, local-paper legacy defaults, and focused tests. Corpus-aware paper execution remains deferred to M53. |
 | M53 | Done | Added runtime profile resolution for paper services, profile corpus-backed paper cash/account rebuilds, profile-scoped next-open settlement and position monitoring, profile-aware run/operator artifacts, Make command profile selection, docs, and focused regression tests. Dashboard profile selection remains deferred to M54. |
-| M54 | Done | Added profile CRUD APIs, profile-scoped query parameters for run/paper/research/risk/UI read endpoints, active-profile UI metadata, a URL/local-storage-backed read-only React profile selector, profile-aware query keys/links, and focused API/UI tests. M55 final regression remains planned. |
+| M54 | Done | Added profile CRUD APIs, profile-scoped query parameters for run/paper/research/risk/UI read endpoints, active-profile UI metadata, a URL/local-storage-backed read-only React profile selector, profile-aware query keys/links, and focused API/UI tests. M55 final regression is complete. |
+| M55 | Done | Added deterministic two-profile regression for pending orders, settled fills, realized/unrealized P&L, dashboard/API scoping, stale profile filters, and profile smoke checks; API/Vite local smoke returned 200, while visual browser automation was unavailable in this session; finalized operator docs and milestone cleanup for the M51-M55 sequence. |
 | Ops LM Studio reasoning fallback | Done | Added a narrow LM Studio compatibility fallback that uses non-empty `message.reasoning_content` only when `message.content` is empty, while keeping existing parser and schema validation as the contract authority. |
 
 ### M51-M55 Plan Document Completion Summary
@@ -167,6 +169,20 @@ removed during docs cleanup. Use Git history for detailed historical plans.
   deterministic market-data fixtures, FastAPI `TestClient`, existing React
   fetch stubs, and legacy mock paper-once smoke helpers with explicitly updated
   test profile corpus.
+
+### M55 Completion Summary
+
+- Assumptions made: Multi-profile v1 remains logical isolation inside one local
+  Postgres/API/UI stack; `portfolio_id` remains the persisted profile boundary;
+  profile smoke can create or reuse a deterministic `smoke-profile`; the React
+  selector remains read-only; physical database/stack isolation,
+  per-profile credentials, dashboard CRUD, all-profile scheduling, and
+  deposits/withdrawals remain deferred.
+- Mocks created: None.
+- Mocks used: Existing `FakeLLMProvider`, existing
+  `FakeKiteMarketDataProvider`, deterministic market-data fixtures, forced
+  trader-action monkeypatches in the M55 regression, FastAPI `TestClient`, and
+  existing React fetch stubs.
 
 ### M44-M50 Plan Document Completion Summary
 
@@ -304,10 +320,10 @@ documented with the standard completion summary.
 | 31 | M49 | Done | `docs/TAURUS_NEXT_OPEN_AMO_SETTLEMENT_PLAN.md` | Polish dashboard, replay, metrics, alerts, and operator docs for pending and settled orders. |
 | 32 | M50 | Done | `docs/TAURUS_NEXT_OPEN_AMO_SETTLEMENT_PLAN.md` | Run end-to-end regression, verify operator workflow, and close the milestone sequence. |
 
-## Planned Multi-Profile Paper Trading Sequence
+## Completed Multi-Profile Paper Trading Sequence
 
-These milestones should be executed in order, each as separate milestone work,
-and documented with the standard completion summary.
+These milestones were executed in order as separate milestone work and
+documented with the standard completion summary.
 
 | Order | Milestone | Status | Plan | Purpose |
 |---:|---|---|---|---|
@@ -315,7 +331,7 @@ and documented with the standard completion summary.
 | 34 | M52 | Done | `docs/TAURUS_MULTI_PROFILE_PLAN.md` | Add profile lineage to paper runs and run-derived agent artifacts so history and decisions can be profile-scoped. |
 | 35 | M53 | Done | `docs/TAURUS_MULTI_PROFILE_PLAN.md` | Make paper execution, settlement, position monitoring, and corpus/P&L state isolated by selected profile. |
 | 36 | M54 | Done | `docs/TAURUS_MULTI_PROFILE_PLAN.md` | Add profile APIs, profile filters, and a read-only React profile selector for scoped dashboard views. |
-| 37 | M55 | Planned | `docs/TAURUS_MULTI_PROFILE_PLAN.md` | Complete multi-profile regression, browser/API smoke, operator docs, and milestone cleanup. |
+| 37 | M55 | Done | `docs/TAURUS_MULTI_PROFILE_PLAN.md` | Complete multi-profile regression, browser/API smoke, operator docs, and milestone cleanup. |
 
 ## Deferred Work
 

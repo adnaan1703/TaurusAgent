@@ -97,6 +97,27 @@ Run the release smoke check:
 make taurus-smoke
 ```
 
+## Multi-Profile Paper Trading
+
+Taurus supports multiple logical paper profiles inside the same local stack.
+Each active profile has its own starting corpus, paper runs, orders, fills,
+positions, account snapshots, and P&L. Market data, graph data, Kite
+credentials, LLM settings, and the UI app remain shared platform data.
+
+```bash
+make migrate
+make profile-list
+make profile-create PROFILE_ID=client-a PROFILE_DISPLAY_NAME="Client A" PROFILE_CORPUS_INR=250000
+PROFILE_ID=client-a make paper-loop-kite
+curl 'http://localhost:8000/ui/overview?profile_id=client-a'
+curl 'http://localhost:8000/ui/portfolio?profile_id=client-a'
+```
+
+Use `TAURUS_PROFILE_ID` for direct script runs. `TAURUS_PAPER_PORTFOLIO_ID`
+remains a legacy alias and must match if both settings are present. The React
+dashboard profile selector writes the same `profile_id` URL parameter, so
+copied links preserve the selected profile context.
+
 Start the local stack:
 
 ```bash

@@ -591,6 +591,222 @@ def test_eod_paper_run_settles_prior_pending_orders_before_new_decisions(
     assert third_detail["artifacts"]["settlement"]["details"][0]["status"] == "FILLED"
 
 
+def test_m55_multi_profile_regression_keeps_settled_dashboard_state_isolated(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    local_settings = _settings_for_temp_db(
+        tmp_path,
+        enabled_analysts="technical",
+        profile_id="local-paper",
+    )
+    client_settings = _settings_for_temp_db(
+        tmp_path,
+        enabled_analysts="technical",
+        profile_id="client-a",
+    )
+    candle_count = {"value": 252}
+
+    class AdvancingFakeKiteMarketDataProvider(FakeKiteMarketDataProvider):
+        def get_daily_candles(self, symbol: str):
+            symbols = [instrument.symbol for instrument in TEST_INSTRUMENTS]
+            symbol_index = symbols.index(symbol.upper())
+            return build_test_candles_for_symbol(
+                symbol=symbol.upper(),
+                symbol_index=symbol_index,
+                candle_count=candle_count["value"],
+                source="kite:historical:NSE",
+            )
+
+    monkeypatch.setattr(
+        "taurus_core.paper_trading.service.build_market_data_provider",
+        lambda settings: AdvancingFakeKiteMarketDataProvider(),
+    )
+
+    session_factory = build_session_factory(local_settings)
+    _create_profile(session_factory, profile_id="client-a", corpus_inr=Decimal("250000"))
+    with session_factory() as session:
+        TaurusProfileRepository(session).update_profile_corpus(
+            "local-paper",
+            Decimal("100000"),
+        )
+        session.commit()
+
+    client = TestClient(create_app(local_settings))
+    local_first = PaperRunService(
+        local_settings,
+        schedule_name="m55_local_buy_queue",
+    ).run_once(symbols=["INFY"])
+    client_first = PaperRunService(
+        client_settings,
+        schedule_name="m55_client_buy_queue",
+    ).run_once(symbols=["INFY"])
+
+    for profile_id, run in [
+        ("local-paper", local_first),
+        ("client-a", client_first),
+    ]:
+        orders = client.get(f"/paper/orders?profile_id={profile_id}").json()
+        fills = client.get(f"/paper/fills?profile_id={profile_id}").json()
+        account = client.get(f"/paper/account?profile_id={profile_id}").json()
+        assert run.artifacts["symbols"]["INFY"]["order_status"] == "PENDING_NEXT_OPEN"
+        assert [order["status"] for order in orders] == ["PENDING_NEXT_OPEN"]
+        assert fills == []
+        assert account["portfolio_id"] == profile_id
+        assert account["run_id"] == run.run_id
+
+    assert _decimal(
+        client.get("/paper/account?profile_id=local-paper").json()["starting_cash_inr"]
+    ) == Decimal("100000.0000")
+    assert _decimal(
+        client.get("/paper/account?profile_id=client-a").json()["starting_cash_inr"]
+    ) == Decimal("250000.0000")
+
+    candle_count["value"] = 253
+    forced_actions = {"INFY": "EXIT"}
+    _force_trader_actions(monkeypatch, forced_actions)
+    local_second = PaperRunService(
+        local_settings,
+        schedule_name="m55_local_buy_settle_exit_queue",
+    ).run_once(symbols=["INFY"])
+    client_second = PaperRunService(
+        client_settings,
+        schedule_name="m55_client_buy_settle_exit_queue",
+    ).run_once(symbols=["INFY"])
+
+    local_after_buy = client.get("/paper/account?profile_id=local-paper").json()
+    client_after_buy = client.get("/paper/account?profile_id=client-a").json()
+    assert local_second.artifacts["settlement"]["details"][0]["side"] == "BUY"
+    assert client_second.artifacts["settlement"]["details"][0]["side"] == "BUY"
+    assert _decimal(local_after_buy["unrealized_pnl_inr"]) != Decimal("0.0000")
+    assert _decimal(client_after_buy["unrealized_pnl_inr"]) != Decimal("0.0000")
+    assert _decimal(local_after_buy["unrealized_pnl_inr"]) != _decimal(
+        client_after_buy["unrealized_pnl_inr"]
+    )
+    assert {
+        order["side"]: order["status"]
+        for order in client.get("/paper/orders?profile_id=local-paper").json()
+    } == {
+        "BUY": "FILLED",
+        "SELL": "PENDING_NEXT_OPEN",
+    }
+    assert {
+        order["side"]: order["status"]
+        for order in client.get("/paper/orders?profile_id=client-a").json()
+    } == {
+        "BUY": "FILLED",
+        "SELL": "PENDING_NEXT_OPEN",
+    }
+    assert {
+        position["portfolio_id"]
+        for position in client.get("/paper/positions?profile_id=local-paper").json()
+    } == {"local-paper"}
+    assert {
+        position["portfolio_id"]
+        for position in client.get("/paper/positions?profile_id=client-a").json()
+    } == {"client-a"}
+    assert {
+        fill["portfolio_id"]
+        for fill in client.get("/paper/fills?profile_id=local-paper").json()
+    } == {"local-paper"}
+    assert {
+        fill["portfolio_id"]
+        for fill in client.get("/paper/fills?profile_id=client-a").json()
+    } == {"client-a"}
+
+    candle_count["value"] = 254
+    forced_actions["INFY"] = "NO_TRADE"
+    local_third = PaperRunService(
+        local_settings,
+        schedule_name="m55_local_exit_settle",
+    ).run_once(symbols=["INFY"])
+    client_third = PaperRunService(
+        client_settings,
+        schedule_name="m55_client_exit_settle",
+    ).run_once(symbols=["INFY"])
+
+    local_orders = client.get("/paper/orders?profile_id=local-paper").json()
+    client_orders = client.get("/paper/orders?profile_id=client-a").json()
+    local_fills = client.get("/paper/fills?profile_id=local-paper").json()
+    client_fills = client.get("/paper/fills?profile_id=client-a").json()
+    local_account = client.get("/paper/account?profile_id=local-paper").json()
+    client_account = client.get("/paper/account?profile_id=client-a").json()
+    local_history = client.get("/ui/history?profile_id=local-paper").json()
+    client_history = client.get("/ui/history?profile_id=client-a").json()
+    local_overview = client.get("/ui/overview?profile_id=local-paper").json()
+    client_overview = client.get("/ui/overview?profile_id=client-a").json()
+    local_portfolio = client.get("/ui/portfolio?profile_id=local-paper").json()
+    client_portfolio = client.get("/ui/portfolio?profile_id=client-a").json()
+
+    assert local_third.artifacts["settlement"]["details"][0]["side"] == "SELL"
+    assert client_third.artifacts["settlement"]["details"][0]["side"] == "SELL"
+    assert {order["side"]: order["status"] for order in local_orders} == {
+        "BUY": "FILLED",
+        "SELL": "FILLED",
+    }
+    assert {order["side"]: order["status"] for order in client_orders} == {
+        "BUY": "FILLED",
+        "SELL": "FILLED",
+    }
+    assert {fill["side"] for fill in local_fills} == {"BUY", "SELL"}
+    assert {fill["side"] for fill in client_fills} == {"BUY", "SELL"}
+    assert client.get("/paper/positions?profile_id=local-paper").json() == []
+    assert client.get("/paper/positions?profile_id=client-a").json() == []
+    assert local_account["portfolio_id"] == "local-paper"
+    assert client_account["portfolio_id"] == "client-a"
+    assert local_account["run_id"] == local_third.run_id
+    assert client_account["run_id"] == client_third.run_id
+    assert _decimal(local_account["realized_pnl_inr"]) != Decimal("0.0000")
+    assert _decimal(client_account["realized_pnl_inr"]) != Decimal("0.0000")
+    assert _decimal(local_account["realized_pnl_inr"]) != _decimal(
+        client_account["realized_pnl_inr"]
+    )
+
+    assert [run["run_id"] for run in local_history["runs"]] == [
+        local_third.run_id,
+        local_second.run_id,
+        local_first.run_id,
+    ]
+    assert [run["run_id"] for run in client_history["runs"]] == [
+        client_third.run_id,
+        client_second.run_id,
+        client_first.run_id,
+    ]
+    assert {run["profile_id"] for run in local_history["runs"]} == {"local-paper"}
+    assert {run["profile_id"] for run in client_history["runs"]} == {"client-a"}
+    assert local_overview["active_profile"]["profile_id"] == "local-paper"
+    assert client_overview["active_profile"]["profile_id"] == "client-a"
+    assert local_overview["latest_run"]["run_id"] == local_third.run_id
+    assert client_overview["latest_run"]["run_id"] == client_third.run_id
+    assert local_overview["latest_account"]["portfolio_id"] == "local-paper"
+    assert client_overview["latest_account"]["portfolio_id"] == "client-a"
+    assert local_overview["latest_final_decision"]["portfolio_id"] == "local-paper"
+    assert client_overview["latest_final_decision"]["portfolio_id"] == "client-a"
+    assert local_overview["latest_order"]["portfolio_id"] == "local-paper"
+    assert client_overview["latest_order"]["portfolio_id"] == "client-a"
+    assert local_portfolio["latest_account"]["portfolio_id"] == "local-paper"
+    assert client_portfolio["latest_account"]["portfolio_id"] == "client-a"
+    assert {order["portfolio_id"] for order in local_portfolio["orders"]} == {
+        "local-paper"
+    }
+    assert {order["portfolio_id"] for order in client_portfolio["orders"]} == {"client-a"}
+    assert {fill["portfolio_id"] for fill in local_portfolio["fills"]} == {
+        "local-paper"
+    }
+    assert {fill["portfolio_id"] for fill in client_portfolio["fills"]} == {"client-a"}
+
+    assert (
+        client.get(f"/ui/runs/{client_third.run_id}?profile_id=local-paper").status_code
+        == 404
+    )
+    assert (
+        client.get(f"/paper/account?profile_id=client-a&run_id={local_third.run_id}").status_code
+        == 404
+    )
+    assert client.get("/ui/overview?profile_id=missing-profile").status_code == 404
+    assert client.get("/paper/orders?profile_id=missing-profile").status_code == 404
+
+
 def test_eod_paper_run_records_pending_orders_waiting_for_newer_candle(
     tmp_path: Path,
 ) -> None:
@@ -1484,6 +1700,10 @@ def test_paper_loop_emits_iteration_and_symbol_stage_progress_events(
     assert iteration_completed["succeeded_count"] == 1
     assert iteration_completed["failed_count"] == 0
     assert iteration_completed["status"] == "COMPLETED"
+
+
+def _decimal(value: object) -> Decimal:
+    return Decimal(str(value))
 
 
 def _force_trader_actions(

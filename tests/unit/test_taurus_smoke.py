@@ -56,6 +56,9 @@ def test_taurus_smoke_covers_paper_mvp_release_flow(
     assert result["artifacts"]["paper_loop_run_id"].startswith("pr-")
     assert result["counts"]["paper_orders"] >= 1
     assert result["counts"]["paper_fills"] == 0
+    assert result["profile_smoke"]["profile_id"] == "smoke-profile"
+    assert str(result["profile_smoke"]["paper_loop_run_id"]).startswith("pr-")
+    assert set(result["profile_smoke"]["api"].values()) == {200}
 
 
 def _set_default_profile_corpus(session_factory) -> None:

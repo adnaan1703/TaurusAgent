@@ -31,6 +31,15 @@ That target runs `scripts/run_paper_loop.py`, which constructs a
 | `TAURUS_GRAPH_RISK_ENABLED` | `true` |
 | `STRATEGY` | `configs/strategies/graph_aware_score_v1.yaml` |
 
+The selected paper profile is resolved before paper execution. Make targets use
+`TAURUS_PROFILE_ID=local-paper` by default, and
+`PROFILE_ID=client-a make paper-loop-kite` selects another active profile.
+Profile identity is persisted as `portfolio_id` on paper runs, orders, fills,
+accounts, positions, analyst reports, debate reports, trader proposals, risk
+reviews, and final decisions. Instruments, candles, Shariah/compliance data,
+fundamentals, graph data, Kite credentials, LLM provider settings, alert
+configuration, and the web app are shared platform boundaries.
+
 ## High-Level Paper Run Flow
 
 ```mermaid

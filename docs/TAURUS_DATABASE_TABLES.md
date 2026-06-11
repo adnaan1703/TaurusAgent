@@ -31,6 +31,12 @@ tables created during the migration to Kite-backed market data and paper runs.
 | `paper_fills` | Simulated fill records for paper orders, including trade date, costs, slippage, brokerage, and taxes. Settlement fills are simulated from the first newer Kite daily candle open; Kite is not used for order routing. |
 | `paper_positions` | Paper portfolio positions by symbol, quantity, cost basis, market value, and P&L. |
 
+`portfolio_id` is the persisted v1 profile boundary for paper runtime tables.
+User-facing APIs and docs call the same value `profile_id`. Market/reference
+tables such as instruments, daily candles, Shariah/compliance data,
+fundamentals, graph data, Kite tokens, and LLM settings are shared platform
+state in this release.
+
 ## Agent and Decision Pipeline
 
 | Table | Stores |

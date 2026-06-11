@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -34,14 +35,17 @@ from taurus_core.db.models import (
     RiskReviewModel,
     TraderProposalModel,
 )
+from taurus_core.db.repositories import TaurusProfileRepository
 from taurus_core.db.session import build_session_factory
 from taurus_core.logging import configure_logging
+from taurus_core.profiles.schemas import TaurusProfileCreate
 
 
 def run_taurus_smoke(
     *,
     settings: Settings | None = None,
     symbol: str = "INFY",
+    profile_smoke_id: str = "smoke-profile",
 ) -> dict[str, Any]:
     settings = settings or get_settings()
     symbol = symbol.upper()
@@ -57,6 +61,11 @@ def run_taurus_smoke(
     final_decision = run_mock_final_approval(symbol=symbol, settings=settings)
     paper_once = run_mock_paper_once(symbol=symbol, settings=settings)
     paper_loop = run_paper_loop(symbols=[symbol], settings=settings, iterations=1)
+    profile_smoke = _profile_smoke(
+        settings,
+        symbol=symbol,
+        profile_id=profile_smoke_id,
+    )
 
     decision_id = str(paper_once["final_decision"]["decision_id"])
     replay = replay_decision(decision_id=decision_id, settings=settings, symbol=symbol)
@@ -107,6 +116,7 @@ def run_taurus_smoke(
         },
         "counts": counts,
         "api": api,
+        "profile_smoke": profile_smoke,
     }
 
 
@@ -155,6 +165,93 @@ def _api_smoke(settings: Settings, *, symbol: str, decision_id: str) -> dict[str
     if "taurus_live_trading_enabled 0.0" not in metrics_body:
         raise AssertionError("Metrics must confirm live trading is disabled.")
 
+    return statuses
+
+
+def _profile_smoke(
+    settings: Settings,
+    *,
+    symbol: str,
+    profile_id: str,
+) -> dict[str, object]:
+    _ensure_smoke_profile(settings, profile_id=profile_id)
+    profile_settings = _settings_for_profile(settings, profile_id=profile_id)
+    runs = run_paper_loop(symbols=[symbol], settings=profile_settings, iterations=1)
+    if not runs or runs[0].get("status") != "COMPLETED":
+        raise AssertionError(f"Profile smoke paper loop failed for {profile_id}.")
+
+    api = _profile_api_smoke(profile_settings, profile_id=profile_id)
+    return {
+        "profile_id": profile_id,
+        "paper_loop_run_id": runs[0]["run_id"],
+        "api": api,
+    }
+
+
+def _ensure_smoke_profile(settings: Settings, *, profile_id: str) -> None:
+    session_factory = build_session_factory(settings)
+    with session_factory() as session:
+        repo = TaurusProfileRepository(session)
+        profile = repo.get_profile(profile_id)
+        if profile is None:
+            profile = repo.create_profile(
+                TaurusProfileCreate(
+                    profile_id=profile_id,
+                    display_name="Smoke Profile",
+                    starting_corpus_inr=Decimal("150000"),
+                    description="Deterministic smoke-test paper profile.",
+                )
+            )
+        if profile.status != "ACTIVE":
+            raise AssertionError(f"Smoke profile {profile_id} must be ACTIVE.")
+        session.commit()
+
+
+def _settings_for_profile(settings: Settings, *, profile_id: str) -> Settings:
+    return settings.model_copy(
+        update={
+            "taurus_profile_id": profile_id,
+            "taurus_paper_portfolio_id": profile_id,
+        }
+    )
+
+
+def _profile_api_smoke(settings: Settings, *, profile_id: str) -> dict[str, int]:
+    client = TestClient(create_app(settings))
+    endpoints = {
+        "profiles": "/profiles",
+        "paper_account": f"/paper/account?profile_id={profile_id}",
+        "paper_orders": f"/paper/orders?profile_id={profile_id}",
+        "ui_overview": f"/ui/overview?profile_id={profile_id}",
+        "ui_history": f"/ui/history?profile_id={profile_id}",
+        "ui_portfolio": f"/ui/portfolio?profile_id={profile_id}",
+    }
+    statuses: dict[str, int] = {}
+    payloads: dict[str, Any] = {}
+    for name, path in endpoints.items():
+        response = client.get(path)
+        statuses[name] = response.status_code
+        if response.status_code != 200:
+            raise AssertionError(
+                f"Profile API smoke endpoint {path} returned {response.status_code}."
+            )
+        payloads[name] = response.json()
+
+    profiles = payloads["profiles"]
+    if profile_id not in {profile["profile_id"] for profile in profiles}:
+        raise AssertionError(f"Profile smoke did not list {profile_id}.")
+    if payloads["paper_account"]["portfolio_id"] != profile_id:
+        raise AssertionError("Profile paper account returned another profile.")
+    if not payloads["paper_orders"]:
+        raise AssertionError("Profile paper loop did not create a paper order.")
+    if {order["portfolio_id"] for order in payloads["paper_orders"]} != {profile_id}:
+        raise AssertionError("Profile paper orders leaked another profile.")
+    if payloads["ui_overview"]["active_profile"]["profile_id"] != profile_id:
+        raise AssertionError("Profile overview did not select the smoke profile.")
+    if {run["profile_id"] for run in payloads["ui_history"]["runs"]} != {profile_id}:
+        raise AssertionError("Profile history leaked another profile.")
+    if payloads["ui_portfolio"]["active_profile"]["profile_id"] != profile_id:
+        raise AssertionError("Profile portfolio did not select the smoke profile.")
     return statuses
 
 
@@ -240,5 +337,8 @@ def _assert_outputs(
 
 if __name__ == "__main__":
     configure_logging()
-    payload = run_taurus_smoke(symbol=os.environ.get("SYMBOL", "INFY"))
+    payload = run_taurus_smoke(
+        symbol=os.environ.get("SYMBOL", "INFY"),
+        profile_smoke_id=os.environ.get("TAURUS_SMOKE_PROFILE_ID", "smoke-profile"),
+    )
     print(json.dumps(payload, sort_keys=True))

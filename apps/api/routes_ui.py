@@ -636,7 +636,6 @@ def get_ui_portfolio(
         portfolio_id=profile.profile_id,
     )
     account_payload = _payload(account) if account is not None else None
-    run_id = account.run_id if account is not None else None
     positions = _monitor_enriched_positions(
         session,
         settings=settings,
@@ -648,7 +647,6 @@ def get_ui_portfolio(
     orders = [
         _payload(row)
         for row in execution_repo.list_orders(
-            run_id=run_id,
             portfolio_id=profile.profile_id,
             limit=limit,
         )
@@ -656,7 +654,6 @@ def get_ui_portfolio(
     fills = [
         _payload(row)
         for row in execution_repo.list_fills(
-            run_id=run_id,
             portfolio_id=profile.profile_id,
             limit=limit,
         )

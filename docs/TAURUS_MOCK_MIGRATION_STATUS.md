@@ -1,6 +1,6 @@
 # Taurus Mock Migration Status
 
-Last reviewed: 2026-06-04
+Last reviewed: 2026-06-11
 
 This document tracks which Taurus components are still mocked or simulated, which
 agents depend on them, and what remains to migrate toward a real-data paper
@@ -16,6 +16,7 @@ BROKER_PROVIDER=paper
 TAURUS_MARKET_DATA_PROVIDER=kite
 TAURUS_LLM_PROVIDER=lmstudio
 TAURUS_ALERT_PROVIDER=mock
+TAURUS_PROFILE_ID=local-paper
 TAURUS_PAPER_PORTFOLIO_ID=local-paper
 TAURUS_ENABLED_ANALYSTS=technical
 TAURUS_GRAPH_ENABLED=false
@@ -68,6 +69,10 @@ TAURUS_ENABLED_ANALYSTS=technical
 This means only `TechnicalAnalystAgent` runs by default. It calls the configured
 real LLM provider; runtime mock LLM support has been removed. Test-only fake LLM
 providers may still be used inside unit tests.
+
+The M55 multi-profile regression and smoke-script coverage did not introduce
+new runtime mocks. Unit tests continue to use existing `FakeLLMProvider` and
+`FakeKiteMarketDataProvider` fixtures for deterministic local verification.
 
 ## Non-Analyst Agents And Services
 
@@ -179,6 +184,7 @@ market-data default is now Kite-only; remaining mocks are non-market components:
 paper mode
 paper broker simulator
 Kite market data
+TAURUS_PROFILE_ID=local-paper profile default
 real LLM provider defaulting to LM Studio
 mock alerts
 technical analyst by config default; technical plus graph on paper-loop-kite

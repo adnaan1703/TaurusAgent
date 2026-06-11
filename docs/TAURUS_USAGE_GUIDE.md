@@ -1,13 +1,13 @@
 # Taurus Usage Guide
 
-Last verified: 2026-06-10.
+Last verified: 2026-06-11.
 
 ## Current State
 
-- Backend focused API/broker tests:
-  `uv run pytest tests/unit/test_ui_aggregate_api.py tests/unit/test_paper_broker.py -q`
-  -> `37 passed`.
-- Backend full suite: `make test` -> `319 passed, 1 skipped`.
+- Backend focused M55/profile regression tests:
+  `uv run pytest tests/unit/test_paper_runs.py tests/unit/test_ui_aggregate_api.py tests/unit/test_paper_broker.py tests/unit/test_taurus_smoke.py -q`
+  -> `69 passed`.
+- Backend full suite: `make test` -> `320 passed, 1 skipped`.
 - Frontend tests: `make test-ui` -> `28 passed`.
 - Compile check: `make lint` -> passed.
 - Frontend build: `make build-ui` -> passed.
@@ -161,7 +161,9 @@ real LLM provider where the workflow calls an LLM.
   prerequisites, and mock news, runs one Kite paper loop, then starts the React
   dashboard.
 - `make taurus-smoke`: full MVP smoke test using existing Kite-imported market
-  data and remaining non-market mocks.
+  data and remaining non-market mocks. It also creates or reuses
+  `smoke-profile`, runs one bounded paper loop for that profile, and checks
+  profile-scoped API/dashboard reads.
 - `make llm-smoke`: checks the configured real LLM provider.
 
 The React dashboard has a read-only profile selector in the app shell. It uses
@@ -169,6 +171,36 @@ the `profile_id` URL query parameter, persists the last selected profile in
 local storage, and scopes Overview, History, Risk, Portfolio, run detail, and
 decision-trail pages to the selected active profile. Shariah and Graph pages
 remain shared platform-level views.
+
+### Multi-Profile Workflow
+
+Create profiles before running paper loops for them:
+
+```bash
+make migrate
+make profile-create PROFILE_ID=client-a PROFILE_DISPLAY_NAME="Client A" PROFILE_CORPUS_INR=250000
+PROFILE_ID=client-a make paper-loop-kite
+```
+
+Profile-scoped reads accept `profile_id` and reject missing, archived, or
+mismatched run/profile combinations instead of falling back to all data:
+
+```bash
+curl 'http://localhost:8000/paper/account?profile_id=client-a'
+curl 'http://localhost:8000/paper/orders?profile_id=client-a'
+curl 'http://localhost:8000/paper/fills?profile_id=client-a'
+curl 'http://localhost:8000/ui/overview?profile_id=client-a'
+curl 'http://localhost:8000/ui/history?profile_id=client-a'
+curl 'http://localhost:8000/ui/portfolio?profile_id=client-a'
+```
+
+Each profile owns paper runs, orders, fills, account snapshots, positions, and
+P&L. Starting corpus can be edited only before trading activity exists. Market
+data, Shariah/compliance data, graph data, Kite credentials, LLM provider
+settings, alert configuration, and the React app remain shared platform data in
+this logical-isolation release. Separate databases/stacks, per-profile
+credentials, deposits/withdrawals, dashboard profile CRUD, and automatic
+all-profile batch scheduling remain deferred.
 
 Manual EOD paper loop commands import the latest daily candles, settle previous
 `PENDING_NEXT_OPEN` paper orders at the first newer candle open, and only then

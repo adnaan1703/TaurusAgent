@@ -125,6 +125,12 @@ profile. Once fills, queued orders, nonzero positions, or non-initial account
 snapshots exist, corpus changes are rejected until a later capital-events
 milestone adds deposits and withdrawals.
 
+`make taurus-smoke` also exercises multi-profile reads. It creates or reuses a
+dedicated `smoke-profile`, runs one bounded paper loop for that profile, and
+checks `/profiles`, `/paper/account`, `/paper/orders`, `/ui/overview`,
+`/ui/history`, and `/ui/portfolio` with `profile_id`. Override the smoke profile
+ID with `TAURUS_SMOKE_PROFILE_ID=...` when needed.
+
 Profile APIs:
 
 ```bash
@@ -145,6 +151,7 @@ settings profile when it is omitted:
 ```bash
 curl 'http://localhost:8000/runs?profile_id=client-a'
 curl 'http://localhost:8000/paper/orders?profile_id=client-a'
+curl 'http://localhost:8000/paper/fills?profile_id=client-a'
 curl 'http://localhost:8000/paper/account?profile_id=client-a'
 curl 'http://localhost:8000/ui/overview?profile_id=client-a'
 curl 'http://localhost:8000/ui/history?profile_id=client-a'
@@ -154,6 +161,8 @@ curl 'http://localhost:8000/ui/risk?profile_id=client-a'
 
 The React dashboard profile selector writes the same `profile_id` query
 parameter, so copied dashboard links preserve the selected profile context.
+Portfolio views list recent orders and fills for the selected profile, including
+orders whose original run ID differs from the later settlement/account run.
 
 Kite:
 
