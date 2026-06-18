@@ -176,6 +176,10 @@ class Settings(BaseSettings):
         default="configs/market_data/nifty_500_shariah.yaml",
         validation_alias="TAURUS_MARKET_DATA_UNIVERSE_PATH",
     )
+    taurus_target_market_universe_path: str = Field(
+        default="",
+        validation_alias="TAURUS_TARGET_MARKET_UNIVERSE_PATH",
+    )
     taurus_halal_stock_source_url: str = Field(
         default="https://halalstock.in/halal-shariah-compliant-shares-list/",
         validation_alias="TAURUS_HALAL_STOCK_SOURCE_URL",

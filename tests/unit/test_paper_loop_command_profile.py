@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -219,6 +220,66 @@ def test_full_universe_manual_env_resolution_stays_explicit(
     assert resolved.symbols == ["INFY", "TCS"]
     assert resolved.universe.source == "manual_symbols"
     assert resolved.universe.symbols == ["INFY", "TCS"]
+
+
+def test_manual_env_resolution_does_not_require_target_universe_outside_pytest() -> None:
+    script = """
+import json
+
+from scripts.run_paper_loop import _resolve_symbols_from_env
+from taurus_core.config import Settings
+
+resolved = _resolve_symbols_from_env(Settings(taurus_target_market_universe_path=""))
+print(json.dumps({"symbols": resolved.symbols, "source": resolved.universe.source}))
+"""
+
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=PROJECT_ROOT,
+        env={
+            "PYTHONPATH": "packages:.",
+            "SYMBOL": "",
+            "SYMBOLS": "infy,tcs",
+            "TAURUS_TARGET_MARKET_UNIVERSE_PATH": "",
+        },
+        capture_output=True,
+        check=True,
+        text=True,
+    )
+
+    assert json.loads(result.stdout) == {
+        "symbols": ["INFY", "TCS"],
+        "source": "manual_symbols",
+    }
+
+
+def test_default_env_resolution_requires_target_universe_outside_pytest() -> None:
+    script = """
+from scripts.run_paper_loop import _resolve_symbols_from_env
+from taurus_core.config import Settings
+
+_resolve_symbols_from_env(Settings(taurus_target_market_universe_path=""))
+"""
+
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=PROJECT_ROOT,
+        env={
+            "PYTHONPATH": "packages:.",
+            "SYMBOL": "",
+            "SYMBOLS": "",
+            "TAURUS_TARGET_MARKET_UNIVERSE_PATH": "",
+        },
+        capture_output=True,
+        check=False,
+        text=True,
+    )
+
+    assert result.returncode != 0
+    assert (
+        "TAURUS_TARGET_MARKET_UNIVERSE_PATH must be set for paper loop execution."
+        in result.stderr
+    )
 
 
 def test_full_universe_default_env_resolution_uses_market_data_universe(

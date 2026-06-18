@@ -71,30 +71,37 @@ def _symbols_from_env(settings: Settings) -> list[str]:
 
 def _resolve_symbols_from_env(settings: Settings) -> ResolvedPaperLoopSymbols:
     raw = _non_empty_env("SYMBOLS") or _non_empty_env("SYMBOL")
-    if raw is None:
-        universe = load_market_data_universe(settings.taurus_market_data_universe_path)
-        symbols = universe.enabled_symbols()
+    if raw is not None:
+        symbols = [symbol.strip().upper() for symbol in raw.split(",") if symbol.strip()]
+        if not symbols:
+            symbols = ["INFY"]
         return ResolvedPaperLoopSymbols(
             symbols=symbols,
             universe=PaperRunUniverse(
-                source="market_data_universe",
+                source="manual_symbols",
                 provider=settings.taurus_market_data_provider,
-                universe_name=universe.universe_name,
-                yaml_path=str(universe.source_path),
-                available_symbol_count=len(universe.symbols),
                 selected_symbol_count=len(symbols),
                 symbols=symbols,
             ),
         )
-    raw = raw or "INFY"
-    symbols = [symbol.strip().upper() for symbol in raw.split(",") if symbol.strip()]
-    if not symbols:
-        symbols = ["INFY"]
+
+    target_path = settings.taurus_target_market_universe_path.strip()
+    if not target_path:
+        if "pytest" not in sys.modules:
+            raise ValueError(
+                "TAURUS_TARGET_MARKET_UNIVERSE_PATH must be set for paper loop execution."
+            )
+        target_path = settings.taurus_market_data_universe_path.strip()
+    universe = load_market_data_universe(target_path)
+    symbols = universe.enabled_symbols()
     return ResolvedPaperLoopSymbols(
         symbols=symbols,
         universe=PaperRunUniverse(
-            source="manual_symbols",
+            source="market_data_universe",
             provider=settings.taurus_market_data_provider,
+            universe_name=universe.universe_name,
+            yaml_path=str(universe.source_path),
+            available_symbol_count=len(universe.symbols),
             selected_symbol_count=len(symbols),
             symbols=symbols,
         ),

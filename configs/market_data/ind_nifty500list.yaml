@@ -1,0 +1,5548 @@
+universe_name: ind_nifty500
+default_exchange: NSE
+default_segment: EQUITY
+symbols:
+- symbol: "360ONE"
+  name: "360 ONE WAM Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "360ONE"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE466L01038"
+- symbol: "3MINDIA"
+  name: "3M India Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "3MINDIA"
+    nse_list:
+      industry: "Diversified"
+      series: "EQ"
+      isin: "INE470A01017"
+- symbol: "ABB"
+  name: "ABB India Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "ABB"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE117A01022"
+- symbol: "ACC"
+  name: "ACC Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "ACC"
+    nse_list:
+      industry: "Construction Materials"
+      series: "EQ"
+      isin: "INE012A01025"
+- symbol: "ACMESOLAR"
+  name: "ACME Solar Holdings Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "ACMESOLAR"
+    nse_list:
+      industry: "Power"
+      series: "EQ"
+      isin: "INE622W01025"
+- symbol: "AIAENG"
+  name: "AIA Engineering Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "AIAENG"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE212H01026"
+- symbol: "APLAPOLLO"
+  name: "APL Apollo Tubes Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "APLAPOLLO"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE702C01027"
+- symbol: "AUBANK"
+  name: "AU Small Finance Bank Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "AUBANK"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE949L01017"
+- symbol: "AWL"
+  name: "AWL Agri Business Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "AWL"
+    nse_list:
+      industry: "Fast Moving Consumer Goods"
+      series: "EQ"
+      isin: "INE699H01024"
+- symbol: "AADHARHFC"
+  name: "Aadhar Housing Finance Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "AADHARHFC"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE883F01010"
+- symbol: "AARTIIND"
+  name: "Aarti Industries Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "AARTIIND"
+    nse_list:
+      industry: "Chemicals"
+      series: "EQ"
+      isin: "INE769A01020"
+- symbol: "AAVAS"
+  name: "Aavas Financiers Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "AAVAS"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE216P01012"
+- symbol: "ABBOTINDIA"
+  name: "Abbott India Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "ABBOTINDIA"
+    nse_list:
+      industry: "Healthcare"
+      series: "EQ"
+      isin: "INE358A01014"
+- symbol: "ACE"
+  name: "Action Construction Equipment Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "ACE"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE731H01025"
+- symbol: "ACUTAAS"
+  name: "Acutaas Chemicals Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "ACUTAAS"
+    nse_list:
+      industry: "Healthcare"
+      series: "EQ"
+      isin: "INE00FF01025"
+- symbol: "ADANIENSOL"
+  name: "Adani Energy Solutions Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "ADANIENSOL"
+    nse_list:
+      industry: "Power"
+      series: "EQ"
+      isin: "INE931S01010"
+- symbol: "ADANIENT"
+  name: "Adani Enterprises Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "ADANIENT"
+    nse_list:
+      industry: "Metals & Mining"
+      series: "EQ"
+      isin: "INE423A01024"
+- symbol: "ADANIGREEN"
+  name: "Adani Green Energy Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "ADANIGREEN"
+    nse_list:
+      industry: "Power"
+      series: "EQ"
+      isin: "INE364U01010"
+- symbol: "ADANIPORTS"
+  name: "Adani Ports and Special Economic Zone Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "ADANIPORTS"
+    nse_list:
+      industry: "Services"
+      series: "EQ"
+      isin: "INE742F01042"
+- symbol: "ADANIPOWER"
+  name: "Adani Power Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "ADANIPOWER"
+    nse_list:
+      industry: "Power"
+      series: "EQ"
+      isin: "INE814H01029"
+- symbol: "ATGL"
+  name: "Adani Total Gas Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "ATGL"
+    nse_list:
+      industry: "Oil Gas & Consumable Fuels"
+      series: "EQ"
+      isin: "INE399L01023"
+- symbol: "ABCAPITAL"
+  name: "Aditya Birla Capital Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "ABCAPITAL"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE674K01013"
+- symbol: "ABFRL"
+  name: "Aditya Birla Fashion and Retail Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "ABFRL"
+    nse_list:
+      industry: "Consumer Services"
+      series: "EQ"
+      isin: "INE647O01011"
+- symbol: "ABLBL"
+  name: "Aditya Birla Lifestyle Brands Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "ABLBL"
+    nse_list:
+      industry: "Consumer Services"
+      series: "EQ"
+      isin: "INE14LE01019"
+- symbol: "ABREL"
+  name: "Aditya Birla Real Estate Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "ABREL"
+    nse_list:
+      industry: "Realty"
+      series: "EQ"
+      isin: "INE055A01016"
+- symbol: "ABSLAMC"
+  name: "Aditya Birla Sun Life AMC Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "ABSLAMC"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE404A01024"
+- symbol: "CPPLUS"
+  name: "Aditya Infotech Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "CPPLUS"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE819V01029"
+- symbol: "AEGISLOG"
+  name: "Aegis Logistics Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "AEGISLOG"
+    nse_list:
+      industry: "Oil Gas & Consumable Fuels"
+      series: "EQ"
+      isin: "INE208C01025"
+- symbol: "AEGISVOPAK"
+  name: "Aegis Vopak Terminals Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "AEGISVOPAK"
+    nse_list:
+      industry: "Oil Gas & Consumable Fuels"
+      series: "EQ"
+      isin: "INE0INX01018"
+- symbol: "AFCONS"
+  name: "Afcons Infrastructure Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "AFCONS"
+    nse_list:
+      industry: "Construction"
+      series: "EQ"
+      isin: "INE101I01011"
+- symbol: "AFFLE"
+  name: "Affle 3i Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "AFFLE"
+    nse_list:
+      industry: "Information Technology"
+      series: "EQ"
+      isin: "INE00WC01027"
+- symbol: "AJANTPHARM"
+  name: "Ajanta Pharmaceuticals Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "AJANTPHARM"
+    nse_list:
+      industry: "Healthcare"
+      series: "EQ"
+      isin: "INE031B01049"
+- symbol: "ALKEM"
+  name: "Alkem Laboratories Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "ALKEM"
+    nse_list:
+      industry: "Healthcare"
+      series: "EQ"
+      isin: "INE540L01014"
+- symbol: "ABDL"
+  name: "Allied Blenders and Distillers Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "ABDL"
+    nse_list:
+      industry: "Fast Moving Consumer Goods"
+      series: "EQ"
+      isin: "INE552Z01027"
+- symbol: "ARE&M"
+  name: "Amara Raja Energy & Mobility Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "ARE&M"
+    nse_list:
+      industry: "Automobile and Auto Components"
+      series: "EQ"
+      isin: "INE885A01032"
+- symbol: "AMBER"
+  name: "Amber Enterprises India Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "AMBER"
+    nse_list:
+      industry: "Consumer Durables"
+      series: "EQ"
+      isin: "INE371P01015"
+- symbol: "AMBUJACEM"
+  name: "Ambuja Cements Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "AMBUJACEM"
+    nse_list:
+      industry: "Construction Materials"
+      series: "EQ"
+      isin: "INE079A01024"
+- symbol: "ANANDRATHI"
+  name: "Anand Rathi Wealth Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "ANANDRATHI"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE463V01026"
+- symbol: "ANANTRAJ"
+  name: "Anant Raj Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "ANANTRAJ"
+    nse_list:
+      industry: "Realty"
+      series: "EQ"
+      isin: "INE242C01024"
+- symbol: "ANGELONE"
+  name: "Angel One Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "ANGELONE"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE732I01021"
+- symbol: "ANTHEM"
+  name: "Anthem Biosciences Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "ANTHEM"
+    nse_list:
+      industry: "Healthcare"
+      series: "EQ"
+      isin: "INE0CZ201020"
+- symbol: "ANURAS"
+  name: "Anupam Rasayan India Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "ANURAS"
+    nse_list:
+      industry: "Chemicals"
+      series: "EQ"
+      isin: "INE930P01018"
+- symbol: "APARINDS"
+  name: "Apar Industries Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "APARINDS"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE372A01015"
+- symbol: "APOLLOHOSP"
+  name: "Apollo Hospitals Enterprise Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "APOLLOHOSP"
+    nse_list:
+      industry: "Healthcare"
+      series: "EQ"
+      isin: "INE437A01024"
+- symbol: "APOLLOTYRE"
+  name: "Apollo Tyres Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "APOLLOTYRE"
+    nse_list:
+      industry: "Automobile and Auto Components"
+      series: "EQ"
+      isin: "INE438A01022"
+- symbol: "APTUS"
+  name: "Aptus Value Housing Finance India Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "APTUS"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE852O01025"
+- symbol: "ASAHIINDIA"
+  name: "Asahi India Glass Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "ASAHIINDIA"
+    nse_list:
+      industry: "Automobile and Auto Components"
+      series: "EQ"
+      isin: "INE439A01020"
+- symbol: "ASHOKLEY"
+  name: "Ashok Leyland Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "ASHOKLEY"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE208A01029"
+- symbol: "ASIANPAINT"
+  name: "Asian Paints Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "ASIANPAINT"
+    nse_list:
+      industry: "Consumer Durables"
+      series: "EQ"
+      isin: "INE021A01026"
+- symbol: "ASTERDM"
+  name: "Aster DM Healthcare Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "ASTERDM"
+    nse_list:
+      industry: "Healthcare"
+      series: "EQ"
+      isin: "INE914M01019"
+- symbol: "ASTRAL"
+  name: "Astral Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "ASTRAL"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE006I01046"
+- symbol: "ATHERENERG"
+  name: "Ather Energy Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "ATHERENERG"
+    nse_list:
+      industry: "Automobile and Auto Components"
+      series: "EQ"
+      isin: "INE0LEZ01016"
+- symbol: "ATUL"
+  name: "Atul Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "ATUL"
+    nse_list:
+      industry: "Chemicals"
+      series: "EQ"
+      isin: "INE100A01010"
+- symbol: "AUROPHARMA"
+  name: "Aurobindo Pharma Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "AUROPHARMA"
+    nse_list:
+      industry: "Healthcare"
+      series: "EQ"
+      isin: "INE406A01037"
+- symbol: "AIIL"
+  name: "Authum Investment & Infrastructure Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "AIIL"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE206F01022"
+- symbol: "DMART"
+  name: "Avenue Supermarts Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "DMART"
+    nse_list:
+      industry: "Consumer Services"
+      series: "EQ"
+      isin: "INE192R01011"
+- symbol: "AXISBANK"
+  name: "Axis Bank Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "AXISBANK"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE238A01034"
+- symbol: "BEML"
+  name: "BEML Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "BEML"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE258A01024"
+- symbol: "BLS"
+  name: "BLS International Services Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "BLS"
+    nse_list:
+      industry: "Consumer Services"
+      series: "EQ"
+      isin: "INE153T01027"
+- symbol: "BSE"
+  name: "BSE Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "BSE"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE118H01025"
+- symbol: "BAJAJ-AUTO"
+  name: "Bajaj Auto Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "BAJAJ-AUTO"
+    nse_list:
+      industry: "Automobile and Auto Components"
+      series: "EQ"
+      isin: "INE917I01010"
+- symbol: "BAJFINANCE"
+  name: "Bajaj Finance Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "BAJFINANCE"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE296A01032"
+- symbol: "BAJAJFINSV"
+  name: "Bajaj Finserv Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "BAJAJFINSV"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE918I01026"
+- symbol: "BAJAJHLDNG"
+  name: "Bajaj Holdings & Investment Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "BAJAJHLDNG"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE118A01012"
+- symbol: "BAJAJHFL"
+  name: "Bajaj Housing Finance Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "BAJAJHFL"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE377Y01014"
+- symbol: "BALKRISIND"
+  name: "Balkrishna Industries Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "BALKRISIND"
+    nse_list:
+      industry: "Automobile and Auto Components"
+      series: "EQ"
+      isin: "INE787D01026"
+- symbol: "BALRAMCHIN"
+  name: "Balrampur Chini Mills Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "BALRAMCHIN"
+    nse_list:
+      industry: "Fast Moving Consumer Goods"
+      series: "EQ"
+      isin: "INE119A01028"
+- symbol: "BANDHANBNK"
+  name: "Bandhan Bank Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "BANDHANBNK"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE545U01014"
+- symbol: "BANKBARODA"
+  name: "Bank of Baroda"
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "BANKBARODA"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE028A01039"
+- symbol: "BANKINDIA"
+  name: "Bank of India"
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "BANKINDIA"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE084A01016"
+- symbol: "MAHABANK"
+  name: "Bank of Maharashtra"
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "MAHABANK"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE457A01014"
+- symbol: "BATAINDIA"
+  name: "Bata India Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "BATAINDIA"
+    nse_list:
+      industry: "Consumer Durables"
+      series: "EQ"
+      isin: "INE176A01028"
+- symbol: "BAYERCROP"
+  name: "Bayer Cropscience Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "BAYERCROP"
+    nse_list:
+      industry: "Chemicals"
+      series: "EQ"
+      isin: "INE462A01022"
+- symbol: "BELRISE"
+  name: "Belrise Industries Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "BELRISE"
+    nse_list:
+      industry: "Automobile and Auto Components"
+      series: "EQ"
+      isin: "INE894V01022"
+- symbol: "BERGEPAINT"
+  name: "Berger Paints India Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "BERGEPAINT"
+    nse_list:
+      industry: "Consumer Durables"
+      series: "EQ"
+      isin: "INE463A01038"
+- symbol: "BDL"
+  name: "Bharat Dynamics Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "BDL"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE171Z01026"
+- symbol: "BEL"
+  name: "Bharat Electronics Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "BEL"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE263A01024"
+- symbol: "BHARATFORG"
+  name: "Bharat Forge Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "BHARATFORG"
+    nse_list:
+      industry: "Automobile and Auto Components"
+      series: "EQ"
+      isin: "INE465A01025"
+- symbol: "BHEL"
+  name: "Bharat Heavy Electricals Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "BHEL"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE257A01026"
+- symbol: "BPCL"
+  name: "Bharat Petroleum Corporation Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "BPCL"
+    nse_list:
+      industry: "Oil Gas & Consumable Fuels"
+      series: "EQ"
+      isin: "INE029A01011"
+- symbol: "BHARTIARTL"
+  name: "Bharti Airtel Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "BHARTIARTL"
+    nse_list:
+      industry: "Telecommunication"
+      series: "EQ"
+      isin: "INE397D01024"
+- symbol: "BHARTIHEXA"
+  name: "Bharti Hexacom Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "BHARTIHEXA"
+    nse_list:
+      industry: "Telecommunication"
+      series: "EQ"
+      isin: "INE343G01021"
+- symbol: "BIKAJI"
+  name: "Bikaji Foods International Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "BIKAJI"
+    nse_list:
+      industry: "Fast Moving Consumer Goods"
+      series: "EQ"
+      isin: "INE00E101023"
+- symbol: "GROWW"
+  name: "Billionbrains Garage Ventures Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "GROWW"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE0HOQ01053"
+- symbol: "BIOCON"
+  name: "Biocon Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "BIOCON"
+    nse_list:
+      industry: "Healthcare"
+      series: "EQ"
+      isin: "INE376G01013"
+- symbol: "BSOFT"
+  name: "Birlasoft Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "BSOFT"
+    nse_list:
+      industry: "Information Technology"
+      series: "EQ"
+      isin: "INE836A01035"
+- symbol: "BLUEDART"
+  name: "Blue Dart Express Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "BLUEDART"
+    nse_list:
+      industry: "Services"
+      series: "EQ"
+      isin: "INE233B01017"
+- symbol: "BLUEJET"
+  name: "Blue Jet Healthcare Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "BLUEJET"
+    nse_list:
+      industry: "Healthcare"
+      series: "EQ"
+      isin: "INE0KBH01020"
+- symbol: "BLUESTARCO"
+  name: "Blue Star Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "BLUESTARCO"
+    nse_list:
+      industry: "Consumer Durables"
+      series: "EQ"
+      isin: "INE472A01039"
+- symbol: "BBTC"
+  name: "Bombay Burmah Trading Corporation Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "BBTC"
+    nse_list:
+      industry: "Fast Moving Consumer Goods"
+      series: "EQ"
+      isin: "INE050A01025"
+- symbol: "BOSCHLTD"
+  name: "Bosch Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "BOSCHLTD"
+    nse_list:
+      industry: "Automobile and Auto Components"
+      series: "EQ"
+      isin: "INE323A01026"
+- symbol: "FIRSTCRY"
+  name: "Brainbees Solutions Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "FIRSTCRY"
+    nse_list:
+      industry: "Consumer Services"
+      series: "EQ"
+      isin: "INE02RE01045"
+- symbol: "BRIGADE"
+  name: "Brigade Enterprises Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "BRIGADE"
+    nse_list:
+      industry: "Realty"
+      series: "EQ"
+      isin: "INE791I01019"
+- symbol: "BRITANNIA"
+  name: "Britannia Industries Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "BRITANNIA"
+    nse_list:
+      industry: "Fast Moving Consumer Goods"
+      series: "EQ"
+      isin: "INE216A01030"
+- symbol: "MAPMYINDIA"
+  name: "C.E. Info Systems Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "MAPMYINDIA"
+    nse_list:
+      industry: "Information Technology"
+      series: "EQ"
+      isin: "INE0BV301023"
+- symbol: "CCL"
+  name: "CCL Products (I) Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "CCL"
+    nse_list:
+      industry: "Fast Moving Consumer Goods"
+      series: "EQ"
+      isin: "INE421D01022"
+- symbol: "CESC"
+  name: "CESC Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "CESC"
+    nse_list:
+      industry: "Power"
+      series: "EQ"
+      isin: "INE486A01021"
+- symbol: "CGPOWER"
+  name: "CG Power and Industrial Solutions Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "CGPOWER"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE067A01029"
+- symbol: "CIEINDIA"
+  name: "CIE Automotive India Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "CIEINDIA"
+    nse_list:
+      industry: "Automobile and Auto Components"
+      series: "EQ"
+      isin: "INE536H01010"
+- symbol: "CRISIL"
+  name: "CRISIL Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "CRISIL"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE007A01025"
+- symbol: "CANFINHOME"
+  name: "Can Fin Homes Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "CANFINHOME"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE477A01020"
+- symbol: "CANBK"
+  name: "Canara Bank"
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "CANBK"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE476A01022"
+- symbol: "CANHLIFE"
+  name: "Canara HSBC Life Insurance Company Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "CANHLIFE"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE01TY01017"
+- symbol: "CAPLIPOINT"
+  name: "Caplin Point Laboratories Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "CAPLIPOINT"
+    nse_list:
+      industry: "Healthcare"
+      series: "EQ"
+      isin: "INE475E01026"
+- symbol: "CGCL"
+  name: "Capri Global Capital Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "CGCL"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE180C01042"
+- symbol: "CARBORUNIV"
+  name: "Carborundum Universal Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "CARBORUNIV"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE120A01034"
+- symbol: "CARTRADE"
+  name: "Cartrade Tech Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "CARTRADE"
+    nse_list:
+      industry: "Consumer Services"
+      series: "EQ"
+      isin: "INE290S01011"
+- symbol: "CASTROLIND"
+  name: "Castrol India Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "CASTROLIND"
+    nse_list:
+      industry: "Oil Gas & Consumable Fuels"
+      series: "EQ"
+      isin: "INE172A01027"
+- symbol: "CEATLTD"
+  name: "Ceat Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "CEATLTD"
+    nse_list:
+      industry: "Automobile and Auto Components"
+      series: "EQ"
+      isin: "INE482A01020"
+- symbol: "CEMPRO"
+  name: "Cemindia Projects Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "CEMPRO"
+    nse_list:
+      industry: "Construction"
+      series: "EQ"
+      isin: "INE686A01026"
+- symbol: "CENTRALBK"
+  name: "Central Bank of India"
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "CENTRALBK"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE483A01010"
+- symbol: "CDSL"
+  name: "Central Depository Services (India) Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "CDSL"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE736A01011"
+- symbol: "CHALET"
+  name: "Chalet Hotels Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "CHALET"
+    nse_list:
+      industry: "Consumer Services"
+      series: "EQ"
+      isin: "INE427F01016"
+- symbol: "CHAMBLFERT"
+  name: "Chambal Fertilizers & Chemicals Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "CHAMBLFERT"
+    nse_list:
+      industry: "Chemicals"
+      series: "EQ"
+      isin: "INE085A01013"
+- symbol: "CHENNPETRO"
+  name: "Chennai Petroleum Corporation Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "CHENNPETRO"
+    nse_list:
+      industry: "Oil Gas & Consumable Fuels"
+      series: "EQ"
+      isin: "INE178A01016"
+- symbol: "CHOICEIN"
+  name: "Choice International Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "CHOICEIN"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE102B01014"
+- symbol: "CHOLAHLDNG"
+  name: "Cholamandalam Financial Holdings Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "CHOLAHLDNG"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE149A01033"
+- symbol: "CHOLAFIN"
+  name: "Cholamandalam Investment and Finance Company Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "CHOLAFIN"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE121A01024"
+- symbol: "CIPLA"
+  name: "Cipla Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "CIPLA"
+    nse_list:
+      industry: "Healthcare"
+      series: "EQ"
+      isin: "INE059A01026"
+- symbol: "CUB"
+  name: "City Union Bank Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "CUB"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE491A01021"
+- symbol: "CLEAN"
+  name: "Clean Science and Technology Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "CLEAN"
+    nse_list:
+      industry: "Chemicals"
+      series: "EQ"
+      isin: "INE227W01023"
+- symbol: "COALINDIA"
+  name: "Coal India Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "COALINDIA"
+    nse_list:
+      industry: "Oil Gas & Consumable Fuels"
+      series: "EQ"
+      isin: "INE522F01014"
+- symbol: "COCHINSHIP"
+  name: "Cochin Shipyard Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "COCHINSHIP"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE704P01025"
+- symbol: "COFORGE"
+  name: "Coforge Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "COFORGE"
+    nse_list:
+      industry: "Information Technology"
+      series: "EQ"
+      isin: "INE591G01025"
+- symbol: "COHANCE"
+  name: "Cohance Lifesciences Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "COHANCE"
+    nse_list:
+      industry: "Healthcare"
+      series: "EQ"
+      isin: "INE03QK01018"
+- symbol: "COLPAL"
+  name: "Colgate Palmolive (India) Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "COLPAL"
+    nse_list:
+      industry: "Fast Moving Consumer Goods"
+      series: "EQ"
+      isin: "INE259A01022"
+- symbol: "CAMS"
+  name: "Computer Age Management Services Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "CAMS"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE596I01020"
+- symbol: "CONCORDBIO"
+  name: "Concord Biotech Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "CONCORDBIO"
+    nse_list:
+      industry: "Healthcare"
+      series: "EQ"
+      isin: "INE338H01029"
+- symbol: "CONCOR"
+  name: "Container Corporation of India Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "CONCOR"
+    nse_list:
+      industry: "Services"
+      series: "EQ"
+      isin: "INE111A01025"
+- symbol: "COROMANDEL"
+  name: "Coromandel International Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "COROMANDEL"
+    nse_list:
+      industry: "Chemicals"
+      series: "EQ"
+      isin: "INE169A01031"
+- symbol: "CRAFTSMAN"
+  name: "Craftsman Automation Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "CRAFTSMAN"
+    nse_list:
+      industry: "Automobile and Auto Components"
+      series: "EQ"
+      isin: "INE00LO01017"
+- symbol: "CREDITACC"
+  name: "CreditAccess Grameen Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "CREDITACC"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE741K01010"
+- symbol: "CROMPTON"
+  name: "Crompton Greaves Consumer Electricals Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "CROMPTON"
+    nse_list:
+      industry: "Consumer Durables"
+      series: "EQ"
+      isin: "INE299U01018"
+- symbol: "CUMMINSIND"
+  name: "Cummins India Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "CUMMINSIND"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE298A01020"
+- symbol: "CYIENT"
+  name: "Cyient Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "CYIENT"
+    nse_list:
+      industry: "Information Technology"
+      series: "EQ"
+      isin: "INE136B01020"
+- symbol: "DCMSHRIRAM"
+  name: "DCM Shriram Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "DCMSHRIRAM"
+    nse_list:
+      industry: "Diversified"
+      series: "EQ"
+      isin: "INE499A01024"
+- symbol: "DLF"
+  name: "DLF Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "DLF"
+    nse_list:
+      industry: "Realty"
+      series: "EQ"
+      isin: "INE271C01023"
+- symbol: "DOMS"
+  name: "DOMS Industries Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "DOMS"
+    nse_list:
+      industry: "Fast Moving Consumer Goods"
+      series: "EQ"
+      isin: "INE321T01012"
+- symbol: "DABUR"
+  name: "Dabur India Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "DABUR"
+    nse_list:
+      industry: "Fast Moving Consumer Goods"
+      series: "EQ"
+      isin: "INE016A01026"
+- symbol: "DALBHARAT"
+  name: "Dalmia Bharat Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "DALBHARAT"
+    nse_list:
+      industry: "Construction Materials"
+      series: "EQ"
+      isin: "INE00R701025"
+- symbol: "DATAPATTNS"
+  name: "Data Patterns (India) Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "DATAPATTNS"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE0IX101010"
+- symbol: "DEEPAKFERT"
+  name: "Deepak Fertilisers & Petrochemicals Corp. Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "DEEPAKFERT"
+    nse_list:
+      industry: "Chemicals"
+      series: "EQ"
+      isin: "INE501A01019"
+- symbol: "DEEPAKNTR"
+  name: "Deepak Nitrite Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "DEEPAKNTR"
+    nse_list:
+      industry: "Chemicals"
+      series: "EQ"
+      isin: "INE288B01029"
+- symbol: "DELHIVERY"
+  name: "Delhivery Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "DELHIVERY"
+    nse_list:
+      industry: "Services"
+      series: "EQ"
+      isin: "INE148O01028"
+- symbol: "DEVYANI"
+  name: "Devyani International Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "DEVYANI"
+    nse_list:
+      industry: "Consumer Services"
+      series: "EQ"
+      isin: "INE872J01023"
+- symbol: "DIVISLAB"
+  name: "Divi's Laboratories Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "DIVISLAB"
+    nse_list:
+      industry: "Healthcare"
+      series: "EQ"
+      isin: "INE361B01024"
+- symbol: "DIXON"
+  name: "Dixon Technologies (India) Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "DIXON"
+    nse_list:
+      industry: "Consumer Durables"
+      series: "EQ"
+      isin: "INE935N01020"
+- symbol: "LALPATHLAB"
+  name: "Dr. Lal Path Labs Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "LALPATHLAB"
+    nse_list:
+      industry: "Healthcare"
+      series: "EQ"
+      isin: "INE600L01024"
+- symbol: "DRREDDY"
+  name: "Dr. Reddy's Laboratories Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "DRREDDY"
+    nse_list:
+      industry: "Healthcare"
+      series: "EQ"
+      isin: "INE089A01031"
+- symbol: "EIDPARRY"
+  name: "E.I.D. Parry (India) Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "EIDPARRY"
+    nse_list:
+      industry: "Fast Moving Consumer Goods"
+      series: "EQ"
+      isin: "INE126A01031"
+- symbol: "EIHOTEL"
+  name: "EIH Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "EIHOTEL"
+    nse_list:
+      industry: "Consumer Services"
+      series: "EQ"
+      isin: "INE230A01023"
+- symbol: "EICHERMOT"
+  name: "Eicher Motors Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "EICHERMOT"
+    nse_list:
+      industry: "Automobile and Auto Components"
+      series: "EQ"
+      isin: "INE066A01021"
+- symbol: "ELECON"
+  name: "Elecon Engineering Co. Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "ELECON"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE205B01031"
+- symbol: "ELGIEQUIP"
+  name: "Elgi Equipments Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "ELGIEQUIP"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE285A01027"
+- symbol: "EMAMILTD"
+  name: "Emami Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "EMAMILTD"
+    nse_list:
+      industry: "Fast Moving Consumer Goods"
+      series: "EQ"
+      isin: "INE548C01032"
+- symbol: "EMCURE"
+  name: "Emcure Pharmaceuticals Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "EMCURE"
+    nse_list:
+      industry: "Healthcare"
+      series: "EQ"
+      isin: "INE168P01015"
+- symbol: "EMMVEE"
+  name: "Emmvee Photovoltaic Power Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "EMMVEE"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE1C6T01020"
+- symbol: "ENDURANCE"
+  name: "Endurance Technologies Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "ENDURANCE"
+    nse_list:
+      industry: "Automobile and Auto Components"
+      series: "EQ"
+      isin: "INE913H01037"
+- symbol: "ENGINERSIN"
+  name: "Engineers India Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "ENGINERSIN"
+    nse_list:
+      industry: "Construction"
+      series: "EQ"
+      isin: "INE510A01028"
+- symbol: "ERIS"
+  name: "Eris Lifesciences Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "ERIS"
+    nse_list:
+      industry: "Healthcare"
+      series: "EQ"
+      isin: "INE406M01024"
+- symbol: "ESCORTS"
+  name: "Escorts Kubota Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "ESCORTS"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE042A01014"
+- symbol: "ETERNAL"
+  name: "Eternal Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "ETERNAL"
+    nse_list:
+      industry: "Consumer Services"
+      series: "EQ"
+      isin: "INE758T01015"
+- symbol: "EXIDEIND"
+  name: "Exide Industries Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "EXIDEIND"
+    nse_list:
+      industry: "Automobile and Auto Components"
+      series: "EQ"
+      isin: "INE302A01020"
+- symbol: "NYKAA"
+  name: "FSN E-Commerce Ventures Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "NYKAA"
+    nse_list:
+      industry: "Consumer Services"
+      series: "EQ"
+      isin: "INE388Y01029"
+- symbol: "FEDERALBNK"
+  name: "Federal Bank Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "FEDERALBNK"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE171A01029"
+- symbol: "FACT"
+  name: "Fertilisers and Chemicals Travancore Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "FACT"
+    nse_list:
+      industry: "Chemicals"
+      series: "EQ"
+      isin: "INE188A01015"
+- symbol: "FINCABLES"
+  name: "Finolex Cables Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "FINCABLES"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE235A01022"
+- symbol: "FSL"
+  name: "Firstsource Solutions Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "FSL"
+    nse_list:
+      industry: "Services"
+      series: "EQ"
+      isin: "INE684F01012"
+- symbol: "FIVESTAR"
+  name: "Five-Star Business Finance Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "FIVESTAR"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE128S01021"
+- symbol: "FORCEMOT"
+  name: "Force Motors Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "FORCEMOT"
+    nse_list:
+      industry: "Automobile and Auto Components"
+      series: "EQ"
+      isin: "INE451A01017"
+- symbol: "FORTIS"
+  name: "Fortis Healthcare Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "FORTIS"
+    nse_list:
+      industry: "Healthcare"
+      series: "EQ"
+      isin: "INE061F01013"
+- symbol: "GAIL"
+  name: "GAIL (India) Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "GAIL"
+    nse_list:
+      industry: "Oil Gas & Consumable Fuels"
+      series: "EQ"
+      isin: "INE129A01019"
+- symbol: "GVT&D"
+  name: "GE Vernova T&D India Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "GVT&D"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE200A01026"
+- symbol: "GMRAIRPORT"
+  name: "GMR Airports Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "GMRAIRPORT"
+    nse_list:
+      industry: "Services"
+      series: "EQ"
+      isin: "INE776C01039"
+- symbol: "GABRIEL"
+  name: "Gabriel India Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "GABRIEL"
+    nse_list:
+      industry: "Automobile and Auto Components"
+      series: "EQ"
+      isin: "INE524A01029"
+- symbol: "GALLANTT"
+  name: "Gallantt Ispat Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "GALLANTT"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE297H01019"
+- symbol: "GRSE"
+  name: "Garden Reach Shipbuilders & Engineers Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "GRSE"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE382Z01011"
+- symbol: "GICRE"
+  name: "General Insurance Corporation of India"
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "GICRE"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE481Y01014"
+- symbol: "GILLETTE"
+  name: "Gillette India Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "GILLETTE"
+    nse_list:
+      industry: "Fast Moving Consumer Goods"
+      series: "EQ"
+      isin: "INE322A01010"
+- symbol: "GLAND"
+  name: "Gland Pharma Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "GLAND"
+    nse_list:
+      industry: "Healthcare"
+      series: "EQ"
+      isin: "INE068V01023"
+- symbol: "GLAXO"
+  name: "Glaxosmithkline Pharmaceuticals Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "GLAXO"
+    nse_list:
+      industry: "Healthcare"
+      series: "EQ"
+      isin: "INE159A01016"
+- symbol: "GLENMARK"
+  name: "Glenmark Pharmaceuticals Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "GLENMARK"
+    nse_list:
+      industry: "Healthcare"
+      series: "EQ"
+      isin: "INE935A01035"
+- symbol: "MEDANTA"
+  name: "Global Health Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "MEDANTA"
+    nse_list:
+      industry: "Healthcare"
+      series: "EQ"
+      isin: "INE474Q01031"
+- symbol: "GODIGIT"
+  name: "Go Digit General Insurance Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "GODIGIT"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE03JT01014"
+- symbol: "GPIL"
+  name: "Godawari Power & Ispat Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "GPIL"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE177H01039"
+- symbol: "GODFRYPHLP"
+  name: "Godfrey Phillips India Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "GODFRYPHLP"
+    nse_list:
+      industry: "Fast Moving Consumer Goods"
+      series: "EQ"
+      isin: "INE260B01028"
+- symbol: "GODREJCP"
+  name: "Godrej Consumer Products Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "GODREJCP"
+    nse_list:
+      industry: "Fast Moving Consumer Goods"
+      series: "EQ"
+      isin: "INE102D01028"
+- symbol: "GODREJIND"
+  name: "Godrej Industries Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "GODREJIND"
+    nse_list:
+      industry: "Diversified"
+      series: "EQ"
+      isin: "INE233A01035"
+- symbol: "GODREJPROP"
+  name: "Godrej Properties Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "GODREJPROP"
+    nse_list:
+      industry: "Realty"
+      series: "EQ"
+      isin: "INE484J01027"
+- symbol: "GRANULES"
+  name: "Granules India Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "GRANULES"
+    nse_list:
+      industry: "Healthcare"
+      series: "EQ"
+      isin: "INE101D01020"
+- symbol: "GRAPHITE"
+  name: "Graphite India Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "GRAPHITE"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE371A01025"
+- symbol: "GRASIM"
+  name: "Grasim Industries Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "GRASIM"
+    nse_list:
+      industry: "Construction Materials"
+      series: "EQ"
+      isin: "INE047A01021"
+- symbol: "GRAVITA"
+  name: "Gravita India Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "GRAVITA"
+    nse_list:
+      industry: "Metals & Mining"
+      series: "EQ"
+      isin: "INE024L01027"
+- symbol: "GESHIP"
+  name: "Great Eastern Shipping Co. Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "GESHIP"
+    nse_list:
+      industry: "Services"
+      series: "EQ"
+      isin: "INE017A01032"
+- symbol: "FLUOROCHEM"
+  name: "Gujarat Fluorochemicals Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "FLUOROCHEM"
+    nse_list:
+      industry: "Chemicals"
+      series: "EQ"
+      isin: "INE09N301011"
+- symbol: "GMDCLTD"
+  name: "Gujarat Mineral Development Corporation Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "GMDCLTD"
+    nse_list:
+      industry: "Metals & Mining"
+      series: "EQ"
+      isin: "INE131A01031"
+- symbol: "HEG"
+  name: "H.E.G. Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "HEG"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE545A01024"
+- symbol: "HBLENGINE"
+  name: "HBL Engineering Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "HBLENGINE"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE292B01021"
+- symbol: "HCLTECH"
+  name: "HCL Technologies Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "HCLTECH"
+    nse_list:
+      industry: "Information Technology"
+      series: "EQ"
+      isin: "INE860A01027"
+- symbol: "HDBFS"
+  name: "HDB Financial Services Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "HDBFS"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE756I01012"
+- symbol: "HDFCAMC"
+  name: "HDFC Asset Management Company Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "HDFCAMC"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE127D01025"
+- symbol: "HDFCBANK"
+  name: "HDFC Bank Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "HDFCBANK"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE040A01034"
+- symbol: "HDFCLIFE"
+  name: "HDFC Life Insurance Company Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "HDFCLIFE"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE795G01014"
+- symbol: "HFCL"
+  name: "HFCL Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "HFCL"
+    nse_list:
+      industry: "Telecommunication"
+      series: "EQ"
+      isin: "INE548A01028"
+- symbol: "HAVELLS"
+  name: "Havells India Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "HAVELLS"
+    nse_list:
+      industry: "Consumer Durables"
+      series: "EQ"
+      isin: "INE176B01034"
+- symbol: "HEROMOTOCO"
+  name: "Hero MotoCorp Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "HEROMOTOCO"
+    nse_list:
+      industry: "Automobile and Auto Components"
+      series: "EQ"
+      isin: "INE158A01026"
+- symbol: "HEXT"
+  name: "Hexaware Technologies Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "HEXT"
+    nse_list:
+      industry: "Information Technology"
+      series: "EQ"
+      isin: "INE093A01041"
+- symbol: "HSCL"
+  name: "Himadri Speciality Chemical Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "HSCL"
+    nse_list:
+      industry: "Chemicals"
+      series: "EQ"
+      isin: "INE019C01026"
+- symbol: "HINDALCO"
+  name: "Hindalco Industries Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "HINDALCO"
+    nse_list:
+      industry: "Metals & Mining"
+      series: "EQ"
+      isin: "INE038A01020"
+- symbol: "HAL"
+  name: "Hindustan Aeronautics Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "HAL"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE066F01020"
+- symbol: "HINDCOPPER"
+  name: "Hindustan Copper Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "HINDCOPPER"
+    nse_list:
+      industry: "Metals & Mining"
+      series: "EQ"
+      isin: "INE531E01026"
+- symbol: "HINDPETRO"
+  name: "Hindustan Petroleum Corporation Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "HINDPETRO"
+    nse_list:
+      industry: "Oil Gas & Consumable Fuels"
+      series: "EQ"
+      isin: "INE094A01015"
+- symbol: "HINDUNILVR"
+  name: "Hindustan Unilever Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "HINDUNILVR"
+    nse_list:
+      industry: "Fast Moving Consumer Goods"
+      series: "EQ"
+      isin: "INE030A01027"
+- symbol: "HINDZINC"
+  name: "Hindustan Zinc Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "HINDZINC"
+    nse_list:
+      industry: "Metals & Mining"
+      series: "EQ"
+      isin: "INE267A01025"
+- symbol: "POWERINDIA"
+  name: "Hitachi Energy India Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "POWERINDIA"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE07Y701011"
+- symbol: "HOMEFIRST"
+  name: "Home First Finance Company India Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "HOMEFIRST"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE481N01025"
+- symbol: "HONASA"
+  name: "Honasa Consumer Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "HONASA"
+    nse_list:
+      industry: "Fast Moving Consumer Goods"
+      series: "EQ"
+      isin: "INE0J5401028"
+- symbol: "HONAUT"
+  name: "Honeywell Automation India Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "HONAUT"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE671A01010"
+- symbol: "HUDCO"
+  name: "Housing & Urban Development Corporation Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "HUDCO"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE031A01017"
+- symbol: "HYUNDAI"
+  name: "Hyundai Motor India Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "HYUNDAI"
+    nse_list:
+      industry: "Automobile and Auto Components"
+      series: "EQ"
+      isin: "INE0V6F01027"
+- symbol: "ICICIBANK"
+  name: "ICICI Bank Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "ICICIBANK"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE090A01021"
+- symbol: "ICICIGI"
+  name: "ICICI Lombard General Insurance Company Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "ICICIGI"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE765G01017"
+- symbol: "ICICIAMC"
+  name: "ICICI Prudential Asset Management Company Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "ICICIAMC"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE346A01027"
+- symbol: "ICICIPRULI"
+  name: "ICICI Prudential Life Insurance Company Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "ICICIPRULI"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE726G01019"
+- symbol: "IDBI"
+  name: "IDBI Bank Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "IDBI"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE008A01015"
+- symbol: "IDFCFIRSTB"
+  name: "IDFC First Bank Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "IDFCFIRSTB"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE092T01019"
+- symbol: "IFCI"
+  name: "IFCI Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "IFCI"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE039A01010"
+- symbol: "IIFL"
+  name: "IIFL Finance Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "IIFL"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE530B01024"
+- symbol: "IRB"
+  name: "IRB Infrastructure Developers Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "IRB"
+    nse_list:
+      industry: "Construction"
+      series: "EQ"
+      isin: "INE821I01022"
+- symbol: "IRCON"
+  name: "IRCON International Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "IRCON"
+    nse_list:
+      industry: "Construction"
+      series: "EQ"
+      isin: "INE962Y01021"
+- symbol: "ITCHOTELS"
+  name: "ITC Hotels Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "ITCHOTELS"
+    nse_list:
+      industry: "Consumer Services"
+      series: "EQ"
+      isin: "INE379A01028"
+- symbol: "ITC"
+  name: "ITC Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "ITC"
+    nse_list:
+      industry: "Fast Moving Consumer Goods"
+      series: "EQ"
+      isin: "INE154A01025"
+- symbol: "ITI"
+  name: "ITI Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "ITI"
+    nse_list:
+      industry: "Telecommunication"
+      series: "EQ"
+      isin: "INE248A01017"
+- symbol: "INDGN"
+  name: "Indegene Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "INDGN"
+    nse_list:
+      industry: "Healthcare"
+      series: "EQ"
+      isin: "INE065X01017"
+- symbol: "INDIACEM"
+  name: "India Cements Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "INDIACEM"
+    nse_list:
+      industry: "Construction Materials"
+      series: "EQ"
+      isin: "INE383A01012"
+- symbol: "INDIAMART"
+  name: "Indiamart Intermesh Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "INDIAMART"
+    nse_list:
+      industry: "Consumer Services"
+      series: "EQ"
+      isin: "INE933S01016"
+- symbol: "INDIANB"
+  name: "Indian Bank"
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "INDIANB"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE562A01011"
+- symbol: "IEX"
+  name: "Indian Energy Exchange Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "IEX"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE022Q01020"
+- symbol: "INDHOTEL"
+  name: "Indian Hotels Co. Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "INDHOTEL"
+    nse_list:
+      industry: "Consumer Services"
+      series: "EQ"
+      isin: "INE053A01029"
+- symbol: "IOC"
+  name: "Indian Oil Corporation Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "IOC"
+    nse_list:
+      industry: "Oil Gas & Consumable Fuels"
+      series: "EQ"
+      isin: "INE242A01010"
+- symbol: "IOB"
+  name: "Indian Overseas Bank"
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "IOB"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE565A01014"
+- symbol: "IRCTC"
+  name: "Indian Railway Catering And Tourism Corporation Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "IRCTC"
+    nse_list:
+      industry: "Consumer Services"
+      series: "EQ"
+      isin: "INE335Y01020"
+- symbol: "IRFC"
+  name: "Indian Railway Finance Corporation Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "IRFC"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE053F01010"
+- symbol: "IREDA"
+  name: "Indian Renewable Energy Development Agency Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "IREDA"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE202E01016"
+- symbol: "IGL"
+  name: "Indraprastha Gas Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "IGL"
+    nse_list:
+      industry: "Oil Gas & Consumable Fuels"
+      series: "EQ"
+      isin: "INE203G01027"
+- symbol: "INDUSTOWER"
+  name: "Indus Towers Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "INDUSTOWER"
+    nse_list:
+      industry: "Telecommunication"
+      series: "EQ"
+      isin: "INE121J01017"
+- symbol: "INDUSINDBK"
+  name: "IndusInd Bank Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "INDUSINDBK"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE095A01012"
+- symbol: "NAUKRI"
+  name: "Info Edge (India) Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "NAUKRI"
+    nse_list:
+      industry: "Consumer Services"
+      series: "EQ"
+      isin: "INE663F01032"
+- symbol: "INFY"
+  name: "Infosys Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "INFY"
+    nse_list:
+      industry: "Information Technology"
+      series: "EQ"
+      isin: "INE009A01021"
+- symbol: "INOXWIND"
+  name: "Inox Wind Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "INOXWIND"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE066P01011"
+- symbol: "INTELLECT"
+  name: "Intellect Design Arena Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "INTELLECT"
+    nse_list:
+      industry: "Information Technology"
+      series: "EQ"
+      isin: "INE306R01017"
+- symbol: "INDIGO"
+  name: "InterGlobe Aviation Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "INDIGO"
+    nse_list:
+      industry: "Services"
+      series: "EQ"
+      isin: "INE646L01027"
+- symbol: "IGIL"
+  name: "International Gemological Institute Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "IGIL"
+    nse_list:
+      industry: "Services"
+      series: "EQ"
+      isin: "INE0Q9301021"
+- symbol: "IKS"
+  name: "Inventurus Knowledge Solutions Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "IKS"
+    nse_list:
+      industry: "Information Technology"
+      series: "EQ"
+      isin: "INE115Q01022"
+- symbol: "IPCALAB"
+  name: "Ipca Laboratories Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "IPCALAB"
+    nse_list:
+      industry: "Healthcare"
+      series: "EQ"
+      isin: "INE571A01038"
+- symbol: "JBCHEPHARM"
+  name: "J.B. Chemicals & Pharmaceuticals Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "JBCHEPHARM"
+    nse_list:
+      industry: "Healthcare"
+      series: "EQ"
+      isin: "INE572A01036"
+- symbol: "JKCEMENT"
+  name: "J.K. Cement Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "JKCEMENT"
+    nse_list:
+      industry: "Construction Materials"
+      series: "EQ"
+      isin: "INE823G01014"
+- symbol: "JBMA"
+  name: "JBM Auto Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "JBMA"
+    nse_list:
+      industry: "Automobile and Auto Components"
+      series: "EQ"
+      isin: "INE927D01051"
+- symbol: "JKTYRE"
+  name: "JK Tyre & Industries Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "JKTYRE"
+    nse_list:
+      industry: "Automobile and Auto Components"
+      series: "EQ"
+      isin: "INE573A01042"
+- symbol: "JMFINANCIL"
+  name: "JM Financial Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "JMFINANCIL"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE780C01023"
+- symbol: "JSWCEMENT"
+  name: "JSW Cement Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "JSWCEMENT"
+    nse_list:
+      industry: "Construction Materials"
+      series: "EQ"
+      isin: "INE718I01012"
+- symbol: "JSWDULUX"
+  name: "JSW Dulux Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "JSWDULUX"
+    nse_list:
+      industry: "Consumer Durables"
+      series: "EQ"
+      isin: "INE133A01011"
+- symbol: "JSWENERGY"
+  name: "JSW Energy Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "JSWENERGY"
+    nse_list:
+      industry: "Power"
+      series: "EQ"
+      isin: "INE121E01018"
+- symbol: "JSWINFRA"
+  name: "JSW Infrastructure Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "JSWINFRA"
+    nse_list:
+      industry: "Services"
+      series: "EQ"
+      isin: "INE880J01026"
+- symbol: "JSWSTEEL"
+  name: "JSW Steel Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "JSWSTEEL"
+    nse_list:
+      industry: "Metals & Mining"
+      series: "EQ"
+      isin: "INE019A01038"
+- symbol: "JAINREC"
+  name: "Jain Resource Recycling Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "JAINREC"
+    nse_list:
+      industry: "Metals & Mining"
+      series: "EQ"
+      isin: "INE0YD401026"
+- symbol: "JPPOWER"
+  name: "Jaiprakash Power Ventures Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "JPPOWER"
+    nse_list:
+      industry: "Power"
+      series: "EQ"
+      isin: "INE351F01018"
+- symbol: "J&KBANK"
+  name: "Jammu & Kashmir Bank Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "J&KBANK"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE168A01041"
+- symbol: "JINDALSAW"
+  name: "Jindal Saw Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "JINDALSAW"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE324A01032"
+- symbol: "JSL"
+  name: "Jindal Stainless Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "JSL"
+    nse_list:
+      industry: "Metals & Mining"
+      series: "EQ"
+      isin: "INE220G01021"
+- symbol: "JINDALSTEL"
+  name: "Jindal Steel Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "JINDALSTEL"
+    nse_list:
+      industry: "Metals & Mining"
+      series: "EQ"
+      isin: "INE749A01030"
+- symbol: "JIOFIN"
+  name: "Jio Financial Services Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "JIOFIN"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE758E01017"
+- symbol: "JUBLFOOD"
+  name: "Jubilant Foodworks Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "JUBLFOOD"
+    nse_list:
+      industry: "Consumer Services"
+      series: "EQ"
+      isin: "INE797F01020"
+- symbol: "JUBLINGREA"
+  name: "Jubilant Ingrevia Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "JUBLINGREA"
+    nse_list:
+      industry: "Chemicals"
+      series: "EQ"
+      isin: "INE0BY001018"
+- symbol: "JUBLPHARMA"
+  name: "Jubilant Pharmova Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "JUBLPHARMA"
+    nse_list:
+      industry: "Healthcare"
+      series: "EQ"
+      isin: "INE700A01033"
+- symbol: "JWL"
+  name: "Jupiter Wagons Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "JWL"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE209L01016"
+- symbol: "JYOTICNC"
+  name: "Jyoti CNC Automation Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "JYOTICNC"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE980O01024"
+- symbol: "KPRMILL"
+  name: "K.P.R. Mill Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "KPRMILL"
+    nse_list:
+      industry: "Textiles"
+      series: "EQ"
+      isin: "INE930H01031"
+- symbol: "KEI"
+  name: "KEI Industries Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "KEI"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE878B01027"
+- symbol: "KPITTECH"
+  name: "KPIT Technologies Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "KPITTECH"
+    nse_list:
+      industry: "Information Technology"
+      series: "EQ"
+      isin: "INE04I401011"
+- symbol: "KAJARIACER"
+  name: "Kajaria Ceramics Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "KAJARIACER"
+    nse_list:
+      industry: "Consumer Durables"
+      series: "EQ"
+      isin: "INE217B01036"
+- symbol: "KPIL"
+  name: "Kalpataru Projects International Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "KPIL"
+    nse_list:
+      industry: "Construction"
+      series: "EQ"
+      isin: "INE220B01022"
+- symbol: "KALYANKJIL"
+  name: "Kalyan Jewellers India Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "KALYANKJIL"
+    nse_list:
+      industry: "Consumer Durables"
+      series: "EQ"
+      isin: "INE303R01014"
+- symbol: "KARURVYSYA"
+  name: "Karur Vysya Bank Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "KARURVYSYA"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE036D01028"
+- symbol: "KAYNES"
+  name: "Kaynes Technology India Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "KAYNES"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE918Z01012"
+- symbol: "KEC"
+  name: "Kec International Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "KEC"
+    nse_list:
+      industry: "Construction"
+      series: "EQ"
+      isin: "INE389H01022"
+- symbol: "KFINTECH"
+  name: "Kfin Technologies Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "KFINTECH"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE138Y01010"
+- symbol: "KIRLOSENG"
+  name: "Kirloskar Oil Eng Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "KIRLOSENG"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE146L01010"
+- symbol: "KOTAKBANK"
+  name: "Kotak Mahindra Bank Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "KOTAKBANK"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE237A01036"
+- symbol: "KIMS"
+  name: "Krishna Institute of Medical Sciences Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "KIMS"
+    nse_list:
+      industry: "Healthcare"
+      series: "EQ"
+      isin: "INE967H01025"
+- symbol: "LTF"
+  name: "L&T Finance Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "LTF"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE498L01015"
+- symbol: "LTTS"
+  name: "L&T Technology Services Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "LTTS"
+    nse_list:
+      industry: "Information Technology"
+      series: "EQ"
+      isin: "INE010V01017"
+- symbol: "LGEINDIA"
+  name: "LG Electronics India Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "LGEINDIA"
+    nse_list:
+      industry: "Consumer Durables"
+      series: "EQ"
+      isin: "INE324D01010"
+- symbol: "LICHSGFIN"
+  name: "LIC Housing Finance Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "LICHSGFIN"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE115A01026"
+- symbol: "LTFOODS"
+  name: "LT Foods Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "LTFOODS"
+    nse_list:
+      industry: "Fast Moving Consumer Goods"
+      series: "EQ"
+      isin: "INE818H01020"
+- symbol: "LTM"
+  name: "LTM Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "LTM"
+    nse_list:
+      industry: "Information Technology"
+      series: "EQ"
+      isin: "INE214T01019"
+- symbol: "LT"
+  name: "Larsen & Toubro Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "LT"
+    nse_list:
+      industry: "Construction"
+      series: "EQ"
+      isin: "INE018A01030"
+- symbol: "LATENTVIEW"
+  name: "Latent View Analytics Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "LATENTVIEW"
+    nse_list:
+      industry: "Information Technology"
+      series: "EQ"
+      isin: "INE0I7C01011"
+- symbol: "LAURUSLABS"
+  name: "Laurus Labs Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "LAURUSLABS"
+    nse_list:
+      industry: "Healthcare"
+      series: "EQ"
+      isin: "INE947Q01028"
+- symbol: "THELEELA"
+  name: "Leela Palaces Hotels & Resorts Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "THELEELA"
+    nse_list:
+      industry: "Consumer Services"
+      series: "EQ"
+      isin: "INE0AQ201015"
+- symbol: "LEMONTREE"
+  name: "Lemon Tree Hotels Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "LEMONTREE"
+    nse_list:
+      industry: "Consumer Services"
+      series: "EQ"
+      isin: "INE970X01018"
+- symbol: "LENSKART"
+  name: "Lenskart Solutions Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "LENSKART"
+    nse_list:
+      industry: "Consumer Services"
+      series: "EQ"
+      isin: "INE956O01016"
+- symbol: "LICI"
+  name: "Life Insurance Corporation of India"
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "LICI"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE0J1Y01017"
+- symbol: "LINDEINDIA"
+  name: "Linde India Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "LINDEINDIA"
+    nse_list:
+      industry: "Chemicals"
+      series: "EQ"
+      isin: "INE473A01011"
+- symbol: "LLOYDSME"
+  name: "Lloyds Metals And Energy Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "LLOYDSME"
+    nse_list:
+      industry: "Metals & Mining"
+      series: "EQ"
+      isin: "INE281B01032"
+- symbol: "LODHA"
+  name: "Lodha Developers Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "LODHA"
+    nse_list:
+      industry: "Realty"
+      series: "EQ"
+      isin: "INE670K01029"
+- symbol: "LUPIN"
+  name: "Lupin Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "LUPIN"
+    nse_list:
+      industry: "Healthcare"
+      series: "EQ"
+      isin: "INE326A01037"
+- symbol: "MMTC"
+  name: "MMTC Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "MMTC"
+    nse_list:
+      industry: "Services"
+      series: "EQ"
+      isin: "INE123F01029"
+- symbol: "MRF"
+  name: "MRF Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "MRF"
+    nse_list:
+      industry: "Automobile and Auto Components"
+      series: "EQ"
+      isin: "INE883A01011"
+- symbol: "MGL"
+  name: "Mahanagar Gas Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "MGL"
+    nse_list:
+      industry: "Oil Gas & Consumable Fuels"
+      series: "EQ"
+      isin: "INE002S01010"
+- symbol: "M&MFIN"
+  name: "Mahindra & Mahindra Financial Services Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "M&MFIN"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE774D01024"
+- symbol: "M&M"
+  name: "Mahindra & Mahindra Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "M&M"
+    nse_list:
+      industry: "Automobile and Auto Components"
+      series: "EQ"
+      isin: "INE101A01026"
+- symbol: "MANAPPURAM"
+  name: "Manappuram Finance Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "MANAPPURAM"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE522D01027"
+- symbol: "MRPL"
+  name: "Mangalore Refinery & Petrochemicals Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "MRPL"
+    nse_list:
+      industry: "Oil Gas & Consumable Fuels"
+      series: "EQ"
+      isin: "INE103A01014"
+- symbol: "MANKIND"
+  name: "Mankind Pharma Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "MANKIND"
+    nse_list:
+      industry: "Healthcare"
+      series: "EQ"
+      isin: "INE634S01028"
+- symbol: "MARICO"
+  name: "Marico Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "MARICO"
+    nse_list:
+      industry: "Fast Moving Consumer Goods"
+      series: "EQ"
+      isin: "INE196A01026"
+- symbol: "MARUTI"
+  name: "Maruti Suzuki India Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "MARUTI"
+    nse_list:
+      industry: "Automobile and Auto Components"
+      series: "EQ"
+      isin: "INE585B01010"
+- symbol: "MFSL"
+  name: "Max Financial Services Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "MFSL"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE180A01020"
+- symbol: "MAXHEALTH"
+  name: "Max Healthcare Institute Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "MAXHEALTH"
+    nse_list:
+      industry: "Healthcare"
+      series: "EQ"
+      isin: "INE027H01010"
+- symbol: "MAZDOCK"
+  name: "Mazagoan Dock Shipbuilders Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "MAZDOCK"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE249Z01020"
+- symbol: "MEESHO"
+  name: "Meesho Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "MEESHO"
+    nse_list:
+      industry: "Consumer Services"
+      series: "EQ"
+      isin: "INE0VDM01015"
+- symbol: "MINDACORP"
+  name: "Minda Corporation Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "MINDACORP"
+    nse_list:
+      industry: "Automobile and Auto Components"
+      series: "EQ"
+      isin: "INE842C01021"
+- symbol: "MSUMI"
+  name: "Motherson Sumi Wiring India Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "MSUMI"
+    nse_list:
+      industry: "Automobile and Auto Components"
+      series: "EQ"
+      isin: "INE0FS801015"
+- symbol: "MOTILALOFS"
+  name: "Motilal Oswal Financial Services Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "MOTILALOFS"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE338I01027"
+- symbol: "MPHASIS"
+  name: "MphasiS Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "MPHASIS"
+    nse_list:
+      industry: "Information Technology"
+      series: "EQ"
+      isin: "INE356A01018"
+- symbol: "MCX"
+  name: "Multi Commodity Exchange of India Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "MCX"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE745G01043"
+- symbol: "MUTHOOTFIN"
+  name: "Muthoot Finance Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "MUTHOOTFIN"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE414G01012"
+- symbol: "NATCOPHARM"
+  name: "NATCO Pharma Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "NATCOPHARM"
+    nse_list:
+      industry: "Healthcare"
+      series: "EQ"
+      isin: "INE987B01026"
+- symbol: "NBCC"
+  name: "NBCC (India) Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "NBCC"
+    nse_list:
+      industry: "Construction"
+      series: "EQ"
+      isin: "INE095N01031"
+- symbol: "NCC"
+  name: "NCC Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "NCC"
+    nse_list:
+      industry: "Construction"
+      series: "EQ"
+      isin: "INE868B01028"
+- symbol: "NHPC"
+  name: "NHPC Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "NHPC"
+    nse_list:
+      industry: "Power"
+      series: "EQ"
+      isin: "INE848E01016"
+- symbol: "NLCINDIA"
+  name: "NLC India Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "NLCINDIA"
+    nse_list:
+      industry: "Power"
+      series: "EQ"
+      isin: "INE589A01014"
+- symbol: "NMDC"
+  name: "NMDC Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "NMDC"
+    nse_list:
+      industry: "Metals & Mining"
+      series: "EQ"
+      isin: "INE584A01023"
+- symbol: "NSLNISP"
+  name: "NMDC Steel Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "NSLNISP"
+    nse_list:
+      industry: "Metals & Mining"
+      series: "EQ"
+      isin: "INE0NNS01018"
+- symbol: "NTPCGREEN"
+  name: "NTPC Green Energy Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "NTPCGREEN"
+    nse_list:
+      industry: "Power"
+      series: "EQ"
+      isin: "INE0ONG01011"
+- symbol: "NTPC"
+  name: "NTPC Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "NTPC"
+    nse_list:
+      industry: "Power"
+      series: "EQ"
+      isin: "INE733E01010"
+- symbol: "NH"
+  name: "Narayana Hrudayalaya Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "NH"
+    nse_list:
+      industry: "Healthcare"
+      series: "EQ"
+      isin: "INE410P01011"
+- symbol: "NATIONALUM"
+  name: "National Aluminium Co. Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "NATIONALUM"
+    nse_list:
+      industry: "Metals & Mining"
+      series: "EQ"
+      isin: "INE139A01034"
+- symbol: "NAVA"
+  name: "Nava Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "NAVA"
+    nse_list:
+      industry: "Power"
+      series: "EQ"
+      isin: "INE725A01030"
+- symbol: "NAVINFLUOR"
+  name: "Navin Fluorine International Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "NAVINFLUOR"
+    nse_list:
+      industry: "Chemicals"
+      series: "EQ"
+      isin: "INE048G01026"
+- symbol: "NESTLEIND"
+  name: "Nestle India Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "NESTLEIND"
+    nse_list:
+      industry: "Fast Moving Consumer Goods"
+      series: "EQ"
+      isin: "INE239A01024"
+- symbol: "NETWEB"
+  name: "Netweb Technologies India Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "NETWEB"
+    nse_list:
+      industry: "Information Technology"
+      series: "EQ"
+      isin: "INE0NT901020"
+- symbol: "NEULANDLAB"
+  name: "Neuland Laboratories Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "NEULANDLAB"
+    nse_list:
+      industry: "Healthcare"
+      series: "EQ"
+      isin: "INE794A01010"
+- symbol: "NEWGEN"
+  name: "Newgen Software Technologies Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "NEWGEN"
+    nse_list:
+      industry: "Information Technology"
+      series: "EQ"
+      isin: "INE619B01017"
+- symbol: "NAM-INDIA"
+  name: "Nippon Life India Asset Management Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "NAM-INDIA"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE298J01013"
+- symbol: "NIVABUPA"
+  name: "Niva Bupa Health Insurance Company Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "NIVABUPA"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE995S01015"
+- symbol: "NUVAMA"
+  name: "Nuvama Wealth Management Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "NUVAMA"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE531F01023"
+- symbol: "NUVOCO"
+  name: "Nuvoco Vistas Corporation Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "NUVOCO"
+    nse_list:
+      industry: "Construction Materials"
+      series: "EQ"
+      isin: "INE118D01016"
+- symbol: "OBEROIRLTY"
+  name: "Oberoi Realty Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "OBEROIRLTY"
+    nse_list:
+      industry: "Realty"
+      series: "EQ"
+      isin: "INE093I01010"
+- symbol: "ONGC"
+  name: "Oil & Natural Gas Corporation Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "ONGC"
+    nse_list:
+      industry: "Oil Gas & Consumable Fuels"
+      series: "EQ"
+      isin: "INE213A01029"
+- symbol: "OIL"
+  name: "Oil India Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "OIL"
+    nse_list:
+      industry: "Oil Gas & Consumable Fuels"
+      series: "EQ"
+      isin: "INE274J01014"
+- symbol: "OLAELEC"
+  name: "Ola Electric Mobility Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "OLAELEC"
+    nse_list:
+      industry: "Automobile and Auto Components"
+      series: "EQ"
+      isin: "INE0LXG01040"
+- symbol: "OLECTRA"
+  name: "Olectra Greentech Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "OLECTRA"
+    nse_list:
+      industry: "Automobile and Auto Components"
+      series: "EQ"
+      isin: "INE260D01016"
+- symbol: "PAYTM"
+  name: "One 97 Communications Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "PAYTM"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE982J01020"
+- symbol: "ONESOURCE"
+  name: "Onesource Specialty Pharma Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "ONESOURCE"
+    nse_list:
+      industry: "Healthcare"
+      series: "EQ"
+      isin: "INE013P01021"
+- symbol: "OFSS"
+  name: "Oracle Financial Services Software Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "OFSS"
+    nse_list:
+      industry: "Information Technology"
+      series: "EQ"
+      isin: "INE881D01027"
+- symbol: "POLICYBZR"
+  name: "PB Fintech Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "POLICYBZR"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE417T01026"
+- symbol: "PCBL"
+  name: "PCBL Chemical Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "PCBL"
+    nse_list:
+      industry: "Chemicals"
+      series: "EQ"
+      isin: "INE602A01031"
+- symbol: "PGEL"
+  name: "PG Electroplast Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "PGEL"
+    nse_list:
+      industry: "Consumer Durables"
+      series: "EQ"
+      isin: "INE457L01029"
+- symbol: "PIIND"
+  name: "PI Industries Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "PIIND"
+    nse_list:
+      industry: "Chemicals"
+      series: "EQ"
+      isin: "INE603J01030"
+- symbol: "PNBHOUSING"
+  name: "PNB Housing Finance Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "PNBHOUSING"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE572E01012"
+- symbol: "PTCIL"
+  name: "PTC Industries Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "PTCIL"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE596F01018"
+- symbol: "PVRINOX"
+  name: "PVR INOX Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "PVRINOX"
+    nse_list:
+      industry: "Media Entertainment & Publication"
+      series: "EQ"
+      isin: "INE191H01014"
+- symbol: "PAGEIND"
+  name: "Page Industries Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "PAGEIND"
+    nse_list:
+      industry: "Textiles"
+      series: "EQ"
+      isin: "INE761H01022"
+- symbol: "PARADEEP"
+  name: "Paradeep Phosphates Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "PARADEEP"
+    nse_list:
+      industry: "Chemicals"
+      series: "EQ"
+      isin: "INE088F01024"
+- symbol: "PATANJALI"
+  name: "Patanjali Foods Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "PATANJALI"
+    nse_list:
+      industry: "Fast Moving Consumer Goods"
+      series: "EQ"
+      isin: "INE619A01035"
+- symbol: "PERSISTENT"
+  name: "Persistent Systems Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "PERSISTENT"
+    nse_list:
+      industry: "Information Technology"
+      series: "EQ"
+      isin: "INE262H01021"
+- symbol: "PETRONET"
+  name: "Petronet LNG Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "PETRONET"
+    nse_list:
+      industry: "Oil Gas & Consumable Fuels"
+      series: "EQ"
+      isin: "INE347G01014"
+- symbol: "PFIZER"
+  name: "Pfizer Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "PFIZER"
+    nse_list:
+      industry: "Healthcare"
+      series: "EQ"
+      isin: "INE182A01018"
+- symbol: "PHOENIXLTD"
+  name: "Phoenix Mills Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "PHOENIXLTD"
+    nse_list:
+      industry: "Realty"
+      series: "EQ"
+      isin: "INE211B01039"
+- symbol: "PWL"
+  name: "Physicswallah Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "PWL"
+    nse_list:
+      industry: "Consumer Services"
+      series: "EQ"
+      isin: "INE0LP301011"
+- symbol: "PIDILITIND"
+  name: "Pidilite Industries Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "PIDILITIND"
+    nse_list:
+      industry: "Chemicals"
+      series: "EQ"
+      isin: "INE318A01026"
+- symbol: "PINELABS"
+  name: "Pine Labs Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "PINELABS"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE15B701018"
+- symbol: "PIRAMALFIN"
+  name: "Piramal Finance Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "PIRAMALFIN"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE202B01038"
+- symbol: "PPLPHARMA"
+  name: "Piramal Pharma Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "PPLPHARMA"
+    nse_list:
+      industry: "Healthcare"
+      series: "EQ"
+      isin: "INE0DK501011"
+- symbol: "POLYMED"
+  name: "Poly Medicure Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "POLYMED"
+    nse_list:
+      industry: "Healthcare"
+      series: "EQ"
+      isin: "INE205C01021"
+- symbol: "POLYCAB"
+  name: "Polycab India Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "POLYCAB"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE455K01017"
+- symbol: "POONAWALLA"
+  name: "Poonawalla Fincorp Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "POONAWALLA"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE511C01022"
+- symbol: "PFC"
+  name: "Power Finance Corporation Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "PFC"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE134E01011"
+- symbol: "POWERGRID"
+  name: "Power Grid Corporation of India Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "POWERGRID"
+    nse_list:
+      industry: "Power"
+      series: "EQ"
+      isin: "INE752E01010"
+- symbol: "PREMIERENE"
+  name: "Premier Energies Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "PREMIERENE"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE0BS701011"
+- symbol: "PRESTIGE"
+  name: "Prestige Estates Projects Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "PRESTIGE"
+    nse_list:
+      industry: "Realty"
+      series: "EQ"
+      isin: "INE811K01011"
+- symbol: "PNB"
+  name: "Punjab National Bank"
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "PNB"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE160A01022"
+- symbol: "RRKABEL"
+  name: "R R Kabel Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "RRKABEL"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE777K01022"
+- symbol: "RBLBANK"
+  name: "RBL Bank Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "RBLBANK"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE976G01028"
+- symbol: "RECLTD"
+  name: "REC Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "RECLTD"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE020B01018"
+- symbol: "RHIM"
+  name: "RHI MAGNESITA INDIA LTD."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "RHIM"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE743M01012"
+- symbol: "RITES"
+  name: "RITES Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "RITES"
+    nse_list:
+      industry: "Construction"
+      series: "EQ"
+      isin: "INE320J01015"
+- symbol: "RADICO"
+  name: "Radico Khaitan Ltd"
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "RADICO"
+    nse_list:
+      industry: "Fast Moving Consumer Goods"
+      series: "EQ"
+      isin: "INE944F01028"
+- symbol: "RVNL"
+  name: "Rail Vikas Nigam Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "RVNL"
+    nse_list:
+      industry: "Construction"
+      series: "EQ"
+      isin: "INE415G01027"
+- symbol: "RAILTEL"
+  name: "Railtel Corporation Of India Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "RAILTEL"
+    nse_list:
+      industry: "Telecommunication"
+      series: "EQ"
+      isin: "INE0DD101019"
+- symbol: "RAINBOW"
+  name: "Rainbow Childrens Medicare Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "RAINBOW"
+    nse_list:
+      industry: "Healthcare"
+      series: "EQ"
+      isin: "INE961O01016"
+- symbol: "RKFORGE"
+  name: "Ramkrishna Forgings Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "RKFORGE"
+    nse_list:
+      industry: "Automobile and Auto Components"
+      series: "EQ"
+      isin: "INE399G01023"
+- symbol: "REDINGTON"
+  name: "Redington Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "REDINGTON"
+    nse_list:
+      industry: "Services"
+      series: "EQ"
+      isin: "INE891D01026"
+- symbol: "RELIANCE"
+  name: "Reliance Industries Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "RELIANCE"
+    nse_list:
+      industry: "Oil Gas & Consumable Fuels"
+      series: "EQ"
+      isin: "INE002A01018"
+- symbol: "RPOWER"
+  name: "Reliance Power Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "RPOWER"
+    nse_list:
+      industry: "Power"
+      series: "EQ"
+      isin: "INE614G01033"
+- symbol: "SBFC"
+  name: "SBFC Finance Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "SBFC"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE423Y01016"
+- symbol: "SBICARD"
+  name: "SBI Cards and Payment Services Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "SBICARD"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE018E01016"
+- symbol: "SBILIFE"
+  name: "SBI Life Insurance Company Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "SBILIFE"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE123W01016"
+- symbol: "SJVN"
+  name: "SJVN Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "SJVN"
+    nse_list:
+      industry: "Power"
+      series: "EQ"
+      isin: "INE002L01015"
+- symbol: "SRF"
+  name: "SRF Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "SRF"
+    nse_list:
+      industry: "Chemicals"
+      series: "EQ"
+      isin: "INE647A01010"
+- symbol: "SAGILITY"
+  name: "Sagility Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "SAGILITY"
+    nse_list:
+      industry: "Information Technology"
+      series: "EQ"
+      isin: "INE0W2G01015"
+- symbol: "SAILIFE"
+  name: "Sai Life Sciences Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "SAILIFE"
+    nse_list:
+      industry: "Healthcare"
+      series: "EQ"
+      isin: "INE570L01029"
+- symbol: "SAMMAANCAP"
+  name: "Sammaan Capital Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "SAMMAANCAP"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE148I01020"
+- symbol: "MOTHERSON"
+  name: "Samvardhana Motherson International Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "MOTHERSON"
+    nse_list:
+      industry: "Automobile and Auto Components"
+      series: "EQ"
+      isin: "INE775A01035"
+- symbol: "SAPPHIRE"
+  name: "Sapphire Foods India Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "SAPPHIRE"
+    nse_list:
+      industry: "Consumer Services"
+      series: "EQ"
+      isin: "INE806T01020"
+- symbol: "SARDAEN"
+  name: "Sarda Energy and Minerals Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "SARDAEN"
+    nse_list:
+      industry: "Metals & Mining"
+      series: "EQ"
+      isin: "INE385C01021"
+- symbol: "SAREGAMA"
+  name: "Saregama India Ltd"
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "SAREGAMA"
+    nse_list:
+      industry: "Media Entertainment & Publication"
+      series: "EQ"
+      isin: "INE979A01025"
+- symbol: "SCHAEFFLER"
+  name: "Schaeffler India Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "SCHAEFFLER"
+    nse_list:
+      industry: "Automobile and Auto Components"
+      series: "EQ"
+      isin: "INE513A01022"
+- symbol: "SCHNEIDER"
+  name: "Schneider Electric Infrastructure Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "SCHNEIDER"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE839M01018"
+- symbol: "SCI"
+  name: "Shipping Corporation of India Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "SCI"
+    nse_list:
+      industry: "Services"
+      series: "EQ"
+      isin: "INE109A01011"
+- symbol: "SHREECEM"
+  name: "Shree Cement Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "SHREECEM"
+    nse_list:
+      industry: "Construction Materials"
+      series: "EQ"
+      isin: "INE070A01015"
+- symbol: "SHRIRAMFIN"
+  name: "Shriram Finance Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "SHRIRAMFIN"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE721A01047"
+- symbol: "SHYAMMETL"
+  name: "Shyam Metalics and Energy Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "SHYAMMETL"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE810G01011"
+- symbol: "ENRIN"
+  name: "Siemens Energy India Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "ENRIN"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE1NPP01017"
+- symbol: "SIEMENS"
+  name: "Siemens Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "SIEMENS"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE003A01024"
+- symbol: "SIGNATURE"
+  name: "Signatureglobal (India) Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "SIGNATURE"
+    nse_list:
+      industry: "Realty"
+      series: "EQ"
+      isin: "INE903U01023"
+- symbol: "SOBHA"
+  name: "Sobha Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "SOBHA"
+    nse_list:
+      industry: "Realty"
+      series: "EQ"
+      isin: "INE671H01015"
+- symbol: "SOLARINDS"
+  name: "Solar Industries India Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "SOLARINDS"
+    nse_list:
+      industry: "Chemicals"
+      series: "EQ"
+      isin: "INE343H01029"
+- symbol: "SONACOMS"
+  name: "Sona BLW Precision Forgings Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "SONACOMS"
+    nse_list:
+      industry: "Automobile and Auto Components"
+      series: "EQ"
+      isin: "INE073K01018"
+- symbol: "SONATSOFTW"
+  name: "Sonata Software Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "SONATSOFTW"
+    nse_list:
+      industry: "Information Technology"
+      series: "EQ"
+      isin: "INE269A01021"
+- symbol: "STARHEALTH"
+  name: "Star Health and Allied Insurance Company Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "STARHEALTH"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE575P01011"
+- symbol: "SBIN"
+  name: "State Bank of India"
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "SBIN"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE062A01020"
+- symbol: "SAIL"
+  name: "Steel Authority of India Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "SAIL"
+    nse_list:
+      industry: "Metals & Mining"
+      series: "EQ"
+      isin: "INE114A01011"
+- symbol: "SUMICHEM"
+  name: "Sumitomo Chemical India Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "SUMICHEM"
+    nse_list:
+      industry: "Chemicals"
+      series: "EQ"
+      isin: "INE258G01013"
+- symbol: "SUNPHARMA"
+  name: "Sun Pharmaceutical Industries Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "SUNPHARMA"
+    nse_list:
+      industry: "Healthcare"
+      series: "EQ"
+      isin: "INE044A01036"
+- symbol: "SUNTV"
+  name: "Sun TV Network Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "SUNTV"
+    nse_list:
+      industry: "Media Entertainment & Publication"
+      series: "EQ"
+      isin: "INE424H01027"
+- symbol: "SUNDARMFIN"
+  name: "Sundaram Finance Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "SUNDARMFIN"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE660A01013"
+- symbol: "SUPREMEIND"
+  name: "Supreme Industries Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "SUPREMEIND"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE195A01028"
+- symbol: "SPLPETRO"
+  name: "Supreme Petrochem Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "SPLPETRO"
+    nse_list:
+      industry: "Chemicals"
+      series: "EQ"
+      isin: "INE663A01033"
+- symbol: "SUZLON"
+  name: "Suzlon Energy Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "SUZLON"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE040H01021"
+- symbol: "SWANCORP"
+  name: "Swan Corp Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "SWANCORP"
+    nse_list:
+      industry: "Chemicals"
+      series: "EQ"
+      isin: "INE665A01038"
+- symbol: "SWIGGY"
+  name: "Swiggy Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "SWIGGY"
+    nse_list:
+      industry: "Consumer Services"
+      series: "EQ"
+      isin: "INE00H001014"
+- symbol: "SYNGENE"
+  name: "Syngene International Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "SYNGENE"
+    nse_list:
+      industry: "Healthcare"
+      series: "EQ"
+      isin: "INE398R01022"
+- symbol: "SYRMA"
+  name: "Syrma SGS Technology Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "SYRMA"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE0DYJ01015"
+- symbol: "TBOTEK"
+  name: "TBO Tek Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "TBOTEK"
+    nse_list:
+      industry: "Consumer Services"
+      series: "EQ"
+      isin: "INE673O01025"
+- symbol: "TVSMOTOR"
+  name: "TVS Motor Company Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "TVSMOTOR"
+    nse_list:
+      industry: "Automobile and Auto Components"
+      series: "EQ"
+      isin: "INE494B01023"
+- symbol: "TATACAP"
+  name: "Tata Capital Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "TATACAP"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE976I01016"
+- symbol: "TATACHEM"
+  name: "Tata Chemicals Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "TATACHEM"
+    nse_list:
+      industry: "Chemicals"
+      series: "EQ"
+      isin: "INE092A01019"
+- symbol: "TATACOMM"
+  name: "Tata Communications Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "TATACOMM"
+    nse_list:
+      industry: "Telecommunication"
+      series: "EQ"
+      isin: "INE151A01013"
+- symbol: "TCS"
+  name: "Tata Consultancy Services Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "TCS"
+    nse_list:
+      industry: "Information Technology"
+      series: "EQ"
+      isin: "INE467B01029"
+- symbol: "TATACONSUM"
+  name: "Tata Consumer Products Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "TATACONSUM"
+    nse_list:
+      industry: "Fast Moving Consumer Goods"
+      series: "EQ"
+      isin: "INE192A01025"
+- symbol: "TATAELXSI"
+  name: "Tata Elxsi Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "TATAELXSI"
+    nse_list:
+      industry: "Information Technology"
+      series: "EQ"
+      isin: "INE670A01012"
+- symbol: "TATAINVEST"
+  name: "Tata Investment Corporation Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "TATAINVEST"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE672A01026"
+- symbol: "TMCV"
+  name: "Tata Motors Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "TMCV"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE1TAE01010"
+- symbol: "TMPV"
+  name: "Tata Motors Passenger Vehicles Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "TMPV"
+    nse_list:
+      industry: "Automobile and Auto Components"
+      series: "EQ"
+      isin: "INE155A01022"
+- symbol: "TATAPOWER"
+  name: "Tata Power Co. Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "TATAPOWER"
+    nse_list:
+      industry: "Power"
+      series: "EQ"
+      isin: "INE245A01021"
+- symbol: "TATASTEEL"
+  name: "Tata Steel Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "TATASTEEL"
+    nse_list:
+      industry: "Metals & Mining"
+      series: "EQ"
+      isin: "INE081A01020"
+- symbol: "TATATECH"
+  name: "Tata Technologies Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "TATATECH"
+    nse_list:
+      industry: "Information Technology"
+      series: "EQ"
+      isin: "INE142M01025"
+- symbol: "TTML"
+  name: "Tata Teleservices (Maharashtra) Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "TTML"
+    nse_list:
+      industry: "Telecommunication"
+      series: "EQ"
+      isin: "INE517B01013"
+- symbol: "TECHM"
+  name: "Tech Mahindra Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "TECHM"
+    nse_list:
+      industry: "Information Technology"
+      series: "EQ"
+      isin: "INE669C01036"
+- symbol: "TECHNOE"
+  name: "Techno Electric & Engineering Company Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "TECHNOE"
+    nse_list:
+      industry: "Construction"
+      series: "EQ"
+      isin: "INE285K01026"
+- symbol: "TEGA"
+  name: "Tega Industries Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "TEGA"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE011K01018"
+- symbol: "TEJASNET"
+  name: "Tejas Networks Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "TEJASNET"
+    nse_list:
+      industry: "Telecommunication"
+      series: "EQ"
+      isin: "INE010J01012"
+- symbol: "TENNIND"
+  name: "Tenneco Clean Air India Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "TENNIND"
+    nse_list:
+      industry: "Automobile and Auto Components"
+      series: "EQ"
+      isin: "INE19RI01016"
+- symbol: "NIACL"
+  name: "The New India Assurance Company Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "NIACL"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE470Y01017"
+- symbol: "RAMCOCEM"
+  name: "The Ramco Cements Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "RAMCOCEM"
+    nse_list:
+      industry: "Construction Materials"
+      series: "EQ"
+      isin: "INE331A01037"
+- symbol: "THERMAX"
+  name: "Thermax Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "THERMAX"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE152A01029"
+- symbol: "TIMKEN"
+  name: "Timken India Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "TIMKEN"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE325A01013"
+- symbol: "TITAGARH"
+  name: "Titagarh Rail Systems Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "TITAGARH"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE615H01020"
+- symbol: "TITAN"
+  name: "Titan Company Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "TITAN"
+    nse_list:
+      industry: "Consumer Durables"
+      series: "EQ"
+      isin: "INE280A01028"
+- symbol: "TORNTPHARM"
+  name: "Torrent Pharmaceuticals Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "TORNTPHARM"
+    nse_list:
+      industry: "Healthcare"
+      series: "EQ"
+      isin: "INE685A01028"
+- symbol: "TORNTPOWER"
+  name: "Torrent Power Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "TORNTPOWER"
+    nse_list:
+      industry: "Power"
+      series: "EQ"
+      isin: "INE813H01021"
+- symbol: "TARIL"
+  name: "Transformers And Rectifiers (India) Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "TARIL"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE763I01026"
+- symbol: "TRAVELFOOD"
+  name: "Travel Food Services Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "TRAVELFOOD"
+    nse_list:
+      industry: "Consumer Services"
+      series: "EQ"
+      isin: "INE103V01028"
+- symbol: "TRENT"
+  name: "Trent Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "TRENT"
+    nse_list:
+      industry: "Consumer Services"
+      series: "EQ"
+      isin: "INE849A01020"
+- symbol: "TRIDENT"
+  name: "Trident Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "TRIDENT"
+    nse_list:
+      industry: "Textiles"
+      series: "EQ"
+      isin: "INE064C01022"
+- symbol: "TRITURBINE"
+  name: "Triveni Turbine Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "TRITURBINE"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE152M01016"
+- symbol: "TIINDIA"
+  name: "Tube Investments of India Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "TIINDIA"
+    nse_list:
+      industry: "Automobile and Auto Components"
+      series: "EQ"
+      isin: "INE974X01010"
+- symbol: "UCOBANK"
+  name: "UCO Bank"
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "UCOBANK"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE691A01018"
+- symbol: "UNOMINDA"
+  name: "UNO Minda Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "UNOMINDA"
+    nse_list:
+      industry: "Automobile and Auto Components"
+      series: "EQ"
+      isin: "INE405E01023"
+- symbol: "UPL"
+  name: "UPL Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "UPL"
+    nse_list:
+      industry: "Chemicals"
+      series: "EQ"
+      isin: "INE628A01036"
+- symbol: "UTIAMC"
+  name: "UTI Asset Management Company Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "UTIAMC"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE094J01016"
+- symbol: "ULTRACEMCO"
+  name: "UltraTech Cement Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "ULTRACEMCO"
+    nse_list:
+      industry: "Construction Materials"
+      series: "EQ"
+      isin: "INE481G01011"
+- symbol: "UNIONBANK"
+  name: "Union Bank of India"
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "UNIONBANK"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE692A01016"
+- symbol: "UBL"
+  name: "United Breweries Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "UBL"
+    nse_list:
+      industry: "Fast Moving Consumer Goods"
+      series: "EQ"
+      isin: "INE686F01025"
+- symbol: "UNITDSPR"
+  name: "United Spirits Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "UNITDSPR"
+    nse_list:
+      industry: "Fast Moving Consumer Goods"
+      series: "EQ"
+      isin: "INE854D01024"
+- symbol: "URBANCO"
+  name: "Urban Company Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "URBANCO"
+    nse_list:
+      industry: "Consumer Services"
+      series: "EQ"
+      isin: "INE0CAZ01013"
+- symbol: "USHAMART"
+  name: "Usha Martin Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "USHAMART"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE228A01035"
+- symbol: "VTL"
+  name: "Vardhman Textiles Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "VTL"
+    nse_list:
+      industry: "Textiles"
+      series: "EQ"
+      isin: "INE825A01020"
+- symbol: "VBL"
+  name: "Varun Beverages Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "VBL"
+    nse_list:
+      industry: "Fast Moving Consumer Goods"
+      series: "EQ"
+      isin: "INE200M01039"
+- symbol: "VAML"
+  name: "Vedanta Aluminium Metal Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "VAML"
+    nse_list:
+      industry: "Metals & Mining"
+      series: "BE"
+      isin: "INE1CDF01017"
+- symbol: "VISL"
+  name: "Vedanta Iron and Steel Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "VISL"
+    nse_list:
+      industry: "Metals & Mining"
+      series: "BE"
+      isin: "INE1CLE01013"
+- symbol: "VEDL"
+  name: "Vedanta Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "VEDL"
+    nse_list:
+      industry: "Metals & Mining"
+      series: "EQ"
+      isin: "INE205A01025"
+- symbol: "VOGL"
+  name: "Vedanta Oil and Gas Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "VOGL"
+    nse_list:
+      industry: "Oil Gas & Consumable Fuels"
+      series: "BE"
+      isin: "INE704J01044"
+- symbol: "VEDPOWER"
+  name: "Vedanta Power Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "VEDPOWER"
+    nse_list:
+      industry: "Power"
+      series: "BE"
+      isin: "INE694L01019"
+- symbol: "VIJAYA"
+  name: "Vijaya Diagnostic Centre Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "VIJAYA"
+    nse_list:
+      industry: "Healthcare"
+      series: "EQ"
+      isin: "INE043W01024"
+- symbol: "VMM"
+  name: "Vishal Mega Mart Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "VMM"
+    nse_list:
+      industry: "Consumer Services"
+      series: "EQ"
+      isin: "INE01EA01019"
+- symbol: "IDEA"
+  name: "Vodafone Idea Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "IDEA"
+    nse_list:
+      industry: "Telecommunication"
+      series: "EQ"
+      isin: "INE669E01016"
+- symbol: "VOLTAS"
+  name: "Voltas Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "VOLTAS"
+    nse_list:
+      industry: "Consumer Durables"
+      series: "EQ"
+      isin: "INE226A01021"
+- symbol: "WAAREEENER"
+  name: "Waaree Energies Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "WAAREEENER"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE377N01017"
+- symbol: "WELCORP"
+  name: "Welspun Corp Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "WELCORP"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE191B01025"
+- symbol: "WELSPUNLIV"
+  name: "Welspun Living Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "WELSPUNLIV"
+    nse_list:
+      industry: "Textiles"
+      series: "EQ"
+      isin: "INE192B01031"
+- symbol: "WHIRLPOOL"
+  name: "Whirlpool of India Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "WHIRLPOOL"
+    nse_list:
+      industry: "Consumer Durables"
+      series: "EQ"
+      isin: "INE716A01013"
+- symbol: "WIPRO"
+  name: "Wipro Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "WIPRO"
+    nse_list:
+      industry: "Information Technology"
+      series: "EQ"
+      isin: "INE075A01022"
+- symbol: "WOCKPHARMA"
+  name: "Wockhardt Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "WOCKPHARMA"
+    nse_list:
+      industry: "Healthcare"
+      series: "EQ"
+      isin: "INE049B01025"
+- symbol: "YESBANK"
+  name: "Yes Bank Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "YESBANK"
+    nse_list:
+      industry: "Financial Services"
+      series: "EQ"
+      isin: "INE528G01035"
+- symbol: "ZFCVINDIA"
+  name: "ZF Commercial Vehicle Control Systems India Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "ZFCVINDIA"
+    nse_list:
+      industry: "Automobile and Auto Components"
+      series: "EQ"
+      isin: "INE342J01019"
+- symbol: "ZEEL"
+  name: "Zee Entertainment Enterprises Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "ZEEL"
+    nse_list:
+      industry: "Media Entertainment & Publication"
+      series: "EQ"
+      isin: "INE256A01028"
+- symbol: "ZENTEC"
+  name: "Zen Technologies Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "ZENTEC"
+    nse_list:
+      industry: "Capital Goods"
+      series: "EQ"
+      isin: "INE251B01027"
+- symbol: "ZENSARTECH"
+  name: "Zensar Technolgies Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "ZENSARTECH"
+    nse_list:
+      industry: "Information Technology"
+      series: "EQ"
+      isin: "INE520A01027"
+- symbol: "ZYDUSLIFE"
+  name: "Zydus Lifesciences Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "ZYDUSLIFE"
+    nse_list:
+      industry: "Healthcare"
+      series: "EQ"
+      isin: "INE010B01027"
+- symbol: "ZYDUSWELL"
+  name: "Zydus Wellness Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "ZYDUSWELL"
+    nse_list:
+      industry: "Fast Moving Consumer Goods"
+      series: "EQ"
+      isin: "INE768C01028"
+- symbol: "ECLERX"
+  name: "eClerx Services Ltd."
+  enabled: true
+  providers:
+    kite:
+      exchange: "NSE"
+      tradingsymbol: "ECLERX"
+    nse_list:
+      industry: "Services"
+      series: "EQ"
+      isin: "INE738I01010"
