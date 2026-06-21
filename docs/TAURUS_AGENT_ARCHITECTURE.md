@@ -193,6 +193,9 @@ The research layer turns multiple analyst reports into one consensus artifact.
 It uses the configured real LLM provider, currently LM Studio with
 `qwen/qwq-32b`.
 
+For implementation details on the bull and bear research agents, see
+`docs/TAURUS_RESEARCH_DEBATE_AGENTS_DEEP_DIVE.md`.
+
 ```mermaid
 sequenceDiagram
     participant Reports as analyst_reports
