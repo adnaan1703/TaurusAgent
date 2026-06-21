@@ -159,6 +159,7 @@ class TraderProposal(BaseModel):
     source_report_ids: list[str] = Field(min_length=1)
     is_order: bool = False
     requires_risk_approval: bool = True
+    target_sizing_metadata: dict[str, object] = Field(default_factory=dict)
     allocation_decision: AllocationDecision | None = None
     model_version: str
 

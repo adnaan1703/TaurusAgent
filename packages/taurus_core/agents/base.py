@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from taurus_core.agents.schemas import (
     AnalystReport,
+    AnalystScoreMetadata,
     LLMAnalystOutput,
     analyst_report_id,
     stance_from_score,
@@ -36,6 +37,7 @@ class BaseAnalystAgent:
         fallback: LLMAnalystOutput,
         context: dict[str, object],
         source_ids: list[str],
+        score_metadata: AnalystScoreMetadata | None = None,
     ) -> AnalystReport:
         try:
             draft = self.llm_provider.complete_analyst_report(
@@ -61,13 +63,15 @@ class BaseAnalystAgent:
             as_of=as_of,
             source_ids=source_ids,
         )
+        score = _report_decimal(draft.score)
+        metadata = _score_metadata_with_bounded_score(score_metadata, score)
         return AnalystReport(
             report_id=report_id,
             run_id=run_id,
             symbol=symbol,
             agent_name=self.agent_name,
             as_of=as_of,
-            score=_report_decimal(draft.score),
+            score=score,
             confidence=_report_decimal(draft.confidence),
             stance=draft.stance,
             horizon=draft.horizon,
@@ -75,6 +79,7 @@ class BaseAnalystAgent:
             risks=draft.risks,
             source_ids=source_ids,
             model_version=draft.model_version,
+            score_metadata=metadata,
         )
 
 
@@ -105,6 +110,15 @@ def utc_now() -> datetime:
 
 def _report_decimal(value: Decimal) -> Decimal:
     return max(Decimal("-1"), min(Decimal("1"), value)).quantize(REPORT_QUANT)
+
+
+def _score_metadata_with_bounded_score(
+    metadata: AnalystScoreMetadata | None,
+    bounded_report_score: Decimal,
+) -> AnalystScoreMetadata | None:
+    if metadata is None:
+        return None
+    return metadata.model_copy(update={"bounded_report_score": bounded_report_score})
 
 
 def _provider_label(provider: LLMProvider) -> str:

@@ -43,6 +43,10 @@ from taurus_core.portfolio.run_allocation import (
     RunAllocationResult,
     RunLevelAllocationService,
 )
+from taurus_core.portfolio.score_semantics import (
+    StrategyScoreCalibration,
+    calibrate_strategy_score,
+)
 
 __all__ = [
     "ACTIVE_SLEEVE_ID",
@@ -76,7 +80,9 @@ __all__ = [
     "SleeveSnapshot",
     "StrategyMapping",
     "StrategySleeveMapping",
+    "StrategyScoreCalibration",
     "TradeRiskDefaultsPolicy",
+    "calibrate_strategy_score",
     "load_money_management_policy",
     "load_money_management_policy_for_settings",
     "money_management_metadata",

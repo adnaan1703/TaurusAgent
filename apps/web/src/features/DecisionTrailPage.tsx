@@ -170,7 +170,8 @@ function SelectionDecisionPanel({
       <KeyValueGrid
         items={[
           { label: "Rank", value: formatNumber(decision.rank ?? undefined) },
-          { label: "Strategy score", value: formatNumber(decision.strategy_score ?? undefined) },
+          { label: "Raw strategy score", value: formatNumber(decision.strategy_score ?? undefined) },
+          { label: "Allocation score", value: formatNumber(decision.candidate_score ?? undefined) },
           { label: "Trader action", value: decision.trader_action ?? "-" },
           { label: "Proposal confidence", value: formatPercent(decision.proposal_confidence ?? undefined) },
           { label: "Final status", value: <StatusBadge status={decision.final_status} size="sm" /> },

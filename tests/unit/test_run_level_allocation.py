@@ -57,6 +57,41 @@ def test_money_management_batch_allocation_consumes_pending_sleeve_capacity(
     assert by_symbol["CCC"].binding_constraint == "sleeve_capacity"
 
 
+def test_fallback_allocation_orders_scores_above_old_saturation_before_rank() -> None:
+    high_score = _proposal(symbol="HIGH", target_pct=Decimal("5.0000"))
+    saturated_score = _proposal(symbol="SAT", target_pct=Decimal("5.0000"))
+
+    result = RunLevelAllocationService().allocate(
+        RunAllocationInput(
+            run_id="run-fallback-score-precision",
+            strategy_name="graph_aware_score_v1",
+            proposals=(high_score, saturated_score),
+            nav_inr=Decimal("1000000"),
+            available_cash_inr=Decimal("1000000"),
+            histories_by_symbol={
+                high_score.symbol: tuple(_candles(high_score.symbol)),
+                saturated_score.symbol: tuple(_candles(saturated_score.symbol)),
+            },
+            strategy_rank_by_symbol={"SAT": 1, "HIGH": 2},
+            strategy_score_by_symbol={
+                "SAT": Decimal("0.1000"),
+                "HIGH": Decimal("0.2000"),
+            },
+            fallback_policy=FallbackAllocationPolicy(
+                max_open_positions=1,
+                max_position_pct_nav=Decimal("5.0"),
+            ),
+        )
+    )
+
+    by_symbol = {entry.symbol: entry for entry in result.ledger}
+    assert by_symbol["HIGH"].status == "selected"
+    assert by_symbol["SAT"].status == "not_selected"
+    assert by_symbol["HIGH"].candidate_score is not None
+    assert by_symbol["SAT"].candidate_score is not None
+    assert by_symbol["HIGH"].candidate_score > by_symbol["SAT"].candidate_score
+
+
 def test_fallback_allocation_derives_selected_count_from_cash_and_settings() -> None:
     proposals = tuple(
         _proposal(symbol=symbol, target_pct=Decimal("5.0000"))

@@ -13,6 +13,7 @@ from taurus_core.portfolio.money_management import (
     MoneyManagementPolicy,
     SleevePolicy,
 )
+from taurus_core.portfolio.score_semantics import calibrate_strategy_score
 from taurus_core.research.schemas import TraderProposal
 
 ACTIVE_SLEEVE_ID = "active_strategy"
@@ -76,6 +77,7 @@ class ActiveAllocationInput:
     core_basket_symbols: tuple[str, ...] = ()
     history: tuple[DailyCandle, ...] = ()
     strategy_score: Decimal | None = None
+    strategy_rank: int | None = None
     sector_by_symbol: dict[str, str] | None = None
     graph_cluster_by_symbol: dict[str, str] | None = None
     recent_sleeve_performance_score: Decimal | None = None
@@ -588,7 +590,11 @@ def _candidate_score(
     weights: AllocationScoreWeightsPolicy,
 ) -> tuple[Decimal, dict[str, Decimal]]:
     history = allocation_input.history
-    strategy_component = _strategy_score_component(allocation_input.strategy_score)
+    strategy_calibration = calibrate_strategy_score(
+        allocation_input.strategy_score,
+        strategy_rank=allocation_input.strategy_rank,
+    )
+    strategy_component = strategy_calibration.allocation_score_component
     confidence_component = (allocation_input.proposal.confidence * Decimal("100")).quantize(
         SCORE_QUANT
     )
@@ -598,7 +604,7 @@ def _candidate_score(
     diversification_component = _diversification_score(allocation_input)
     performance_component = allocation_input.recent_sleeve_performance_score or Decimal("75")
     parts = {
-        "strategy_score": strategy_component,
+        **strategy_calibration.score_parts(),
         "trader_confidence": confidence_component,
         "liquidity": liquidity_component,
         "volatility": volatility_component,
@@ -620,12 +626,7 @@ def _candidate_score(
 
 
 def _strategy_score_component(score: Decimal | None) -> Decimal:
-    if score is None:
-        return Decimal("50.0000")
-    raw = Decimal(str(score))
-    if raw >= 0:
-        return _clamp(Decimal("60") + (raw * Decimal("400")), Decimal("0"), Decimal("100"))
-    return _clamp(Decimal("60") + (raw * Decimal("600")), Decimal("0"), Decimal("100"))
+    return calibrate_strategy_score(score).allocation_score_component
 
 
 def _liquidity_score(history: tuple[DailyCandle, ...]) -> Decimal:

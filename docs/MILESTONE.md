@@ -65,8 +65,9 @@ removed during docs cleanup. Use Git history for detailed historical plans.
   regression covers two-profile pending/fill/settlement/P&L isolation,
   profile-scoped API/dashboard payloads, stale profile filters, profile smoke
   checks, final operator docs, and approval-rules cleanup.
-- M56-M61 portfolio rebalance planning is complete. Implementation remains
-  planned, and M56 is the next unstarted milestone.
+- M56 score semantics and allocation precision work is complete. M57 portfolio
+  rebalance plan schema and dry-run artifact work is the next planned
+  milestone.
 
 ## Standing Safety Rules
 
@@ -116,7 +117,8 @@ removed during docs cleanup. Use Git history for detailed historical plans.
 | M54 | Done | Added profile CRUD APIs, profile-scoped query parameters for run/paper/research/risk/UI read endpoints, active-profile UI metadata, a URL/local-storage-backed read-only React profile selector, profile-aware query keys/links, and focused API/UI tests. M55 final regression is complete. |
 | M55 | Done | Added deterministic two-profile regression for pending orders, settled fills, realized/unrealized P&L, dashboard/API scoping, stale profile filters, and profile smoke checks; API/Vite local smoke returned 200, while visual browser automation was unavailable in this session; finalized operator docs and milestone cleanup for the M51-M55 sequence. |
 | Ops LM Studio reasoning fallback | Done | Added a narrow LM Studio compatibility fallback that uses non-empty `message.reasoning_content` only when `message.content` is empty, while keeping existing parser and schema validation as the contract authority. |
-| M56-M61 plan document | Done | Created the flat portfolio rebalance plan covering score semantics, dry-run portfolio-plan artifacts, soft sleeve borrowing, executable core routing, same-run proceeds netting, execution buffers, UI/replay observability, and final regression. Implementation remains planned; M56 is not started. |
+| M56-M61 plan document | Done | Created the flat portfolio rebalance plan covering score semantics, dry-run portfolio-plan artifacts, soft sleeve borrowing, executable core routing, same-run proceeds netting, execution buffers, UI/replay observability, and final regression. Implementation is complete through M56; M57 remains planned. |
+| M56 | Done | Added score metadata for analyst reports, raw technical/graph score lineage, shared calibrated allocation score semantics, trader target cap metadata, allocation candidate score visibility in API/UI selection rows, focused regressions, and architecture docs. Portfolio-level rebalance planning, executable core basket orders, sleeve borrowing, and same-run proceeds netting remain for M57-M61. |
 
 ### M56-M61 Plan Document Completion Summary
 
@@ -130,6 +132,20 @@ removed during docs cleanup. Use Git history for detailed historical plans.
   through M61.
 - Mocks created: None.
 - Mocks used: None.
+
+### M56 Completion Summary
+
+- Assumptions made: M56 should preserve the bounded `AnalystReport.score`
+  compatibility contract while adding optional score metadata; missing strategy
+  scores should keep the neutral allocation component of `50.0000`; raw strategy
+  score remains visible as `strategy_score` for legacy API/UI consumers while
+  `candidate_score` is exposed as the calibrated allocation score; trader target
+  sizing metadata should document caps without changing paper execution
+  behavior; portfolio-level rebalance planning, executable core orders, sleeve
+  borrowing, and same-run proceeds netting remain out of scope for M56.
+- Mocks created: None.
+- Mocks used: Existing `FakeLLMProvider`, deterministic market-data fixtures,
+  graph analyst fixtures, and existing React query/fetch test fixtures.
 
 ### M51-M55 Plan Document Completion Summary
 
@@ -360,7 +376,7 @@ implemented, verified, cleaned up, and documented.
 
 | Order | Milestone | Status | Plan | Purpose |
 |---:|---|---|---|---|
-| 38 | M56 | Planned | `docs/TAURUS_PORTFOLIO_REBALANCE_PLAN.md` | Add score semantics and allocation precision plumbing so raw, calibrated, bounded, and allocation scores remain distinct. |
+| 38 | M56 | Done | `docs/TAURUS_PORTFOLIO_REBALANCE_PLAN.md` | Add score semantics and allocation precision plumbing so raw, calibrated, bounded, and allocation scores remain distinct. |
 | 39 | M57 | Planned | `docs/TAURUS_PORTFOLIO_REBALANCE_PLAN.md` | Add a dry-run portfolio rebalance plan artifact, API/UI/replay visibility, and legacy-safe serialization. |
 | 40 | M58 | Planned | `docs/TAURUS_PORTFOLIO_REBALANCE_PLAN.md` | Add soft sleeve capacity rules and convert core Shariah basket decisions into executable rebalance candidates. |
 | 41 | M59 | Planned | `docs/TAURUS_PORTFOLIO_REBALANCE_PLAN.md` | Make holistic BUY allocation and executable core routing flow through planner-linked allocation, risk, final, and paper queueing. |

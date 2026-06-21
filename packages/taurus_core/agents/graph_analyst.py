@@ -5,7 +5,12 @@ from datetime import date, datetime, time, timezone
 from decimal import Decimal
 
 from taurus_core.agents.base import BaseAnalystAgent
-from taurus_core.agents.schemas import AnalystReport, analyst_report_id, stance_from_score
+from taurus_core.agents.schemas import (
+    AnalystReport,
+    AnalystScoreMetadata,
+    analyst_report_id,
+    stance_from_score,
+)
 from taurus_core.db.models import GraphEdgeModel, GraphEdgeStatsModel, GraphNodeModel
 from taurus_core.db.repositories import CandleRepository, GraphRepository
 from taurus_core.intelligence.documents import stable_id
@@ -53,9 +58,8 @@ class GraphAnalystAgent(BaseAnalystAgent):
         center_node = self._company_node(graph_repo, symbol)
         contributions = self._contributions(graph_repo, center_node)
         as_of = self._as_of(symbol, contributions)
-        score = _bounded_report_decimal(
-            sum((item.score_contribution for item in contributions), ZERO)
-        )
+        raw_score = sum((item.score_contribution for item in contributions), ZERO)
+        score = _bounded_report_decimal(raw_score)
         confidence = self._confidence(contributions)
         source_ids = _source_ids(contributions)
         signal = graph_repo.upsert_signal(
@@ -79,6 +83,8 @@ class GraphAnalystAgent(BaseAnalystAgent):
                 "lookback_days": GRAPH_MOMENTUM_LOOKBACK_DAYS,
                 "deterministic": True,
                 "llm_override_allowed": False,
+                "raw_signal_score": str(_report_decimal(raw_score)),
+                "bounded_report_score": str(score),
             },
         )
         for contribution in contributions:
@@ -123,6 +129,14 @@ class GraphAnalystAgent(BaseAnalystAgent):
             risks=self._risks(contributions),
             source_ids=report_source_ids,
             model_version=GRAPH_ANALYST_MODEL_VERSION,
+            score_metadata=AnalystScoreMetadata(
+                raw_signal_score=raw_score,
+                bounded_report_score=score,
+                score_source=GRAPH_ANALYST_MODEL_VERSION,
+                notes=(
+                    "Raw graph score is the sum of deterministic contributions before report clamping.",
+                ),
+            ),
         )
 
     def _company_node(self, graph_repo: GraphRepository, symbol: str) -> GraphNodeModel | None:

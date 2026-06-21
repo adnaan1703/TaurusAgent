@@ -73,6 +73,7 @@ export type UiRunSelectionRow = {
   order_id?: string | null;
   rank?: number | null;
   strategy_score?: number | null;
+  candidate_score?: number | null;
   trader_action?: string | null;
   proposal_confidence?: number | null;
   allocation_status?: string | null;

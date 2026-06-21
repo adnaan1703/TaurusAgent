@@ -77,6 +77,9 @@ def test_graph_analyst_explains_bullish_positive_peer_momentum(tmp_path: Path) -
     assert report.model_version == GRAPH_ANALYST_MODEL_VERSION
     assert any("BBB" in point for point in report.key_points)
     assert signal.score == report.score
+    assert report.score_metadata is not None
+    assert report.score_metadata.bounded_report_score == report.score
+    assert report.score_metadata.raw_signal_score is not None
     assert len(contributions) == 1
     assert contributions[0].direction == "bullish"
     assert contributions[0].score_contribution == report.score

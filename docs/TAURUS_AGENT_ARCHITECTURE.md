@@ -187,6 +187,25 @@ technical,graph
 The other analysts remain available but are skipped unless
 `TAURUS_ENABLED_ANALYSTS` includes them.
 
+## Score Semantics
+
+Taurus keeps score concepts separate so ranking and allocation precision do not
+collapse into the bounded analyst-report contract:
+
+- `AnalystReport.score` remains the bounded `[-1, 1]` compatibility value used
+  for stance, research debate, and legacy payloads.
+- `AnalystReport.score_metadata` may carry raw deterministic signal evidence
+  and the bounded report score. Technical and graph analysts store raw
+  pre-clamp values when available; LLM analyst values remain bounded report
+  scores unless a later schema returns explicit raw signal evidence.
+- Strategy rankings keep `raw_strategy_score` and `rank` in the paper-run
+  strategy artifacts. Allocation converts the raw score through the shared
+  deterministic `calibrate_strategy_score()` helper, which avoids the old early
+  saturation above `0.10` and emits score parts for audit trails.
+- Trader proposals keep `requested_position_pct_nav` as the capped request used
+  downstream, with `target_sizing_metadata` recording the raw desired new-entry
+  target and the configured cap when sizing is capped.
+
 ## Research Debate Layer
 
 The research layer turns multiple analyst reports into one consensus artifact.

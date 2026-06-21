@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
@@ -11,7 +12,7 @@ from scripts.import_mock_news import import_mock_news
 from scripts.migrate import run_migrations
 from taurus_core.agents.runner import run_analyst_suite
 from taurus_core.agents.roster import ANALYST_KEYS
-from taurus_core.agents.schemas import LLMAnalystOutput
+from taurus_core.agents.schemas import LLMAnalystOutput, stance_from_score
 from taurus_core.config import Settings
 from taurus_core.db.models import AnalystReportModel, BacktestOrderModel
 from taurus_core.db.session import build_session_factory
@@ -110,6 +111,27 @@ def test_analyst_suite_allows_technical_only_roster(tmp_path: Path) -> None:
 
     assert len(reports) == 1
     assert reports[0].agent_name == "TechnicalAnalystAgent"
+
+
+def test_technical_analyst_keeps_bounded_score_with_raw_metadata(tmp_path: Path) -> None:
+    settings = _settings_for_temp_db(tmp_path)
+    session_factory = _prepare_intelligence_db(settings)
+
+    with session_factory() as session:
+        report = run_analyst_suite(
+            session,
+            symbol="INFY",
+            llm_provider=FakeLLMProvider(),
+            run_id="technical-score-metadata-run",
+            enabled_analysts=("technical",),
+        )[0]
+
+    assert Decimal("-1") <= report.score <= Decimal("1")
+    assert report.stance == stance_from_score(report.score)
+    assert report.score_metadata is not None
+    assert report.score_metadata.bounded_report_score == report.score
+    assert report.score_metadata.raw_signal_score is not None
+    assert report.score_metadata.score_source == "technical_rule_v1"
 
 
 def test_intelligence_api_returns_events_and_agent_reports(tmp_path: Path) -> None:

@@ -6,7 +6,7 @@ from decimal import Decimal
 from sqlalchemy import select
 
 from taurus_core.agents.base import BaseAnalystAgent, fallback_output, utc_now
-from taurus_core.agents.schemas import AnalystReport
+from taurus_core.agents.schemas import AnalystReport, AnalystScoreMetadata
 from taurus_core.db.models import BacktestSignalModel, FeatureValueModel
 from taurus_core.db.repositories import CandleRepository
 from taurus_core.domain.market_data import DailyCandle
@@ -21,7 +21,8 @@ class TechnicalAnalystAgent(BaseAnalystAgent):
         snapshot = self._latest_feature_snapshot(symbol)
         latest_signal = self._latest_signal(symbol)
         values = snapshot.values if snapshot is not None else {}
-        score = self._score(values, latest_signal)
+        raw_score = self._raw_score(values, latest_signal)
+        score = _bounded_score(raw_score)
         source_ids: list[str] = []
         if snapshot is not None:
             source_ids.append(snapshot.snapshot_id)
@@ -63,6 +64,14 @@ class TechnicalAnalystAgent(BaseAnalystAgent):
             fallback=fallback,
             context=context,
             source_ids=source_ids or ["technical:none"],
+            score_metadata=AnalystScoreMetadata(
+                raw_signal_score=raw_score,
+                bounded_report_score=score,
+                score_source="technical_rule_v1",
+                notes=(
+                    "Raw technical rule score is stored before bounded analyst report clamping.",
+                ),
+            ),
         )
 
     def _latest_feature_snapshot(self, symbol: str) -> FeatureSnapshot | None:
@@ -130,14 +139,13 @@ class TechnicalAnalystAgent(BaseAnalystAgent):
             .limit(1)
         )
 
-    def _score(
+    def _raw_score(
         self,
         values: dict[str, Decimal],
         latest_signal: BacktestSignalModel | None,
     ) -> Decimal:
         if latest_signal is not None:
-            signed = latest_signal.score if latest_signal.action == "BUY" else -latest_signal.score
-            return max(Decimal("-1"), min(Decimal("1"), signed))
+            return latest_signal.score if latest_signal.action == "BUY" else -latest_signal.score
 
         return_20d = values.get("return_20d", Decimal("0"))
         return_5d = values.get("return_5d", Decimal("0"))
@@ -155,7 +163,7 @@ class TechnicalAnalystAgent(BaseAnalystAgent):
             + (((rsi - Decimal("50")) / Decimal("50")) * Decimal("0.30"))
             - (volatility * Decimal("0.75"))
         )
-        return max(Decimal("-1"), min(Decimal("1"), score))
+        return score
 
     def _key_points(
         self,
@@ -175,3 +183,7 @@ class TechnicalAnalystAgent(BaseAnalystAgent):
         if "volatility_20" in values:
             points.append(f"20-day volatility feature is {values['volatility_20']}.")
         return points or [f"No persisted technical features were available for {symbol}; neutral fallback used."]
+
+
+def _bounded_score(value: Decimal) -> Decimal:
+    return max(Decimal("-1"), min(Decimal("1"), value)).quantize(Decimal("0.0001"))

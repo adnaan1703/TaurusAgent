@@ -34,6 +34,16 @@ class LLMAnalystOutput(BaseModel):
         return cleaned
 
 
+class AnalystScoreMetadata(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    bounded_report_score: Decimal = Field(ge=Decimal("-1"), le=Decimal("1"))
+    raw_signal_score: Decimal | None = None
+    calibrated_score: Decimal | None = Field(default=None, ge=Decimal("0"), le=Decimal("100"))
+    score_source: str = Field(min_length=1)
+    notes: tuple[str, ...] = Field(default_factory=tuple)
+
+
 class AnalystReport(BaseModel):
     model_config = ConfigDict(frozen=True)
 
@@ -52,6 +62,7 @@ class AnalystReport(BaseModel):
     risks: list[str] = Field(min_length=1)
     source_ids: list[str] = Field(default_factory=list)
     model_version: str
+    score_metadata: AnalystScoreMetadata | None = None
 
     @field_validator("symbol")
     @classmethod
@@ -67,8 +78,6 @@ class AnalystReport(BaseModel):
     @classmethod
     def clean_lists(cls, value: list[str]) -> list[str]:
         return [item.strip() for item in value if item.strip()]
-
-
 def stance_from_score(score: Decimal) -> AgentStance:
     if score >= Decimal("0.10"):
         return "bullish"

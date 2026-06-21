@@ -83,6 +83,48 @@ def test_trader_proposal_is_structured_deterministic_and_not_an_order(tmp_path: 
     assert order_count == 0
 
 
+def test_trader_new_entry_target_metadata_keeps_raw_and_capped_values(tmp_path: Path) -> None:
+    settings = _settings_for_temp_db(tmp_path)
+    session_factory = _prepare_trader_db(settings)
+    with session_factory() as session:
+        run_analyst_suite(
+            session,
+            symbol="INFY",
+            llm_provider=FakeLLMProvider(),
+            run_id="target-cap-run",
+        )
+    with session_factory() as session:
+        debate = ResearchDebateService(session, llm_provider=FakeLLMProvider()).run(
+            symbol="INFY",
+            run_id="target-cap-run",
+            rounds_requested=2,
+        )
+        debate = debate.model_copy(
+            update={
+                "manager_summary": debate.manager_summary.model_copy(
+                    update={
+                        "consensus_label": "bullish",
+                        "consensus_score": Decimal("0.9000"),
+                    }
+                )
+            }
+        )
+
+    with session_factory() as session:
+        proposal = TraderAgent(
+            session,
+            settings,
+            llm_provider=FakeLLMProvider(),
+            max_requested_position_pct_nav=Decimal("5.0000"),
+        ).run(symbol="INFY", run_id="target-cap-run", debate=debate)
+
+    assert proposal.action == "BUY"
+    assert proposal.requested_position_pct_nav == Decimal("5.0000")
+    assert proposal.target_sizing_metadata["raw_new_entry_target_pct_nav"] == "9.0000"
+    assert proposal.target_sizing_metadata["capped_new_entry_target_pct_nav"] == "5.0000"
+    assert proposal.target_sizing_metadata["capped"] is True
+
+
 def test_research_api_returns_trader_proposals(tmp_path: Path) -> None:
     settings = _settings_for_temp_db(tmp_path)
     session_factory = _prepare_trader_db(settings)

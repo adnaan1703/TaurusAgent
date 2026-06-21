@@ -32,6 +32,26 @@ def test_trade_risk_cap_limits_active_buy(tmp_path: Path) -> None:
     assert decision.estimated_risk_inr <= decision.allowed_risk_inr
 
 
+def test_strategy_score_calibration_preserves_precision_above_old_saturation(
+    tmp_path: Path,
+) -> None:
+    policy = load_money_management_policy(_write_policy(tmp_path, max_stock_pct=Decimal("50.0")))
+    service = PortfolioAllocationService(policy)
+
+    old_saturation = service.candidate_score(
+        _input(target_pct=Decimal("20.0000"), strategy_score=Decimal("0.1000"))
+    )[1]
+    stronger = service.candidate_score(
+        _input(target_pct=Decimal("20.0000"), strategy_score=Decimal("0.2000"))
+    )[1]
+
+    assert old_saturation["strategy_score"] == Decimal("70.0000")
+    assert stronger["strategy_score"] == Decimal("80.0000")
+    assert stronger["strategy_score"] > old_saturation["strategy_score"]
+    assert stronger["raw_strategy_score"] == Decimal("0.2000")
+    assert stronger["calibrated_strategy_score"] == Decimal("80.0000")
+
+
 def test_stock_exposure_cap_limits_active_buy(tmp_path: Path) -> None:
     policy_path = _write_policy(tmp_path, max_stock_pct=Decimal("3.0"))
     allocated = _allocate(
@@ -468,6 +488,7 @@ def _input(
     sector_by_symbol: dict[str, str] | None = None,
     graph_cluster_by_symbol: dict[str, str] | None = None,
     core_basket_symbols: tuple[str, ...] = (),
+    strategy_score: Decimal | None = Decimal("0.2000"),
 ) -> ActiveAllocationInput:
     base = proposal or _proposal(action="BUY", target_pct=target_pct)
     if proposal is None:
@@ -492,7 +513,7 @@ def _input(
         sleeve_snapshots=sleeve_snapshots,
         core_basket_symbols=core_basket_symbols,
         history=history or tuple(_candles(symbol=tagged.symbol, volatility="low")),
-        strategy_score=Decimal("0.2000"),
+        strategy_score=strategy_score,
         sector_by_symbol=sector_by_symbol,
         graph_cluster_by_symbol=graph_cluster_by_symbol,
     )

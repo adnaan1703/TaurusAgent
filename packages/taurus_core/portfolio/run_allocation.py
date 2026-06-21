@@ -16,6 +16,7 @@ from taurus_core.portfolio.active_allocation import (
     SleeveAllocationSnapshot,
 )
 from taurus_core.portfolio.money_management import MoneyManagementPolicy
+from taurus_core.portfolio.score_semantics import calibrate_strategy_score
 from taurus_core.research.schemas import TraderProposal
 
 RUN_ALLOCATION_MODEL_VERSION = "run_level_dynamic_allocation_v1"
@@ -346,6 +347,7 @@ def _active_input_for(
             allocation_input.histories_by_symbol.get(proposal.symbol.upper(), tuple())
         ),
         strategy_score=_strategy_score(allocation_input, proposal.symbol),
+        strategy_rank=_strategy_rank(allocation_input, proposal.symbol),
         sector_by_symbol=dict(allocation_input.sector_by_symbol),
         graph_cluster_by_symbol=dict(allocation_input.graph_cluster_by_symbol),
     )
@@ -575,7 +577,10 @@ def _fallback_candidate_score(
     allocation_input: RunAllocationInput,
     proposal: TraderProposal,
 ) -> Decimal:
-    strategy_component = _strategy_score_component(_strategy_score(allocation_input, proposal.symbol))
+    strategy_component = _strategy_score_component(
+        _strategy_score(allocation_input, proposal.symbol),
+        strategy_rank=_strategy_rank(allocation_input, proposal.symbol),
+    )
     confidence_component = (proposal.confidence * Decimal("100")).quantize(SCORE_QUANT)
     score = (
         (strategy_component * Decimal("0.60"))
@@ -584,13 +589,12 @@ def _fallback_candidate_score(
     return _clamp(score, Decimal("0"), Decimal("100"))
 
 
-def _strategy_score_component(score: Decimal | None) -> Decimal:
-    if score is None:
-        return Decimal("50.0000")
-    raw = Decimal(str(score))
-    if raw >= 0:
-        return _clamp(Decimal("60") + (raw * Decimal("400")), Decimal("0"), Decimal("100"))
-    return _clamp(Decimal("60") + (raw * Decimal("600")), Decimal("0"), Decimal("100"))
+def _strategy_score_component(
+    score: Decimal | None,
+    *,
+    strategy_rank: int | None = None,
+) -> Decimal:
+    return calibrate_strategy_score(score, strategy_rank=strategy_rank).allocation_score_component
 
 
 def _fallback_open_position_room(

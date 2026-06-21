@@ -142,6 +142,11 @@ class TraderAgent:
             source_report_ids=source_report_ids,
             is_order=False,
             requires_risk_approval=True,
+            target_sizing_metadata=self._target_sizing_metadata(
+                action=decision.action,
+                debate=debate,
+                target=decision.target_position_pct_nav,
+            ),
             model_version=decision.model_version,
         )
         ResearchRepository(self.session).replace_trader_proposal_for_run_symbol(proposal)
@@ -281,6 +286,11 @@ class TraderAgent:
             source_report_ids=source_report_ids,
             is_order=False,
             requires_risk_approval=True,
+            target_sizing_metadata=self._target_sizing_metadata(
+                action=decision.action,
+                debate=debate,
+                target=decision.target_position_pct_nav,
+            ),
             model_version=decision.model_version,
         )
         ResearchRepository(self.session).replace_trader_proposal_for_run_symbol(proposal)
@@ -484,11 +494,36 @@ class TraderAgent:
         return Decimal("0.0000")
 
     def _new_entry_target(self, debate: DebateReport) -> Decimal:
-        raw_position = max(
+        raw_position = self._raw_new_entry_target(debate)
+        return min(self.max_requested_position_pct_nav, raw_position).quantize(SCORE_QUANT)
+
+    def _raw_new_entry_target(self, debate: DebateReport) -> Decimal:
+        return max(
             Decimal("1.0000"),
             abs(debate.manager_summary.consensus_score) * Decimal("10"),
+        ).quantize(SCORE_QUANT)
+
+    def _target_sizing_metadata(
+        self,
+        *,
+        action: TraderAction,
+        debate: DebateReport,
+        target: Decimal,
+    ) -> dict[str, object]:
+        if action != "BUY":
+            return {}
+        raw_target = self._raw_new_entry_target(debate)
+        capped_target = min(self.max_requested_position_pct_nav, raw_target).quantize(
+            SCORE_QUANT
         )
-        return min(self.max_requested_position_pct_nav, raw_position).quantize(SCORE_QUANT)
+        return {
+            "source": "research_consensus_abs_score_x10_min_1_pct",
+            "raw_new_entry_target_pct_nav": str(raw_target),
+            "max_requested_position_pct_nav": str(self.max_requested_position_pct_nav),
+            "capped_new_entry_target_pct_nav": str(capped_target),
+            "final_target_position_pct_nav": str(target.quantize(SCORE_QUANT)),
+            "capped": raw_target > self.max_requested_position_pct_nav,
+        }
 
     def _allowed_actions(
         self,

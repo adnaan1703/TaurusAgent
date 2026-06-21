@@ -121,6 +121,7 @@ class UiRunSelectionRow(BaseModel):
     order_id: str | None = None
     rank: int | None = None
     strategy_score: int | float | None = None
+    candidate_score: int | float | None = None
     trader_action: str | None = None
     proposal_confidence: int | float | None = None
     allocation_status: str | None = None
@@ -1133,6 +1134,7 @@ def _selection_row_from_entry(
         order_id=order.order_id if order is not None else None,
         rank=_optional_int(entry.get("strategy_rank")),
         strategy_score=_number_or_none(entry.get("strategy_score")),
+        candidate_score=_number_or_none(entry.get("candidate_score")),
         trader_action=_optional_string(entry.get("action"))
         or (proposal.action if proposal is not None else None),
         proposal_confidence=_number_or_none(
@@ -2156,6 +2158,7 @@ def _latest_allocation_decisions(
                         else None,
                         "rank": selection.rank,
                         "strategy_score": selection.strategy_score,
+                        "candidate_score": selection.candidate_score,
                         "trader_action": selection.trader_action,
                         "proposal_confidence": selection.proposal_confidence,
                         "allocation_status": selection.allocation_status,
