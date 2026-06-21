@@ -1251,6 +1251,27 @@ def _allocation_artifact(run: PaperRunModel) -> dict[str, Any]:
     return _run_artifact(run, "allocation")
 
 
+def _portfolio_plan_payload(run: PaperRunModel | None) -> dict[str, Any]:
+    if run is None:
+        return _empty_portfolio_plan()
+    plan = _run_artifact(run, "portfolio_plan")
+    if not plan:
+        return _empty_portfolio_plan()
+    return _json_safe({"available": True, **plan})
+
+
+def _empty_portfolio_plan() -> dict[str, Any]:
+    return {
+        "available": False,
+        "positions": [],
+        "candidates": [],
+        "planned_trades": [],
+        "cash_budget": [],
+        "sleeve_budgets": [],
+        "core_basket_advisory_decisions": [],
+    }
+
+
 def _symbol_scope_artifact(run: PaperRunModel) -> dict[str, Any]:
     scope = _run_artifact(run, "symbol_scope")
     if scope:
@@ -1940,6 +1961,10 @@ def _allocation_dashboard_payload(
     latest_run: PaperRunModel | None = None,
 ) -> dict[str, Any]:
     metadata = money_management_metadata(settings)
+    if latest_run is None:
+        latest_runs = PaperRunRepository(session).list(profile_id=profile_id, limit=1)
+        latest_run = latest_runs[0] if latest_runs else None
+    portfolio_plan = _portfolio_plan_payload(latest_run)
     if not metadata.get("enabled"):
         return {
             "enabled": False,
@@ -1951,6 +1976,7 @@ def _allocation_dashboard_payload(
             "open_risk": {},
             "latest_decisions": [],
             "drawdown_governors": {},
+            "portfolio_plan": portfolio_plan,
         }
 
     execution_repo = ExecutionRepository(session)
@@ -1960,10 +1986,6 @@ def _allocation_dashboard_payload(
             portfolio_id=profile_id,
         )
         account_payload = _payload(account_row) if account_row is not None else None
-
-    if latest_run is None:
-        latest_runs = PaperRunRepository(session).list(profile_id=profile_id, limit=1)
-        latest_run = latest_runs[0] if latest_runs else None
 
     policy = metadata.get("policy") if isinstance(metadata.get("policy"), dict) else {}
     position_payloads = positions
@@ -2069,6 +2091,7 @@ def _allocation_dashboard_payload(
             "open_risk": open_risk,
             "latest_decisions": allocation_decisions[:10],
             "drawdown_governors": drawdown_governors,
+            "portfolio_plan": portfolio_plan,
         }
     )
 
@@ -3060,6 +3083,7 @@ def _stage_label(stage_name: str) -> str:
         "company_events": "Company Events",
         "debate_report": "Debate",
         "trader_proposal": "Trader Proposal",
+        "portfolio_plan": "Portfolio Plan",
         "risk_review": "Risk Review",
         "final_decision": "Final Decision",
         "paper_order": "Paper Order",
@@ -3084,6 +3108,7 @@ def _artifact_ids_for_replay_stage(
         "company_events": "event_id",
         "debate_report": "debate_id",
         "trader_proposal": "proposal_id",
+        "portfolio_plan": "plan_id",
         "risk_review": "risk_check_id",
         "final_decision": "final_decision_id",
         "paper_order": "order_id",

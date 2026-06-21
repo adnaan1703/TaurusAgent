@@ -31,15 +31,19 @@ export function AllocationPanels({ allocation, showCore = true }: AllocationPane
   const governors = isJsonObject(allocation?.drawdown_governors)
     ? allocation.drawdown_governors
     : null;
+  const portfolioPlan = isJsonObject(allocation?.portfolio_plan) ? allocation.portfolio_plan : null;
 
   if (!enabled) {
     return (
-      <DataPanel title="Allocation">
-        <p className="text-sm text-taurus-muted">
-          Money management is disabled; allocation surfaces will appear after
-          TAURUS_MONEY_MANAGEMENT_ENABLED is true.
-        </p>
-      </DataPanel>
+      <div className="grid gap-6">
+        <DataPanel title="Allocation">
+          <p className="text-sm text-taurus-muted">
+            Money management is disabled; allocation surfaces will appear after
+            TAURUS_MONEY_MANAGEMENT_ENABLED is true.
+          </p>
+        </DataPanel>
+        <PortfolioPlanPanel plan={portfolioPlan} />
+      </div>
     );
   }
 
@@ -83,6 +87,8 @@ export function AllocationPanels({ allocation, showCore = true }: AllocationPane
         <DrawdownGovernorPanel governors={governors} />
       </div>
 
+      <PortfolioPlanPanel plan={portfolioPlan} />
+
       <DataPanel title="Latest Allocation Decisions">
         <DataTable
           columns={[
@@ -105,6 +111,99 @@ export function AllocationPanels({ allocation, showCore = true }: AllocationPane
 
       {showCore && <CoreBasketPanel coreBasket={coreBasket} />}
     </div>
+  );
+}
+
+export function PortfolioPlanPanel({ plan }: { plan: JsonObject | null | undefined }) {
+  const available = getPrimitive(plan, "available") === true || Boolean(getString(plan, "plan_id"));
+  const plannedTrades = jsonArray(plan?.planned_trades).slice(0, 10);
+  const cashBudget = jsonArray(plan?.cash_budget);
+  const sleeveBudgets = jsonArray(plan?.sleeve_budgets);
+
+  if (!available) {
+    return (
+      <DataPanel
+        actions={<StatusBadge label="No artifact" status="missing" size="sm" />}
+        title="Portfolio Plan"
+      >
+        <p className="text-sm text-taurus-muted">No portfolio plan artifact is stored.</p>
+      </DataPanel>
+    );
+  }
+
+  return (
+    <DataPanel
+      actions={<StatusBadge label={getString(plan, "model_version") || "Dry run"} status="complete" size="sm" />}
+      title="Portfolio Plan"
+    >
+      <div className="grid gap-5">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <MetricCard
+            label="NAV"
+            supportingText={getString(plan, "policy_version") || "Policy"}
+            value={formatInr(getPrimitive(plan, "current_nav_inr"))}
+          />
+          <MetricCard
+            label="Cash"
+            supportingText={`After reserve ${formatInr(getPrimitive(plan, "spendable_cash_after_reserve_inr"))}`}
+            value={formatInr(getPrimitive(plan, "current_cash_inr"))}
+          />
+          <MetricCard
+            label="Reserve"
+            supportingText={formatPercent(getPrimitive(plan, "hard_cash_reserve_pct_nav"))}
+            value={formatInr(getPrimitive(plan, "hard_cash_reserve_inr"))}
+          />
+          <MetricCard
+            label="Trades"
+            supportingText={`${formatNumber(jsonArray(plan?.candidates).length)} candidates`}
+            value={formatNumber(plannedTrades.length)}
+          />
+        </div>
+
+        <DataTable
+          columns={[
+            { key: "label", header: "Cash row", render: (row) => getString(row, "label") || getString(row, "row_id") || "-" },
+            { key: "amount", header: "Amount", align: "right", render: (row) => formatInr(getPrimitive(row, "amount_inr")) },
+            { key: "spendable", header: "Spendable", render: (row) => <StatusBadge label={getPrimitive(row, "spendable") ? "Yes" : "No"} status={getPrimitive(row, "spendable") ? "complete" : "skipped"} size="sm" /> },
+            { key: "description", header: "Description", render: (row) => getString(row, "description") || "-" },
+          ]}
+          emptyLabel="No cash budget rows"
+          getRowKey={(row) => getString(row, "row_id")}
+          rows={cashBudget}
+        />
+
+        <DataTable
+          columns={[
+            { key: "sleeve", header: "Sleeve", render: (row) => getString(row, "sleeve_name") || getString(row, "sleeve_id") || "-" },
+            { key: "target", header: "Target", align: "right", render: (row) => formatPercent(getPrimitive(row, "target_pct_nav")) },
+            { key: "current", header: "Current", align: "right", render: (row) => formatPercent(getPrimitive(row, "current_pct_nav")) },
+            { key: "idle", header: "Idle", align: "right", render: (row) => formatInr(getPrimitive(row, "idle_capacity_inr")) },
+            { key: "borrowed", header: "Borrowed", align: "right", render: (row) => formatInr(getPrimitive(row, "borrowed_capacity_inr")) },
+            { key: "projected", header: "Projected", align: "right", render: (row) => formatPercent(getPrimitive(row, "projected_pct_nav")) },
+          ]}
+          emptyLabel="No sleeve budget rows"
+          getRowKey={(row) => getString(row, "sleeve_id")}
+          rows={sleeveBudgets}
+        />
+
+        <DataTable
+          columns={[
+            { key: "symbol", header: "Symbol", render: (row) => getString(row, "symbol") || "-" },
+            { key: "side", header: "Side", render: (row) => <StatusBadge status={getString(row, "side")} size="sm" /> },
+            { key: "source", header: "Source", render: (row) => getString(row, "source") || "-" },
+            { key: "rank", header: "Rank", align: "right", render: (row) => formatNumber(getPrimitive(row, "rank")) },
+            { key: "target", header: "Target", align: "right", render: (row) => formatPercent(getPrimitive(row, "target_pct_nav")) },
+            { key: "delta", header: "Delta", align: "right", render: (row) => formatPercent(getPrimitive(row, "delta_pct_nav")) },
+            { key: "notional", header: "Notional", align: "right", render: (row) => formatInr(getPrimitive(row, "estimated_notional_inr")) },
+            { key: "quantity", header: "Qty", align: "right", render: (row) => formatNumber(getPrimitive(row, "estimated_quantity")) },
+            { key: "status", header: "Status", render: (row) => <StatusBadge status={getString(row, "status")} size="sm" /> },
+          ]}
+          emptyLabel="No planned trade rows"
+          getRowKey={(row) => getString(row, "trade_id")}
+          rows={plannedTrades}
+        />
+      </div>
+    </DataPanel>
   );
 }
 

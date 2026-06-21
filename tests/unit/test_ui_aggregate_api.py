@@ -75,6 +75,8 @@ def test_ui_aggregate_endpoints_return_completed_run_trail(tmp_path: Path) -> No
     assert overview.json()["safety"]["llm_provider"] == "lmstudio"
     assert overview.json()["safety"]["llm_model_version"] == "lmstudio:local-model"
     assert overview.json()["allocation"]["enabled"] is False
+    assert overview.json()["allocation"]["portfolio_plan"]["available"] is True
+    assert overview.json()["allocation"]["portfolio_plan"]["planned_trades"][0]["symbol"] == "INFY"
     assert overview.json()["latest_run"]["run_id"] == run.run_id
     assert overview.json()["latest_trader_proposal"]["evaluation_mode"] == "after_close"
     assert overview.json()["latest_trader_proposal"]["lifecycle_trigger"] == "new_entry"
@@ -113,6 +115,8 @@ def test_ui_aggregate_endpoints_return_completed_run_trail(tmp_path: Path) -> No
     assert detail.status_code == 200
     detail_payload = detail.json()
     assert detail_payload["run"]["status"] == "COMPLETED"
+    assert detail_payload["artifacts"]["portfolio_plan"]["run_id"] == run.run_id
+    assert detail_payload["artifacts"]["portfolio_plan"]["planned_trades"][0]["symbol"] == "INFY"
     assert detail_payload["artifacts"]["settlement"]["settled"] == 0
     assert detail_payload["artifacts"]["settlement"]["details"] == []
     assert detail_payload["selection_ledger"][0]["symbol"] == "INFY"
@@ -146,6 +150,8 @@ def test_ui_aggregate_endpoints_return_completed_run_trail(tmp_path: Path) -> No
     assert replay.status_code == 200
     replay_payload = replay.json()
     assert replay_payload["decision_id"] == trail_payload["decision_id"]
+    assert _stage_status(replay_payload, "portfolio_plan") == "complete"
+    assert _stage_artifacts(replay_payload, "portfolio_plan")[0]["candidate"]["symbol"] == "INFY"
     assert _stage_artifact_count(replay_payload, "final_decision") == 1
     assert _stage_status(replay_payload, "paper_order") == "running"
     assert _stage_status(replay_payload, "paper_fills") == "running"
@@ -167,6 +173,7 @@ def test_ui_aggregate_endpoints_return_completed_run_trail(tmp_path: Path) -> No
     assert portfolio.json()["latest_account"]["run_id"] == run.run_id
     assert portfolio.json()["money_management"] == risk.json()["money_management"]
     assert portfolio.json()["allocation"]["enabled"] is False
+    assert portfolio.json()["allocation"]["portfolio_plan"]["available"] is True
     assert len(portfolio.json()["orders"]) == 1
     assert portfolio.json()["fills"] == []
 
@@ -402,6 +409,7 @@ def test_disabled_money_management_uses_settings_fallback_allocation(
         "execution",
         "final_decisions",
         "llm_usage",
+        "portfolio_plan",
         "profile",
         "settlement",
         "strategy",
@@ -410,6 +418,9 @@ def test_disabled_money_management_uses_settings_fallback_allocation(
     }
     assert "money_management" not in run.artifacts
     assert run.artifacts["allocation"]["policy_source"] == "settings"
+    assert run.artifacts["portfolio_plan"]["policy_version"] == "settings"
+    assert run.artifacts["portfolio_plan"]["candidates"][0]["symbol"] == "INFY"
+    assert run.artifacts["portfolio_plan"]["planned_trades"][0]["source"] == "trader_proposal"
     assert run.artifacts["allocation"]["ledger_count"] == 1
     assert run.artifacts["allocation"]["ledger_counts"] == {"selected": 1}
     assert run.artifacts["allocation"]["summary"]["proposal_count"] == 1

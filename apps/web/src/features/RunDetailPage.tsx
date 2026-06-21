@@ -32,6 +32,7 @@ import {
   objectEntries,
 } from "../utils/format";
 import { PageScaffold } from "./PageScaffold";
+import { PortfolioPlanPanel } from "./AllocationPanels";
 
 export function RunDetailPage() {
   const { runId = "" } = useParams();
@@ -229,6 +230,14 @@ export function RunDetailPage() {
           </div>
 
           <CoreBasketPanel artifacts={runQuery.data.artifacts} />
+
+          <PortfolioPlanPanel
+            plan={
+              isJsonObject(runQuery.data.artifacts.portfolio_plan)
+                ? runQuery.data.artifacts.portfolio_plan
+                : null
+            }
+          />
 
           <SettlementPanel settlement={runQuery.data.artifacts.settlement} />
 

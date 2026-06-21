@@ -38,6 +38,7 @@ class DecisionReplayService:
             self._debate_stage(run_id=run_id, symbol=symbol),
             self._trader_stage(run_id=run_id, symbol=symbol),
             self._strategy_ranking_stage(run_id=run_id, symbol=symbol),
+            self._portfolio_plan_stage(run_id=run_id, symbol=symbol),
             self._allocation_ledger_stage(run_id=run_id, symbol=symbol),
             self._risk_stage(decision_id=decision_id),
             self._final_stage(decision_id=decision_id),
@@ -193,6 +194,42 @@ class DecisionReplayService:
             "strategy_ranking",
             [{**summary, "ranking": None, "reason": "symbol_not_ranked"}],
         )
+
+    def _portfolio_plan_stage(self, *, run_id: str, symbol: str) -> ReplayStage:
+        plan = self._paper_run_artifact(run_id).get("portfolio_plan")
+        if not isinstance(plan, dict):
+            return _stage("portfolio_plan", [])
+
+        normalized_symbol = symbol.upper()
+        candidates = _matching_symbol_rows(plan.get("candidates"), normalized_symbol)
+        planned_trades = _matching_symbol_rows(plan.get("planned_trades"), normalized_symbol)
+        positions = _matching_symbol_rows(plan.get("positions"), normalized_symbol)
+        artifact = {
+            "symbol": normalized_symbol,
+            "plan_id": plan.get("plan_id"),
+            "model_version": plan.get("model_version"),
+            "policy_version": plan.get("policy_version"),
+            "current_nav_inr": plan.get("current_nav_inr"),
+            "current_cash_inr": plan.get("current_cash_inr"),
+            "hard_cash_reserve_inr": plan.get("hard_cash_reserve_inr"),
+            "spendable_cash_after_reserve_inr": plan.get(
+                "spendable_cash_after_reserve_inr"
+            ),
+            "candidate_count": len(plan.get("candidates", []))
+            if isinstance(plan.get("candidates"), list)
+            else 0,
+            "planned_trade_count": len(plan.get("planned_trades", []))
+            if isinstance(plan.get("planned_trades"), list)
+            else 0,
+            "cash_budget": plan.get("cash_budget", []),
+            "sleeve_budgets": plan.get("sleeve_budgets", []),
+            "candidate": candidates[0] if candidates else None,
+            "planned_trades": planned_trades,
+            "position": positions[0] if positions else None,
+        }
+        if not candidates and not planned_trades and not positions:
+            artifact["reason"] = "symbol_not_in_portfolio_plan"
+        return _stage("portfolio_plan", [artifact])
 
     def _allocation_ledger_stage(self, *, run_id: str, symbol: str) -> ReplayStage:
         allocation = self._paper_run_artifact(run_id).get("allocation")
@@ -360,6 +397,17 @@ def _stage(name: str, artifacts: list[dict[str, object]]) -> ReplayStage:
 
 def _payload(row) -> dict[str, object]:
     return dict(row.payload)
+
+
+def _matching_symbol_rows(value: object, symbol: str) -> list[dict[str, object]]:
+    if not isinstance(value, list):
+        return []
+    return [
+        dict(item)
+        for item in value
+        if isinstance(item, dict)
+        and str(item.get("symbol") or "").upper() == symbol
+    ]
 
 
 def _json_safe(value: Any) -> Any:

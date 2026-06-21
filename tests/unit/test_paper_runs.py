@@ -79,6 +79,10 @@ def test_paper_run_service_executes_full_chain_and_api_returns_runs(tmp_path: Pa
     assert run.market_data_summary["provider_name"] == "kite"
     assert run.market_data_summary["candle_count"] >= 252
     assert run.artifacts["strategy"]["strategy_name"]
+    assert run.artifacts["portfolio_plan"]["run_id"] == run.run_id
+    assert run.artifacts["portfolio_plan"]["portfolio_id"] == "local-paper"
+    assert run.artifacts["portfolio_plan"]["model_version"] == "portfolio_rebalance_dry_run_v1"
+    assert run.artifacts["portfolio_plan"]["planned_trades"][0]["symbol"] == "INFY"
     assert run.artifacts["symbols"]["INFY"]["final_status"] == "APPROVED_FOR_PAPER"
     assert run.artifacts["symbols"]["INFY"]["order_status"] == "PENDING_NEXT_OPEN"
     assert run.artifacts["symbols"]["INFY"]["order_reason"] == "queued_for_next_open_settlement"
@@ -1141,7 +1145,10 @@ def test_full_universe_money_management_run_completes_allocation_pipeline(
     assert run.status == "COMPLETED"
     assert run.failed_symbols == []
     assert "money_management" in run.artifacts
+    assert "portfolio_plan" in run.artifacts
     assert allocation["policy_source"] == "money_management_policy"
+    assert run.artifacts["portfolio_plan"]["policy_version"] == "active_integration_policy"
+    assert len(run.artifacts["portfolio_plan"]["candidates"]) == 3
     assert allocation["ledger_count"] == 3
     assert sum(ledger_counts.values()) == 3
     assert (
@@ -1308,22 +1315,27 @@ def test_replay_includes_run_level_context_for_selected_and_not_selected_decisio
     not_selected_replay = client.get(f"/replay/{decision_ids[not_selected_symbol]}").json()
 
     selected_allocation = _replay_stage(selected_replay, "allocation_ledger")["artifacts"][0]
+    selected_plan = _replay_stage(selected_replay, "portfolio_plan")["artifacts"][0]
     selected_execution = _replay_stage(selected_replay, "deferred_execution")["artifacts"]
     not_selected_allocation = _replay_stage(not_selected_replay, "allocation_ledger")[
         "artifacts"
     ][0]
+    not_selected_plan = _replay_stage(not_selected_replay, "portfolio_plan")["artifacts"][0]
     not_selected_execution = _replay_stage(not_selected_replay, "deferred_execution")[
         "artifacts"
     ]
     not_selected_final = _replay_stage(not_selected_replay, "final_decision")["artifacts"][0]
 
     assert _replay_stage(selected_replay, "strategy_ranking")["artifact_count"] >= 1
+    assert selected_plan["candidate"]["symbol"] == selected_symbol
+    assert selected_plan["planned_trades"]
     assert selected_allocation["ledger_entry"]["status"] in {
         "selected",
         "allocation_reduced",
     }
     assert {item["kind"] for item in selected_execution} >= {"execution_set"}
     assert _replay_stage(not_selected_replay, "strategy_ranking")["artifact_count"] >= 1
+    assert not_selected_plan["candidate"]["symbol"] == not_selected_symbol
     assert not_selected_allocation["ledger_entry"]["status"] == "not_selected"
     assert not_selected_final["status"] == "NO_ACTION"
     assert not_selected_final["final_action"] == "NO_TRADE"

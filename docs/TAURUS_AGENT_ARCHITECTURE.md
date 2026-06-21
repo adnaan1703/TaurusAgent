@@ -61,7 +61,10 @@ flowchart TD
     GraphPreflight --> SymbolSelect
 
     SymbolSelect --> SymbolLoop[Run per-symbol agent pipeline]
-    SymbolLoop --> RunStatus[Update paper_runs status and artifacts]
+    SymbolLoop --> PortfolioPlan[Build dry-run portfolio plan artifact]
+    PortfolioPlan --> Allocation[Run-level allocation ledger]
+    Allocation --> Finalization[Risk, final approval, and paper routing]
+    Finalization --> RunStatus[Update paper_runs status and artifacts]
 ```
 
 ## Per-Symbol Agent Pipeline
@@ -151,6 +154,7 @@ flowchart TD
 | Bear case | `BearResearcherAgent` | Analyst reports | Bear thesis in debate payload | Research manager |
 | Research synthesis | `ResearchManagerAgent` | Bull thesis, bear thesis, analyst reports | `debate_reports` | Trader |
 | Trade proposal | `TraderAgent` | `debate_reports`, current paper positions/account, LLM advisory | `trader_proposals` | Risk review |
+| Portfolio dry-run plan | `PortfolioRebalancePlanService` | Current paper account/positions, trader proposals, strategy ranks/scores, money-management policy, and core basket artifact | `paper_runs.artifacts.portfolio_plan` | Run-level allocation, replay, API, and dashboard observability |
 | Risk review | `RiskReviewService`, `RiskEngine`, risk personas | Trader proposal, settings, current exposures, graph concentration data | `risk_reviews` | Portfolio manager |
 | Final approval | `PortfolioManagerAgent` | Risk review, trader proposal, optional LLM explanation | `final_decisions` | Execution router |
 | Paper execution | `ExecutionRouter` and `PaperBroker` | Final decision, latest risk review, market/account state, Kite daily candles | `paper_orders`, `paper_fills`, `paper_accounts`, `paper_positions`, settlement artifacts | Alerts, dashboard, audit |
@@ -205,6 +209,17 @@ collapse into the bounded analyst-report contract:
 - Trader proposals keep `requested_position_pct_nav` as the capped request used
   downstream, with `target_sizing_metadata` recording the raw desired new-entry
   target and the configured cap when sizing is capped.
+
+## Portfolio Plan Artifact
+
+Every successful paper run now stores a dry-run portfolio plan at
+`paper_runs.artifacts.portfolio_plan`. The plan is a typed, replayable artifact
+with current NAV/cash, hard cash reserve, position sleeve labels, trader
+proposal candidates, core basket advisory decisions, planned trade rows, cash
+budget rows, sleeve budget rows, and dry-run constraints. It is deliberately
+observational in M57: `RunLevelAllocationService` still owns executable sizing,
+and risk review, final approval, paper order routing, fills, positions, and
+account state are unchanged by plan generation.
 
 ## Research Debate Layer
 

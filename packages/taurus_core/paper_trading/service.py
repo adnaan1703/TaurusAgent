@@ -65,6 +65,8 @@ from taurus_core.portfolio import (
     FallbackAllocationPolicy,
     MoneyManagementPolicy,
     PortfolioAllocationService,
+    PortfolioRebalancePlanInput,
+    PortfolioRebalancePlanService,
     RunAllocationInput,
     RunAllocationResult,
     RunLevelAllocationService,
@@ -582,6 +584,34 @@ class PaperRunService:
         allocation_result: RunAllocationResult | None = None
         if analysis_by_symbol:
             try:
+                self._emit_progress(
+                    "paper.run.setup_started",
+                    run_id=run.run_id,
+                    stage="portfolio_plan",
+                    symbols=sorted(analysis_by_symbol),
+                )
+                portfolio_plan = self._build_portfolio_rebalance_plan(
+                    run_id=run.run_id,
+                    strategy_summary=strategy_summary,
+                    money_management_summary=money_management_summary,
+                    core_basket_symbols=core_basket_symbols,
+                    proposals=tuple(
+                        analysis.proposal for analysis in analysis_by_symbol.values()
+                    ),
+                )
+                artifacts["portfolio_plan"] = portfolio_plan.to_artifact()
+                self._emit_progress(
+                    "paper.run.setup_completed",
+                    run_id=run.run_id,
+                    stage="portfolio_plan",
+                    symbols=sorted(analysis_by_symbol),
+                    planned_trade_count=len(portfolio_plan.planned_trades),
+                    candidate_count=len(portfolio_plan.candidates),
+                )
+                self._refresh_llm_usage_artifact(artifacts, llm_provider)
+                run = run.model_copy(update={"artifacts": artifacts})
+                self._store_run(run)
+
                 self._emit_progress(
                     "paper.run.setup_started",
                     run_id=run.run_id,
@@ -1581,6 +1611,114 @@ class PaperRunService:
                 research_repo.replace_trader_proposal_for_run_symbol(updated)
             session.commit()
             return result
+
+    def _build_portfolio_rebalance_plan(
+        self,
+        *,
+        run_id: str,
+        strategy_summary: dict[str, object],
+        money_management_summary: dict[str, object] | None,
+        core_basket_symbols: set[str],
+        proposals: tuple[TraderProposal, ...],
+    ):
+        strategy_name = str(strategy_summary.get("strategy_name") or "")
+        strategy_rank_by_symbol, strategy_score_by_symbol = _strategy_ranking_maps(
+            strategy_summary
+        )
+        policy = (
+            load_money_management_policy_for_settings(self.settings)
+            if self.settings.taurus_money_management_enabled
+            else None
+        )
+        core_basket_artifact = (
+            money_management_summary.get("core_shariah_basket")
+            if isinstance(money_management_summary, dict)
+            and isinstance(money_management_summary.get("core_shariah_basket"), dict)
+            else {}
+        )
+        core_target_weights = (
+            core_basket_artifact.get("target_weights")
+            if isinstance(core_basket_artifact, dict)
+            and isinstance(core_basket_artifact.get("target_weights"), dict)
+            else {}
+        )
+        with self.session_factory() as session:
+            execution_repo = ExecutionRepository(session)
+            account = execution_repo.latest_account_by_portfolio(
+                portfolio_id=self.settings.taurus_paper_portfolio_id,
+            )
+            starting_corpus = self._starting_corpus_inr(session)
+            nav_inr = (
+                account.equity_inr
+                if account is not None
+                else starting_corpus
+            )
+            available_cash = (
+                account.available_cash_inr
+                if account is not None
+                else starting_corpus
+            )
+            open_positions = tuple(
+                ActiveAllocationPosition(
+                    symbol=position.symbol,
+                    quantity=position.quantity,
+                    market_value_inr=position.market_value_inr,
+                )
+                for position in execution_repo.latest_open_positions_by_portfolio(
+                    portfolio_id=self.settings.taurus_paper_portfolio_id,
+                )
+            )
+            proposal_symbols = {proposal.symbol.upper() for proposal in proposals}
+            history_symbols = proposal_symbols | {
+                str(symbol).strip().upper()
+                for symbol in core_basket_symbols
+                if str(symbol).strip()
+            } | {
+                str(symbol).strip().upper()
+                for symbol in core_target_weights
+                if str(symbol).strip()
+            }
+            histories_by_symbol = {
+                symbol: tuple(_daily_candle_history(session, symbol))
+                for symbol in sorted(history_symbols)
+            }
+            sleeve_by_symbol = (
+                _latest_allocation_sleeves_by_symbol(session, settings=self.settings)
+                if policy is not None
+                else {}
+            )
+            sleeve_snapshots = (
+                _sleeve_snapshots_for_allocation(
+                    policy=policy,
+                    nav_inr=nav_inr,
+                    positions=open_positions,
+                    core_basket_symbols=core_basket_symbols,
+                    sleeve_by_symbol=sleeve_by_symbol,
+                )
+                if policy is not None
+                else tuple()
+            )
+        return PortfolioRebalancePlanService().build(
+            PortfolioRebalancePlanInput(
+                run_id=run_id,
+                portfolio_id=self.settings.taurus_paper_portfolio_id,
+                as_of=_utc_now(),
+                strategy_name=strategy_name,
+                proposals=proposals,
+                nav_inr=nav_inr,
+                current_cash_inr=available_cash,
+                current_positions=open_positions,
+                sleeve_snapshots=sleeve_snapshots,
+                histories_by_symbol=histories_by_symbol,
+                core_basket_artifact=core_basket_artifact,
+                core_basket_symbols=tuple(sorted(core_basket_symbols)),
+                strategy_rank_by_symbol=strategy_rank_by_symbol,
+                strategy_score_by_symbol=strategy_score_by_symbol,
+                money_management_policy=policy,
+                fallback_policy_source="settings",
+                sleeve_by_symbol=sleeve_by_symbol,
+            )
+        )
 
     def _load_latest_inputs(self) -> dict[str, object]:
         provider = build_market_data_provider(self.settings)
