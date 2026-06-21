@@ -1,6 +1,6 @@
 # Taurus Milestone Tracker
 
-Last updated: 2026-06-11
+Last updated: 2026-06-22
 
 This is the active tracker for Taurus milestone work. Keep it concise and keep
 current operator detail in the usage and command docs.
@@ -16,6 +16,9 @@ current operator detail in the usage and command docs.
 - `docs/TAURUS_GRAPH_INTELLIGENCE_PLAN.md`: completed M20 graph reference.
 - `docs/TAURUS_NEXT_OPEN_AMO_SETTLEMENT_PLAN.md`: completed M44-M50 next-open
   AMO-style paper settlement work.
+- `docs/TAURUS_PORTFOLIO_REBALANCE_PLAN.md`: planned M56-M61 holistic
+  portfolio rebalance, score precision, soft sleeve borrowing, executable core,
+  proceeds netting, and regression work.
 - `docs/agent_improvement_plans/LLM_AGENT_SYSTEM_PROMPTS_BACKLOG.md`: deferred
   prompt backlog for optional analyst upgrades.
 
@@ -62,6 +65,8 @@ removed during docs cleanup. Use Git history for detailed historical plans.
   regression covers two-profile pending/fill/settlement/P&L isolation,
   profile-scoped API/dashboard payloads, stale profile filters, profile smoke
   checks, final operator docs, and approval-rules cleanup.
+- M56-M61 portfolio rebalance planning is complete. Implementation remains
+  planned, and M56 is the next unstarted milestone.
 
 ## Standing Safety Rules
 
@@ -111,6 +116,20 @@ removed during docs cleanup. Use Git history for detailed historical plans.
 | M54 | Done | Added profile CRUD APIs, profile-scoped query parameters for run/paper/research/risk/UI read endpoints, active-profile UI metadata, a URL/local-storage-backed read-only React profile selector, profile-aware query keys/links, and focused API/UI tests. M55 final regression is complete. |
 | M55 | Done | Added deterministic two-profile regression for pending orders, settled fills, realized/unrealized P&L, dashboard/API scoping, stale profile filters, and profile smoke checks; API/Vite local smoke returned 200, while visual browser automation was unavailable in this session; finalized operator docs and milestone cleanup for the M51-M55 sequence. |
 | Ops LM Studio reasoning fallback | Done | Added a narrow LM Studio compatibility fallback that uses non-empty `message.reasoning_content` only when `message.content` is empty, while keeping existing parser and schema validation as the contract authority. |
+| M56-M61 plan document | Done | Created the flat portfolio rebalance plan covering score semantics, dry-run portfolio-plan artifacts, soft sleeve borrowing, executable core routing, same-run proceeds netting, execution buffers, UI/replay observability, and final regression. Implementation remains planned; M56 is not started. |
+
+### M56-M61 Plan Document Completion Summary
+
+- Assumptions made: The portfolio rebalance upgrade should stay paper-only,
+  long-only, equity-only, and restricted to the existing Shariah-enabled
+  universe; raw, calibrated, bounded, and allocation scores should be separate
+  concepts; active strategy may borrow configured idle non-cash sleeve capacity
+  but not the hard 5% cash buffer; same-run REDUCE/EXIT proceeds should be
+  spendable only after an 80% haircut; BUY sizing should reserve 5% cash and
+  use a 5% price buffer; implementation should run as flat milestones M56
+  through M61.
+- Mocks created: None.
+- Mocks used: None.
 
 ### M51-M55 Plan Document Completion Summary
 
@@ -332,6 +351,21 @@ documented with the standard completion summary.
 | 35 | M53 | Done | `docs/TAURUS_MULTI_PROFILE_PLAN.md` | Make paper execution, settlement, position monitoring, and corpus/P&L state isolated by selected profile. |
 | 36 | M54 | Done | `docs/TAURUS_MULTI_PROFILE_PLAN.md` | Add profile APIs, profile filters, and a read-only React profile selector for scoped dashboard views. |
 | 37 | M55 | Done | `docs/TAURUS_MULTI_PROFILE_PLAN.md` | Complete multi-profile regression, browser/API smoke, operator docs, and milestone cleanup. |
+
+## Planned Portfolio Rebalance Sequence
+
+These milestones must be executed in order as separate milestone work. When a
+future session starts one milestone, it must stop after that milestone is
+implemented, verified, cleaned up, and documented.
+
+| Order | Milestone | Status | Plan | Purpose |
+|---:|---|---|---|---|
+| 38 | M56 | Planned | `docs/TAURUS_PORTFOLIO_REBALANCE_PLAN.md` | Add score semantics and allocation precision plumbing so raw, calibrated, bounded, and allocation scores remain distinct. |
+| 39 | M57 | Planned | `docs/TAURUS_PORTFOLIO_REBALANCE_PLAN.md` | Add a dry-run portfolio rebalance plan artifact, API/UI/replay visibility, and legacy-safe serialization. |
+| 40 | M58 | Planned | `docs/TAURUS_PORTFOLIO_REBALANCE_PLAN.md` | Add soft sleeve capacity rules and convert core Shariah basket decisions into executable rebalance candidates. |
+| 41 | M59 | Planned | `docs/TAURUS_PORTFOLIO_REBALANCE_PLAN.md` | Make holistic BUY allocation and executable core routing flow through planner-linked allocation, risk, final, and paper queueing. |
+| 42 | M60 | Planned | `docs/TAURUS_PORTFOLIO_REBALANCE_PLAN.md` | Add threshold trims/exits, 80% same-run proceeds netting, 5% cash/price buffers, and sell-first next-open queueing. |
+| 43 | M61 | Planned | `docs/TAURUS_PORTFOLIO_REBALANCE_PLAN.md` | Run end-to-end regression, finalize operator docs, clean compatibility scaffolding, and close the sequence. |
 
 ## Deferred Work
 
