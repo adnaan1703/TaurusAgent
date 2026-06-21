@@ -52,7 +52,9 @@ sell-side lifecycle proposals first, scores BUY candidates by priority, and
 then allocates BUYs sequentially while updating simulated cash, positions,
 sleeve exposure, and open risk after each approved allocation. The legacy
 run-level allocator remains available by setting
-`TAURUS_PORTFOLIO_PLAN_ALLOCATION_ENABLED=false`.
+`TAURUS_PORTFOLIO_PLAN_ALLOCATION_ENABLED=false`. M61 retained that flag for
+operator troubleshooting and regression comparison; normal money-managed paper
+loops should leave the planner-backed default enabled.
 
 ## Main Files
 
@@ -240,6 +242,11 @@ and the spendable same-run proceeds pool into executable BUY sizing, then
 records `capacity_source`, borrowed sleeve IDs, `funding_source`, existing cash
 used, same-run proceeds used, available proceeds, reserve, and price-buffer
 metadata on allocation decisions and ledger rows.
+
+The M61 end-to-end regression covers this full path with seeded cash/positions,
+active BUY candidates, a core BUY, a threshold EXIT, same-run proceeds
+haircutting, protected cash-buffer capacity, soft non-cash borrowing, sell-first
+next-open queueing, API/replay/dashboard visibility, and next-run settlement.
 
 ## Strategy Mappings
 

@@ -680,6 +680,8 @@ Completion summary:
 Purpose: prove the M56-M60 rebalance upgrade works end to end, remove temporary
 compatibility scaffolding where safe, and close the milestone sequence.
 
+Status: Done.
+
 Instructions:
 
 - Read the whole M56-M60 plan and current implementation before editing.
@@ -768,6 +770,25 @@ Completion summary requirements:
 - Assumptions made
 - Mocks created
 - Mocks used
+
+Completion summary:
+
+- Assumptions made: M61 should close the sequence with regression and docs
+  rather than new portfolio behavior; Taurus remains paper-only and Kite
+  data-only; `TAURUS_PORTFOLIO_PLAN_ALLOCATION_ENABLED=false` remains because it
+  is a useful operator fallback for comparing planner-backed allocation against
+  the pre-M59 run-level allocator; no schema migration or approval-rule change
+  is needed.
+- Mocks created: A deterministic M61 paper-run regression fixture that seeds a
+  paper account with TCS and RELIANCE order/fill lineage, forces active BUY
+  proposals and score ranks, advances fake Kite candles for settlement, and
+  validates API/replay/dashboard artifacts; a React `portfolioPlan` fixture for
+  reserve, same-run proceeds, BUY buffer, sleeve borrowing, core BUY, and
+  threshold EXIT display.
+- Mocks used: Existing `FakeLLMProvider`, existing
+  `FakeKiteMarketDataProvider`, deterministic daily-candle fixtures, FastAPI
+  `TestClient`, existing React fetch stubs, and local `PaperBroker`
+  simulation.
 
 ## Deferred Work
 

@@ -219,7 +219,9 @@ decisions, planned trade rows, cash budget rows, sleeve budget rows, and
 constraints. The plan is the default source for executable BUY, REDUCE, and
 EXIT allocation when money management is enabled; set
 `TAURUS_PORTFOLIO_PLAN_ALLOCATION_ENABLED=false` to retain the legacy
-run-level allocation path during compatibility testing.
+run-level allocation path during compatibility testing. M61 kept that flag as
+an explicit operator fallback; the canonical paper loop still uses the
+planner-backed path by default and remains paper-only/Kite-data-only.
 
 The allocator compares active trader BUY proposals, executable core Shariah BUY
 candidates, and threshold-worthy REDUCE/EXIT candidates in one planner-linked

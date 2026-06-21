@@ -1,16 +1,20 @@
 # Taurus Usage Guide
 
-Last verified: 2026-06-11.
+Last verified: 2026-06-22.
 
 ## Current State
 
-- Backend focused M55/profile regression tests:
-  `uv run pytest tests/unit/test_paper_runs.py tests/unit/test_ui_aggregate_api.py tests/unit/test_paper_broker.py tests/unit/test_taurus_smoke.py -q`
-  -> `69 passed`.
-- Backend full suite: `make test` -> `320 passed, 1 skipped`.
+- Backend focused M61/rebalance verification:
+  `uv run pytest tests/unit/test_portfolio_rebalance_plan.py -q` -> `5 passed`;
+  `uv run pytest tests/unit/test_paper_runs.py tests/unit/test_paper_broker.py -q`
+  -> `56 passed`;
+  `uv run pytest tests/unit/test_replay.py tests/unit/test_ui_aggregate_api.py -q`
+  -> `17 passed`.
+- Backend full suite: `make test` -> `373 passed, 1 skipped`.
 - Frontend tests: `make test-ui` -> `28 passed`.
 - Compile check: `make lint` -> passed.
-- Frontend build: `make build-ui` -> passed.
+- Paper-loop dry run: `make -n paper-loop-kite` -> resolved the canonical
+  Kite/graph/full-universe paper-loop command.
 - Docker Postgres is the canonical Taurus database. Runtime, scripts, and tests
   reject SQLite database URLs.
 - Docker Compose persists Postgres and Grafana data in named volumes:
@@ -40,6 +44,11 @@ Taurus is a local, observable paper-trading simulator for Indian cash equities. 
 - Run deterministic risk review and final approval gates before paper routing.
 - Simulate orders, fills, positions, cash, costs, and slippage through
   `PaperBroker`.
+- Build a planner-linked portfolio rebalance pass when money management is
+  enabled, combining active BUY candidates, executable core Shariah BUYs,
+  threshold REDUCE/EXIT rows, same-run proceeds netting, protected cash reserve,
+  BUY price buffer, and soft non-cash sleeve borrowing before paper-only risk,
+  final approval, and next-open order queueing.
 - Manage multiple logical paper profiles with isolated corpus, runs, orders,
   fills, positions, accounts, and P&L. `TAURUS_PROFILE_ID=local-paper` is the
   default selected profile; `TAURUS_PAPER_PORTFOLIO_ID` remains a legacy alias.
@@ -372,7 +381,9 @@ planner-linked run. Selected rows carry `portfolio_plan_id` and
 deterministic `portfolio_rebalance` proposals before risk review, and run
 execution queues sell-side next-open paper orders before BUY orders. To compare
 against the pre-M59 allocator during troubleshooting, set
-`TAURUS_PORTFOLIO_PLAN_ALLOCATION_ENABLED=false`.
+`TAURUS_PORTFOLIO_PLAN_ALLOCATION_ENABLED=false`; the flag is retained
+intentionally as an operator fallback, while the default remains the holistic
+planner-backed path.
 
 The planner preserves a 5% NAV hard cash reserve and sizes BUY quantities with
 a 5% reference-price buffer before paper costs. Same-run REDUCE/EXIT proceeds

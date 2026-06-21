@@ -36,6 +36,15 @@ from taurus_core.db.repositories import PaperRunRepository, ResearchRepository, 
 from taurus_core.db.session import build_session_factory
 from taurus_core.domain.instruments import Instrument
 from taurus_core.execution.order_router import ExecutionRouter
+from taurus_core.execution.schemas import (
+    PaperAccount,
+    PaperFill,
+    PaperOrder,
+    PaperPosition,
+    paper_account_id,
+    paper_fill_id,
+    paper_order_id,
+)
 from taurus_core.paper_trading.schemas import PaperRun, PaperRunUniverse, paper_run_id
 from taurus_core.paper_trading.service import (
     ANALYSIS_STAGE_NAMES,
@@ -56,7 +65,20 @@ from taurus_core.portfolio import (
 from taurus_core.portfolio.run_allocation import AllocationLedgerEntry
 from taurus_core.profiles.runtime import RuntimeProfileError
 from taurus_core.profiles.schemas import TaurusProfileCreate
-from taurus_core.risk.schemas import FinalDecision
+from taurus_core.research.schemas import (
+    BearThesis,
+    BullThesis,
+    DebateReport,
+    DebateRound,
+    ResearchManagerSummary,
+    TraderProposal,
+)
+from taurus_core.risk.schemas import (
+    FinalDecision,
+    HardRuleResult,
+    RiskPersonaReview,
+    RiskReview,
+)
 from tests.llm_fakes import FakeLLMProvider
 from tests.market_data_fixtures import (
     FakeKiteMarketDataProvider,
@@ -1210,6 +1232,177 @@ def test_full_universe_money_management_run_completes_allocation_pipeline(
     assert execution["routed_order_count"] == execution["execution_set_count"]
 
 
+def test_m61_portfolio_rebalance_e2e_regression_covers_plan_routing_and_settlement(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    policy_path = _write_m61_rebalance_policy(tmp_path)
+    settings = _settings_for_temp_db(
+        tmp_path,
+        money_management_enabled=True,
+        money_management_config_path=str(policy_path),
+        paper_analysis_scope="full_universe",
+        paper_execution_scope="allocated_only",
+    )
+    candle_count = {"value": 252}
+
+    class AdvancingFakeKiteMarketDataProvider(FakeKiteMarketDataProvider):
+        def get_daily_candles(self, symbol: str):
+            symbols = [instrument.symbol for instrument in TEST_INSTRUMENTS]
+            symbol_index = symbols.index(symbol.upper())
+            return build_test_candles_for_symbol(
+                symbol=symbol.upper(),
+                symbol_index=symbol_index,
+                candle_count=candle_count["value"],
+                source="kite:historical:NSE",
+            )
+
+    monkeypatch.setattr(
+        "taurus_core.paper_trading.service.build_market_data_provider",
+        lambda settings: AdvancingFakeKiteMarketDataProvider(),
+    )
+    service = PaperRunService(settings)
+    service._load_latest_inputs()
+    _seed_m61_rebalance_account_state(settings)
+
+    forced_actions = {
+        "INFY": "BUY",
+        "ICICIBANK": "BUY",
+        "TCS": "HOLD",
+        "RELIANCE": "HOLD",
+    }
+    forced_targets = {
+        "INFY": Decimal("24.0000"),
+        "ICICIBANK": Decimal("22.0000"),
+    }
+    _force_m61_rebalance_inputs(
+        monkeypatch,
+        action_by_symbol=forced_actions,
+        target_pct_by_symbol=forced_targets,
+    )
+    universe = _paper_run_universe(
+        source="market_data_universe",
+        symbols=["INFY", "ICICIBANK"],
+    )
+
+    first = PaperRunService(settings, schedule_name="m61_rebalance").run_once(
+        symbols=universe.symbols,
+        universe=universe,
+    )
+
+    plan = first.artifacts["portfolio_plan"]
+    allocation = first.artifacts["allocation"]
+    ledger = {row["symbol"]: row for row in allocation["ledger"]}
+    candidates = {row["symbol"]: row for row in plan["candidates"]}
+    planned_trades = {row["symbol"]: row for row in plan["planned_trades"]}
+    sleeve_budgets = {row["sleeve_id"]: row for row in plan["sleeve_budgets"]}
+    cash_budget = {row["row_id"]: row for row in plan["cash_budget"]}
+    routed_by_symbol = {
+        row["symbol"]: row for row in first.artifacts["execution"]["routed_orders"]
+    }
+    execution_symbols = [row["symbol"] for row in first.artifacts["execution"]["routed_orders"]]
+
+    assert first.status == "COMPLETED"
+    assert first.failed_symbols == []
+    assert plan["policy_version"] == "m61_rebalance_policy"
+    assert plan["model_version"] == "portfolio_rebalance_plan_v3"
+    assert {row["symbol"] for row in plan["positions"]} == {"TCS", "RELIANCE"}
+    assert candidates["INFY"]["raw_strategy_score"] == "0.1800"
+    assert candidates["ICICIBANK"]["raw_strategy_score"] == "0.1450"
+    assert candidates["INFY"]["allocation_score_component"] != candidates["ICICIBANK"][
+        "allocation_score_component"
+    ]
+    assert candidates["LT"]["source"] == "core_shariah_basket_v1"
+    assert planned_trades["LT"]["side"] == "BUY"
+    assert planned_trades["TCS"]["side"] == "SELL"
+    assert planned_trades["TCS"]["action"] == "EXIT"
+    assert candidates["TCS"]["score_evidence"]["threshold_reason"] == (
+        "strategy_score_below_exit_threshold"
+    )
+    assert _decimal(plan["same_run_sell_proceeds_haircut_pct"]) == Decimal("80.0000")
+    assert _decimal(plan["same_run_sell_proceeds_spendable_inr"]) > Decimal("0")
+    assert _decimal(plan["same_run_sell_proceeds_safety_reserve_inr"]) > Decimal("0")
+    assert cash_budget["spendable_same_run_proceeds"]["spendable"] is True
+    assert _decimal(plan["hard_cash_reserve_pct_nav"]) == Decimal("5.0000")
+    assert plan["hard_cash_reserve_inr"] == "5000.00"
+    assert _decimal(plan["buy_price_buffer_pct"]) == Decimal("5.0000")
+    assert sleeve_budgets["active_strategy"]["borrowed_capacity_inr"] != "0.00"
+    assert sleeve_budgets["cash_buffer"]["protected_capacity_inr"] == "5000.00"
+    assert sleeve_budgets["cash_buffer"]["borrowable_capacity_inr"] == "0.00"
+    assert any(
+        row.get("borrowed_by_sleeve_id") == "active_strategy"
+        for row in plan["sleeve_budgets"]
+    )
+    assert ledger["TCS"]["proposal_source"] == "trader_proposal"
+    assert ledger["TCS"]["portfolio_plan_trade_id"] == planned_trades["TCS"]["trade_id"]
+    assert ledger["TCS"]["status"] == "open_position_management"
+    assert ledger["LT"]["proposal_source"] == "portfolio_plan_core"
+    assert ledger["LT"]["portfolio_plan_trade_id"] == "trade-core-lt"
+    assert any(
+        _decimal(row["same_run_proceeds_used_inr"]) > Decimal("0")
+        for row in allocation["ledger"]
+        if row["action"] == "BUY"
+    )
+    assert any(
+        row["capacity_source"] == "borrowed_sleeve_capacity"
+        for row in allocation["ledger"]
+        if row["action"] == "BUY"
+    )
+    assert execution_symbols[0] == "TCS"
+    assert "LT" in execution_symbols[1:]
+    assert routed_by_symbol["TCS"]["order_status"] == "PENDING_NEXT_OPEN", routed_by_symbol[
+        "TCS"
+    ].get("reason")
+    assert routed_by_symbol["LT"]["order_status"] == "PENDING_NEXT_OPEN"
+
+    client = TestClient(create_app(settings))
+    overview = client.get("/ui/overview")
+    detail = client.get(f"/ui/runs/{first.run_id}")
+    trail = client.get(f"/ui/runs/{first.run_id}/symbols/LT/decision-trail")
+    replay = client.get(f"/ui/replay/{trail.json()['decision_id']}")
+    portfolio = client.get("/ui/portfolio")
+
+    assert overview.status_code == 200
+    assert detail.status_code == 200
+    assert trail.status_code == 200
+    assert replay.status_code == 200
+    assert portfolio.status_code == 200
+    assert _decimal(
+        overview.json()["allocation"]["portfolio_plan"][
+            "same_run_sell_proceeds_haircut_pct"
+        ]
+    ) == Decimal("80.0000")
+    assert detail.json()["artifacts"]["portfolio_plan"]["plan_id"] == plan["plan_id"]
+    assert trail.json()["allocation_decision"]["proposal_source"] == "portfolio_plan_core"
+    assert _replay_stage(replay.json(), "portfolio_plan")["status"] == "complete"
+    assert _decimal(
+        portfolio.json()["allocation"]["portfolio_plan"]["buy_price_buffer_pct"]
+    ) == Decimal("5.0000")
+
+    candle_count["value"] = 253
+    forced_actions.update(
+        {
+            "INFY": "HOLD",
+            "ICICIBANK": "HOLD",
+            "LT": "HOLD",
+            "RELIANCE": "HOLD",
+            "TCS": "HOLD",
+        }
+    )
+    second = PaperRunService(settings, schedule_name="m61_settlement").run_once(
+        symbols=["INFY"],
+        universe=_paper_run_universe(source="manual_symbols", symbols=["INFY"]),
+    )
+    settlement = second.artifacts["settlement"]
+
+    assert second.status == "COMPLETED"
+    assert settlement["settled"] >= 2
+    assert settlement["rejected"] == 0
+    assert {detail["status"] for detail in settlement["details"]} == {"FILLED"}
+    assert settlement["details"][0]["side"] == "SELL"
+    assert {detail["side"] for detail in settlement["details"]} == {"BUY", "SELL"}
+
+
 def test_portfolio_plan_core_buy_generates_risk_final_and_pending_order_records(
     tmp_path: Path,
 ) -> None:
@@ -1887,6 +2080,107 @@ def _decimal(value: object) -> Decimal:
     return Decimal(str(value))
 
 
+def _force_m61_rebalance_inputs(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    action_by_symbol: dict[str, str],
+    target_pct_by_symbol: dict[str, Decimal],
+) -> None:
+    original_generate_strategy_summary = PaperRunService._generate_strategy_summary
+    original_analyze_symbol = PaperRunService.analyze_symbol
+
+    def patched_generate_strategy_summary(self: PaperRunService, *args, **kwargs):
+        summary = original_generate_strategy_summary(self, *args, **kwargs)
+        score_by_symbol = {
+            "INFY": Decimal("0.1800"),
+            "ICICIBANK": Decimal("0.1450"),
+            "RELIANCE": Decimal("0.0400"),
+            "LT": Decimal("0.0350"),
+            "TCS": Decimal("-0.2500"),
+        }
+        rank_by_symbol = {
+            "INFY": 1,
+            "ICICIBANK": 2,
+            "RELIANCE": 3,
+            "LT": 4,
+            "TCS": 5,
+        }
+        ranked_candidates = []
+        for item in summary.get("ranked_candidates", []):
+            if not isinstance(item, dict):
+                continue
+            candidate = dict(item)
+            symbol = str(candidate.get("symbol") or "").upper()
+            if symbol in score_by_symbol:
+                candidate["raw_strategy_score"] = str(score_by_symbol[symbol])
+                candidate["rank"] = rank_by_symbol[symbol]
+                candidate["eligibility_status"] = "eligible"
+                candidate["action_intent"] = "BUY" if symbol in {"INFY", "ICICIBANK"} else "HOLD"
+            ranked_candidates.append(candidate)
+        summary["ranked_candidates"] = ranked_candidates
+        strategy_scores = dict(summary.get("strategy_score_by_symbol") or {})
+        strategy_scores.update(
+            {symbol: str(score) for symbol, score in score_by_symbol.items()}
+        )
+        summary["strategy_score_by_symbol"] = strategy_scores
+        summary["strategy_ranked_symbols"] = [
+            symbol
+            for symbol, _rank in sorted(rank_by_symbol.items(), key=lambda item: item[1])
+        ]
+        summary["targets"] = ["INFY", "ICICIBANK"]
+        return summary
+
+    def patched_analyze_symbol(self: PaperRunService, *args, **kwargs) -> PaperSymbolAnalysis:
+        analysis = original_analyze_symbol(self, *args, **kwargs)
+        symbol = analysis.symbol.upper()
+        action = action_by_symbol.get(symbol)
+        if action is None:
+            return analysis
+
+        current = analysis.proposal.current_position_pct_nav
+        target = (
+            target_pct_by_symbol[symbol].quantize(Decimal("0.0001"))
+            if action == "BUY" and symbol in target_pct_by_symbol
+            else current.quantize(Decimal("0.0001"))
+        )
+        order_type = "NONE" if action in {"HOLD", "NO_TRADE"} else "MARKET"
+        trigger_by_action = {
+            "BUY": "new_entry",
+            "HOLD": "hold_review",
+            "NO_TRADE": "new_entry",
+            "REDUCE": "take_profit",
+            "EXIT": "stop_loss",
+        }
+        proposal = analysis.proposal.model_copy(
+            update={
+                "action": action,
+                "confidence": Decimal("0.9500") if action == "BUY" else analysis.proposal.confidence,
+                "requested_position_pct_nav": target,
+                "target_position_pct_nav": target,
+                "lifecycle_trigger": trigger_by_action[action],
+                "order_type": order_type,
+                "entry_rule": f"Forced {action} proposal for M61 rebalance regression.",
+                "reason_summary": f"Forced {action} proposal for M61 rebalance regression.",
+                "position_management_summary": (
+                    f"Forced {action} lifecycle proposal for M61 rebalance regression."
+                ),
+            }
+        )
+        with self.session_factory() as session:
+            ResearchRepository(session).replace_trader_proposal_for_run_symbol(proposal)
+            session.commit()
+        return PaperSymbolAnalysis(
+            symbol=analysis.symbol,
+            enabled_analysts=analysis.enabled_analysts,
+            reports=analysis.reports,
+            debate=analysis.debate,
+            proposal=proposal,
+        )
+
+    monkeypatch.setattr(PaperRunService, "_generate_strategy_summary", patched_generate_strategy_summary)
+    monkeypatch.setattr(PaperRunService, "analyze_symbol", patched_analyze_symbol)
+
+
 def _force_trader_actions(
     monkeypatch: pytest.MonkeyPatch,
     action_by_symbol: dict[str, str],
@@ -2059,11 +2353,284 @@ def _paper_run_universe(*, source: str, symbols: list[str]) -> PaperRunUniverse:
     )
 
 
+def _seed_m61_rebalance_account_state(settings: Settings) -> None:
+    provider = FakeKiteMarketDataProvider()
+    latest_candle_by_symbol = {
+        symbol: provider.get_daily_candles(symbol)[-1]
+        for symbol in ("TCS", "RELIANCE")
+    }
+    price_by_symbol = {
+        symbol: candle.close for symbol, candle in latest_candle_by_symbol.items()
+    }
+    quantities = {"TCS": 300, "RELIANCE": 82}
+    market_values = {
+        symbol: (price_by_symbol[symbol] * Decimal(quantity)).quantize(Decimal("0.01"))
+        for symbol, quantity in quantities.items()
+    }
+    equity = Decimal("100000.00")
+    gross_exposure = sum(market_values.values(), Decimal("0.00")).quantize(
+        Decimal("0.01")
+    )
+    available_cash = (equity - gross_exposure).quantize(Decimal("0.01"))
+    seed_run_id = "m61-seeded-account"
+    updated_at = datetime(2026, 6, 22, tzinfo=timezone.utc)
+    order_times = {
+        "TCS": updated_at,
+        "RELIANCE": updated_at.replace(minute=1),
+    }
+    account = PaperAccount(
+        account_id=paper_account_id(
+            portfolio_id=settings.taurus_paper_portfolio_id,
+            run_id=seed_run_id,
+        ),
+        run_id=seed_run_id,
+        portfolio_id=settings.taurus_paper_portfolio_id,
+        starting_cash_inr=equity,
+        available_cash_inr=available_cash,
+        reserved_cash_inr=Decimal("0.00"),
+        realized_pnl_inr=Decimal("0.00"),
+        unrealized_pnl_inr=Decimal("0.00"),
+        gross_exposure_inr=gross_exposure,
+        equity_inr=equity,
+        updated_at=updated_at,
+    )
+    positions = [
+        PaperPosition(
+            run_id=seed_run_id,
+            portfolio_id=settings.taurus_paper_portfolio_id,
+            symbol=symbol,
+            quantity=quantity,
+            average_cost_inr=price_by_symbol[symbol],
+            last_price_inr=price_by_symbol[symbol],
+            market_value_inr=market_values[symbol],
+            realized_pnl_inr=Decimal("0.00"),
+            unrealized_pnl_inr=Decimal("0.00"),
+            updated_at=updated_at,
+        )
+        for symbol, quantity in sorted(quantities.items())
+    ]
+    session_factory = build_session_factory(settings)
+    with session_factory() as session:
+        TaurusProfileRepository(session).update_profile_corpus(
+            settings.taurus_paper_portfolio_id,
+            equity,
+        )
+        research_repo = ResearchRepository(session)
+        risk_repo = RiskRepository(session)
+        execution_repo = ExecutionRepository(session)
+        for symbol, quantity in sorted(quantities.items()):
+            decision_id = f"dec-seed-{symbol.lower()}"
+            final_decision_id = f"fd-seed-{symbol.lower()}"
+            proposal_id = f"tp-seed-{symbol.lower()}"
+            risk_check_id = f"risk-seed-{symbol.lower()}"
+            debate_id = f"debate-seed-{symbol.lower()}"
+            source_report_ids = [f"seed-report-{symbol.lower()}"]
+            price = price_by_symbol[symbol]
+            gross_value = (price * Decimal(quantity)).quantize(Decimal("0.01"))
+            target_pct = ((market_values[symbol] / equity) * Decimal("100")).quantize(
+                Decimal("0.0001")
+            )
+            research_repo.replace_debate_for_run_symbol(
+                DebateReport(
+                    debate_id=debate_id,
+                    run_id=seed_run_id,
+                    portfolio_id=settings.taurus_paper_portfolio_id,
+                    symbol=symbol,
+                    as_of=order_times[symbol],
+                    rounds_requested=1,
+                    bull_thesis=BullThesis(
+                        symbol=symbol,
+                        score=Decimal("0.1000"),
+                        confidence=Decimal("0.8000"),
+                        key_points=["Seeded opening position for M61 regression."],
+                        conditions=["Used only for deterministic paper account setup."],
+                        source_report_ids=source_report_ids,
+                    ),
+                    bear_thesis=BearThesis(
+                        symbol=symbol,
+                        score=Decimal("-0.1000"),
+                        confidence=Decimal("0.8000"),
+                        key_points=["Seeded setup carries no live trading implication."],
+                        risk_flags=["Regression fixture only."],
+                        source_report_ids=source_report_ids,
+                    ),
+                    rounds=[
+                        DebateRound(
+                            round_number=1,
+                            bull_argument="Seeded position exists before rebalance.",
+                            bear_argument="No new live exposure is implied.",
+                            manager_note="Fixture parent row for opening paper fill.",
+                        )
+                    ],
+                    manager_summary=ResearchManagerSummary(
+                        consensus_label="neutral",
+                        consensus_score=Decimal("0.0000"),
+                        confidence=Decimal("0.8000"),
+                        summary="Seeded opening position for M61 rebalance regression.",
+                        unresolved_uncertainties=["Fixture-only setup."],
+                    ),
+                    source_report_ids=source_report_ids,
+                    model_version="m61_seed_debate_v1",
+                )
+            )
+            research_repo.replace_trader_proposal_for_run_symbol(
+                TraderProposal(
+                    proposal_id=proposal_id,
+                    run_id=seed_run_id,
+                    portfolio_id=settings.taurus_paper_portfolio_id,
+                    symbol=symbol,
+                    debate_id=debate_id,
+                    as_of=order_times[symbol],
+                    action="BUY",
+                    confidence=Decimal("0.8000"),
+                    horizon="medium",
+                    requested_position_pct_nav=target_pct,
+                    current_position_quantity=0,
+                    current_position_pct_nav=Decimal("0.0000"),
+                    target_position_pct_nav=target_pct,
+                    lifecycle_trigger="new_entry",
+                    order_type="MARKET",
+                    entry_rule="Seeded opening paper position for M61 regression.",
+                    stop_loss_pct=Decimal("8.0000"),
+                    take_profit_pct=Decimal("16.0000"),
+                    reason_summary="Seeded opening position used by paper broker state rebuild.",
+                    invalid_if=["Fixture-only setup should not drive operator action."],
+                    position_management_summary="Seeded opening paper position.",
+                    source_report_ids=source_report_ids,
+                    is_order=True,
+                    requires_risk_approval=True,
+                    model_version="m61_seed_proposal_v1",
+                )
+            )
+            risk_repo.replace_risk_review_for_run_symbol(
+                RiskReview(
+                    risk_check_id=risk_check_id,
+                    decision_id=decision_id,
+                    run_id=seed_run_id,
+                    portfolio_id=settings.taurus_paper_portfolio_id,
+                    symbol=symbol,
+                    proposal_id=proposal_id,
+                    debate_id=debate_id,
+                    as_of=order_times[symbol],
+                    status="APPROVED",
+                    requested_position_pct_nav=target_pct,
+                    approved_position_pct_nav=target_pct,
+                    hard_rule_results=[
+                        HardRuleResult(
+                            rule="fixture_seed",
+                            status="passed",
+                            details="Seeded opening paper position for M61 regression.",
+                        )
+                    ],
+                    persona_reviews=[
+                        RiskPersonaReview(
+                            agent_name="FixtureRisk",
+                            recommendation="allow",
+                            score=Decimal("0.0000"),
+                            confidence=Decimal("0.8000"),
+                            key_points=["Seed row exists only to satisfy paper execution lineage."],
+                            required_conditions=["Paper-only regression setup."],
+                            model_version="m61_seed_risk_v1",
+                        )
+                    ],
+                    risk_committee_summary="Approved fixture seed position for paper state rebuild.",
+                    source_report_ids=source_report_ids,
+                    is_order=True,
+                    can_send_to_broker=True,
+                    model_version="m61_seed_risk_v1",
+                )
+            )
+            risk_repo.replace_final_decision_for_run_symbol(
+                FinalDecision(
+                    final_decision_id=final_decision_id,
+                    decision_id=decision_id,
+                    run_id=seed_run_id,
+                    portfolio_id=settings.taurus_paper_portfolio_id,
+                    symbol=symbol,
+                    proposal_id=proposal_id,
+                    risk_check_id=risk_check_id,
+                    as_of=order_times[symbol],
+                    final_action="BUY",
+                    status="APPROVED_FOR_PAPER",
+                    approved_quantity=quantity,
+                    approved_position_pct_nav=target_pct,
+                    reason="Approved fixture seed position for paper broker state rebuild.",
+                    is_order=True,
+                    can_send_to_broker=True,
+                    model_version="m61_seed_final_decision_v1",
+                )
+            )
+            order_id = paper_order_id(
+                final_decision_id=final_decision_id,
+                decision_id=decision_id,
+                quantity=quantity,
+            )
+            fill = PaperFill(
+                fill_id=paper_fill_id(
+                    order_id=order_id,
+                    fill_sequence=1,
+                    quantity=quantity,
+                    reference_price=price,
+                ),
+                order_id=order_id,
+                final_decision_id=final_decision_id,
+                run_id=seed_run_id,
+                portfolio_id=settings.taurus_paper_portfolio_id,
+                symbol=symbol,
+                trade_date=latest_candle_by_symbol[symbol].trade_date,
+                side="BUY",
+                quantity=quantity,
+                reference_price_inr=price,
+                fill_price_inr=price,
+                gross_value_inr=gross_value,
+                brokerage_inr=Decimal("0.00"),
+                exchange_txn_charge_inr=Decimal("0.00"),
+                tax_levy_inr=Decimal("0.00"),
+                cost_inr=Decimal("0.00"),
+                slippage_bps=Decimal("0.00"),
+                slippage_inr=Decimal("0.00"),
+                fill_sequence=1,
+                filled_at=order_times[symbol],
+            )
+            order = PaperOrder(
+                order_id=order_id,
+                final_decision_id=final_decision_id,
+                decision_id=decision_id,
+                run_id=seed_run_id,
+                portfolio_id=settings.taurus_paper_portfolio_id,
+                symbol=symbol,
+                side="BUY",
+                quantity=quantity,
+                order_type="MARKET",
+                status="FILLED",
+                execution_policy="immediate",
+                filled_quantity=quantity,
+                remaining_quantity=0,
+                average_fill_price_inr=price,
+                gross_value_inr=gross_value,
+                total_cost_inr=Decimal("0.00"),
+                total_slippage_inr=Decimal("0.00"),
+                slippage_bps=Decimal("0.00"),
+                rejection_reason="",
+                status_history=["CREATED", "ACCEPTED", "FILLED"],
+                filled_trade_date=latest_candle_by_symbol[symbol].trade_date,
+                submitted_at=order_times[symbol],
+                updated_at=order_times[symbol],
+            )
+            execution_repo.replace_order_execution(
+                order=order,
+                fills=[fill],
+                account=account,
+                positions=positions,
+            )
+        session.commit()
+
+
 def _replay_stage(replay: dict[str, object], name: str) -> dict[str, object]:
     stages = replay["stages"]
     assert isinstance(stages, list)
     for stage in stages:
-        if stage["name"] == name:
+        if stage.get("name") == name or stage.get("id") == name:
             return stage
     raise AssertionError(f"Replay stage {name} not found.")
 
@@ -2195,6 +2762,114 @@ def _write_active_allocation_policy(tmp_path: Path, *, max_stock_pct: Decimal) -
         "  min_rebalance_notional_inr: 5000\n"
         "  review_frequency: daily_after_close\n"
         "  core_rebalance_frequency: monthly\n",
+        encoding="utf-8",
+    )
+    return policy_path
+
+
+def _write_m61_rebalance_policy(tmp_path: Path) -> Path:
+    universe_path = tmp_path / "m61_core_shariah.yaml"
+    universe_path.write_text(
+        "universe_name: m61_core_test_shariah\n"
+        "default_exchange: NSE\n"
+        "default_segment: EQUITY\n"
+        "symbols:\n"
+        "  - symbol: LT\n"
+        "    name: Larsen & Toubro Ltd.\n"
+        "    enabled: true\n"
+        "    providers:\n"
+        "      kite:\n"
+        "        exchange: NSE\n"
+        "        tradingsymbol: LT\n"
+        "  - symbol: RELIANCE\n"
+        "    name: Reliance Industries Ltd.\n"
+        "    enabled: true\n"
+        "    providers:\n"
+        "      kite:\n"
+        "        exchange: NSE\n"
+        "        tradingsymbol: RELIANCE\n",
+        encoding="utf-8",
+    )
+    policy_path = tmp_path / "money_management_m61.yaml"
+    policy_path.write_text(
+        "policy_version: m61_rebalance_policy\n"
+        f"shariah_universe_path: {universe_path}\n"
+        "sleeves:\n"
+        "  - sleeve_id: core_shariah\n"
+        "    name: Core\n"
+        "    target_weight_pct: 40.0\n"
+        "    role: Core sleeve\n"
+        "  - sleeve_id: active_strategy\n"
+        "    name: Active\n"
+        "    target_weight_pct: 35.0\n"
+        "    role: Active sleeve\n"
+        "  - sleeve_id: diversifying_strategy\n"
+        "    name: Diversifying\n"
+        "    target_weight_pct: 15.0\n"
+        "    role: Diversifying sleeve\n"
+        "  - sleeve_id: experimental_models\n"
+        "    name: Experimental\n"
+        "    target_weight_pct: 5.0\n"
+        "    role: Experimental sleeve\n"
+        "  - sleeve_id: cash_buffer\n"
+        "    name: Cash\n"
+        "    target_weight_pct: 5.0\n"
+        "    role: Cash buffer\n"
+        "strategy_mappings:\n"
+        "  - strategy_name: core_shariah_basket_v1\n"
+        "    sleeve_id: core_shariah\n"
+        "  - strategy_name: moving_average_crossover_v1\n"
+        "    sleeve_id: active_strategy\n"
+        "limits:\n"
+        "  max_stock_pct_nav: 20.0\n"
+        "  max_stock_hard_cap_pct_nav: 20.0\n"
+        "  max_sector_pct_nav: 60.0\n"
+        "  max_graph_cluster_pct_nav: 60.0\n"
+        "  max_open_positions: 20\n"
+        "trade_risk:\n"
+        "  normal_trade_risk_pct_nav: 5.00\n"
+        "  strong_trade_risk_pct_nav: 7.50\n"
+        "  max_single_trade_risk_pct_nav: 8.00\n"
+        "  max_total_open_trade_risk_pct_nav: 25.00\n"
+        "allocation_scoring:\n"
+        "  weights:\n"
+        "    strategy_score: 0.30\n"
+        "    trader_confidence: 0.25\n"
+        "    liquidity: 0.15\n"
+        "    volatility: 0.15\n"
+        "    diversification: 0.10\n"
+        "    recent_sleeve_performance: 0.05\n"
+        "  score_bands:\n"
+        "    reject_below: 60.0\n"
+        "    half_normal_below: 75.0\n"
+        "    normal_below: 85.0\n"
+        "rebalance:\n"
+        "  sleeve_drift_threshold_pct: 10.0\n"
+        "  min_rebalance_notional_inr: 1000\n"
+        "  min_trade_drift_pct_nav: 0.25\n"
+        "  score_below_exit_threshold: -0.20\n"
+        "  score_below_trim_threshold: 0.00\n"
+        "  over_hard_cap_trim_enabled: true\n"
+        "  stale_unmapped_exit_enabled: true\n"
+        "  review_frequency: daily_after_close\n"
+        "  core_rebalance_frequency: monthly\n"
+        "rebalance_capacity:\n"
+        "  hard_cash_reserve_pct_nav: 5.0\n"
+        "  same_run_proceeds_haircut_pct: 80.0\n"
+        "  buy_price_buffer_pct: 5.0\n"
+        "  soft_borrowing_enabled: true\n"
+        "  borrowable_sleeve_ids:\n"
+        "    - diversifying_strategy\n"
+        "    - experimental_models\n"
+        "    - core_shariah\n"
+        "  borrower_sleeve_ids:\n"
+        "    - active_strategy\n"
+        "  max_borrowed_capacity_pct_nav: 30.0\n"
+        "  max_borrowed_capacity_inr:\n"
+        "  repay_priority_sleeve_ids:\n"
+        "    - core_shariah\n"
+        "    - diversifying_strategy\n"
+        "    - experimental_models\n",
         encoding="utf-8",
     )
     return policy_path

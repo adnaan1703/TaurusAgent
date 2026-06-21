@@ -158,6 +158,148 @@ const allocationDecision = {
   binding_constraint: "cash_buffer",
 };
 
+const portfolioPlan = {
+  available: true,
+  plan_id: "plan-m61",
+  run_id: "pr-test",
+  portfolio_id: "local-paper",
+  policy_version: "m61_rebalance_policy",
+  model_version: "portfolio_rebalance_plan_v3",
+  current_nav_inr: 1000000,
+  current_cash_inr: 970000,
+  hard_cash_reserve_pct_nav: 5,
+  hard_cash_reserve_inr: 50000,
+  spendable_cash_after_reserve_inr: 920000,
+  same_run_sell_proceeds_net_inr: 120000,
+  same_run_sell_proceeds_spendable_inr: 96000,
+  same_run_sell_proceeds_safety_reserve_inr: 24000,
+  same_run_sell_proceeds_haircut_pct: 80,
+  buy_price_buffer_pct: 5,
+  cash_budget: [
+    {
+      row_id: "hard_cash_reserve",
+      label: "Hard cash reserve",
+      amount_inr: 50000,
+      spendable: false,
+      description: "Protected 5% NAV cash buffer.",
+    },
+    {
+      row_id: "spendable_same_run_proceeds",
+      label: "Spendable same-run proceeds",
+      amount_inr: 96000,
+      spendable: true,
+      description: "80% of same-run sell proceeds can fund BUY orders.",
+    },
+  ],
+  sleeve_budgets: [
+    {
+      sleeve_id: "active_strategy",
+      sleeve_name: "Active Strategy",
+      target_pct_nav: 35,
+      current_pct_nav: 4,
+      idle_capacity_inr: 120000,
+      protected_capacity_inr: 0,
+      borrowable_capacity_inr: 0,
+      borrowed_capacity_inr: 60000,
+      borrowed_by_sleeve_id: null,
+      projected_pct_nav: 15,
+    },
+    {
+      sleeve_id: "core_shariah",
+      sleeve_name: "Core Shariah",
+      target_pct_nav: 40,
+      current_pct_nav: 16,
+      idle_capacity_inr: 180000,
+      protected_capacity_inr: 0,
+      borrowable_capacity_inr: 80000,
+      borrowed_capacity_inr: 0,
+      borrowed_by_sleeve_id: "active_strategy",
+      projected_pct_nav: 22,
+    },
+    {
+      sleeve_id: "cash_buffer",
+      sleeve_name: "Cash Buffer",
+      target_pct_nav: 5,
+      current_pct_nav: 97,
+      idle_capacity_inr: 0,
+      protected_capacity_inr: 50000,
+      borrowable_capacity_inr: 0,
+      borrowed_capacity_inr: 0,
+      borrowed_by_sleeve_id: null,
+      projected_pct_nav: 5,
+    },
+  ],
+  candidates: [
+    {
+      candidate_id: "candidate-infy",
+      symbol: "INFY",
+      action: "BUY",
+      source: "trader_proposal",
+      sleeve_id: "active_strategy",
+      strategy_rank: 1,
+      raw_strategy_score: "0.1800",
+      allocation_score_component: 91.5,
+      target_position_pct_nav: 20,
+      decision_status: "eligible",
+      rejection_reasons: [],
+    },
+    {
+      candidate_id: "candidate-lt",
+      symbol: "LT",
+      action: "BUY",
+      source: "core_shariah_basket_v1",
+      sleeve_id: "core_shariah",
+      strategy_rank: 4,
+      raw_strategy_score: "0.0350",
+      allocation_score_component: 75,
+      target_position_pct_nav: 10,
+      decision_status: "eligible",
+      rejection_reasons: [],
+    },
+    {
+      candidate_id: "candidate-tcs",
+      symbol: "TCS",
+      action: "EXIT",
+      source: "threshold_exit",
+      sleeve_id: "active_strategy",
+      strategy_rank: 5,
+      raw_strategy_score: "-0.2500",
+      allocation_score_component: 0,
+      target_position_pct_nav: 0,
+      decision_status: "threshold_exit",
+      rejection_reasons: ["strategy_score_below_exit_threshold"],
+    },
+  ],
+  planned_trades: [
+    {
+      trade_id: "trade-exit-tcs",
+      symbol: "TCS",
+      side: "SELL",
+      action: "EXIT",
+      source: "threshold_exit",
+      rank: 1,
+      target_pct_nav: 0,
+      delta_pct_nav: -12,
+      estimated_notional_inr: 120000,
+      estimated_quantity: 60,
+      status: "planned",
+    },
+    {
+      trade_id: "trade-core-lt",
+      symbol: "LT",
+      side: "BUY",
+      action: "BUY",
+      source: "core_shariah_basket_v1",
+      rank: 4,
+      target_pct_nav: 10,
+      delta_pct_nav: 10,
+      estimated_notional_inr: 100000,
+      estimated_quantity: 20,
+      status: "planned",
+    },
+  ],
+};
+
 const allocation = {
   enabled: true,
   config_path: "configs/portfolio/money_management_v1.yaml",
@@ -225,6 +367,7 @@ const allocation = {
     ],
     latest_decision_governor_reasons: [],
   },
+  portfolio_plan: portfolioPlan,
   core_basket: {
     available: true,
     run_id: "pr-test",
@@ -603,6 +746,12 @@ describe("M16.4 screen states", () => {
     expect(screen.getByText("3 analyzed / 3 ranked")).toBeInTheDocument();
     expect(screen.getByText("not_selected_by_run_allocation:open_positions")).toBeInTheDocument();
     expect(screen.getByText("allocation_rejected_by_run_allocation:strategy_unmapped")).toBeInTheDocument();
+    expect(screen.getByText("Portfolio Plan")).toBeInTheDocument();
+    expect(screen.getByText("m61_rebalance_policy")).toBeInTheDocument();
+    expect(screen.getByText("Spendable same-run proceeds")).toBeInTheDocument();
+    expect(screen.getAllByText("Borrowed by").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("threshold_exit").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("core_shariah_basket_v1").length).toBeGreaterThan(0);
   });
 
   it("renders the run-detail selection ledger empty state for legacy runs", async () => {
@@ -646,7 +795,10 @@ describe("M16.4 screen states", () => {
 
     expect(await screen.findByText("Latest Account")).toBeInTheDocument();
     expect(screen.getByText("Core Basket Composition")).toBeInTheDocument();
-    expect(screen.getByText("TCS")).toBeInTheDocument();
+    expect(screen.getByText("Portfolio Plan")).toBeInTheDocument();
+    expect(screen.getByText("Spendable same-run proceeds")).toBeInTheDocument();
+    expect(screen.getByText("Core Shariah")).toBeInTheDocument();
+    expect(screen.getAllByText("TCS").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Positions").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Orders").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Fills").length).toBeGreaterThan(0);
