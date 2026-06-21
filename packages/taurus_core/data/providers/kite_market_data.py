@@ -96,7 +96,8 @@ class KiteMarketDataProvider:
         self.retry_delay_seconds = retry_delay_seconds
         self.quote_chunk_size = quote_chunk_size
         self._client = client or _build_kite_client(settings)
-        self._instrument_master: list[dict[str, Any]] | None = None
+        self._instrument_masters: dict[str, list[dict[str, Any]]] = {}
+        self._instrument_indexes: dict[str, dict[tuple[str, str], dict[str, Any]]] = {}
         self._resolved: dict[str, ResolvedKiteInstrument] | None = None
 
     @property
@@ -219,13 +220,6 @@ class KiteMarketDataProvider:
         if self._resolved is not None:
             return self._resolved
 
-        index = {
-            (
-                str(row.get("exchange") or "").upper(),
-                str(row.get("tradingsymbol") or "").upper(),
-            ): row
-            for row in self._load_instrument_master()
-        }
         resolved: dict[str, ResolvedKiteInstrument] = {}
         missing: list[str] = []
         for entry in self.universe.symbols:
@@ -234,7 +228,7 @@ class KiteMarketDataProvider:
                 or self.settings.taurus_kite_exchange
             ).upper()
             tradingsymbol = entry.provider_value("kite", "tradingsymbol", entry.symbol) or entry.symbol
-            record = index.get((exchange, tradingsymbol.upper()))
+            record = self._load_instrument_index(exchange).get((exchange, tradingsymbol.upper()))
             if record is None:
                 missing.append(f"{entry.symbol} ({exchange}:{tradingsymbol})")
                 continue
@@ -253,15 +247,26 @@ class KiteMarketDataProvider:
         self._resolved = resolved
         return resolved
 
-    def _load_instrument_master(self) -> list[dict[str, Any]]:
-        if self._instrument_master is None:
-            exchange = self.settings.taurus_kite_exchange.upper()
-            self._instrument_master = self._call_with_retries(
+    def _load_instrument_master(self, exchange: str) -> list[dict[str, Any]]:
+        exchange = exchange.upper()
+        if exchange not in self._instrument_masters:
+            self._instrument_masters[exchange] = self._call_with_retries(
                 lambda: self._client.instruments(exchange),
                 action=f"fetch Kite instrument master for {exchange}",
             )
             self._pace_request()
-        return self._instrument_master
+        return self._instrument_masters[exchange]
+
+    def _load_instrument_index(self, exchange: str) -> dict[tuple[str, str], dict[str, Any]]:
+        if exchange not in self._instrument_indexes:
+            self._instrument_indexes[exchange] = {
+                (
+                    str(row.get("exchange") or "").upper(),
+                    str(row.get("tradingsymbol") or "").upper(),
+                ): row
+                for row in self._load_instrument_master(exchange)
+            }
+        return self._instrument_indexes[exchange]
 
     def _call_with_retries(self, operation: Callable[[], Any], *, action: str) -> Any:
         attempts = max(self.max_retries, 0) + 1

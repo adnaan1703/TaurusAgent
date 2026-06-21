@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -22,16 +23,16 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 def test_paper_loop_kite_profile_enables_full_universe_allocated_execution() -> None:
     output = _make_dry_run("paper-loop-kite")
 
-    assert "TAURUS_MARKET_DATA_PROVIDER=kite" in output
-    assert "TAURUS_ENABLED_ANALYSTS=technical,graph" in output
-    assert "TAURUS_GRAPH_ENABLED=true" in output
-    assert "TAURUS_GRAPH_RISK_ENABLED=true" in output
-    assert "TAURUS_PAPER_ANALYSIS_SCOPE=full_universe" in output
-    assert "TAURUS_PAPER_EXECUTION_SCOPE=allocated_only" in output
+    assert 'TAURUS_MARKET_DATA_PROVIDER="kite"' in output
+    assert 'TAURUS_ENABLED_ANALYSTS="technical,graph"' in output
+    assert 'TAURUS_GRAPH_ENABLED="true"' in output
+    assert 'TAURUS_GRAPH_RISK_ENABLED="true"' in output
+    assert 'TAURUS_PAPER_ANALYSIS_SCOPE="full_universe"' in output
+    assert 'TAURUS_PAPER_EXECUTION_SCOPE="allocated_only"' in output
     assert 'TAURUS_PROFILE_ID="local-paper"' in output
     assert 'TAURUS_LOG_LEVEL="WARNING"' in output
     assert 'TAURUS_PAPER_LOOP_JSON="false"' in output
-    assert "STRATEGY=configs/strategies/graph_aware_score_v1.yaml" in output
+    assert 'STRATEGY="configs/strategies/graph_aware_score_v1.yaml"' in output
     assert 'SYMBOL=""' in output
     assert 'SYMBOLS=""' in output
 
@@ -52,6 +53,84 @@ def test_paper_loop_kite_profile_allows_log_level_override() -> None:
     output = _make_dry_run("paper-loop-kite", "PAPER_LOOP_KITE_LOG_LEVEL=INFO")
 
     assert 'TAURUS_LOG_LEVEL="INFO"' in output
+
+
+def test_paper_loop_kite_profile_uses_makefile_fallback_without_dotenv(
+    tmp_path: Path,
+) -> None:
+    output = _make_dry_run("paper-loop-kite", cwd=tmp_path)
+
+    assert (
+        'TAURUS_TARGET_MARKET_UNIVERSE_PATH="configs/market_data/nifty_500_shariah.yaml"'
+        in output
+    )
+    assert 'TAURUS_GRAPH_ENABLED="true"' in output
+    assert 'TAURUS_ENABLED_ANALYSTS="technical,graph"' in output
+
+
+def test_paper_loop_kite_profile_prefers_dotenv_over_makefile_fallback(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / ".env").write_text(
+        "\n".join(
+            [
+                "TAURUS_TARGET_MARKET_UNIVERSE_PATH=configs/market_data/nifty_50_shariah.yaml",
+                "TAURUS_GRAPH_ENABLED=false",
+                "TAURUS_ENABLED_ANALYSTS=technical",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    output = _make_dry_run("paper-loop-kite", cwd=tmp_path)
+
+    assert (
+        'TAURUS_TARGET_MARKET_UNIVERSE_PATH="configs/market_data/nifty_50_shariah.yaml"'
+        in output
+    )
+    assert 'TAURUS_GRAPH_ENABLED="false"' in output
+    assert 'TAURUS_ENABLED_ANALYSTS="technical"' in output
+
+
+def test_paper_loop_kite_profile_prefers_command_line_over_dotenv(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / ".env").write_text(
+        "TAURUS_TARGET_MARKET_UNIVERSE_PATH=configs/market_data/nifty_50_shariah.yaml\n",
+        encoding="utf-8",
+    )
+
+    output = _make_dry_run(
+        "paper-loop-kite",
+        "TAURUS_TARGET_MARKET_UNIVERSE_PATH=configs/market_data/custom.yaml",
+        cwd=tmp_path,
+    )
+
+    assert (
+        'TAURUS_TARGET_MARKET_UNIVERSE_PATH="configs/market_data/custom.yaml"'
+        in output
+    )
+
+
+def test_paper_loop_kite_profile_prefers_shell_env_over_dotenv(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / ".env").write_text(
+        "TAURUS_TARGET_MARKET_UNIVERSE_PATH=configs/market_data/nifty_50_shariah.yaml\n",
+        encoding="utf-8",
+    )
+    env = {
+        **os.environ,
+        "TAURUS_TARGET_MARKET_UNIVERSE_PATH": "configs/market_data/shell.yaml",
+    }
+
+    output = _make_dry_run("paper-loop-kite", cwd=tmp_path, env=env)
+
+    assert (
+        'TAURUS_TARGET_MARKET_UNIVERSE_PATH="configs/market_data/shell.yaml"'
+        in output
+    )
 
 
 def test_paper_loop_json_flag_defaults_on_and_accepts_false_values() -> None:
@@ -202,7 +281,7 @@ def test_paper_loop_kite_profile_passes_manual_symbols_without_universe_expansio
 
     assert 'SYMBOL=""' in output
     assert 'SYMBOLS="INFY,TCS"' in output
-    assert "TAURUS_PAPER_ANALYSIS_SCOPE=full_universe" in output
+    assert 'TAURUS_PAPER_ANALYSIS_SCOPE="full_universe"' in output
 
 
 def test_full_universe_manual_env_resolution_stays_explicit(
@@ -301,10 +380,15 @@ def test_full_universe_default_env_resolution_uses_market_data_universe(
     assert resolved.universe.available_symbol_count >= len(resolved.symbols)
 
 
-def _make_dry_run(*args: str) -> str:
+def _make_dry_run(
+    *args: str,
+    cwd: Path = PROJECT_ROOT,
+    env: dict[str, str] | None = None,
+) -> str:
     result = subprocess.run(
-        ["make", "-n", *args],
-        cwd=PROJECT_ROOT,
+        ["make", "-f", str(PROJECT_ROOT / "Makefile"), "-n", *args],
+        cwd=cwd,
+        env=env,
         capture_output=True,
         check=True,
         text=True,

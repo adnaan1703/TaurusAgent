@@ -321,8 +321,10 @@ make paper-loop-kite
 ```
 
 The canonical loop is Shariah-only when `SYMBOL` and `SYMBOLS` are omitted,
-because it analyzes `TAURUS_MARKET_DATA_UNIVERSE_PATH`, which defaults to
-`configs/market_data/nifty_500_shariah.yaml`. It now performs full-universe
+because it analyzes the configured market-data universe. `make paper-loop-kite`
+resolves runtime values from explicit shell or `make VAR=value` overrides first,
+`.env` second, and Makefile defaults last; the Makefile fallback target universe
+is `configs/market_data/nifty_500_shariah.yaml`. It now performs full-universe
 analysis, run-level allocation, risk/final decisions for analyzed symbols, and
 deferred execution routing for allocated, risk-approved paper decisions. Before
 that analysis begins, it imports fresh daily candles and settles any previous

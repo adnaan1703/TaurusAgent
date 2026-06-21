@@ -193,6 +193,13 @@ make paper-loop-dashboard
 make position-monitor POSITION_MONITOR_ENABLED=true POSITION_MONITOR_ITERATIONS=1
 ```
 
+For `make paper-loop-kite`, runtime environment values are resolved in this
+order: explicit shell or `make VAR=value` overrides first, values from `.env`
+second, and Makefile defaults last. For example,
+`make paper-loop-kite TAURUS_TARGET_MARKET_UNIVERSE_PATH=configs/market_data/nifty_50_shariah.yaml`
+overrides `.env`, while a plain `make paper-loop-kite` respects the `.env`
+value before falling back to `configs/market_data/nifty_500_shariah.yaml`.
+
 Manual EOD paper loop commands, including `make paper-loop-kite`, first import
 the latest daily candles, settle any previous `PENDING_NEXT_OPEN` orders at the
 first imported candle open after each order's signal trade date, and then run
