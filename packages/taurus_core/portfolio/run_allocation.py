@@ -15,11 +15,18 @@ from taurus_core.portfolio.active_allocation import (
     PortfolioAllocationService,
     SleeveAllocationSnapshot,
 )
+from taurus_core.portfolio.core_shariah_basket import CORE_SLEEVE_ID, CORE_STRATEGY_NAME
 from taurus_core.portfolio.money_management import MoneyManagementPolicy
+from taurus_core.portfolio.rebalance_plan import (
+    PortfolioPlanCandidate,
+    PortfolioPlanTrade,
+    PortfolioRebalancePlan,
+)
 from taurus_core.portfolio.score_semantics import calibrate_strategy_score
 from taurus_core.research.schemas import TraderProposal
 
 RUN_ALLOCATION_MODEL_VERSION = "run_level_dynamic_allocation_v1"
+PORTFOLIO_PLAN_ALLOCATION_MODEL_VERSION = "portfolio_plan_buy_allocation_v1"
 MONEY_QUANT = Decimal("0.01")
 SCORE_QUANT = Decimal("0.0001")
 UNLIMITED_ROOM = Decimal("999999999999.99")
@@ -92,6 +99,14 @@ class AllocationLedgerEntry:
     approved_notional_inr: Decimal
     approved_quantity: int
     binding_constraint: str | None
+    portfolio_plan_id: str | None = None
+    portfolio_plan_trade_id: str | None = None
+    planner_candidate_id: str | None = None
+    planner_source: str | None = None
+    planner_rank: int | None = None
+    capacity_source: str | None = None
+    borrowed_from_sleeve_ids: tuple[str, ...] = ()
+    proposal_source: str | None = None
     rationale: tuple[str, ...] = ()
 
     def to_dict(self) -> dict[str, object]:
@@ -113,6 +128,14 @@ class AllocationLedgerEntry:
                 "approved_notional_inr": self.approved_notional_inr,
                 "approved_quantity": self.approved_quantity,
                 "binding_constraint": self.binding_constraint,
+                "portfolio_plan_id": self.portfolio_plan_id,
+                "portfolio_plan_trade_id": self.portfolio_plan_trade_id,
+                "planner_candidate_id": self.planner_candidate_id,
+                "planner_source": self.planner_source,
+                "planner_rank": self.planner_rank,
+                "capacity_source": self.capacity_source,
+                "borrowed_from_sleeve_ids": self.borrowed_from_sleeve_ids,
+                "proposal_source": self.proposal_source,
                 "rationale": list(self.rationale),
             }
         )
@@ -138,6 +161,13 @@ class RunAllocationResult:
             "binding_constraints": dict(self.binding_constraints),
             "ledger": [entry.to_dict() for entry in self.ledger],
         }
+
+
+@dataclass(frozen=True, slots=True)
+class _PlannerBuyCandidate:
+    proposal: TraderProposal
+    candidate: PortfolioPlanCandidate
+    trade: PortfolioPlanTrade
 
 
 class RunLevelAllocationService:
@@ -324,6 +354,123 @@ class RunLevelAllocationService:
         )
 
 
+class PortfolioPlanAllocationService:
+    """Executable BUY allocator driven by the persisted portfolio plan."""
+
+    model_version = PORTFOLIO_PLAN_ALLOCATION_MODEL_VERSION
+
+    def allocate(
+        self,
+        allocation_input: RunAllocationInput,
+        *,
+        portfolio_plan: PortfolioRebalancePlan,
+    ) -> RunAllocationResult:
+        if allocation_input.money_management_policy is None:
+            return RunLevelAllocationService().allocate(allocation_input)
+
+        policy = allocation_input.money_management_policy
+        service = PortfolioAllocationService(policy)
+        simulated_positions = tuple(allocation_input.current_positions)
+        simulated_sleeves = tuple(allocation_input.sleeve_snapshots)
+        available_cash = allocation_input.available_cash_inr
+        proposals: list[TraderProposal] = []
+        ledger: list[AllocationLedgerEntry] = []
+
+        for proposal in sorted(allocation_input.proposals, key=_proposal_sort_key):
+            if proposal.action == "BUY":
+                continue
+            allocated = service.allocate(
+                _active_input_for(
+                    allocation_input,
+                    proposal=proposal,
+                    available_cash=available_cash,
+                    current_positions=simulated_positions,
+                    sleeve_snapshots=simulated_sleeves,
+                )
+            )
+            status = _lifecycle_status(proposal)
+            updated = _with_run_status(
+                allocated,
+                status=status,
+                summary_suffix="Portfolio-plan allocation preserved lifecycle handling.",
+                allocation_model_version=self.model_version,
+            )
+            proposals.append(updated)
+            ledger.append(_ledger_entry(allocation_input, updated, status=status))
+
+        buy_candidates = _planner_buy_candidates(
+            allocation_input,
+            portfolio_plan=portfolio_plan,
+        )
+        sortable: list[tuple[tuple[Decimal, int, int, Decimal, str, str], _PlannerBuyCandidate]] = []
+        for item in buy_candidates:
+            score_input = _active_input_for_plan_candidate(
+                allocation_input,
+                item=item,
+                portfolio_plan=portfolio_plan,
+                available_cash=available_cash,
+                current_positions=simulated_positions,
+                sleeve_snapshots=simulated_sleeves,
+            )
+            candidate_score, _score_parts = service.candidate_score(score_input)
+            sortable.append((_planner_sort_key(item, candidate_score), item))
+
+        for _sort_key, item in sorted(sortable, key=lambda row: row[0]):
+            allocated = service.allocate(
+                _active_input_for_plan_candidate(
+                    allocation_input,
+                    item=item,
+                    portfolio_plan=portfolio_plan,
+                    available_cash=available_cash,
+                    current_positions=simulated_positions,
+                    sleeve_snapshots=simulated_sleeves,
+                )
+            )
+            allocated = _with_plan_linkage(
+                allocated,
+                portfolio_plan=portfolio_plan,
+                candidate=item.candidate,
+                trade=item.trade,
+            )
+            decision = _require_decision(allocated)
+            status = _money_management_buy_status(decision)
+            updated = _with_run_status(
+                allocated,
+                status=status,
+                summary_suffix=_portfolio_plan_summary_suffix(status, decision),
+                allocation_model_version=self.model_version,
+            )
+            proposals.append(updated)
+            ledger.append(_ledger_entry(allocation_input, updated, status=status))
+
+            if status in SELECTED_LEDGER_STATUSES and decision.approved_quantity > 0:
+                available_cash = max(
+                    Decimal("0"),
+                    available_cash - decision.approved_notional_inr,
+                ).quantize(MONEY_QUANT)
+                opened_new_position = item.proposal.current_position_quantity <= 0
+                simulated_positions = _positions_with_pending_allocation(
+                    simulated_positions,
+                    symbol=item.proposal.symbol,
+                    quantity=decision.approved_quantity,
+                    notional=decision.approved_notional_inr,
+                )
+                simulated_sleeves = _sleeves_with_pending_allocation(
+                    simulated_sleeves,
+                    sleeve_id=decision.sleeve_id,
+                    notional=decision.approved_notional_inr,
+                    risk=decision.estimated_risk_inr,
+                    opened_new_position=opened_new_position,
+                )
+
+        return _result(
+            proposals=tuple(sorted(proposals, key=_proposal_sort_key)),
+            ledger=tuple(sorted(ledger, key=lambda entry: entry.symbol)),
+            policy_source="portfolio_plan",
+            model_version=self.model_version,
+        )
+
+
 def _active_input_for(
     allocation_input: RunAllocationInput,
     *,
@@ -351,6 +498,303 @@ def _active_input_for(
         sector_by_symbol=dict(allocation_input.sector_by_symbol),
         graph_cluster_by_symbol=dict(allocation_input.graph_cluster_by_symbol),
     )
+
+
+def _active_input_for_plan_candidate(
+    allocation_input: RunAllocationInput,
+    *,
+    item: _PlannerBuyCandidate,
+    portfolio_plan: PortfolioRebalancePlan,
+    available_cash: Decimal,
+    current_positions: tuple[ActiveAllocationPosition, ...],
+    sleeve_snapshots: tuple[SleeveAllocationSnapshot, ...],
+) -> ActiveAllocationInput:
+    candidate = item.candidate
+    return ActiveAllocationInput(
+        proposal=item.proposal.model_copy(update={"allocation_decision": None}),
+        strategy_name=candidate.strategy_name or allocation_input.strategy_name,
+        nav_inr=allocation_input.nav_inr,
+        available_cash_inr=available_cash,
+        portfolio_starting_nav_estimate_inr=(
+            allocation_input.portfolio_starting_nav_estimate_inr
+        ),
+        current_positions=current_positions,
+        sleeve_snapshots=sleeve_snapshots,
+        core_basket_symbols=allocation_input.core_basket_symbols,
+        history=tuple(
+            allocation_input.histories_by_symbol.get(candidate.symbol.upper(), tuple())
+        ),
+        strategy_score=(
+            candidate.raw_strategy_score
+            if candidate.source == CORE_STRATEGY_NAME
+            else _strategy_score(allocation_input, candidate.symbol)
+        ),
+        strategy_rank=candidate.strategy_rank,
+        strategy_score_component_override=(
+            candidate.allocation_score_component
+            if candidate.source == CORE_STRATEGY_NAME
+            else None
+        ),
+        buy_price_buffer_pct=portfolio_plan.buy_price_buffer_pct,
+        sleeve_capacity_overrides_inr=_sleeve_capacity_overrides(portfolio_plan),
+        sector_by_symbol=dict(allocation_input.sector_by_symbol),
+        graph_cluster_by_symbol=dict(allocation_input.graph_cluster_by_symbol),
+    )
+
+
+def _planner_buy_candidates(
+    allocation_input: RunAllocationInput,
+    *,
+    portfolio_plan: PortfolioRebalancePlan,
+) -> tuple[_PlannerBuyCandidate, ...]:
+    proposals_by_symbol = {
+        proposal.symbol.upper(): proposal
+        for proposal in allocation_input.proposals
+    }
+    candidates_by_proposal_id = {
+        candidate.proposal_id: candidate
+        for candidate in portfolio_plan.candidates
+        if candidate.proposal_id
+    }
+    core_candidates_by_symbol = {
+        candidate.symbol.upper(): candidate
+        for candidate in portfolio_plan.candidates
+        if candidate.source == CORE_STRATEGY_NAME
+    }
+    rows: list[_PlannerBuyCandidate] = []
+    routed_symbols: set[str] = set()
+    for trade in sorted(
+        portfolio_plan.planned_trades,
+        key=lambda row: (
+            row.rank if row.rank is not None else 1_000_000,
+            row.source,
+            row.symbol,
+            row.trade_id,
+        ),
+    ):
+        symbol = trade.symbol.upper()
+        if symbol in routed_symbols:
+            continue
+        if trade.side != "BUY" or trade.status in {"missing_price", "no_trade"}:
+            continue
+        candidate = (
+            candidates_by_proposal_id.get(trade.proposal_id)
+            if trade.proposal_id
+            else core_candidates_by_symbol.get(symbol)
+        )
+        if candidate is None or candidate.action != "BUY":
+            continue
+        existing = proposals_by_symbol.get(symbol)
+        if existing is not None:
+            if candidate.source == CORE_STRATEGY_NAME and candidate.proposal_id is None:
+                if existing.action != "BUY":
+                    routed_symbols.add(symbol)
+                continue
+            if existing.action != "BUY":
+                routed_symbols.add(symbol)
+                continue
+            rows.append(
+                _PlannerBuyCandidate(
+                    proposal=existing,
+                    candidate=candidate,
+                    trade=trade,
+                )
+            )
+            routed_symbols.add(symbol)
+            continue
+        if candidate.source != CORE_STRATEGY_NAME:
+            continue
+        rows.append(
+            _PlannerBuyCandidate(
+                proposal=_core_generated_proposal(
+                    allocation_input,
+                    portfolio_plan=portfolio_plan,
+                    candidate=candidate,
+                    trade=trade,
+                ),
+                candidate=candidate,
+                trade=trade,
+            )
+        )
+        routed_symbols.add(symbol)
+    return tuple(rows)
+
+
+def _core_generated_proposal(
+    allocation_input: RunAllocationInput,
+    *,
+    portfolio_plan: PortfolioRebalancePlan,
+    candidate: PortfolioPlanCandidate,
+    trade: PortfolioPlanTrade,
+) -> TraderProposal:
+    symbol = candidate.symbol.upper()
+    source_ids = [portfolio_plan.plan_id, trade.trade_id]
+    return TraderProposal(
+        proposal_id=f"tp-core-{portfolio_plan.run_id}-{symbol.lower()}",
+        run_id=portfolio_plan.run_id,
+        portfolio_id=portfolio_plan.portfolio_id,
+        symbol=symbol,
+        debate_id=f"deb-core-{portfolio_plan.run_id}-{symbol.lower()}",
+        as_of=portfolio_plan.as_of,
+        action="BUY",
+        confidence=candidate.confidence,
+        horizon="medium",
+        requested_position_pct_nav=candidate.target_position_pct_nav,
+        current_position_quantity=_current_position_quantity(allocation_input, symbol),
+        current_position_pct_nav=candidate.current_position_pct_nav,
+        target_position_pct_nav=candidate.target_position_pct_nav,
+        lifecycle_trigger="portfolio_rebalance",
+        evaluation_mode="after_close",
+        latest_price_inr=candidate.latest_price_inr,
+        order_type="MARKET",
+        entry_rule=(
+            "portfolio_rebalance: core Shariah basket BUY generated by the "
+            "portfolio plan."
+        ),
+        stop_loss_pct=Decimal("6.0000"),
+        take_profit_pct=Decimal("12.0000"),
+        reason_summary=(
+            "Portfolio rebalance planner generated an executable core Shariah BUY "
+            f"candidate from {trade.trade_id}."
+        ),
+        invalid_if=[
+            "Portfolio plan is superseded before risk review.",
+            "Risk review or final approval rejects the core BUY.",
+        ],
+        position_management_summary=(
+            "Portfolio-plan core candidate generated for paper-only risk, final, "
+            "and next-open routing."
+        ),
+        source_report_ids=source_ids,
+        is_order=False,
+        requires_risk_approval=True,
+        target_sizing_metadata={
+            "proposal_source": "portfolio_plan_core",
+            "portfolio_plan_id": portfolio_plan.plan_id,
+            "portfolio_plan_trade_id": trade.trade_id,
+            "planner_candidate_id": candidate.candidate_id,
+            "planner_source": candidate.source,
+            "planner_rank": trade.rank,
+            "sleeve_id": candidate.sleeve_id,
+            "score_evidence": candidate.score_evidence,
+        },
+        model_version="portfolio_rebalance_core_proposal_v1",
+    )
+
+
+def _with_plan_linkage(
+    proposal: TraderProposal,
+    *,
+    portfolio_plan: PortfolioRebalancePlan,
+    candidate: PortfolioPlanCandidate,
+    trade: PortfolioPlanTrade,
+) -> TraderProposal:
+    decision = _require_decision(proposal)
+    capacity_source, borrowed_from = _capacity_metadata_for_trade(
+        portfolio_plan,
+        trade=trade,
+    )
+    proposal_source = (
+        "portfolio_plan_core"
+        if candidate.source == CORE_STRATEGY_NAME and candidate.proposal_id is None
+        else "trader_proposal"
+    )
+    linked_decision = decision.model_copy(
+        update={
+            "portfolio_plan_id": portfolio_plan.plan_id,
+            "portfolio_plan_trade_id": trade.trade_id,
+            "planner_candidate_id": candidate.candidate_id,
+            "planner_source": candidate.source,
+            "planner_rank": trade.rank,
+            "capacity_source": capacity_source,
+            "borrowed_from_sleeve_ids": borrowed_from,
+            "proposal_source": proposal_source,
+            "rationale": (
+                *decision.rationale,
+                f"Portfolio plan {portfolio_plan.plan_id} selected trade {trade.trade_id}.",
+                f"Planner source {candidate.source}; planner rank {trade.rank}.",
+                f"Capacity source {capacity_source}.",
+            ),
+        }
+    )
+    metadata = dict(proposal.target_sizing_metadata)
+    metadata.update(
+        {
+            "proposal_source": proposal_source,
+            "portfolio_plan_id": portfolio_plan.plan_id,
+            "portfolio_plan_trade_id": trade.trade_id,
+            "planner_candidate_id": candidate.candidate_id,
+            "planner_source": candidate.source,
+            "planner_rank": trade.rank,
+            "capacity_source": capacity_source,
+            "borrowed_from_sleeve_ids": list(borrowed_from),
+        }
+    )
+    return proposal.model_copy(
+        update={
+            "allocation_decision": linked_decision,
+            "target_sizing_metadata": metadata,
+        }
+    )
+
+
+def _planner_sort_key(
+    item: _PlannerBuyCandidate,
+    candidate_score: Decimal,
+) -> tuple[Decimal, int, int, Decimal, str, str]:
+    source_order = 0 if item.candidate.source == "trader_proposal" else 1
+    rank = item.trade.rank if item.trade.rank is not None else 1_000_000
+    return (
+        -candidate_score,
+        rank,
+        source_order,
+        -item.proposal.confidence,
+        item.proposal.symbol.upper(),
+        item.trade.trade_id,
+    )
+
+
+def _sleeve_capacity_overrides(
+    portfolio_plan: PortfolioRebalancePlan,
+) -> dict[str, Decimal]:
+    overrides: dict[str, Decimal] = {}
+    for row in portfolio_plan.sleeve_budgets:
+        target = row.target_exposure_inr
+        if row.borrowed_capacity_inr > 0:
+            target = (target + row.borrowed_capacity_inr).quantize(MONEY_QUANT)
+        overrides[row.sleeve_id] = target
+    return overrides
+
+
+def _capacity_metadata_for_trade(
+    portfolio_plan: PortfolioRebalancePlan,
+    *,
+    trade: PortfolioPlanTrade,
+) -> tuple[str, tuple[str, ...]]:
+    sleeve = next(
+        (
+            row
+            for row in portfolio_plan.sleeve_budgets
+            if row.sleeve_id == trade.sleeve_id
+        ),
+        None,
+    )
+    if sleeve is None or sleeve.borrowed_capacity_inr <= 0:
+        return "own_sleeve", tuple()
+    borrowed_from = tuple(
+        row.sleeve_id
+        for row in portfolio_plan.sleeve_budgets
+        if row.borrowed_by_sleeve_id == sleeve.sleeve_id
+    )
+    return "borrowed_sleeve_capacity", borrowed_from
+
+
+def _current_position_quantity(allocation_input: RunAllocationInput, symbol: str) -> int:
+    normalized = symbol.upper()
+    for position in allocation_input.current_positions:
+        if position.symbol.upper() == normalized:
+            return position.quantity
+    return 0
 
 
 def _money_management_buy_status(decision: AllocationDecision) -> str:
@@ -388,11 +832,15 @@ def _with_run_status(
     *,
     status: str,
     summary_suffix: str,
+    allocation_model_version: str = RUN_ALLOCATION_MODEL_VERSION,
 ) -> TraderProposal:
     decision = _require_decision(proposal).model_copy(update={"status": status})
     updates: dict[str, object] = {
         "allocation_decision": decision,
-        "model_version": _append_model_version(proposal.model_version),
+        "model_version": _append_model_version(
+            proposal.model_version,
+            allocation_model_version=allocation_model_version,
+        ),
         "position_management_summary": _append_sentence(
             proposal.position_management_summary,
             summary_suffix,
@@ -711,6 +1159,14 @@ def _ledger_entry(
         approved_notional_inr=decision.approved_notional_inr,
         approved_quantity=decision.approved_quantity,
         binding_constraint=decision.binding_constraint,
+        portfolio_plan_id=decision.portfolio_plan_id,
+        portfolio_plan_trade_id=decision.portfolio_plan_trade_id,
+        planner_candidate_id=decision.planner_candidate_id,
+        planner_source=decision.planner_source,
+        planner_rank=decision.planner_rank,
+        capacity_source=decision.capacity_source,
+        borrowed_from_sleeve_ids=decision.borrowed_from_sleeve_ids,
+        proposal_source=decision.proposal_source,
         rationale=decision.rationale,
     )
 
@@ -720,6 +1176,7 @@ def _result(
     proposals: tuple[TraderProposal, ...],
     ledger: tuple[AllocationLedgerEntry, ...],
     policy_source: str,
+    model_version: str = RUN_ALLOCATION_MODEL_VERSION,
 ) -> RunAllocationResult:
     status_counts = Counter(entry.status for entry in ledger)
     binding_counts = Counter(
@@ -742,6 +1199,7 @@ def _result(
         summary=summary,
         binding_constraints=dict(sorted(binding_counts.items())),
         policy_source=policy_source,
+        model_version=model_version,
     )
 
 
@@ -806,10 +1264,33 @@ def _summary_suffix_for_status(status: str, decision: AllocationDecision) -> str
     )
 
 
-def _append_model_version(model_version: str) -> str:
-    if RUN_ALLOCATION_MODEL_VERSION in model_version.split("+"):
+def _portfolio_plan_summary_suffix(status: str, decision: AllocationDecision) -> str:
+    if status == "selected":
+        return "Portfolio-plan allocation selected this BUY before paper finalization."
+    if status == "allocation_reduced":
+        return (
+            "Portfolio-plan allocation selected and reduced this BUY because "
+            f"{decision.binding_constraint} was binding."
+        )
+    if status == "not_selected":
+        return (
+            "Portfolio-plan allocation did not select this BUY because "
+            f"{decision.binding_constraint} was binding."
+        )
+    return (
+        "Portfolio-plan allocation rejected this BUY because "
+        f"{decision.binding_constraint} was binding."
+    )
+
+
+def _append_model_version(
+    model_version: str,
+    *,
+    allocation_model_version: str = RUN_ALLOCATION_MODEL_VERSION,
+) -> str:
+    if allocation_model_version in model_version.split("+"):
         return model_version
-    return f"{model_version}+{RUN_ALLOCATION_MODEL_VERSION}"
+    return f"{model_version}+{allocation_model_version}"
 
 
 def _append_sentence(base: str, sentence: str) -> str:

@@ -325,14 +325,15 @@ because it analyzes the configured market-data universe. `make paper-loop-kite`
 resolves runtime values from explicit shell or `make VAR=value` overrides first,
 `.env` second, and Makefile defaults last; the Makefile fallback target universe
 is `configs/market_data/nifty_500_shariah.yaml`. It now performs full-universe
-analysis, run-level allocation, risk/final decisions for analyzed symbols, and
-deferred execution routing for allocated, risk-approved paper decisions. Before
-that analysis begins, it imports fresh daily candles and settles any previous
-pending next-open orders for the portfolio, so position-aware analysis sees
-settled cash, exposure, and open quantities. Expect longer runtime and higher
-LLM/API usage than a manual subset; the terminal progress output shows where
-the run is spending time, and the post-progress LLM usage summary shows
-provider-reported token counts and throughput.
+analysis, portfolio-plan-backed BUY allocation, risk/final decisions for
+analyzed and planner-generated BUY symbols, and deferred execution routing for
+allocated, risk-approved paper decisions. Before that analysis begins, it
+imports fresh daily candles and settles any previous pending next-open orders
+for the portfolio, so position-aware analysis sees settled cash, exposure, and
+open quantities. Expect longer runtime and higher LLM/API usage than a manual
+subset; the terminal progress output shows where the run is spending time, and
+the post-progress LLM usage summary shows provider-reported token counts and
+throughput.
 
 For a manual graph-enabled subset:
 
@@ -362,6 +363,14 @@ It adds core Shariah basket review artifacts, strategy-sleeve allocation
 decisions, cash-buffer checks, open-risk usage, and drawdown-governor context.
 It still routes only through local `PaperBroker`; live broker execution remains
 disabled.
+
+With money management enabled, the portfolio plan is the default source for BUY
+allocation. Active trader BUY proposals and executable core Shariah BUY
+candidates are compared in one rank order, selected rows carry
+`portfolio_plan_id` and `portfolio_plan_trade_id`, and core BUYs can become
+deterministic `portfolio_rebalance` proposals before risk review. To compare
+against the pre-M59 allocator during troubleshooting, set
+`TAURUS_PORTFOLIO_PLAN_ALLOCATION_ENABLED=false`.
 
 There is no manual core-symbol allowlist in the money-management policy. The
 `core_shariah` sleeve defines the target allocation, `core_shariah_basket_v1`
@@ -394,8 +403,10 @@ governors, and latest core basket composition/drift. Use Risk to inspect
 allocation reductions or rejections beside risk-review rows; the
 `Binding constraint` column identifies the cap that controlled sizing, such as
 `cash_buffer`, `sleeve_capacity`, `total_open_trade_risk`,
-`portfolio_drawdown_freeze`, or `strategy_unmapped`. Use Portfolio to see
-per-position sleeve and strategy labels plus current sleeve utilization.
+`portfolio_drawdown_freeze`, or `strategy_unmapped`. Allocation rows also show
+planner source/rank and whether sizing used own-sleeve or borrowed non-cash
+capacity. Use Portfolio to see per-position sleeve and strategy labels plus
+current sleeve utilization.
 
 To inspect rejected candidates, open the latest run detail or Overview core
 basket section and read `Core Basket Composition` -> rejected candidates. The
@@ -527,7 +538,8 @@ When money management is enabled, Overview, Risk, Portfolio, and the symbol
 decision trail expose the same allocation context: sleeve utilization, core
 basket drift, cash buffer, undeployed capacity, open risk used versus limit,
 drawdown-governor state, latest allocation decisions with binding constraints,
-and per-position sleeve/strategy labels.
+portfolio-plan linkage, planner source/rank, capacity source, and per-position
+sleeve/strategy labels.
 
 Core basket membership shown in these views comes from the latest money
 management run artifact's target weights. If the runtime core basket changes,

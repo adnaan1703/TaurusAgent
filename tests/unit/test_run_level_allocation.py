@@ -10,6 +10,9 @@ from taurus_core.domain.market_data import DailyCandle
 from taurus_core.portfolio import (
     ActiveAllocationPosition,
     FallbackAllocationPolicy,
+    PortfolioPlanAllocationService,
+    PortfolioRebalancePlanInput,
+    PortfolioRebalancePlanService,
     RunAllocationInput,
     RunLevelAllocationService,
     SleeveAllocationSnapshot,
@@ -185,6 +188,234 @@ def test_open_position_lifecycle_proposal_remains_in_ledger() -> None:
     assert result.proposals[0].action == "HOLD"
 
 
+def test_portfolio_plan_allocation_ranks_active_and_core_buys_together(
+    tmp_path: Path,
+) -> None:
+    policy = load_money_management_policy(_write_policy(tmp_path, active_target_pct="50.0"))
+    active = _proposal(symbol="AAA", target_pct=Decimal("5.0000"))
+    plan = _portfolio_plan(
+        policy=policy,
+        proposals=(active,),
+        nav_inr=Decimal("100000.00"),
+        cash_inr=Decimal("5200.00"),
+        core_symbol="BBB",
+        core_target_pct=Decimal("5.0000"),
+        core_rank_score=Decimal("95.0000"),
+    )
+
+    result = PortfolioPlanAllocationService().allocate(
+        RunAllocationInput(
+            run_id=plan.run_id,
+            strategy_name="graph_aware_score_v1",
+            proposals=(active,),
+            nav_inr=plan.current_nav_inr,
+            available_cash_inr=plan.current_cash_inr,
+            sleeve_snapshots=(
+                SleeveAllocationSnapshot(
+                    sleeve_id="active_strategy",
+                    starting_nav_estimate_inr=Decimal("50000.00"),
+                ),
+                SleeveAllocationSnapshot(
+                    sleeve_id="core_shariah",
+                    starting_nav_estimate_inr=Decimal("45000.00"),
+                ),
+                SleeveAllocationSnapshot(
+                    sleeve_id="cash_buffer",
+                    starting_nav_estimate_inr=Decimal("5000.00"),
+                ),
+            ),
+            histories_by_symbol={
+                "AAA": tuple(_candles("AAA")),
+                "BBB": tuple(_candles("BBB")),
+            },
+            core_basket_symbols=("BBB",),
+            strategy_rank_by_symbol={"AAA": 1},
+            strategy_score_by_symbol={"AAA": Decimal("0.0000")},
+            money_management_policy=policy,
+        ),
+        portfolio_plan=plan,
+    )
+
+    by_symbol = {entry.symbol: entry for entry in result.ledger}
+    core = by_symbol["BBB"]
+    active_entry = by_symbol["AAA"]
+
+    assert result.model_version == "portfolio_plan_buy_allocation_v1"
+    assert result.policy_source == "portfolio_plan"
+    assert core.status in {"selected", "allocation_reduced"}
+    assert core.proposal_source == "portfolio_plan_core"
+    assert core.portfolio_plan_trade_id == "trade-core-bbb"
+    assert core.planner_source == "core_shariah_basket_v1"
+    assert active_entry.status == "not_selected"
+    assert active_entry.binding_constraint == "cash_buffer"
+
+
+def test_portfolio_plan_allocation_allows_observable_active_soft_borrowing(
+    tmp_path: Path,
+) -> None:
+    policy = load_money_management_policy(
+        _write_policy(
+            tmp_path,
+            active_target_pct="35.0",
+            rebalance_capacity=(
+                "rebalance_capacity:\n"
+                "  hard_cash_reserve_pct_nav: 5.0\n"
+                "  same_run_proceeds_haircut_pct: 80.0\n"
+                "  buy_price_buffer_pct: 5.0\n"
+                "  soft_borrowing_enabled: true\n"
+                "  borrowable_sleeve_ids:\n"
+                "    - core_shariah\n"
+                "  borrower_sleeve_ids:\n"
+                "    - active_strategy\n"
+                "  max_borrowed_capacity_pct_nav: 20.0\n"
+            ),
+        )
+    )
+    active = _proposal(
+        symbol="AAA",
+        target_pct=Decimal("50.0000"),
+        current_quantity=340,
+        current_pct=Decimal("34.0000"),
+    )
+    plan = _portfolio_plan(
+        policy=policy,
+        proposals=(active,),
+        nav_inr=Decimal("100000.00"),
+        cash_inr=Decimal("30000.00"),
+        positions=(
+            ActiveAllocationPosition(
+                symbol="AAA",
+                quantity=340,
+                market_value_inr=Decimal("34000.00"),
+            ),
+        ),
+    )
+
+    result = PortfolioPlanAllocationService().allocate(
+        RunAllocationInput(
+            run_id=plan.run_id,
+            strategy_name="graph_aware_score_v1",
+            proposals=(active,),
+            nav_inr=plan.current_nav_inr,
+            available_cash_inr=plan.current_cash_inr,
+            current_positions=(
+                ActiveAllocationPosition(
+                    symbol="AAA",
+                    quantity=340,
+                    market_value_inr=Decimal("34000.00"),
+                ),
+            ),
+            sleeve_snapshots=(
+                SleeveAllocationSnapshot(
+                    sleeve_id="active_strategy",
+                    starting_nav_estimate_inr=Decimal("35000.00"),
+                    current_exposure_inr=Decimal("34000.00"),
+                    open_position_count=1,
+                ),
+                SleeveAllocationSnapshot(
+                    sleeve_id="core_shariah",
+                    starting_nav_estimate_inr=Decimal("60000.00"),
+                    current_exposure_inr=Decimal("0.00"),
+                ),
+                SleeveAllocationSnapshot(
+                    sleeve_id="cash_buffer",
+                    starting_nav_estimate_inr=Decimal("5000.00"),
+                ),
+            ),
+            histories_by_symbol={"AAA": tuple(_candles("AAA"))},
+            strategy_rank_by_symbol={"AAA": 1},
+            strategy_score_by_symbol={"AAA": Decimal("0.3000")},
+            money_management_policy=policy,
+        ),
+        portfolio_plan=plan,
+    )
+
+    entry = result.ledger[0]
+
+    assert entry.status in {"selected", "allocation_reduced"}
+    assert entry.capacity_source == "borrowed_sleeve_capacity"
+    assert entry.borrowed_from_sleeve_ids == ("core_shariah",)
+    assert entry.approved_notional_inr > Decimal("1000.00")
+
+
+def test_portfolio_plan_allocation_rejects_tiny_core_buy_after_rounding(
+    tmp_path: Path,
+) -> None:
+    policy = load_money_management_policy(_write_policy(tmp_path, active_target_pct="50.0"))
+    plan = _portfolio_plan(
+        policy=policy,
+        proposals=tuple(),
+        nav_inr=Decimal("100000.00"),
+        cash_inr=Decimal("100000.00"),
+        core_symbol="BBB",
+        core_target_pct=Decimal("0.0100"),
+        core_trade_notional=Decimal("10.00"),
+        core_rank_score=Decimal("95.0000"),
+    )
+
+    result = PortfolioPlanAllocationService().allocate(
+        RunAllocationInput(
+            run_id=plan.run_id,
+            strategy_name="graph_aware_score_v1",
+            proposals=tuple(),
+            nav_inr=plan.current_nav_inr,
+            available_cash_inr=plan.current_cash_inr,
+            sleeve_snapshots=(
+                SleeveAllocationSnapshot(
+                    sleeve_id="core_shariah",
+                    starting_nav_estimate_inr=Decimal("45000.00"),
+                ),
+            ),
+            histories_by_symbol={"BBB": tuple(_candles("BBB"))},
+            core_basket_symbols=("BBB",),
+            money_management_policy=policy,
+        ),
+        portfolio_plan=plan,
+    )
+
+    entry = result.ledger[0]
+    proposal = result.proposals[0]
+
+    assert entry.symbol == "BBB"
+    assert entry.status == "allocation_rejected"
+    assert entry.approved_quantity == 0
+    assert entry.binding_constraint == "requested_notional"
+    assert proposal.action == "NO_TRADE"
+    assert proposal.allocation_decision is not None
+    assert proposal.allocation_decision.portfolio_plan_trade_id == "trade-core-bbb"
+
+
+def test_legacy_run_level_allocation_still_available_without_portfolio_plan(
+    tmp_path: Path,
+) -> None:
+    policy = load_money_management_policy(_write_policy(tmp_path, active_target_pct="10.0"))
+    proposal = _proposal(symbol="AAA", target_pct=Decimal("5.0000"))
+
+    result = RunLevelAllocationService().allocate(
+        RunAllocationInput(
+            run_id="run-legacy",
+            strategy_name="graph_aware_score_v1",
+            proposals=(proposal,),
+            nav_inr=Decimal("100000.00"),
+            available_cash_inr=Decimal("100000.00"),
+            sleeve_snapshots=(
+                SleeveAllocationSnapshot(
+                    sleeve_id="active_strategy",
+                    starting_nav_estimate_inr=Decimal("10000.00"),
+                ),
+            ),
+            histories_by_symbol={"AAA": tuple(_candles("AAA"))},
+            strategy_rank_by_symbol={"AAA": 1},
+            strategy_score_by_symbol={"AAA": Decimal("0.2000")},
+            money_management_policy=policy,
+        )
+    )
+
+    assert result.model_version == "run_level_dynamic_allocation_v1"
+    assert result.policy_source == "money_management_policy"
+    assert result.ledger[0].portfolio_plan_id is None
+
+
 @pytest.mark.parametrize(
     ("allocation_scoring", "message"),
     [
@@ -293,11 +524,105 @@ def _candles(symbol: str) -> list[DailyCandle]:
     return candles
 
 
+def _portfolio_plan(
+    *,
+    policy,
+    proposals: tuple[TraderProposal, ...],
+    nav_inr: Decimal,
+    cash_inr: Decimal,
+    core_symbol: str = "AAA",
+    core_target_pct: Decimal | None = None,
+    core_trade_notional: Decimal | None = None,
+    core_rank_score: Decimal = Decimal("90.0000"),
+    positions: tuple[ActiveAllocationPosition, ...] = (),
+):
+    core_target_pct = core_target_pct if core_target_pct is not None else Decimal("0.0000")
+    core_trade_notional = (
+        core_trade_notional
+        if core_trade_notional is not None
+        else (nav_inr * core_target_pct / Decimal("100")).quantize(Decimal("0.01"))
+    )
+    core_artifact = {"target_weights": {}, "decisions": [], "selection_scores": []}
+    if core_target_pct > 0:
+        core_artifact = {
+            "target_weights": {core_symbol: str(core_target_pct)},
+            "decisions": [
+                {
+                    "symbol": core_symbol,
+                    "side": "BUY",
+                    "status": "approved",
+                    "target_weight_pct_nav": str(core_target_pct),
+                    "current_weight_pct_nav": "0.0000",
+                    "drift_pct_nav": str(core_target_pct),
+                    "trade_notional_inr": str(core_trade_notional),
+                }
+            ],
+            "selection_scores": [
+                {"symbol": core_symbol, "rank_score": str(core_rank_score)}
+            ],
+        }
+    histories = {
+        proposal.symbol: tuple(_candles(proposal.symbol))
+        for proposal in proposals
+    }
+    if core_target_pct > 0:
+        histories[core_symbol.upper()] = tuple(_candles(core_symbol))
+    return PortfolioRebalancePlanService().build(
+        PortfolioRebalancePlanInput(
+            run_id="run-plan-allocation",
+            portfolio_id="local-paper",
+            as_of=datetime(2026, 6, 22, tzinfo=timezone.utc),
+            strategy_name="graph_aware_score_v1",
+            proposals=proposals,
+            nav_inr=nav_inr,
+            current_cash_inr=cash_inr,
+            current_positions=positions,
+            sleeve_snapshots=(
+                SleeveAllocationSnapshot(
+                    sleeve_id="active_strategy",
+                    starting_nav_estimate_inr=Decimal("35000.00"),
+                    current_exposure_inr=sum(
+                        (
+                            position.market_value_inr
+                            for position in positions
+                            if core_target_pct <= 0
+                            or position.symbol.upper() != core_symbol.upper()
+                        ),
+                        Decimal("0.00"),
+                    ),
+                    open_position_count=len(positions),
+                ),
+                SleeveAllocationSnapshot(
+                    sleeve_id="core_shariah",
+                    starting_nav_estimate_inr=Decimal("60000.00"),
+                    current_exposure_inr=Decimal("0.00"),
+                ),
+                SleeveAllocationSnapshot(
+                    sleeve_id="cash_buffer",
+                    starting_nav_estimate_inr=Decimal("5000.00"),
+                ),
+            ),
+            histories_by_symbol=histories,
+            core_basket_artifact=core_artifact,
+            core_basket_symbols=(core_symbol,) if core_target_pct > 0 else tuple(),
+            strategy_rank_by_symbol={
+                proposal.symbol: index
+                for index, proposal in enumerate(proposals, start=1)
+            },
+            strategy_score_by_symbol={
+                proposal.symbol: Decimal("0.3000") for proposal in proposals
+            },
+            money_management_policy=policy,
+        )
+    )
+
+
 def _write_policy(
     tmp_path: Path,
     *,
     active_target_pct: str,
     allocation_scoring: str | None = None,
+    rebalance_capacity: str | None = None,
 ) -> Path:
     universe_path = tmp_path / "shariah.yaml"
     universe_path.write_text(
@@ -347,6 +672,8 @@ def _write_policy(
         "    target_weight_pct: 5.0\n"
         "    role: Cash buffer\n"
         "strategy_mappings:\n"
+        "  - strategy_name: core_shariah_basket_v1\n"
+        "    sleeve_id: core_shariah\n"
         "  - strategy_name: graph_aware_score_v1\n"
         "    sleeve_id: active_strategy\n"
         "limits:\n"
@@ -365,7 +692,8 @@ def _write_policy(
         "  sleeve_drift_threshold_pct: 20.0\n"
         "  min_rebalance_notional_inr: 5000\n"
         "  review_frequency: daily_after_close\n"
-        "  core_rebalance_frequency: monthly\n",
+        "  core_rebalance_frequency: monthly\n"
+        f"{rebalance_capacity or ''}",
         encoding="utf-8",
     )
     return policy_path

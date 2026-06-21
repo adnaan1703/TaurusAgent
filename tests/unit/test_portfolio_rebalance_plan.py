@@ -118,7 +118,7 @@ def test_portfolio_rebalance_plan_serializes_deterministically_and_preserves_inp
     restored = PortfolioRebalancePlan.model_validate(artifact)
 
     assert restored.to_artifact() == artifact
-    assert artifact["model_version"] == "portfolio_rebalance_dry_run_v1"
+    assert artifact["model_version"] == "portfolio_rebalance_plan_v2"
     assert artifact["policy_version"] == "plan_test_policy"
     assert artifact["hard_cash_reserve_inr"] == "5000.00"
     assert artifact["spendable_cash_after_reserve_inr"] == "55000.00"

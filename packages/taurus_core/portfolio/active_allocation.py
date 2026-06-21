@@ -17,10 +17,11 @@ from taurus_core.portfolio.score_semantics import calibrate_strategy_score
 from taurus_core.research.schemas import TraderProposal
 
 ACTIVE_SLEEVE_ID = "active_strategy"
+CORE_SLEEVE_ID = "core_shariah"
 DIVERSIFYING_SLEEVE_ID = "diversifying_strategy"
 EXPERIMENTAL_SLEEVE_ID = "experimental_models"
 ALLOCATABLE_SLEEVE_IDS = frozenset(
-    {ACTIVE_SLEEVE_ID, DIVERSIFYING_SLEEVE_ID, EXPERIMENTAL_SLEEVE_ID}
+    {CORE_SLEEVE_ID, ACTIVE_SLEEVE_ID, DIVERSIFYING_SLEEVE_ID, EXPERIMENTAL_SLEEVE_ID}
 )
 SCORE_QUANT = Decimal("0.0001")
 MONEY_QUANT = Decimal("0.01")
@@ -78,6 +79,9 @@ class ActiveAllocationInput:
     history: tuple[DailyCandle, ...] = ()
     strategy_score: Decimal | None = None
     strategy_rank: int | None = None
+    strategy_score_component_override: Decimal | None = None
+    buy_price_buffer_pct: Decimal = Decimal("0")
+    sleeve_capacity_overrides_inr: dict[str, Decimal] | None = None
     sector_by_symbol: dict[str, str] | None = None
     graph_cluster_by_symbol: dict[str, str] | None = None
     recent_sleeve_performance_score: Decimal | None = None
@@ -207,8 +211,12 @@ class PortfolioAllocationService:
             proposal.current_position_pct_nav,
             allocation_input.nav_inr,
         )
-        risk_per_share = _risk_per_share(
+        sizing_price = _buffered_price(
             latest_price=latest_price,
+            buy_price_buffer_pct=allocation_input.buy_price_buffer_pct,
+        )
+        risk_per_share = _risk_per_share(
+            latest_price=sizing_price,
             stop_loss_pct=proposal.stop_loss_pct,
         )
         if latest_price <= 0 or risk_per_share <= 0:
@@ -266,7 +274,7 @@ class PortfolioAllocationService:
             "sleeve_trade_risk_cap": _sleeve_trade_risk_cap_room(
                 sleeve=sleeve,
                 nav_inr=allocation_input.nav_inr,
-                latest_price=latest_price,
+                latest_price=sizing_price,
                 risk_per_share=risk_per_share,
             ),
             "stock_exposure": _stock_exposure_room(
@@ -281,6 +289,9 @@ class PortfolioAllocationService:
                 positions=allocation_input.current_positions,
                 sleeve_id=sleeve.sleeve_id,
                 sleeve_target_pct=sleeve.target_weight_pct,
+                sleeve_capacity_override_inr=(
+                    allocation_input.sleeve_capacity_overrides_inr or {}
+                ).get(sleeve.sleeve_id),
                 sleeve_snapshot=sleeve_snapshot,
                 core_basket_symbols=allocation_input.core_basket_symbols,
             ),
@@ -289,7 +300,7 @@ class PortfolioAllocationService:
                 allocation_input,
                 policy=self.policy,
                 risk_per_share=risk_per_share,
-                latest_price=latest_price,
+                latest_price=sizing_price,
             ),
             "open_positions": _open_position_room(allocation_input, policy=self.policy),
             "sector_concentration": _group_room(
@@ -307,7 +318,7 @@ class PortfolioAllocationService:
             caps.items(),
             key=lambda item: (item[1], item[0]),
         )
-        approved_quantity = int((approved_notional / latest_price).to_integral_value(rounding=ROUND_DOWN))
+        approved_quantity = int((approved_notional / sizing_price).to_integral_value(rounding=ROUND_DOWN))
         approved_notional = _money(latest_price * Decimal(approved_quantity))
         estimated_risk = _money(risk_per_share * Decimal(approved_quantity))
         target_position = (
@@ -341,6 +352,7 @@ class PortfolioAllocationService:
             rationale=(
                 f"Strategy-sleeve score band {score_band} allowed {dampened_allowed_risk} INR risk.",
                 f"Volatility factor {volatility_factor} applied to realized volatility {volatility}.",
+                f"BUY quantity sized with reference price {sizing_price} after {allocation_input.buy_price_buffer_pct}% plan buffer.",
                 f"Governor scale factor {governor.scale_factor} applied.",
                 _score_parts_text(score_parts),
             ),
@@ -578,6 +590,14 @@ def _latest_close(history: tuple[DailyCandle, ...]) -> Decimal:
     return sorted(history, key=lambda candle: candle.trade_date)[-1].close.quantize(MONEY_QUANT)
 
 
+def _buffered_price(*, latest_price: Decimal, buy_price_buffer_pct: Decimal) -> Decimal:
+    if latest_price <= 0 or buy_price_buffer_pct <= 0:
+        return latest_price
+    return (latest_price * (Decimal("1") + (buy_price_buffer_pct / Decimal("100")))).quantize(
+        MONEY_QUANT
+    )
+
+
 def _risk_per_share(*, latest_price: Decimal, stop_loss_pct: Decimal) -> Decimal:
     if latest_price <= 0 or stop_loss_pct <= 0:
         return Decimal("0")
@@ -590,11 +610,27 @@ def _candidate_score(
     weights: AllocationScoreWeightsPolicy,
 ) -> tuple[Decimal, dict[str, Decimal]]:
     history = allocation_input.history
-    strategy_calibration = calibrate_strategy_score(
-        allocation_input.strategy_score,
-        strategy_rank=allocation_input.strategy_rank,
-    )
-    strategy_component = strategy_calibration.allocation_score_component
+    if allocation_input.strategy_score_component_override is not None:
+        strategy_component = _clamp(
+            allocation_input.strategy_score_component_override,
+            Decimal("0"),
+            Decimal("100"),
+        ).quantize(SCORE_QUANT)
+        strategy_parts = {
+            "strategy_score": strategy_component,
+            "calibrated_strategy_score": strategy_component,
+        }
+        if allocation_input.strategy_score is not None:
+            strategy_parts["raw_strategy_score"] = Decimal(
+                str(allocation_input.strategy_score)
+            ).quantize(SCORE_QUANT)
+    else:
+        strategy_calibration = calibrate_strategy_score(
+            allocation_input.strategy_score,
+            strategy_rank=allocation_input.strategy_rank,
+        )
+        strategy_component = strategy_calibration.allocation_score_component
+        strategy_parts = strategy_calibration.score_parts()
     confidence_component = (allocation_input.proposal.confidence * Decimal("100")).quantize(
         SCORE_QUANT
     )
@@ -604,7 +640,7 @@ def _candidate_score(
     diversification_component = _diversification_score(allocation_input)
     performance_component = allocation_input.recent_sleeve_performance_score or Decimal("75")
     parts = {
-        **strategy_calibration.score_parts(),
+        **strategy_parts,
         "trader_confidence": confidence_component,
         "liquidity": liquidity_component,
         "volatility": volatility_component,
@@ -743,11 +779,16 @@ def _sleeve_capacity_room(
     positions: tuple[ActiveAllocationPosition, ...],
     sleeve_id: str,
     sleeve_target_pct: Decimal,
+    sleeve_capacity_override_inr: Decimal | None,
     sleeve_snapshot: SleeveAllocationSnapshot | None,
     core_basket_symbols: tuple[str, ...],
 ) -> Decimal:
     if sleeve_snapshot is not None:
-        capacity = _pct_to_notional(sleeve_target_pct, nav_inr)
+        capacity = (
+            _money(sleeve_capacity_override_inr)
+            if sleeve_capacity_override_inr is not None
+            else _pct_to_notional(sleeve_target_pct, nav_inr)
+        )
         return max(Decimal("0"), capacity - sleeve_snapshot.current_exposure_inr).quantize(
             MONEY_QUANT
         )
@@ -762,7 +803,11 @@ def _sleeve_capacity_room(
         ),
         Decimal("0"),
     )
-    capacity = _pct_to_notional(sleeve_target_pct, nav_inr)
+    capacity = (
+        _money(sleeve_capacity_override_inr)
+        if sleeve_capacity_override_inr is not None
+        else _pct_to_notional(sleeve_target_pct, nav_inr)
+    )
     if sleeve_id != ACTIVE_SLEEVE_ID:
         current_active_notional = Decimal("0")
     return max(Decimal("0"), capacity - current_active_notional).quantize(MONEY_QUANT)

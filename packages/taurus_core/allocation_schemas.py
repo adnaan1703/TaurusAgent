@@ -54,6 +54,14 @@ class AllocationDecision(BaseModel):
     sleeve_drawdown_pct: Decimal | None = Field(default=None, ge=Decimal("0"))
     governor_reasons: tuple[str, ...] = Field(default_factory=tuple)
     binding_constraint: str | None = None
+    portfolio_plan_id: str | None = None
+    portfolio_plan_trade_id: str | None = None
+    planner_candidate_id: str | None = None
+    planner_source: str | None = None
+    planner_rank: int | None = Field(default=None, ge=1)
+    capacity_source: str | None = None
+    borrowed_from_sleeve_ids: tuple[str, ...] = Field(default_factory=tuple)
+    proposal_source: str | None = None
     rationale: tuple[str, ...] = Field(default_factory=tuple)
 
     @field_validator("symbol")

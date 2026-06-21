@@ -40,6 +40,7 @@ from taurus_core.portfolio.money_management import (
 )
 from taurus_core.portfolio.run_allocation import (
     FallbackAllocationPolicy,
+    PortfolioPlanAllocationService,
     RunAllocationInput,
     RunAllocationResult,
     RunLevelAllocationService,
@@ -91,6 +92,7 @@ __all__ = [
     "PortfolioPlanPosition",
     "PortfolioPlanSleeveBudget",
     "PortfolioPlanTrade",
+    "PortfolioPlanAllocationService",
     "PortfolioRebalancePlan",
     "PortfolioRebalancePlanInput",
     "PortfolioRebalancePlanService",

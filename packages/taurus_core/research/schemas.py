@@ -21,6 +21,7 @@ LifecycleTrigger = Literal[
     "take_profit",
     "thesis_weakened",
     "thesis_invalidated",
+    "portfolio_rebalance",
 ]
 EvaluationMode = Literal["after_close", "market_hours"]
 

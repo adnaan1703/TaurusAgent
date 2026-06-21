@@ -61,8 +61,8 @@ flowchart TD
     GraphPreflight --> SymbolSelect
 
     SymbolSelect --> SymbolLoop[Run per-symbol agent pipeline]
-    SymbolLoop --> PortfolioPlan[Build dry-run portfolio plan artifact]
-    PortfolioPlan --> Allocation[Run-level allocation ledger]
+    SymbolLoop --> PortfolioPlan[Build portfolio plan artifact]
+    PortfolioPlan --> Allocation[Planner-backed BUY allocation ledger]
     Allocation --> Finalization[Risk, final approval, and paper routing]
     Finalization --> RunStatus[Update paper_runs status and artifacts]
 ```
@@ -154,7 +154,7 @@ flowchart TD
 | Bear case | `BearResearcherAgent` | Analyst reports | Bear thesis in debate payload | Research manager |
 | Research synthesis | `ResearchManagerAgent` | Bull thesis, bear thesis, analyst reports | `debate_reports` | Trader |
 | Trade proposal | `TraderAgent` | `debate_reports`, current paper positions/account, LLM advisory | `trader_proposals` | Risk review |
-| Portfolio dry-run plan | `PortfolioRebalancePlanService` | Current paper account/positions, trader proposals, strategy ranks/scores, money-management policy, and core basket artifact | `paper_runs.artifacts.portfolio_plan` | Run-level allocation, replay, API, and dashboard observability |
+| Portfolio plan | `PortfolioRebalancePlanService`, `PortfolioPlanAllocationService` | Current paper account/positions, trader proposals, strategy ranks/scores, money-management policy, and core basket artifact | `paper_runs.artifacts.portfolio_plan`, allocation decisions, generated core proposals | Risk review, final approval, paper routing, replay, API, and dashboard observability |
 | Risk review | `RiskReviewService`, `RiskEngine`, risk personas | Trader proposal, settings, current exposures, graph concentration data | `risk_reviews` | Portfolio manager |
 | Final approval | `PortfolioManagerAgent` | Risk review, trader proposal, optional LLM explanation | `final_decisions` | Execution router |
 | Paper execution | `ExecutionRouter` and `PaperBroker` | Final decision, latest risk review, market/account state, Kite daily candles | `paper_orders`, `paper_fills`, `paper_accounts`, `paper_positions`, settlement artifacts | Alerts, dashboard, audit |
@@ -212,22 +212,24 @@ collapse into the bounded analyst-report contract:
 
 ## Portfolio Plan Artifact
 
-Every successful paper run now stores a dry-run portfolio plan at
-`paper_runs.artifacts.portfolio_plan`. The plan is a typed, replayable artifact
-with current NAV/cash, hard cash reserve, position sleeve labels, trader
-proposal candidates, core basket advisory decisions, planned trade rows, cash
-budget rows, sleeve budget rows, and dry-run constraints. It is deliberately
-observational in M57: `RunLevelAllocationService` still owns executable sizing,
-and risk review, final approval, paper order routing, fills, positions, and
-account state are unchanged by plan generation.
+Every successful paper run now stores a typed, replayable portfolio plan at
+`paper_runs.artifacts.portfolio_plan`. The plan includes current NAV/cash, hard
+cash reserve, position sleeve labels, trader proposal candidates, core basket
+decisions, planned trade rows, cash budget rows, sleeve budget rows, and
+constraints. In M59 the plan is the default source for executable BUY
+allocation when money management is enabled; set
+`TAURUS_PORTFOLIO_PLAN_ALLOCATION_ENABLED=false` to retain the legacy
+run-level allocation path during compatibility testing.
 
-M58 enriches this artifact with explicit rebalance-capacity metadata. The plan
-shows the hard cash reserve, same-run proceeds haircut, BUY price buffer,
-protected sleeve room, borrowable idle non-cash capacity, and any active-sleeve
-capacity borrowed from idle sleeves. `cash_buffer` remains non-borrowable.
-Core Shariah basket decisions are also converted into typed portfolio-plan
-candidates with core rank/score evidence and rejection reasons, but they still
-do not bypass risk review, final approval, or paper execution.
+The M59 allocator compares active trader BUY proposals and executable core
+Shariah BUY candidates in one planner-linked rank order. Existing trader
+proposals keep their original requested fields and receive allocation decisions
+with `portfolio_plan_id`, `portfolio_plan_trade_id`, planner source/rank, and
+own-sleeve versus borrowed-capacity metadata. Core BUY rows without an existing
+trader proposal become deterministic `portfolio_rebalance` proposals, then pass
+through the same risk review, final approval, and paper-only next-open routing
+as active BUYs. REDUCE/EXIT rows and same-run proceeds remain advisory until
+M60.
 
 ## Research Debate Layer
 

@@ -239,6 +239,10 @@ class Settings(BaseSettings):
         default="configs/portfolio/money_management_v1.yaml",
         validation_alias="TAURUS_MONEY_MANAGEMENT_CONFIG_PATH",
     )
+    taurus_portfolio_plan_allocation_enabled: bool = Field(
+        default=True,
+        validation_alias="TAURUS_PORTFOLIO_PLAN_ALLOCATION_ENABLED",
+    )
     taurus_kill_switch_enabled: bool = Field(
         default=False,
         validation_alias="TAURUS_KILL_SWITCH_ENABLED",

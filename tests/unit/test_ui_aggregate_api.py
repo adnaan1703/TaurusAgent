@@ -437,6 +437,7 @@ def test_disabled_money_management_uses_settings_fallback_allocation(
         "analyst_roster",
         "debate_id",
         "proposal_id",
+        "proposal_source",
         "proposal_action",
         "portfolio_id",
         "lifecycle_trigger",

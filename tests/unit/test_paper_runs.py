@@ -44,7 +44,12 @@ from taurus_core.paper_trading.service import (
     _sleeve_snapshots_for_allocation,
     _symbol_artifact_from_results,
 )
-from taurus_core.portfolio import ActiveAllocationPosition, load_money_management_policy
+from taurus_core.portfolio import (
+    ActiveAllocationPosition,
+    PortfolioRebalancePlanInput,
+    PortfolioRebalancePlanService,
+    load_money_management_policy,
+)
 from taurus_core.profiles.runtime import RuntimeProfileError
 from taurus_core.profiles.schemas import TaurusProfileCreate
 from tests.llm_fakes import FakeLLMProvider
@@ -81,7 +86,7 @@ def test_paper_run_service_executes_full_chain_and_api_returns_runs(tmp_path: Pa
     assert run.artifacts["strategy"]["strategy_name"]
     assert run.artifacts["portfolio_plan"]["run_id"] == run.run_id
     assert run.artifacts["portfolio_plan"]["portfolio_id"] == "local-paper"
-    assert run.artifacts["portfolio_plan"]["model_version"] == "portfolio_rebalance_dry_run_v1"
+    assert run.artifacts["portfolio_plan"]["model_version"] == "portfolio_rebalance_plan_v2"
     assert run.artifacts["portfolio_plan"]["planned_trades"][0]["symbol"] == "INFY"
     assert run.artifacts["symbols"]["INFY"]["final_status"] == "APPROVED_FOR_PAPER"
     assert run.artifacts["symbols"]["INFY"]["order_status"] == "PENDING_NEXT_OPEN"
@@ -1153,7 +1158,7 @@ def test_full_universe_money_management_run_completes_allocation_pipeline(
     assert run.failed_symbols == []
     assert "money_management" in run.artifacts
     assert "portfolio_plan" in run.artifacts
-    assert allocation["policy_source"] == "money_management_policy"
+    assert allocation["policy_source"] == "portfolio_plan"
     assert run.artifacts["portfolio_plan"]["policy_version"] == "active_integration_policy"
     plan_candidates = run.artifacts["portfolio_plan"]["candidates"]
     assert sum(1 for candidate in plan_candidates if candidate["source"] == "trader_proposal") == 3
@@ -1171,6 +1176,129 @@ def test_full_universe_money_management_run_completes_allocation_pipeline(
         ledger_counts.get("selected", 0) + ledger_counts.get("allocation_reduced", 0)
     )
     assert execution["routed_order_count"] == execution["execution_set_count"]
+
+
+def test_portfolio_plan_core_buy_generates_risk_final_and_pending_order_records(
+    tmp_path: Path,
+) -> None:
+    policy_path = _write_active_allocation_policy(tmp_path, max_stock_pct=Decimal("50.0"))
+    settings = _settings_for_temp_db(
+        tmp_path,
+        money_management_enabled=True,
+        money_management_config_path=str(policy_path),
+        paper_analysis_scope="strategy_selected",
+        paper_execution_scope="allocated_only",
+    )
+    service = PaperRunService(settings)
+    session_factory = build_session_factory(settings)
+    with session_factory() as session:
+        TaurusProfileRepository(session).update_profile_corpus(
+            "local-paper",
+            Decimal("1000000"),
+        )
+        session.commit()
+    service._load_latest_inputs()
+    policy = load_money_management_policy(policy_path)
+    run_id = "pr-core-plan-routing"
+    plan = PortfolioRebalancePlanService().build(
+        PortfolioRebalancePlanInput(
+            run_id=run_id,
+            portfolio_id=settings.taurus_paper_portfolio_id,
+            as_of=datetime(2026, 6, 22, tzinfo=timezone.utc),
+            strategy_name="moving_average_crossover_v1",
+            proposals=tuple(),
+            nav_inr=Decimal("1000000.00"),
+            current_cash_inr=Decimal("1000000.00"),
+            histories_by_symbol={
+                "INFY": tuple(
+                    build_test_candles_for_symbol(
+                        symbol="INFY",
+                        symbol_index=0,
+                        candle_count=252,
+                        source="test",
+                    )
+                ),
+            },
+            core_basket_artifact={
+                "target_weights": {"INFY": "5.0000"},
+                "decisions": [
+                    {
+                        "symbol": "INFY",
+                        "side": "BUY",
+                        "status": "approved",
+                        "target_weight_pct_nav": "5.0000",
+                        "current_weight_pct_nav": "0.0000",
+                        "drift_pct_nav": "5.0000",
+                        "trade_notional_inr": "50000.00",
+                    }
+                ],
+                "selection_scores": [{"symbol": "INFY", "rank_score": "95.0000"}],
+            },
+            core_basket_symbols=("INFY",),
+            money_management_policy=policy,
+        )
+    )
+
+    allocation_result = service._allocate_run_proposals(
+        run_id=run_id,
+        strategy_summary={"strategy_name": "moving_average_crossover_v1"},
+        core_basket_symbols={"INFY"},
+        portfolio_plan=plan,
+        proposals=tuple(),
+    )
+    proposal = allocation_result.proposal_by_symbol()["INFY"]
+    finalization = service.finalize_symbol(
+        symbol="INFY",
+        run_id=run_id,
+        strategy_summary={"strategy_name": "moving_average_crossover_v1"},
+        core_basket_symbols={"INFY"},
+        proposal=proposal,
+        apply_allocation=False,
+    )
+
+    core_symbol = "INFY"
+    allocation = proposal.allocation_decision
+    with session_factory() as session:
+        proposal = session.scalar(
+            select(TraderProposalModel).where(
+                TraderProposalModel.run_id == run_id,
+                TraderProposalModel.symbol == core_symbol,
+            )
+        )
+        risk_review = session.scalar(
+            select(RiskReviewModel).where(
+                RiskReviewModel.run_id == run_id,
+                RiskReviewModel.symbol == core_symbol,
+            )
+        )
+        final_decision = session.scalar(
+            select(FinalDecisionModel).where(
+                FinalDecisionModel.run_id == run_id,
+                FinalDecisionModel.symbol == core_symbol,
+            )
+        )
+        order = session.scalar(
+            select(PaperOrderModel).where(
+                PaperOrderModel.run_id == run_id,
+                PaperOrderModel.symbol == core_symbol,
+            )
+        )
+
+    assert allocation is not None
+    assert allocation.portfolio_plan_id == plan.plan_id
+    assert allocation.portfolio_plan_trade_id == "trade-core-infy"
+    assert allocation.planner_source == "core_shariah_basket_v1"
+    assert finalization.proposal.lifecycle_trigger == "portfolio_rebalance"
+    assert finalization.order is not None
+    assert finalization.order.status == "PENDING_NEXT_OPEN"
+    assert proposal is not None
+    assert proposal.payload["target_sizing_metadata"]["proposal_source"] == "portfolio_plan_core"
+    assert risk_review is not None
+    assert risk_review.payload["allocation_decision"]["portfolio_plan_trade_id"] == "trade-core-infy"
+    assert final_decision is not None
+    assert final_decision.payload["allocation_decision"]["portfolio_plan_trade_id"] == "trade-core-infy"
+    assert order is not None
+    assert order.status == "PENDING_NEXT_OPEN"
 
 
 def test_full_universe_finalizes_all_symbols_before_allocated_execution(
@@ -1606,6 +1734,7 @@ def test_decomposed_symbol_analysis_and_stored_finalization_keep_legacy_artifact
         "analyst_roster",
         "debate_id",
         "proposal_id",
+        "proposal_source",
         "proposal_action",
         "portfolio_id",
         "lifecycle_trigger",

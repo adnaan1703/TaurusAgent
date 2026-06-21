@@ -203,17 +203,20 @@ value before falling back to `configs/market_data/nifty_500_shariah.yaml`.
 Manual EOD paper loop commands, including `make paper-loop-kite`, first import
 the latest daily candles, settle any previous `PENDING_NEXT_OPEN` orders at the
 first imported candle open after each order's signal trade date, and then run
-new after-close analysis/allocation/risk/final approval. Orders created by the
-same EOD run remain queued for the next available open and do not mutate cash or
-positions during that run. If an operator skips a trading day, settlement still
-uses the first available newer daily candle after the original signal date.
-Inspect queued and settled orders in the React overview/run detail/portfolio
-pages, or in the Streamlit Orders fallback. Replay shows queued orders with no
-paper-fill stage until settlement; settled replays show the original status
-history and final simulated fill. `/metrics` exposes paper-order status labels,
-including `PENDING_NEXT_OPEN`. Queued orders do not send fill alerts; terminal
-simulated settlement fills and rejections send one alert each. Kite remains
-data-only.
+new after-close analysis/allocation/risk/final approval. When money management
+is enabled, `TAURUS_PORTFOLIO_PLAN_ALLOCATION_ENABLED=true` is the default:
+active BUYs and executable core BUY candidates are allocated from the portfolio
+plan, while `false` keeps the legacy run-level allocator for compatibility
+checks. Orders created by the same EOD run remain queued for the next available
+open and do not mutate cash or positions during that run. If an operator skips a
+trading day, settlement still uses the first available newer daily candle after
+the original signal date. Inspect queued and settled orders in the React
+overview/run detail/portfolio pages, or in the Streamlit Orders fallback.
+Replay shows queued orders with no paper-fill stage until settlement; settled
+replays show the original status history and final simulated fill. `/metrics`
+exposes paper-order status labels, including `PENDING_NEXT_OPEN`. Queued orders
+do not send fill alerts; terminal simulated settlement fills and rejections send
+one alert each. Kite remains data-only.
 
 Replay, alerts, and backup:
 

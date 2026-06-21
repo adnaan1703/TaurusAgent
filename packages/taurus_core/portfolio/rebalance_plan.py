@@ -19,7 +19,7 @@ from taurus_core.portfolio.money_management import MoneyManagementPolicy, Sleeve
 from taurus_core.portfolio.score_semantics import calibrate_strategy_score
 from taurus_core.research.schemas import TraderProposal
 
-PORTFOLIO_REBALANCE_PLAN_MODEL_VERSION = "portfolio_rebalance_dry_run_v1"
+PORTFOLIO_REBALANCE_PLAN_MODEL_VERSION = "portfolio_rebalance_plan_v2"
 MONEY_QUANT = Decimal("0.01")
 PCT_QUANT = Decimal("0.0001")
 DEFAULT_SAME_RUN_SELL_PROCEEDS_HAIRCUT_PCT = Decimal("80.0000")
@@ -335,11 +335,11 @@ class PortfolioRebalancePlanService:
             ),
             constraints=(
                 PortfolioPlanConstraint(
-                    constraint_id="dry_run_only",
+                    constraint_id="buy_allocation_source",
                     status="informational",
                     message=(
-                        "Portfolio plan is persisted for observability only; "
-                        "run-level allocation remains the source of executable sizing."
+                        "Portfolio plan is the default source for executable BUY "
+                        "allocation; REDUCE/EXIT rows remain advisory until M60."
                     ),
                 ),
             ),
@@ -510,22 +510,22 @@ def _trade_from_candidate(
     )
     constraints = [
         PortfolioPlanConstraint(
-            constraint_id="dry_run_not_routed",
+            constraint_id="buy_routing_scope",
             status="informational",
             message=(
-                "Portfolio-plan rows are not routed to risk, final approval, "
-                "or broker execution in M58."
+                "M59 routes selected BUY rows through risk, final approval, "
+                "and paper execution; REDUCE/EXIT rows remain advisory."
             ),
         )
     ]
     if candidate.source == CORE_STRATEGY_NAME:
         constraints.append(
             PortfolioPlanConstraint(
-                constraint_id="core_candidate_not_routed",
+                constraint_id="core_buy_routing_scope",
                 status="informational",
                 message=(
-                    "Core basket decisions are typed as portfolio-plan "
-                    "candidates only; executable routing starts in a later milestone."
+                    "Core BUY candidates can become planner-generated proposals; "
+                    "core REDUCE/EXIT rows remain advisory until M60."
                 ),
             )
         )
@@ -538,7 +538,7 @@ def _trade_from_candidate(
             PortfolioPlanConstraint(
                 constraint_id="latest_price_missing",
                 status="blocked",
-                message="No latest close was available for dry-run quantity estimation.",
+                message="No latest close was available for planner quantity estimation.",
             )
         )
     elif side == "BUY":
@@ -546,7 +546,7 @@ def _trade_from_candidate(
             PortfolioPlanConstraint(
                 constraint_id="hard_cash_reserve_observed",
                 status="informational",
-                message="Dry-run row observes the hard cash reserve but does not allocate cash.",
+                message="BUY row observes the hard cash reserve before executable allocation.",
             )
         )
     else:
@@ -688,14 +688,14 @@ def _cash_budget_rows(
             label="Existing cash",
             amount_inr=_money(current_cash),
             spendable=True,
-            description="Current paper account cash before the dry-run portfolio plan.",
+            description="Current paper account cash before the portfolio plan.",
         ),
         PortfolioPlanCashBudget(
             row_id="reserved_cash",
             label="Reserved cash",
             amount_inr=hard_reserve,
             spendable=False,
-            description="Hard cash reserve protected from dry-run BUY sizing.",
+            description="Hard cash reserve protected from portfolio-plan BUY sizing.",
         ),
         PortfolioPlanCashBudget(
             row_id="forecast_sell_proceeds",
@@ -719,7 +719,7 @@ def _cash_budget_rows(
             label="Unallocated cash",
             amount_inr=unallocated,
             spendable=unallocated > 0,
-            description="Dry-run residual after reserve, spendable proceeds, and observed BUY rows.",
+            description="Plan residual after reserve, spendable proceeds, and observed BUY rows.",
         ),
     )
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 import time
 from collections import Counter
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
@@ -65,6 +65,7 @@ from taurus_core.portfolio import (
     FallbackAllocationPolicy,
     MoneyManagementPolicy,
     PortfolioAllocationService,
+    PortfolioPlanAllocationService,
     PortfolioRebalancePlanInput,
     PortfolioRebalancePlanService,
     RunAllocationInput,
@@ -77,7 +78,14 @@ from taurus_core.portfolio import (
 from taurus_core.portfolio.run_allocation import SELECTED_LEDGER_STATUSES
 from taurus_core.profiles.runtime import RuntimeProfile, resolve_runtime_profile
 from taurus_core.research.debate_service import DEFAULT_DEBATE_ROUNDS, ResearchDebateService
-from taurus_core.research.schemas import DebateReport, TraderProposal
+from taurus_core.research.schemas import (
+    BearThesis,
+    BullThesis,
+    DebateReport,
+    DebateRound,
+    ResearchManagerSummary,
+    TraderProposal,
+)
 from taurus_core.risk.review_service import RiskReviewService
 from taurus_core.risk.schemas import FinalDecision, RiskReview
 from taurus_core.strategies import DEFAULT_STRATEGY_CONFIG_PATH, load_strategy_config
@@ -622,6 +630,7 @@ class PaperRunService:
                     run_id=run.run_id,
                     strategy_summary=strategy_summary,
                     core_basket_symbols=core_basket_symbols,
+                    portfolio_plan=portfolio_plan,
                     proposals=tuple(
                         analysis.proposal for analysis in analysis_by_symbol.values()
                     ),
@@ -648,6 +657,38 @@ class PaperRunService:
                 self._refresh_llm_usage_artifact(artifacts, llm_provider)
                 run = run.model_copy(update={"artifacts": artifacts})
                 self._store_run(run)
+                generated_symbols = _planner_generated_symbols(allocation_result)
+                for generated in allocation_result.proposals:
+                    symbol = generated.symbol.upper()
+                    if symbol not in generated_symbols or symbol in analysis_by_symbol:
+                        continue
+                    synthetic_analysis = _generated_core_analysis(generated)
+                    analysis_by_symbol[symbol] = synthetic_analysis
+                    artifacts["analysis"][symbol] = _analysis_artifact_from_result(
+                        synthetic_analysis,
+                        finalization_required=True,
+                        finalization_status="pending",
+                    )
+                    pending_finalization_symbols.append(symbol)
+                    finalization_symbol_set.add(symbol)
+                if generated_symbols:
+                    analysis_symbols = _unique_symbols(
+                        [*analysis_symbols, *sorted(generated_symbols)]
+                    )
+                    self._progress_symbol_count = max(len(analysis_symbols), 1)
+                    finalization_symbols = _unique_symbols(
+                        [*finalization_symbols, *sorted(generated_symbols)]
+                    )
+                    symbol_scope = _symbol_scope_with_finalization_symbols(
+                        symbol_scope,
+                        finalization_symbols,
+                    )
+                    artifacts["symbol_scope"] = symbol_scope.to_dict()
+                    run = _run_with_selected_symbols(
+                        run,
+                        analysis_symbols,
+                    )
+                    run = self._store_run(run.model_copy(update={"artifacts": artifacts}))
             except Exception as exc:
                 error = PaperRunError(
                     symbol="*",
@@ -702,7 +743,7 @@ class PaperRunService:
             if symbol in failed_symbols:
                 continue
             analysis = analysis_by_symbol[symbol]
-            symbol_index = analysis_symbols.index(symbol) + 1
+            symbol_index = _symbol_progress_index(analysis_symbols, symbol)
             abort_run = False
             try:
                 finalization = self.finalize_symbol(
@@ -1302,7 +1343,7 @@ class PaperRunService:
                     decision=finalization.final_decision,
                 )
             )
-            symbol_index = analysis_symbols.index(symbol) + 1
+            symbol_index = _symbol_progress_index(analysis_symbols, symbol)
             try:
                 order, account = self._route_symbol_execution(
                     decision=finalization.final_decision,
@@ -1518,6 +1559,7 @@ class PaperRunService:
         run_id: str,
         strategy_summary: dict[str, object],
         core_basket_symbols: set[str],
+        portfolio_plan: Any | None = None,
         proposals: tuple[TraderProposal, ...],
     ) -> RunAllocationResult:
         strategy_name = str(strategy_summary.get("strategy_name") or "")
@@ -1558,13 +1600,14 @@ class PaperRunService:
                     portfolio_id=self.settings.taurus_paper_portfolio_id,
                 )
             )
+            plan_buy_symbols = _portfolio_plan_buy_symbols(portfolio_plan)
             proposal_symbols = {proposal.symbol.upper() for proposal in proposals}
             concentration_symbols = proposal_symbols | {
                 position.symbol.upper() for position in open_positions
-            }
+            } | plan_buy_symbols
             histories_by_symbol = {
                 symbol: tuple(_daily_candle_history(session, symbol))
-                for symbol in sorted(proposal_symbols)
+                for symbol in sorted(proposal_symbols | plan_buy_symbols)
             }
             sector_by_symbol, graph_cluster_by_symbol = _core_concentration_groups(
                 session,
@@ -1586,28 +1629,41 @@ class PaperRunService:
                 if policy is not None
                 else tuple()
             )
-            result = RunLevelAllocationService().allocate(
-                RunAllocationInput(
-                    run_id=run_id,
-                    strategy_name=strategy_name,
-                    proposals=proposals,
-                    nav_inr=nav_inr,
-                    available_cash_inr=available_cash,
-                    portfolio_starting_nav_estimate_inr=starting_corpus,
-                    current_positions=open_positions,
-                    sleeve_snapshots=sleeve_snapshots,
-                    histories_by_symbol=histories_by_symbol,
-                    core_basket_symbols=tuple(sorted(core_basket_symbols)),
-                    strategy_rank_by_symbol=strategy_rank_by_symbol,
-                    strategy_score_by_symbol=strategy_score_by_symbol,
-                    sector_by_symbol=sector_by_symbol,
-                    graph_cluster_by_symbol=graph_cluster_by_symbol,
-                    money_management_policy=policy,
-                    fallback_policy=fallback_policy,
-                )
+            allocation_input = RunAllocationInput(
+                run_id=run_id,
+                strategy_name=strategy_name,
+                proposals=proposals,
+                nav_inr=nav_inr,
+                available_cash_inr=available_cash,
+                portfolio_starting_nav_estimate_inr=starting_corpus,
+                current_positions=open_positions,
+                sleeve_snapshots=sleeve_snapshots,
+                histories_by_symbol=histories_by_symbol,
+                core_basket_symbols=tuple(sorted(core_basket_symbols)),
+                strategy_rank_by_symbol=strategy_rank_by_symbol,
+                strategy_score_by_symbol=strategy_score_by_symbol,
+                sector_by_symbol=sector_by_symbol,
+                graph_cluster_by_symbol=graph_cluster_by_symbol,
+                money_management_policy=policy,
+                fallback_policy=fallback_policy,
             )
+            if (
+                policy is not None
+                and self.settings.taurus_portfolio_plan_allocation_enabled
+                and portfolio_plan is not None
+            ):
+                result = PortfolioPlanAllocationService().allocate(
+                    allocation_input,
+                    portfolio_plan=portfolio_plan,
+                )
+            else:
+                result = RunLevelAllocationService().allocate(allocation_input)
             research_repo = ResearchRepository(session)
             for updated in result.proposals:
+                if _is_planner_generated_core_proposal(updated):
+                    research_repo.replace_debate_for_run_symbol(
+                        _synthetic_portfolio_rebalance_debate(updated)
+                    )
                 research_repo.replace_trader_proposal_for_run_symbol(updated)
             session.commit()
             return result
@@ -2214,6 +2270,140 @@ def _normalize_symbols(symbols: Iterable[str]) -> list[str]:
     return normalized
 
 
+def _unique_symbols(symbols: Iterable[str]) -> list[str]:
+    unique: list[str] = []
+    for symbol in symbols:
+        cleaned = str(symbol).strip().upper()
+        if cleaned and cleaned not in unique:
+            unique.append(cleaned)
+    return unique
+
+
+def _symbol_progress_index(symbols: list[str], symbol: str) -> int:
+    normalized = symbol.upper()
+    if normalized in symbols:
+        return symbols.index(normalized) + 1
+    return len(symbols) + 1
+
+
+def _symbol_scope_with_finalization_symbols(
+    scope: PaperRunSymbolScope,
+    finalization_symbols: list[str],
+) -> PaperRunSymbolScope:
+    return replace(
+        scope,
+        finalization_symbols=list(finalization_symbols),
+    )
+
+
+def _portfolio_plan_buy_symbols(portfolio_plan: Any | None) -> set[str]:
+    trades = getattr(portfolio_plan, "planned_trades", ())
+    symbols: set[str] = set()
+    for trade in trades:
+        if getattr(trade, "side", None) != "BUY":
+            continue
+        if getattr(trade, "status", None) in {"missing_price", "no_trade"}:
+            continue
+        symbol = str(getattr(trade, "symbol", "")).strip().upper()
+        if symbol:
+            symbols.add(symbol)
+    return symbols
+
+
+def _planner_generated_symbols(allocation_result: RunAllocationResult) -> set[str]:
+    return {
+        proposal.symbol.upper()
+        for proposal in allocation_result.proposals
+        if _is_planner_generated_core_proposal(proposal)
+    }
+
+
+def _is_planner_generated_core_proposal(proposal: TraderProposal) -> bool:
+    if proposal.target_sizing_metadata.get("proposal_source") == "portfolio_plan_core":
+        return True
+    decision = proposal.allocation_decision
+    return decision is not None and decision.proposal_source == "portfolio_plan_core"
+
+
+def _proposal_source(proposal: TraderProposal) -> str:
+    raw = proposal.target_sizing_metadata.get("proposal_source")
+    if raw:
+        return str(raw)
+    if proposal.allocation_decision is not None and proposal.allocation_decision.proposal_source:
+        return proposal.allocation_decision.proposal_source
+    return "trader_proposal"
+
+
+def _generated_core_analysis(proposal: TraderProposal) -> PaperSymbolAnalysis:
+    return PaperSymbolAnalysis(
+        symbol=proposal.symbol,
+        enabled_analysts=[],
+        reports=[],
+        debate=_synthetic_portfolio_rebalance_debate(proposal),
+        proposal=proposal,
+    )
+
+
+def _synthetic_portfolio_rebalance_debate(proposal: TraderProposal) -> DebateReport:
+    confidence = proposal.confidence.quantize(Decimal("0.0001"))
+    score = min(Decimal("1.0000"), confidence).quantize(Decimal("0.0001"))
+    source_report_ids = list(proposal.source_report_ids)
+    return DebateReport(
+        debate_id=proposal.debate_id,
+        run_id=proposal.run_id,
+        portfolio_id=proposal.portfolio_id,
+        symbol=proposal.symbol,
+        as_of=proposal.as_of,
+        rounds_requested=1,
+        bull_thesis=BullThesis(
+            symbol=proposal.symbol,
+            score=score,
+            confidence=confidence,
+            key_points=[
+                "Portfolio rebalance planner selected this core Shariah BUY candidate."
+            ],
+            conditions=[
+                "Paper-only risk review and final approval must confirm the plan row."
+            ],
+            source_report_ids=source_report_ids,
+        ),
+        bear_thesis=BearThesis(
+            symbol=proposal.symbol,
+            score=Decimal("-0.1000"),
+            confidence=Decimal("0.5000"),
+            key_points=[
+                "Planner-generated core BUYs remain subject to deterministic risk controls."
+            ],
+            risk_flags=[
+                "Price movement, liquidity, concentration, or stale data can still block routing."
+            ],
+            source_report_ids=source_report_ids,
+        ),
+        rounds=[
+            DebateRound(
+                round_number=1,
+                bull_argument="Core rebalance target supports a paper BUY candidate.",
+                bear_argument="Risk and final approval remain authoritative before any order.",
+                manager_note="Synthetic debate artifact created for portfolio-plan core routing.",
+            )
+        ],
+        manager_summary=ResearchManagerSummary(
+            consensus_label="bullish",
+            consensus_score=score,
+            confidence=confidence,
+            summary=(
+                "Portfolio rebalance planner generated this core Shariah BUY for "
+                "paper-only risk/final routing."
+            ),
+            unresolved_uncertainties=[
+                "Final approval and next-open paper execution may still reject or trim the order."
+            ],
+        ),
+        source_report_ids=source_report_ids,
+        model_version="portfolio_rebalance_synthetic_debate_v1",
+    )
+
+
 def _symbol_artifact_from_results(
     analysis: PaperSymbolAnalysis,
     finalization: PaperSymbolFinalization,
@@ -2232,6 +2422,7 @@ def _symbol_artifact_from_results(
         ),
         "debate_id": analysis.debate.debate_id,
         "proposal_id": proposal.proposal_id,
+        "proposal_source": _proposal_source(proposal),
         "proposal_action": proposal.action,
         "portfolio_id": proposal.portfolio_id,
         "lifecycle_trigger": proposal.lifecycle_trigger,
@@ -2377,6 +2568,12 @@ def _execution_set_artifact(*, entry: Any, decision: FinalDecision) -> dict[str,
         "final_status": decision.status,
         "final_action": decision.final_action,
         "reason": reason,
+        "portfolio_plan_id": getattr(entry, "portfolio_plan_id", None),
+        "portfolio_plan_trade_id": getattr(entry, "portfolio_plan_trade_id", None),
+        "planner_source": getattr(entry, "planner_source", None),
+        "planner_rank": getattr(entry, "planner_rank", None),
+        "capacity_source": getattr(entry, "capacity_source", None),
+        "proposal_source": getattr(entry, "proposal_source", None),
     }
 
 
@@ -2393,6 +2590,16 @@ def _execution_skip_artifact(
         "final_decision_id": decision.final_decision_id,
         "allocation_status": entry.status if entry is not None else None,
         "binding_constraint": entry.binding_constraint if entry is not None else None,
+        "portfolio_plan_id": getattr(entry, "portfolio_plan_id", None)
+        if entry is not None
+        else None,
+        "portfolio_plan_trade_id": getattr(entry, "portfolio_plan_trade_id", None)
+        if entry is not None
+        else None,
+        "planner_source": getattr(entry, "planner_source", None) if entry is not None else None,
+        "planner_rank": getattr(entry, "planner_rank", None) if entry is not None else None,
+        "capacity_source": getattr(entry, "capacity_source", None) if entry is not None else None,
+        "proposal_source": getattr(entry, "proposal_source", None) if entry is not None else None,
         "final_status": decision.status,
         "final_action": decision.final_action,
         "reason": reason or _execution_skip_reason(entry=entry, decision=decision),
@@ -2447,6 +2654,7 @@ def _analysis_artifact_from_result(
         ),
         "debate_id": analysis.debate.debate_id,
         "proposal_id": proposal.proposal_id,
+        "proposal_source": _proposal_source(proposal),
         "proposal_action": proposal.action,
         "portfolio_id": proposal.portfolio_id,
         "lifecycle_trigger": proposal.lifecycle_trigger,
@@ -2466,6 +2674,14 @@ def _analyst_roster_dict(
     report_count: int,
 ) -> dict[str, object]:
     enabled = list(enabled_analysts)
+    if not enabled:
+        return {
+            "enabled": [],
+            "skipped": [],
+            "report_count": report_count,
+            "min_required": MIN_ANALYST_REPORTS,
+            "status": "planner_generated",
+        }
     return {
         "enabled": enabled,
         "skipped": list(skipped_analysts(enabled)),

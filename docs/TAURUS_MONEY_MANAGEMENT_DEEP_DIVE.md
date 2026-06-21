@@ -1,6 +1,6 @@
 # Taurus Money Management Deep Dive
 
-Intent: the money-management system converts one loop's strategy and TraderAgent proposals into portfolio-aware paper allocation decisions, including sleeve routing, risk budgets, approved share quantity, and skip reasons.
+Intent: the money-management system converts one loop's strategy, TraderAgent proposals, and executable core portfolio-plan candidates into portfolio-aware paper allocation decisions, including sleeve routing, risk budgets, approved share quantity, planner linkage, and skip reasons.
 
 This document explains the current paper money-management path: inputs, outputs,
 environment variables, strategy mappings, internal calculations, and a worked TCS
@@ -16,7 +16,8 @@ Money management sits after TraderAgent and before risk review.
 ```text
 Strategy summary
   -> analyst/debate/trader proposals
-  -> run-level allocation
+  -> portfolio plan
+  -> planner-backed BUY allocation
   -> per-proposal active allocation
   -> risk review
   -> portfolio manager final decision
@@ -43,10 +44,14 @@ BUY intent is not an order.
 BUY intent must survive allocation, risk review, final approval, and routing.
 ```
 
-Allocation is batch-aware but not a full portfolio optimizer. It sees all
-TraderAgent proposals for the loop, scores the BUY candidates, sorts them by
-priority, and then allocates them sequentially while updating simulated cash,
-positions, sleeve exposure, and open risk after each approved allocation.
+Allocation is batch-aware but not a full portfolio optimizer. With
+`TAURUS_PORTFOLIO_PLAN_ALLOCATION_ENABLED=true`, the default M59 path sees
+active trader BUY proposals and executable core Shariah BUY candidates from the
+portfolio plan, scores the BUY candidates, sorts them by priority, and then
+allocates them sequentially while updating simulated cash, positions, sleeve
+exposure, and open risk after each approved allocation. The legacy run-level
+allocator remains available by setting
+`TAURUS_PORTFOLIO_PLAN_ALLOCATION_ENABLED=false`.
 
 ## Main Files
 
@@ -54,7 +59,7 @@ positions, sleeve exposure, and open risk after each approved allocation.
 |---|---|
 | Policy YAML | `configs/portfolio/money_management_v1.yaml` |
 | Policy schema and validation | `packages/taurus_core/portfolio/money_management.py` |
-| Run-level batch allocator | `packages/taurus_core/portfolio/run_allocation.py` |
+| Planner-backed and legacy batch allocators | `packages/taurus_core/portfolio/run_allocation.py` |
 | Single-proposal active allocator | `packages/taurus_core/portfolio/active_allocation.py` |
 | Allocation output schema | `packages/taurus_core/allocation_schemas.py` |
 | Strategy configs | `configs/strategies/*.yaml` |
@@ -197,8 +202,7 @@ If cash room is small, `cash_buffer` can become the binding constraint.
 
 ## Rebalance Capacity Rules
 
-`rebalance_capacity` makes portfolio-plan capacity explicit without changing
-paper order routing:
+`rebalance_capacity` makes portfolio-plan capacity explicit for BUY allocation:
 
 ```yaml
 rebalance_capacity:
@@ -217,10 +221,10 @@ rebalance_capacity:
 
 The hard cash reserve is separate from soft sleeve capacity. `cash_buffer` is
 never borrowable, and the default policy keeps 5% NAV protected. Same-run sell
-proceeds are shown with an 80% spendable haircut, and BUY price-buffer metadata
-is visible for future executable sizing.
+proceeds are still advisory until M60, while BUY quantity sizing uses the
+configured price-buffer metadata in the planner-backed allocation path.
 
-In the dry-run portfolio plan, a non-cash sleeve has idle room only when it is
+In the portfolio plan, a non-cash sleeve has idle room only when it is
 below target and has no deployable same-sleeve BUY candidate in the plan. Idle
 room is protected, not borrowable, when soft borrowing is disabled, the sleeve
 is not listed as borrowable, the sleeve is itself a borrower, or the sleeve is
@@ -228,9 +232,9 @@ frozen by its drawdown threshold. Otherwise the row exposes borrowable capacity.
 
 When `active_strategy` has planned exposure above its own target, the plan can
 show borrowed capacity from idle eligible non-cash sleeves up to the configured
-borrow guard. This is an observability model in M58: `RunLevelAllocationService`
-and `PortfolioAllocationService` still own executable sizing until the later
-holistic allocation milestone.
+borrow guard. In M59, `PortfolioPlanAllocationService` passes that borrowed
+capacity into executable BUY sizing and records `capacity_source` plus borrowed
+sleeve IDs on allocation decisions and ledger rows.
 
 ## Strategy Mappings
 
@@ -498,6 +502,10 @@ Ledger fields include:
 - `selected`
 - `strategy_rank`
 - `strategy_score`
+- `planner_source`
+- `planner_rank`
+- `portfolio_plan_trade_id`
+- `capacity_source`
 - `trader_confidence`
 - `candidate_score`
 - `score_band`
@@ -530,6 +538,9 @@ Important fields:
 | `volatility_used` | Realized volatility used for dampening. |
 | `governor_scale_factor` | Drawdown scaling applied to new risk. |
 | `binding_constraint` | Smallest cap that determined the approved size. |
+| `portfolio_plan_id` / `portfolio_plan_trade_id` | Links the allocation decision back to the stored portfolio plan and trade row. |
+| `planner_source` / `planner_rank` | Shows whether the candidate came from active trader analysis or the core basket and where it ranked. |
+| `capacity_source` | Shows own-sleeve capacity versus explicit soft borrowed non-cash capacity. |
 | `rationale` | Human-readable calculation notes. |
 
 If allocation approves zero shares for a new BUY, the proposal is normalized to:

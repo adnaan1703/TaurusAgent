@@ -94,6 +94,9 @@ export function AllocationPanels({ allocation, showCore = true }: AllocationPane
           columns={[
             { key: "symbol", header: "Symbol", render: (row) => getString(row, "symbol") || "-" },
             { key: "rank", header: "Rank", align: "right", render: (row) => formatNumber(getPrimitive(row, "rank")) },
+            { key: "source", header: "Source", render: (row) => getString(row, "proposal_source") || getString(row, "planner_source") || "-" },
+            { key: "planner", header: "Planner rank", align: "right", render: (row) => formatNumber(getPrimitive(row, "planner_rank")) },
+            { key: "capacity", header: "Capacity", render: (row) => getString(row, "capacity_source") || "-" },
             { key: "sleeve", header: "Sleeve", render: (row) => getString(row, "sleeve_name") || getString(row, "sleeve_id") || "-" },
             { key: "strategy", header: "Strategy", render: (row) => getString(row, "strategy_name") || "-" },
             { key: "status", header: "Status", render: (row) => <StatusBadge status={getString(row, "status") || getString(row, "allocation_status")} size="sm" /> },
@@ -273,6 +276,16 @@ export function AllocationDecisionPanel({
           label="Constraint"
           supportingText={constraintReasons(allocationDecision)}
           value={getString(allocationDecision, "binding_constraint") || "None"}
+        />
+        <MetricCard
+          label="Planner"
+          supportingText={getString(allocationDecision, "portfolio_plan_trade_id") || "No plan trade"}
+          value={getString(allocationDecision, "planner_source") || getString(allocationDecision, "proposal_source") || "-"}
+        />
+        <MetricCard
+          label="Capacity"
+          supportingText={listValue(allocationDecision.borrowed_from_sleeve_ids)}
+          value={getString(allocationDecision, "capacity_source") || "-"}
         />
       </div>
     </DataPanel>
