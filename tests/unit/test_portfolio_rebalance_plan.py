@@ -118,7 +118,7 @@ def test_portfolio_rebalance_plan_serializes_deterministically_and_preserves_inp
     restored = PortfolioRebalancePlan.model_validate(artifact)
 
     assert restored.to_artifact() == artifact
-    assert artifact["model_version"] == "portfolio_rebalance_plan_v2"
+    assert artifact["model_version"] == "portfolio_rebalance_plan_v3"
     assert artifact["policy_version"] == "plan_test_policy"
     assert artifact["hard_cash_reserve_inr"] == "5000.00"
     assert artifact["spendable_cash_after_reserve_inr"] == "55000.00"
@@ -147,6 +147,9 @@ def test_portfolio_rebalance_plan_serializes_deterministically_and_preserves_inp
     assert cash_budget["forecast_sell_proceeds"]["amount_inr"] == "4000.00"
     assert cash_budget["spendable_same_run_proceeds"]["amount_inr"] == "3200.00"
     assert cash_budget["unallocated_cash"]["amount_inr"] == "50200.00"
+    assert artifact["same_run_sell_proceeds_gross_inr"] == "4000.00"
+    assert artifact["same_run_sell_proceeds_net_inr"] == "4000.00"
+    assert artifact["same_run_sell_proceeds_spendable_inr"] == "3200.00"
 
     sleeve_budgets = {row["sleeve_id"]: row for row in artifact["sleeve_budgets"]}
     assert sleeve_budgets["active_strategy"]["projected_exposure_inr"] == "5000.00"
@@ -382,6 +385,44 @@ def test_core_basket_decisions_become_deterministic_plan_candidates() -> None:
     assert candidates["WIPRO"].rejection_reasons == ("target_removed_from_core_basket",)
 
 
+def test_threshold_policy_generates_executable_exit_for_unproposed_position() -> None:
+    plan = PortfolioRebalancePlanService().build(
+        PortfolioRebalancePlanInput(
+            run_id="pr-threshold-exit",
+            portfolio_id="local-paper",
+            as_of=datetime(2026, 6, 22, 9, 0, tzinfo=timezone.utc),
+            strategy_name="graph_aware_score_v1",
+            proposals=tuple(),
+            nav_inr=Decimal("100000.00"),
+            current_cash_inr=Decimal("92000.00"),
+            current_positions=(
+                ActiveAllocationPosition(
+                    symbol="TCS",
+                    quantity=80,
+                    market_value_inr=Decimal("8000.00"),
+                ),
+            ),
+            histories_by_symbol={"TCS": tuple(_candles("TCS", Decimal("100.00")))},
+            strategy_rank_by_symbol={"TCS": 1},
+            strategy_score_by_symbol={"TCS": Decimal("-0.3000")},
+            money_management_policy=_policy(),
+            sleeve_by_symbol={"TCS": "active_strategy"},
+        )
+    )
+
+    candidates = {row.symbol: row for row in plan.candidates}
+    trades = {row.symbol: row for row in plan.planned_trades}
+
+    assert candidates["TCS"].source == "portfolio_rebalance_threshold"
+    assert candidates["TCS"].action == "EXIT"
+    assert candidates["TCS"].score_evidence["threshold_reason"] == (
+        "strategy_score_below_exit_threshold"
+    )
+    assert trades["TCS"].side == "SELL"
+    assert trades["TCS"].estimated_quantity == 80
+    assert plan.same_run_sell_proceeds_spendable_inr == Decimal("6400.00")
+
+
 def _policy() -> MoneyManagementPolicy:
     return MoneyManagementPolicy.model_validate(
         {
@@ -499,8 +540,8 @@ def _soft_capacity_policy() -> MoneyManagementPolicy:
                 },
             ],
             "limits": {
-                "max_stock_pct_nav": "7.5",
-                "max_stock_hard_cap_pct_nav": "7.5",
+                "max_stock_pct_nav": "60.0",
+                "max_stock_hard_cap_pct_nav": "60.0",
                 "max_sector_pct_nav": "25.0",
                 "max_graph_cluster_pct_nav": "35.0",
                 "max_open_positions": 20,

@@ -173,8 +173,34 @@ class RebalanceThresholdPolicy(BaseModel):
 
     sleeve_drift_threshold_pct: Decimal = Field(ge=Decimal("0"), le=Decimal("100"))
     min_rebalance_notional_inr: Decimal = Field(ge=Decimal("0"))
+    min_trade_drift_pct_nav: Decimal = Field(
+        default=Decimal("0.50"),
+        ge=Decimal("0"),
+        le=Decimal("100"),
+    )
+    score_below_exit_threshold: Decimal = Field(
+        default=Decimal("-0.20"),
+        ge=Decimal("-100"),
+        le=Decimal("100"),
+    )
+    score_below_trim_threshold: Decimal = Field(
+        default=Decimal("0.00"),
+        ge=Decimal("-100"),
+        le=Decimal("100"),
+    )
+    over_hard_cap_trim_enabled: bool = True
+    stale_unmapped_exit_enabled: bool = True
     review_frequency: str = Field(min_length=1)
     core_rebalance_frequency: str = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def validate_score_thresholds(self) -> RebalanceThresholdPolicy:
+        if self.score_below_exit_threshold > self.score_below_trim_threshold:
+            raise ValueError(
+                "score_below_exit_threshold must be less than or equal to "
+                "score_below_trim_threshold."
+            )
+        return self
 
 
 class RebalanceCapacityPolicy(BaseModel):

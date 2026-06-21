@@ -61,6 +61,21 @@ class AllocationDecision(BaseModel):
     planner_rank: int | None = Field(default=None, ge=1)
     capacity_source: str | None = None
     borrowed_from_sleeve_ids: tuple[str, ...] = Field(default_factory=tuple)
+    funding_source: str | None = None
+    existing_cash_used_inr: Decimal = Field(default=Decimal("0"), ge=Decimal("0"))
+    same_run_proceeds_used_inr: Decimal = Field(default=Decimal("0"), ge=Decimal("0"))
+    same_run_proceeds_available_inr: Decimal = Field(default=Decimal("0"), ge=Decimal("0"))
+    same_run_proceeds_haircut_pct: Decimal | None = Field(
+        default=None,
+        ge=Decimal("0"),
+        le=Decimal("100"),
+    )
+    hard_cash_reserve_inr: Decimal | None = Field(default=None, ge=Decimal("0"))
+    buy_price_buffer_pct: Decimal | None = Field(
+        default=None,
+        ge=Decimal("0"),
+        le=Decimal("100"),
+    )
     proposal_source: str | None = None
     rationale: tuple[str, ...] = Field(default_factory=tuple)
 

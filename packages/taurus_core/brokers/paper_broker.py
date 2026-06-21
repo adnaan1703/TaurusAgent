@@ -73,6 +73,8 @@ class PaperBroker(BrokerAdapter):
         decision: FinalDecision,
         *,
         execution_policy: ExecutionPolicy = "immediate",
+        submitted_at: datetime | None = None,
+        pending_affordability_cash_inr: Decimal | None = None,
     ) -> PaperOrder:
         if execution_policy not in {"immediate", "next_open"}:
             raise ValueError("PaperBroker execution_policy must be immediate or next_open.")
@@ -82,7 +84,7 @@ class PaperBroker(BrokerAdapter):
             self.settings,
             profile_id=decision.portfolio_id,
         )
-        timestamp = _as_utc(decision.as_of)
+        timestamp = _as_utc(submitted_at or decision.as_of)
         repo = ExecutionRepository(self.session)
         repo.delete_execution_for_final_decision(decision.final_decision_id)
         self.session.flush()
@@ -146,6 +148,7 @@ class PaperBroker(BrokerAdapter):
                 trade_date=candle.trade_date,
                 account_state=account_state,
                 positions=positions,
+                pending_affordability_cash_inr=pending_affordability_cash_inr,
             )
             if affordable_quantity <= 0:
                 order, account, position_models = self._rejected_order(
@@ -830,6 +833,7 @@ class PaperBroker(BrokerAdapter):
         trade_date,
         account_state: _AccountState,
         positions: dict[str, _PositionState],
+        pending_affordability_cash_inr: Decimal | None = None,
     ) -> int:
         preview_order_id = paper_order_id(
             final_decision_id=decision.final_decision_id,
@@ -852,7 +856,11 @@ class PaperBroker(BrokerAdapter):
             side=side,
             requested_quantity=quantity,
             fills=preview_fills,
-            available_cash=account_state.available_cash_inr,
+            available_cash=(
+                account_state.available_cash_inr
+                if pending_affordability_cash_inr is None
+                else pending_affordability_cash_inr
+            ),
             positions=positions,
             symbol=decision.symbol,
         )

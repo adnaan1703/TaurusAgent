@@ -39,6 +39,7 @@ from taurus_core.db.repositories import (
 )
 from taurus_core.db.session import build_session_factory
 from taurus_core.domain.market_data import DailyCandle
+from taurus_core.execution.costs import IndiaPaperCostModel
 from taurus_core.execution.order_router import ExecutionRouter
 from taurus_core.execution.schemas import NextOpenSettlementSummary, PaperAccount, PaperOrder
 from taurus_core.features.store import TechnicalFeatureService
@@ -91,6 +92,9 @@ from taurus_core.risk.schemas import FinalDecision, RiskReview
 from taurus_core.strategies import DEFAULT_STRATEGY_CONFIG_PATH, load_strategy_config
 from taurus_core.strategies.factory import build_strategy
 
+
+MONEY_QUANT = Decimal("0.01")
+DEFAULT_SAME_RUN_SELL_PROCEEDS_HAIRCUT_PCT = Decimal("80.0000")
 
 ANALYSIS_STAGE_NAMES = (
     "analyst_suite",
@@ -1284,6 +1288,8 @@ class PaperRunService:
         symbol_index: int,
         succeeded_count: int,
         failed_count: int,
+        submitted_at: datetime | None = None,
+        pending_affordability_cash_inr: Decimal | None = None,
     ) -> tuple[PaperOrder | None, Any | None]:
         self._emit_symbol_stage_started(
             run_id=run_id,
@@ -1301,6 +1307,8 @@ class PaperRunService:
             order = ExecutionRouter(session, self.settings).route_decision(
                 decision,
                 execution_policy=execution_policy,
+                submitted_at=submitted_at,
+                pending_affordability_cash_inr=pending_affordability_cash_inr,
             )
             repo = ExecutionRepository(session)
             account = repo.latest_account(run_id=run_id)
@@ -1323,10 +1331,24 @@ class PaperRunService:
         routed_orders: list[dict[str, object]] = []
         skipped_symbols: list[dict[str, object]] = []
         errors: list[PaperRunError] = []
+        pending_affordability_cash = (
+            self._initial_pending_affordability_cash()
+            if self.run_after_market_close
+            else None
+        )
+        submitted_at_base = _utc_now()
 
-        for symbol, finalization in finalizations_by_symbol.items():
-            entry = ledger_by_symbol.get(symbol)
-            execution_entry = execution_entries.get(symbol)
+        for sequence, symbol in enumerate(
+            _execution_symbol_order(
+                finalizations_by_symbol,
+                allocation_result=allocation_result,
+            ),
+            start=1,
+        ):
+            finalization = finalizations_by_symbol[symbol]
+            normalized_symbol = symbol.upper()
+            entry = ledger_by_symbol.get(normalized_symbol)
+            execution_entry = execution_entries.get(normalized_symbol)
             if execution_entry is None:
                 skipped_symbols.append(
                     _execution_skip_artifact(
@@ -1352,14 +1374,47 @@ class PaperRunService:
                     symbol_index=symbol_index,
                     succeeded_count=succeeded_count,
                     failed_count=failed_count,
+                    submitted_at=submitted_at_base + timedelta(seconds=sequence),
+                    pending_affordability_cash_inr=(
+                        pending_affordability_cash
+                        if (
+                            self.run_after_market_close
+                            and finalization.final_decision.final_action == "BUY"
+                        )
+                        else None
+                    ),
                 )
-                symbol_artifact = artifacts.get("symbols", {}).get(symbol)
+                if self.run_after_market_close and order is not None:
+                    if order.side == "SELL":
+                        pending_affordability_cash = _add_optional_decimal(
+                            pending_affordability_cash,
+                            _same_run_sell_spendable_proceeds(
+                                order=order,
+                                entry=execution_entry,
+                                settings=self.settings,
+                            ),
+                        )
+                    elif order.side == "BUY":
+                        pending_affordability_cash = _subtract_optional_decimal(
+                            pending_affordability_cash,
+                            _accepted_buy_debit(
+                                order=order,
+                                entry=execution_entry,
+                                settings=self.settings,
+                            ),
+                        )
+                symbol_artifact = artifacts.get("symbols", {}).get(symbol) or artifacts.get(
+                    "symbols", {}
+                ).get(normalized_symbol)
                 if isinstance(symbol_artifact, dict):
                     symbol_artifact["order_id"] = order.order_id if order is not None else None
                     symbol_artifact["order_status"] = order.status if order is not None else None
                     symbol_artifact["order_reason"] = _order_artifact_reason(order)
                     symbol_artifact["account_id"] = (
                         account.account_id if account is not None else None
+                    )
+                    symbol_artifact["execution_funding"] = _execution_funding_artifact(
+                        execution_entry
                     )
                 if order is None:
                     skipped_symbols.append(
@@ -1381,6 +1436,7 @@ class PaperRunService:
                         "reason": _order_artifact_reason(order),
                         "final_decision_id": order.final_decision_id,
                         "allocation_status": execution_entry.status,
+                        **_execution_funding_artifact(execution_entry),
                     }
                 )
             except Exception as exc:
@@ -1600,14 +1656,14 @@ class PaperRunService:
                     portfolio_id=self.settings.taurus_paper_portfolio_id,
                 )
             )
-            plan_buy_symbols = _portfolio_plan_buy_symbols(portfolio_plan)
+            plan_trade_symbols = _portfolio_plan_trade_symbols(portfolio_plan)
             proposal_symbols = {proposal.symbol.upper() for proposal in proposals}
             concentration_symbols = proposal_symbols | {
                 position.symbol.upper() for position in open_positions
-            } | plan_buy_symbols
+            } | plan_trade_symbols
             histories_by_symbol = {
                 symbol: tuple(_daily_candle_history(session, symbol))
-                for symbol in sorted(proposal_symbols | plan_buy_symbols)
+                for symbol in sorted(proposal_symbols | plan_trade_symbols)
             }
             sector_by_symbol, graph_cluster_by_symbol = _core_concentration_groups(
                 session,
@@ -1660,7 +1716,7 @@ class PaperRunService:
                 result = RunLevelAllocationService().allocate(allocation_input)
             research_repo = ResearchRepository(session)
             for updated in result.proposals:
-                if _is_planner_generated_core_proposal(updated):
+                if _is_planner_generated_proposal(updated):
                     research_repo.replace_debate_for_run_symbol(
                         _synthetic_portfolio_rebalance_debate(updated)
                     )
@@ -1733,6 +1789,9 @@ class PaperRunService:
                 str(symbol).strip().upper()
                 for symbol in core_target_weights
                 if str(symbol).strip()
+            } | {
+                position.symbol.upper()
+                for position in open_positions
             }
             histories_by_symbol = {
                 symbol: tuple(_daily_candle_history(session, symbol))
@@ -1773,6 +1832,9 @@ class PaperRunService:
                 money_management_policy=policy,
                 fallback_policy_source="settings",
                 sleeve_by_symbol=sleeve_by_symbol,
+                paper_brokerage_bps=self.settings.taurus_paper_brokerage_bps,
+                paper_exchange_txn_charge_bps=self.settings.taurus_paper_exchange_txn_charge_bps,
+                paper_tax_levy_bps=self.settings.taurus_paper_tax_levy_bps,
             )
         )
 
@@ -2086,6 +2148,17 @@ class PaperRunService:
             )
         return PaperAccount.model_validate(row.payload) if row is not None else None
 
+    def _initial_pending_affordability_cash(self) -> Decimal:
+        account = self._latest_paper_account()
+        if account is not None:
+            return account.available_cash_inr
+        with self.session_factory() as session:
+            return resolve_runtime_profile(
+                session,
+                self.settings,
+                profile_id=self.settings.effective_profile_id,
+            ).starting_corpus_inr
+
     def _refresh_llm_usage_artifact(
         self,
         artifacts: dict[str, Any],
@@ -2296,12 +2369,10 @@ def _symbol_scope_with_finalization_symbols(
     )
 
 
-def _portfolio_plan_buy_symbols(portfolio_plan: Any | None) -> set[str]:
+def _portfolio_plan_trade_symbols(portfolio_plan: Any | None) -> set[str]:
     trades = getattr(portfolio_plan, "planned_trades", ())
     symbols: set[str] = set()
     for trade in trades:
-        if getattr(trade, "side", None) != "BUY":
-            continue
         if getattr(trade, "status", None) in {"missing_price", "no_trade"}:
             continue
         symbol = str(getattr(trade, "symbol", "")).strip().upper()
@@ -2314,15 +2385,19 @@ def _planner_generated_symbols(allocation_result: RunAllocationResult) -> set[st
     return {
         proposal.symbol.upper()
         for proposal in allocation_result.proposals
-        if _is_planner_generated_core_proposal(proposal)
+        if _is_planner_generated_proposal(proposal)
     }
 
 
-def _is_planner_generated_core_proposal(proposal: TraderProposal) -> bool:
-    if proposal.target_sizing_metadata.get("proposal_source") == "portfolio_plan_core":
+def _is_planner_generated_proposal(proposal: TraderProposal) -> bool:
+    source = proposal.target_sizing_metadata.get("proposal_source")
+    if source in {"portfolio_plan_core", "portfolio_plan_threshold"}:
         return True
     decision = proposal.allocation_decision
-    return decision is not None and decision.proposal_source == "portfolio_plan_core"
+    return decision is not None and decision.proposal_source in {
+        "portfolio_plan_core",
+        "portfolio_plan_threshold",
+    }
 
 
 def _proposal_source(proposal: TraderProposal) -> str:
@@ -2348,6 +2423,7 @@ def _synthetic_portfolio_rebalance_debate(proposal: TraderProposal) -> DebateRep
     confidence = proposal.confidence.quantize(Decimal("0.0001"))
     score = min(Decimal("1.0000"), confidence).quantize(Decimal("0.0001"))
     source_report_ids = list(proposal.source_report_ids)
+    action = proposal.action
     return DebateReport(
         debate_id=proposal.debate_id,
         run_id=proposal.run_id,
@@ -2360,7 +2436,7 @@ def _synthetic_portfolio_rebalance_debate(proposal: TraderProposal) -> DebateRep
             score=score,
             confidence=confidence,
             key_points=[
-                "Portfolio rebalance planner selected this core Shariah BUY candidate."
+                f"Portfolio rebalance planner selected this {action} candidate."
             ],
             conditions=[
                 "Paper-only risk review and final approval must confirm the plan row."
@@ -2372,7 +2448,7 @@ def _synthetic_portfolio_rebalance_debate(proposal: TraderProposal) -> DebateRep
             score=Decimal("-0.1000"),
             confidence=Decimal("0.5000"),
             key_points=[
-                "Planner-generated core BUYs remain subject to deterministic risk controls."
+                "Planner-generated rebalance candidates remain subject to deterministic risk controls."
             ],
             risk_flags=[
                 "Price movement, liquidity, concentration, or stale data can still block routing."
@@ -2382,9 +2458,11 @@ def _synthetic_portfolio_rebalance_debate(proposal: TraderProposal) -> DebateRep
         rounds=[
             DebateRound(
                 round_number=1,
-                bull_argument="Core rebalance target supports a paper BUY candidate.",
+                bull_argument=(
+                    f"Portfolio rebalance target supports a paper {action} candidate."
+                ),
                 bear_argument="Risk and final approval remain authoritative before any order.",
-                manager_note="Synthetic debate artifact created for portfolio-plan core routing.",
+                manager_note="Synthetic debate artifact created for portfolio-plan routing.",
             )
         ],
         manager_summary=ResearchManagerSummary(
@@ -2392,8 +2470,8 @@ def _synthetic_portfolio_rebalance_debate(proposal: TraderProposal) -> DebateRep
             consensus_score=score,
             confidence=confidence,
             summary=(
-                "Portfolio rebalance planner generated this core Shariah BUY for "
-                "paper-only risk/final routing."
+                f"Portfolio rebalance planner generated this {action} for "
+                "paper-only risk and final routing."
             ),
             unresolved_uncertainties=[
                 "Final approval and next-open paper execution may still reject or trim the order."
@@ -2554,6 +2632,166 @@ def _allocation_execution_entries(allocation_result: RunAllocationResult) -> dic
     return execution_entries
 
 
+def _execution_symbol_order(
+    finalizations_by_symbol: dict[str, PaperSymbolFinalization],
+    *,
+    allocation_result: RunAllocationResult,
+) -> list[str]:
+    ledger_by_symbol = _allocation_ledger_by_symbol(allocation_result)
+    execution_entries = _allocation_execution_entries(allocation_result)
+
+    def sort_key(symbol: str) -> tuple[int, int, int, str, str]:
+        normalized = symbol.upper()
+        finalization = finalizations_by_symbol[symbol]
+        entry = ledger_by_symbol.get(normalized)
+        planner_rank = getattr(entry, "planner_rank", None)
+        return (
+            _execution_side_group(finalization.final_decision.final_action),
+            0 if normalized in execution_entries else 1,
+            planner_rank if planner_rank is not None else 1_000_000,
+            normalized,
+            finalization.final_decision.final_decision_id,
+        )
+
+    return sorted(finalizations_by_symbol, key=sort_key)
+
+
+def _execution_side_group(final_action: str) -> int:
+    if final_action in {"REDUCE", "EXIT", "SELL"}:
+        return 0
+    if final_action == "BUY":
+        return 1
+    return 2
+
+
+def _execution_funding_artifact(entry: Any | None) -> dict[str, object]:
+    return {
+        "funding_source": getattr(entry, "funding_source", None) if entry is not None else None,
+        "existing_cash_used_inr": _decimal_artifact(
+            getattr(entry, "existing_cash_used_inr", None) if entry is not None else None
+        ),
+        "same_run_proceeds_used_inr": _decimal_artifact(
+            getattr(entry, "same_run_proceeds_used_inr", None) if entry is not None else None
+        ),
+        "same_run_proceeds_available_inr": _decimal_artifact(
+            getattr(entry, "same_run_proceeds_available_inr", None)
+            if entry is not None
+            else None
+        ),
+        "same_run_proceeds_haircut_pct": _decimal_artifact(
+            getattr(entry, "same_run_proceeds_haircut_pct", None)
+            if entry is not None
+            else None
+        ),
+        "hard_cash_reserve_inr": _decimal_artifact(
+            getattr(entry, "hard_cash_reserve_inr", None) if entry is not None else None
+        ),
+        "buy_price_buffer_pct": _decimal_artifact(
+            getattr(entry, "buy_price_buffer_pct", None) if entry is not None else None
+        ),
+    }
+
+
+def _same_run_sell_spendable_proceeds(
+    *,
+    order: PaperOrder,
+    entry: Any,
+    settings: Settings,
+) -> Decimal:
+    if order.side != "SELL" or order.status not in {
+        "PENDING_NEXT_OPEN",
+        "PARTIALLY_FILLED",
+        "FILLED",
+    }:
+        return Decimal("0.00")
+    gross, costs = _accepted_order_notional_and_costs(
+        order=order,
+        entry=entry,
+        settings=settings,
+    )
+    net = max(Decimal("0.00"), gross - costs)
+    return _money(net * _haircut_pct_for_entry(entry) / Decimal("100"))
+
+
+def _accepted_buy_debit(
+    *,
+    order: PaperOrder,
+    entry: Any,
+    settings: Settings,
+) -> Decimal:
+    if order.side != "BUY" or order.status not in {
+        "PENDING_NEXT_OPEN",
+        "PARTIALLY_FILLED",
+        "FILLED",
+    }:
+        return Decimal("0.00")
+    gross, costs = _accepted_order_notional_and_costs(
+        order=order,
+        entry=entry,
+        settings=settings,
+    )
+    return _money(gross + costs)
+
+
+def _accepted_order_notional_and_costs(
+    *,
+    order: PaperOrder,
+    entry: Any,
+    settings: Settings,
+) -> tuple[Decimal, Decimal]:
+    if order.gross_value_inr > 0:
+        return _money(order.gross_value_inr), _money(order.total_cost_inr)
+
+    approved_quantity = Decimal(str(max(0, getattr(entry, "approved_quantity", 0))))
+    accepted_quantity = Decimal(str(max(0, order.quantity)))
+    approved_notional = Decimal(str(getattr(entry, "approved_notional_inr", Decimal("0"))))
+    if approved_quantity <= 0 or accepted_quantity <= 0 or approved_notional <= 0:
+        return Decimal("0.00"), Decimal("0.00")
+
+    gross = _money(approved_notional * accepted_quantity / approved_quantity)
+    costs = _cost_model_for_settings(settings).calculate(gross).total_inr
+    return gross, _money(costs)
+
+
+def _cost_model_for_settings(settings: Settings) -> IndiaPaperCostModel:
+    return IndiaPaperCostModel(
+        brokerage_bps=settings.taurus_paper_brokerage_bps,
+        exchange_txn_charge_bps=settings.taurus_paper_exchange_txn_charge_bps,
+        tax_levy_bps=settings.taurus_paper_tax_levy_bps,
+    )
+
+
+def _haircut_pct_for_entry(entry: Any) -> Decimal:
+    value = getattr(entry, "same_run_proceeds_haircut_pct", None)
+    if value is None:
+        return DEFAULT_SAME_RUN_SELL_PROCEEDS_HAIRCUT_PCT
+    return Decimal(str(value))
+
+
+def _add_optional_decimal(value: Decimal | None, increment: Decimal) -> Decimal | None:
+    if increment <= 0:
+        return value
+    return _money((value or Decimal("0.00")) + increment)
+
+
+def _subtract_optional_decimal(value: Decimal | None, decrement: Decimal) -> Decimal | None:
+    if value is None:
+        return None
+    if decrement <= 0:
+        return value
+    return _money(max(Decimal("0.00"), value - decrement))
+
+
+def _decimal_artifact(value: Any | None) -> str | None:
+    if value is None:
+        return None
+    return str(value)
+
+
+def _money(value: Decimal) -> Decimal:
+    return value.quantize(MONEY_QUANT)
+
+
 def _execution_set_artifact(*, entry: Any, decision: FinalDecision) -> dict[str, object]:
     reason = (
         "open_position_lifecycle"
@@ -2574,6 +2812,7 @@ def _execution_set_artifact(*, entry: Any, decision: FinalDecision) -> dict[str,
         "planner_rank": getattr(entry, "planner_rank", None),
         "capacity_source": getattr(entry, "capacity_source", None),
         "proposal_source": getattr(entry, "proposal_source", None),
+        **_execution_funding_artifact(entry),
     }
 
 
@@ -2600,6 +2839,7 @@ def _execution_skip_artifact(
         "planner_rank": getattr(entry, "planner_rank", None) if entry is not None else None,
         "capacity_source": getattr(entry, "capacity_source", None) if entry is not None else None,
         "proposal_source": getattr(entry, "proposal_source", None) if entry is not None else None,
+        **_execution_funding_artifact(entry),
         "final_status": decision.status,
         "final_action": decision.final_action,
         "reason": reason or _execution_skip_reason(entry=entry, decision=decision),

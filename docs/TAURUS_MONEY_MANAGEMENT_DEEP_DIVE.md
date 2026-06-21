@@ -44,13 +44,14 @@ BUY intent is not an order.
 BUY intent must survive allocation, risk review, final approval, and routing.
 ```
 
-Allocation is batch-aware but not a full portfolio optimizer. With
-`TAURUS_PORTFOLIO_PLAN_ALLOCATION_ENABLED=true`, the default M59 path sees
-active trader BUY proposals and executable core Shariah BUY candidates from the
-portfolio plan, scores the BUY candidates, sorts them by priority, and then
-allocates them sequentially while updating simulated cash, positions, sleeve
-exposure, and open risk after each approved allocation. The legacy run-level
-allocator remains available by setting
+Allocation is batch-aware and planner-backed. With
+`TAURUS_PORTFOLIO_PLAN_ALLOCATION_ENABLED=true`, the default path sees active
+trader BUY proposals, executable core Shariah BUY candidates, and
+threshold-worthy REDUCE/EXIT candidates from the portfolio plan. It queues
+sell-side lifecycle proposals first, scores BUY candidates by priority, and
+then allocates BUYs sequentially while updating simulated cash, positions,
+sleeve exposure, and open risk after each approved allocation. The legacy
+run-level allocator remains available by setting
 `TAURUS_PORTFOLIO_PLAN_ALLOCATION_ENABLED=false`.
 
 ## Main Files
@@ -221,8 +222,10 @@ rebalance_capacity:
 
 The hard cash reserve is separate from soft sleeve capacity. `cash_buffer` is
 never borrowable, and the default policy keeps 5% NAV protected. Same-run sell
-proceeds are still advisory until M60, while BUY quantity sizing uses the
-configured price-buffer metadata in the planner-backed allocation path.
+proceeds are forecast from planned REDUCE/EXIT rows after estimated paper costs;
+only the configured 80% haircut share is spendable by same-run BUY sizing. BUY
+quantity sizing uses the configured 5% price-buffer metadata in the
+planner-backed allocation path.
 
 In the portfolio plan, a non-cash sleeve has idle room only when it is
 below target and has no deployable same-sleeve BUY candidate in the plan. Idle
@@ -232,9 +235,11 @@ frozen by its drawdown threshold. Otherwise the row exposes borrowable capacity.
 
 When `active_strategy` has planned exposure above its own target, the plan can
 show borrowed capacity from idle eligible non-cash sleeves up to the configured
-borrow guard. In M59, `PortfolioPlanAllocationService` passes that borrowed
-capacity into executable BUY sizing and records `capacity_source` plus borrowed
-sleeve IDs on allocation decisions and ledger rows.
+borrow guard. `PortfolioPlanAllocationService` passes that borrowed capacity
+and the spendable same-run proceeds pool into executable BUY sizing, then
+records `capacity_source`, borrowed sleeve IDs, `funding_source`, existing cash
+used, same-run proceeds used, available proceeds, reserve, and price-buffer
+metadata on allocation decisions and ledger rows.
 
 ## Strategy Mappings
 
@@ -541,6 +546,10 @@ Important fields:
 | `portfolio_plan_id` / `portfolio_plan_trade_id` | Links the allocation decision back to the stored portfolio plan and trade row. |
 | `planner_source` / `planner_rank` | Shows whether the candidate came from active trader analysis or the core basket and where it ranked. |
 | `capacity_source` | Shows own-sleeve capacity versus explicit soft borrowed non-cash capacity. |
+| `funding_source` | Shows whether a BUY used existing cash, same-run sell proceeds, borrowed sleeve capacity, or a combination. |
+| `existing_cash_used_inr` / `same_run_proceeds_used_inr` | Shows how much approved BUY notional came from existing cash versus the haircut proceeds pool. |
+| `same_run_proceeds_available_inr` / `same_run_proceeds_haircut_pct` | Shows the same-run proceeds pool and haircut visible to BUY sizing. |
+| `hard_cash_reserve_inr` / `buy_price_buffer_pct` | Shows the hard cash reserve and buffered BUY reference price policy used by planner-backed sizing. |
 | `rationale` | Human-readable calculation notes. |
 
 If allocation approves zero shares for a new BUY, the proposal is normalized to:

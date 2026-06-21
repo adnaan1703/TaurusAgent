@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from fastapi.testclient import TestClient
@@ -41,6 +42,7 @@ from taurus_core.paper_trading.service import (
     FINALIZATION_STAGE_NAMES,
     PaperSymbolAnalysis,
     PaperRunService,
+    _execution_symbol_order,
     _sleeve_snapshots_for_allocation,
     _symbol_artifact_from_results,
 )
@@ -48,10 +50,13 @@ from taurus_core.portfolio import (
     ActiveAllocationPosition,
     PortfolioRebalancePlanInput,
     PortfolioRebalancePlanService,
+    RunAllocationResult,
     load_money_management_policy,
 )
+from taurus_core.portfolio.run_allocation import AllocationLedgerEntry
 from taurus_core.profiles.runtime import RuntimeProfileError
 from taurus_core.profiles.schemas import TaurusProfileCreate
+from taurus_core.risk.schemas import FinalDecision
 from tests.llm_fakes import FakeLLMProvider
 from tests.market_data_fixtures import (
     FakeKiteMarketDataProvider,
@@ -72,6 +77,33 @@ def fake_llm_provider(monkeypatch: pytest.MonkeyPatch) -> None:
     )
 
 
+def test_execution_symbol_order_queues_sell_side_before_buys() -> None:
+    allocation_result = RunAllocationResult(
+        proposals=tuple(),
+        ledger=(
+            _ledger_entry(symbol="AAA", action="BUY", status="selected", planner_rank=1),
+            _ledger_entry(
+                symbol="TCS",
+                action="EXIT",
+                status="open_position_management",
+                planner_rank=99,
+            ),
+        ),
+        summary={},
+        binding_constraints={},
+        policy_source="portfolio_plan",
+    )
+    finalizations = {
+        "AAA": SimpleNamespace(final_decision=_final_decision(symbol="AAA", action="BUY")),
+        "TCS": SimpleNamespace(final_decision=_final_decision(symbol="TCS", action="EXIT")),
+    }
+
+    assert _execution_symbol_order(finalizations, allocation_result=allocation_result) == [
+        "TCS",
+        "AAA",
+    ]
+
+
 def test_paper_run_service_executes_full_chain_and_api_returns_runs(tmp_path: Path) -> None:
     settings = _settings_for_temp_db(tmp_path)
     run = PaperRunService(settings).run_once(symbols=["INFY"])
@@ -86,7 +118,7 @@ def test_paper_run_service_executes_full_chain_and_api_returns_runs(tmp_path: Pa
     assert run.artifacts["strategy"]["strategy_name"]
     assert run.artifacts["portfolio_plan"]["run_id"] == run.run_id
     assert run.artifacts["portfolio_plan"]["portfolio_id"] == "local-paper"
-    assert run.artifacts["portfolio_plan"]["model_version"] == "portfolio_rebalance_plan_v2"
+    assert run.artifacts["portfolio_plan"]["model_version"] == "portfolio_rebalance_plan_v3"
     assert run.artifacts["portfolio_plan"]["planned_trades"][0]["symbol"] == "INFY"
     assert run.artifacts["symbols"]["INFY"]["final_status"] == "APPROVED_FOR_PAPER"
     assert run.artifacts["symbols"]["INFY"]["order_status"] == "PENDING_NEXT_OPEN"
@@ -1914,6 +1946,60 @@ def _force_trader_actions(
         )
 
     monkeypatch.setattr(PaperRunService, "analyze_symbol", patched_analyze_symbol)
+
+
+def _ledger_entry(
+    *,
+    symbol: str,
+    action: str,
+    status: str,
+    planner_rank: int,
+) -> AllocationLedgerEntry:
+    return AllocationLedgerEntry(
+        symbol=symbol,
+        proposal_id=f"tp-{symbol.lower()}",
+        action=action,
+        status=status,
+        selected=status in {"selected", "allocation_reduced"},
+        strategy_rank=planner_rank,
+        strategy_score=Decimal("0.1000"),
+        trader_confidence=Decimal("0.9000"),
+        candidate_score=Decimal("90.0000"),
+        score_band="test",
+        requested_position_pct_nav=Decimal("0.0000"),
+        approved_position_pct_nav=Decimal("0.0000"),
+        requested_notional_inr=Decimal("100.00"),
+        approved_notional_inr=Decimal("100.00"),
+        approved_quantity=1,
+        binding_constraint=None,
+        portfolio_plan_id="plan-test",
+        portfolio_plan_trade_id=f"trade-{symbol.lower()}",
+        planner_candidate_id=f"candidate-{symbol.lower()}",
+        planner_source="portfolio_rebalance_threshold",
+        planner_rank=planner_rank,
+        proposal_source="portfolio_plan_threshold",
+    )
+
+
+def _final_decision(*, symbol: str, action: str) -> FinalDecision:
+    return FinalDecision(
+        final_decision_id=f"fd-{symbol.lower()}",
+        decision_id=f"dec-{symbol.lower()}",
+        run_id="run-order-test",
+        portfolio_id="local-paper",
+        symbol=symbol,
+        proposal_id=f"tp-{symbol.lower()}",
+        risk_check_id=f"risk-{symbol.lower()}",
+        as_of=datetime(2026, 6, 22, tzinfo=timezone.utc),
+        final_action=action,  # type: ignore[arg-type]
+        status="APPROVED_FOR_PAPER",
+        approved_quantity=1,
+        approved_position_pct_nav=Decimal("0.0000"),
+        reason="Approved for ordering test.",
+        is_order=True,
+        can_send_to_broker=True,
+        model_version="test_final_decision",
+    )
 
 
 def _settings_for_temp_db(

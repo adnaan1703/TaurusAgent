@@ -555,6 +555,8 @@ Completion summary requirements:
 
 ## M60 - Threshold Trims, Same-Run Proceeds Netting, And Execution Buffer
 
+Status: Done.
+
 Purpose: complete full rebalance behavior by allowing the planner to reduce or
 exit existing positions, conservatively recycle part of forecast proceeds, and
 queue sells before buys.
@@ -657,6 +659,21 @@ Completion summary requirements:
 - Assumptions made
 - Mocks created
 - Mocks used
+
+Completion summary:
+
+- Assumptions made: M60 should keep the planner long-only and paper-only;
+  threshold REDUCE/EXIT generation should be deterministic from configured
+  drift/notional/score/hard-cap/stale-sleeve rules; same-run BUY sizing may use
+  only the configured 80% spendable slice of forecast net sell proceeds while
+  preserving the 5% NAV hard cash reserve and 5% BUY price buffer; final
+  approval remains authoritative, so paper routing only grants BUY pending-cash
+  credit after sell-side orders are accepted or filled; M61 remains a separate
+  final regression and cleanup milestone.
+- Mocks created: None.
+- Mocks used: Existing `FakeLLMProvider`, existing
+  `FakeKiteMarketDataProvider`, deterministic daily-candle fixtures, mock final
+  approval helpers, FastAPI `TestClient`, and existing React fetch stubs.
 
 ## M61 - End-To-End Regression, Operator Docs, And Cleanup
 

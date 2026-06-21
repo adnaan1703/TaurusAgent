@@ -216,20 +216,22 @@ Every successful paper run now stores a typed, replayable portfolio plan at
 `paper_runs.artifacts.portfolio_plan`. The plan includes current NAV/cash, hard
 cash reserve, position sleeve labels, trader proposal candidates, core basket
 decisions, planned trade rows, cash budget rows, sleeve budget rows, and
-constraints. In M59 the plan is the default source for executable BUY
-allocation when money management is enabled; set
+constraints. The plan is the default source for executable BUY, REDUCE, and
+EXIT allocation when money management is enabled; set
 `TAURUS_PORTFOLIO_PLAN_ALLOCATION_ENABLED=false` to retain the legacy
 run-level allocation path during compatibility testing.
 
-The M59 allocator compares active trader BUY proposals and executable core
-Shariah BUY candidates in one planner-linked rank order. Existing trader
-proposals keep their original requested fields and receive allocation decisions
-with `portfolio_plan_id`, `portfolio_plan_trade_id`, planner source/rank, and
-own-sleeve versus borrowed-capacity metadata. Core BUY rows without an existing
+The allocator compares active trader BUY proposals, executable core Shariah BUY
+candidates, and threshold-worthy REDUCE/EXIT candidates in one planner-linked
+run. Existing trader proposals keep their original requested fields and receive
+allocation decisions with `portfolio_plan_id`, `portfolio_plan_trade_id`,
+planner source/rank, own-sleeve versus borrowed-capacity metadata, and BUY
+funding metadata. Core BUY rows and threshold sell rows without an existing
 trader proposal become deterministic `portfolio_rebalance` proposals, then pass
-through the same risk review, final approval, and paper-only next-open routing
-as active BUYs. REDUCE/EXIT rows and same-run proceeds remain advisory until
-M60.
+through the same risk review, final approval, and paper-only routing path as
+active proposals. Forecast REDUCE/EXIT proceeds are netted after paper costs,
+only the configured 80% haircut share is spendable by same-run BUY sizing, and
+run execution submits accepted sell-side next-open orders before BUY orders.
 
 ## Research Debate Layer
 

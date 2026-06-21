@@ -364,13 +364,23 @@ decisions, cash-buffer checks, open-risk usage, and drawdown-governor context.
 It still routes only through local `PaperBroker`; live broker execution remains
 disabled.
 
-With money management enabled, the portfolio plan is the default source for BUY
-allocation. Active trader BUY proposals and executable core Shariah BUY
-candidates are compared in one rank order, selected rows carry
-`portfolio_plan_id` and `portfolio_plan_trade_id`, and core BUYs can become
-deterministic `portfolio_rebalance` proposals before risk review. To compare
+With money management enabled, the portfolio plan is the default source for
+rebalance allocation. Active trader BUY proposals, executable core Shariah BUY
+candidates, and threshold-worthy REDUCE/EXIT candidates are processed in one
+planner-linked run. Selected rows carry `portfolio_plan_id` and
+`portfolio_plan_trade_id`, generated core BUYs and threshold sells can become
+deterministic `portfolio_rebalance` proposals before risk review, and run
+execution queues sell-side next-open paper orders before BUY orders. To compare
 against the pre-M59 allocator during troubleshooting, set
 `TAURUS_PORTFOLIO_PLAN_ALLOCATION_ENABLED=false`.
+
+The planner preserves a 5% NAV hard cash reserve and sizes BUY quantities with
+a 5% reference-price buffer before paper costs. Same-run REDUCE/EXIT proceeds
+are forecast net of estimated paper costs, but only 80% of that forecast pool is
+spendable by BUY sizing in the same run. Allocation decisions, replay, and the
+React dashboard show the planned proceeds pool, haircut, reserve, price buffer,
+and whether each BUY used existing cash, same-run sell proceeds, borrowed sleeve
+capacity, or a combination.
 
 There is no manual core-symbol allowlist in the money-management policy. The
 `core_shariah` sleeve defines the target allocation, `core_shariah_basket_v1`

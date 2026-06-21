@@ -72,6 +72,7 @@ export type UiRunSelectionRow = {
   decision_id?: string | null;
   order_id?: string | null;
   rank?: number | null;
+  planner_rank?: number | null;
   strategy_score?: number | null;
   candidate_score?: number | null;
   trader_action?: string | null;
@@ -82,6 +83,16 @@ export type UiRunSelectionRow = {
   execution_status?: string | null;
   selected: boolean;
   binding_constraint?: string | null;
+  planner_source?: string | null;
+  capacity_source?: string | null;
+  proposal_source?: string | null;
+  funding_source?: string | null;
+  existing_cash_used_inr?: string | null;
+  same_run_proceeds_used_inr?: string | null;
+  same_run_proceeds_available_inr?: string | null;
+  same_run_proceeds_haircut_pct?: string | null;
+  hard_cash_reserve_inr?: string | null;
+  buy_price_buffer_pct?: string | null;
   reason?: string | null;
 };
 

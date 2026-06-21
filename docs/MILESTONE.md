@@ -68,8 +68,8 @@ removed during docs cleanup. Use Git history for detailed historical plans.
 - M56 score semantics and allocation precision work is complete.
 - M57 portfolio rebalance plan schema and dry-run artifact work is complete.
 - M58 soft sleeve capacity and executable core candidate modeling is complete.
-- M59 holistic BUY allocation and executable core routing is complete. M60
-  threshold trims, same-run proceeds netting, and execution buffer is the next
+- M60 threshold trims, same-run proceeds netting, and execution buffer is
+  complete. M61 end-to-end regression, operator docs, and cleanup is the next
   planned milestone.
 
 ## Standing Safety Rules
@@ -120,11 +120,12 @@ removed during docs cleanup. Use Git history for detailed historical plans.
 | M54 | Done | Added profile CRUD APIs, profile-scoped query parameters for run/paper/research/risk/UI read endpoints, active-profile UI metadata, a URL/local-storage-backed read-only React profile selector, profile-aware query keys/links, and focused API/UI tests. M55 final regression is complete. |
 | M55 | Done | Added deterministic two-profile regression for pending orders, settled fills, realized/unrealized P&L, dashboard/API scoping, stale profile filters, and profile smoke checks; API/Vite local smoke returned 200, while visual browser automation was unavailable in this session; finalized operator docs and milestone cleanup for the M51-M55 sequence. |
 | Ops LM Studio reasoning fallback | Done | Added a narrow LM Studio compatibility fallback that uses non-empty `message.reasoning_content` only when `message.content` is empty, while keeping existing parser and schema validation as the contract authority. |
-| M56-M61 plan document | Done | Created the flat portfolio rebalance plan covering score semantics, dry-run portfolio-plan artifacts, soft sleeve borrowing, executable core routing, same-run proceeds netting, execution buffers, UI/replay observability, and final regression. Implementation is complete through M59; M60 remains planned. |
+| M56-M61 plan document | Done | Created the flat portfolio rebalance plan covering score semantics, dry-run portfolio-plan artifacts, soft sleeve borrowing, executable core routing, same-run proceeds netting, execution buffers, UI/replay observability, and final regression. Implementation is complete through M60; M61 remains planned. |
 | M56 | Done | Added score metadata for analyst reports, raw technical/graph score lineage, shared calibrated allocation score semantics, trader target cap metadata, allocation candidate score visibility in API/UI selection rows, focused regressions, and architecture docs. Portfolio-level rebalance planning, executable core basket orders, sleeve borrowing, and same-run proceeds netting remain for M57-M61. |
 | M57 | Done | Added a typed dry-run portfolio rebalance plan artifact with position, candidate, planned-trade, cash-budget, sleeve-budget, and constraint rows; persisted it on paper runs; exposed it through replay, API aggregate payloads, and React allocation/run-detail panels; preserved legacy runs without plan artifacts; and kept executable allocation/order behavior unchanged. Soft sleeve borrowing, executable core routing, and same-run proceeds netting remain for M58-M61. |
 | M58 | Done | Added explicit rebalance-capacity policy rules, soft sleeve borrowing visibility in the dry-run plan, protected/borrowable/borrowed sleeve budget rows, typed core Shariah basket plan candidates with score/rejection evidence, API/UI/replay visibility, focused regressions, and money-management/architecture docs. Executable core routing, holistic BUY allocation, and same-run proceeds netting remain for M59-M61. |
 | M59 | Done | Added default-on portfolio-plan-backed BUY allocation with a settings-controlled legacy allocator path, planner-linked allocation decisions and ledger rows, executable core BUY proposal/debate generation, soft-borrow capacity handoff into sizing, API/UI/replay visibility for planner source/rank/capacity, focused regressions, and operator/architecture docs. Threshold REDUCE/EXIT generation, same-run proceeds netting, and sell-first queueing remain for M60-M61. |
+| M60 | Done | Added threshold-driven REDUCE/EXIT plan candidates and generated sell-side proposals, net same-run sell proceeds with the configured 80% haircut before BUY sizing, preserved the 5% NAV cash reserve and 5% BUY price buffer, routed accepted sell-side paper orders before BUYs with pending affordability credit, exposed funding/proceeds metadata in API/UI/replay artifacts, and updated operator/architecture docs. M61 final regression and cleanup remains planned. |
 
 ### M56-M61 Plan Document Completion Summary
 
@@ -194,6 +195,20 @@ removed during docs cleanup. Use Git history for detailed historical plans.
 - Mocks used: Existing `FakeLLMProvider`, existing
   `FakeKiteMarketDataProvider`, deterministic daily-candle fixtures, and
   FastAPI `TestClient`.
+
+### M60 Completion Summary
+
+- Assumptions made: M60 should keep the rebalance loop long-only and paper-only;
+  threshold trims/exits should come from policy-backed drift, notional, score,
+  hard-cap, core-removal, and stale-sleeve rules; same-run BUY sizing may use
+  only the configured 80% spendable share of forecast net sell proceeds while
+  preserving the 5% NAV hard reserve and 5% BUY price buffer; routing should
+  grant pending BUY affordability credit only after sell-side paper orders are
+  accepted or filled; M61 remains out of scope.
+- Mocks created: None.
+- Mocks used: Existing `FakeLLMProvider`, existing
+  `FakeKiteMarketDataProvider`, deterministic daily-candle fixtures, mock final
+  approval helpers, FastAPI `TestClient`, and existing React fetch stubs.
 
 ### M51-M55 Plan Document Completion Summary
 
@@ -428,7 +443,7 @@ implemented, verified, cleaned up, and documented.
 | 39 | M57 | Done | `docs/TAURUS_PORTFOLIO_REBALANCE_PLAN.md` | Add a dry-run portfolio rebalance plan artifact, API/UI/replay visibility, and legacy-safe serialization. |
 | 40 | M58 | Done | `docs/TAURUS_PORTFOLIO_REBALANCE_PLAN.md` | Add soft sleeve capacity rules and convert core Shariah basket decisions into executable rebalance candidates. |
 | 41 | M59 | Done | `docs/TAURUS_PORTFOLIO_REBALANCE_PLAN.md` | Make holistic BUY allocation and executable core routing flow through planner-linked allocation, risk, final, and paper queueing. |
-| 42 | M60 | Planned | `docs/TAURUS_PORTFOLIO_REBALANCE_PLAN.md` | Add threshold trims/exits, 80% same-run proceeds netting, 5% cash/price buffers, and sell-first next-open queueing. |
+| 42 | M60 | Done | `docs/TAURUS_PORTFOLIO_REBALANCE_PLAN.md` | Added threshold trims/exits, 80% same-run proceeds netting, 5% cash/price buffers, and sell-first next-open queueing. |
 | 43 | M61 | Planned | `docs/TAURUS_PORTFOLIO_REBALANCE_PLAN.md` | Run end-to-end regression, finalize operator docs, clean compatibility scaffolding, and close the sequence. |
 
 ## Deferred Work

@@ -78,6 +78,11 @@ drawdown_governors:
 rebalance:
   sleeve_drift_threshold_pct: 20.0
   min_rebalance_notional_inr: 5000
+  min_trade_drift_pct_nav: 0.50
+  score_below_exit_threshold: -0.20
+  score_below_trim_threshold: 0.00
+  over_hard_cap_trim_enabled: true
+  stale_unmapped_exit_enabled: true
   review_frequency: daily_after_close
   core_rebalance_frequency: monthly
 rebalance_capacity:

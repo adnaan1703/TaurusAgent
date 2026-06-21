@@ -120,6 +120,7 @@ class UiRunSelectionRow(BaseModel):
     decision_id: str | None = None
     order_id: str | None = None
     rank: int | None = None
+    planner_rank: int | None = None
     strategy_score: int | float | None = None
     candidate_score: int | float | None = None
     trader_action: str | None = None
@@ -130,6 +131,16 @@ class UiRunSelectionRow(BaseModel):
     execution_status: str | None = None
     selected: bool = False
     binding_constraint: str | None = None
+    planner_source: str | None = None
+    capacity_source: str | None = None
+    proposal_source: str | None = None
+    funding_source: str | None = None
+    existing_cash_used_inr: str | None = None
+    same_run_proceeds_used_inr: str | None = None
+    same_run_proceeds_available_inr: str | None = None
+    same_run_proceeds_haircut_pct: str | None = None
+    hard_cash_reserve_inr: str | None = None
+    buy_price_buffer_pct: str | None = None
     reason: str | None = None
 
 
@@ -1133,6 +1144,12 @@ def _selection_row_from_entry(
         decision_id=final_decision.decision_id if final_decision is not None else None,
         order_id=order.order_id if order is not None else None,
         rank=_optional_int(entry.get("strategy_rank")),
+        planner_rank=_optional_int(entry.get("planner_rank"))
+        or (
+            _optional_int(execution_artifact.get("planner_rank"))
+            if execution_artifact is not None
+            else None
+        ),
         strategy_score=_number_or_none(entry.get("strategy_score")),
         candidate_score=_number_or_none(entry.get("candidate_score")),
         trader_action=_optional_string(entry.get("action"))
@@ -1154,6 +1171,72 @@ def _selection_row_from_entry(
         else None,
         selected=selected,
         binding_constraint=binding_constraint,
+        planner_source=_optional_string(entry.get("planner_source"))
+        or (
+            _optional_string(execution_artifact.get("planner_source"))
+            if execution_artifact is not None
+            else None
+        ),
+        capacity_source=_optional_string(entry.get("capacity_source"))
+        or (
+            _optional_string(execution_artifact.get("capacity_source"))
+            if execution_artifact is not None
+            else None
+        ),
+        proposal_source=_optional_string(entry.get("proposal_source"))
+        or (
+            _optional_string(execution_artifact.get("proposal_source"))
+            if execution_artifact is not None
+            else None
+        ),
+        funding_source=_optional_string(entry.get("funding_source"))
+        or (
+            _optional_string(execution_artifact.get("funding_source"))
+            if execution_artifact is not None
+            else None
+        ),
+        existing_cash_used_inr=_optional_string(entry.get("existing_cash_used_inr"))
+        or (
+            _optional_string(execution_artifact.get("existing_cash_used_inr"))
+            if execution_artifact is not None
+            else None
+        ),
+        same_run_proceeds_used_inr=_optional_string(
+            entry.get("same_run_proceeds_used_inr")
+        )
+        or (
+            _optional_string(execution_artifact.get("same_run_proceeds_used_inr"))
+            if execution_artifact is not None
+            else None
+        ),
+        same_run_proceeds_available_inr=_optional_string(
+            entry.get("same_run_proceeds_available_inr")
+        )
+        or (
+            _optional_string(execution_artifact.get("same_run_proceeds_available_inr"))
+            if execution_artifact is not None
+            else None
+        ),
+        same_run_proceeds_haircut_pct=_optional_string(
+            entry.get("same_run_proceeds_haircut_pct")
+        )
+        or (
+            _optional_string(execution_artifact.get("same_run_proceeds_haircut_pct"))
+            if execution_artifact is not None
+            else None
+        ),
+        hard_cash_reserve_inr=_optional_string(entry.get("hard_cash_reserve_inr"))
+        or (
+            _optional_string(execution_artifact.get("hard_cash_reserve_inr"))
+            if execution_artifact is not None
+            else None
+        ),
+        buy_price_buffer_pct=_optional_string(entry.get("buy_price_buffer_pct"))
+        or (
+            _optional_string(execution_artifact.get("buy_price_buffer_pct"))
+            if execution_artifact is not None
+            else None
+        ),
         reason=_selection_reason(
             entry=entry,
             final_decision=final_decision,
@@ -1235,7 +1318,8 @@ def _legacy_decision_reason(context: dict[str, Any]) -> str | None:
 
 def _selection_sort_key(row: UiRunSelectionRow) -> tuple[int, int, str]:
     status_priority = 0 if row.selected else 1
-    rank = row.rank if row.rank is not None else 1_000_000
+    rank = row.rank if row.rank is not None else row.planner_rank
+    rank = rank if rank is not None else 1_000_000
     return status_priority, rank, row.symbol
 
 

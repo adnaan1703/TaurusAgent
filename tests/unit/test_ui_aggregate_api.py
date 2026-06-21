@@ -452,11 +452,12 @@ def test_disabled_money_management_uses_settings_fallback_allocation(
         "final_action",
         "no_paper_order_expected",
         "order_id",
-        "order_status",
-        "order_reason",
-        "account_id",
-        "allocation_decision",
-    }
+            "order_status",
+            "order_reason",
+            "account_id",
+            "execution_funding",
+            "allocation_decision",
+        }
     assert (
         run.artifacts["symbols"]["INFY"]["allocation_decision"]["sleeve_id"]
         == "settings_fallback"

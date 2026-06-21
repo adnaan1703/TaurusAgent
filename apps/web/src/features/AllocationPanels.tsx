@@ -97,6 +97,8 @@ export function AllocationPanels({ allocation, showCore = true }: AllocationPane
             { key: "source", header: "Source", render: (row) => getString(row, "proposal_source") || getString(row, "planner_source") || "-" },
             { key: "planner", header: "Planner rank", align: "right", render: (row) => formatNumber(getPrimitive(row, "planner_rank")) },
             { key: "capacity", header: "Capacity", render: (row) => getString(row, "capacity_source") || "-" },
+            { key: "funding", header: "Funding", render: (row) => getString(row, "funding_source") || "-" },
+            { key: "proceeds", header: "Same-run used", align: "right", render: (row) => formatInr(getPrimitive(row, "same_run_proceeds_used_inr")) },
             { key: "sleeve", header: "Sleeve", render: (row) => getString(row, "sleeve_name") || getString(row, "sleeve_id") || "-" },
             { key: "strategy", header: "Strategy", render: (row) => getString(row, "strategy_name") || "-" },
             { key: "status", header: "Status", render: (row) => <StatusBadge status={getString(row, "status") || getString(row, "allocation_status")} size="sm" /> },
@@ -141,7 +143,7 @@ export function PortfolioPlanPanel({ plan }: { plan: JsonObject | null | undefin
       title="Portfolio Plan"
     >
       <div className="grid gap-5">
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
           <MetricCard
             label="NAV"
             supportingText={getString(plan, "policy_version") || "Policy"}
@@ -156,6 +158,16 @@ export function PortfolioPlanPanel({ plan }: { plan: JsonObject | null | undefin
             label="Reserve"
             supportingText={formatPercent(getPrimitive(plan, "hard_cash_reserve_pct_nav"))}
             value={formatInr(getPrimitive(plan, "hard_cash_reserve_inr"))}
+          />
+          <MetricCard
+            label="Proceeds"
+            supportingText={`Net ${formatInr(getPrimitive(plan, "same_run_sell_proceeds_net_inr"))}`}
+            value={formatInr(getPrimitive(plan, "same_run_sell_proceeds_spendable_inr"))}
+          />
+          <MetricCard
+            label="BUY buffer"
+            supportingText={`Sell haircut ${formatPercent(getPrimitive(plan, "same_run_sell_proceeds_haircut_pct"))}`}
+            value={formatPercent(getPrimitive(plan, "buy_price_buffer_pct"))}
           />
           <MetricCard
             label="Trades"
@@ -286,6 +298,16 @@ export function AllocationDecisionPanel({
           label="Capacity"
           supportingText={listValue(allocationDecision.borrowed_from_sleeve_ids)}
           value={getString(allocationDecision, "capacity_source") || "-"}
+        />
+        <MetricCard
+          label="Funding"
+          supportingText={`Existing ${formatInr(getPrimitive(allocationDecision, "existing_cash_used_inr"))}`}
+          value={getString(allocationDecision, "funding_source") || "-"}
+        />
+        <MetricCard
+          label="Same-run proceeds"
+          supportingText={`Available ${formatInr(getPrimitive(allocationDecision, "same_run_proceeds_available_inr"))}`}
+          value={formatInr(getPrimitive(allocationDecision, "same_run_proceeds_used_inr"))}
         />
       </div>
     </DataPanel>

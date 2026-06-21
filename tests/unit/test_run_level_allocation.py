@@ -240,7 +240,7 @@ def test_portfolio_plan_allocation_ranks_active_and_core_buys_together(
     core = by_symbol["BBB"]
     active_entry = by_symbol["AAA"]
 
-    assert result.model_version == "portfolio_plan_buy_allocation_v1"
+    assert result.model_version == "portfolio_plan_rebalance_allocation_v2"
     assert result.policy_source == "portfolio_plan"
     assert core.status in {"selected", "allocation_reduced"}
     assert core.proposal_source == "portfolio_plan_core"
@@ -248,6 +248,81 @@ def test_portfolio_plan_allocation_ranks_active_and_core_buys_together(
     assert core.planner_source == "core_shariah_basket_v1"
     assert active_entry.status == "not_selected"
     assert active_entry.binding_constraint == "cash_buffer"
+
+
+def test_portfolio_plan_allocation_nets_same_run_sell_proceeds_for_buys(
+    tmp_path: Path,
+) -> None:
+    policy = load_money_management_policy(_write_policy(tmp_path, active_target_pct="50.0"))
+    sell = _proposal(
+        symbol="TCS",
+        action="EXIT",
+        target_pct=Decimal("0.0000"),
+        current_quantity=100,
+        current_pct=Decimal("10.0000"),
+    )
+    buy = _proposal(symbol="AAA", target_pct=Decimal("5.0000"))
+    position = ActiveAllocationPosition(
+        symbol="TCS",
+        quantity=100,
+        market_value_inr=Decimal("10000.00"),
+    )
+    plan = _portfolio_plan(
+        policy=policy,
+        proposals=(sell, buy),
+        nav_inr=Decimal("100000.00"),
+        cash_inr=Decimal("5000.00"),
+        positions=(position,),
+    )
+
+    result = PortfolioPlanAllocationService().allocate(
+        RunAllocationInput(
+            run_id=plan.run_id,
+            strategy_name="graph_aware_score_v1",
+            proposals=(sell, buy),
+            nav_inr=plan.current_nav_inr,
+            available_cash_inr=plan.current_cash_inr,
+            current_positions=(position,),
+            sleeve_snapshots=(
+                SleeveAllocationSnapshot(
+                    sleeve_id="active_strategy",
+                    starting_nav_estimate_inr=Decimal("50000.00"),
+                    current_exposure_inr=Decimal("10000.00"),
+                    open_position_count=1,
+                ),
+                SleeveAllocationSnapshot(
+                    sleeve_id="cash_buffer",
+                    starting_nav_estimate_inr=Decimal("5000.00"),
+                ),
+            ),
+            histories_by_symbol={
+                "AAA": tuple(_candles("AAA")),
+                "TCS": tuple(_candles("TCS")),
+            },
+            strategy_rank_by_symbol={"AAA": 1, "TCS": 2},
+            strategy_score_by_symbol={
+                "AAA": Decimal("0.3000"),
+                "TCS": Decimal("-0.3000"),
+            },
+            money_management_policy=policy,
+        ),
+        portfolio_plan=plan,
+    )
+
+    by_symbol = {entry.symbol: entry for entry in result.ledger}
+
+    assert plan.same_run_sell_proceeds_spendable_inr > Decimal("0.00")
+    assert by_symbol["TCS"].status == "open_position_management"
+    assert by_symbol["TCS"].action == "EXIT"
+    assert by_symbol["AAA"].status in {"selected", "allocation_reduced"}
+    assert by_symbol["AAA"].funding_source == "same_run_sell_proceeds"
+    assert by_symbol["AAA"].existing_cash_used_inr == Decimal("0.00")
+    assert by_symbol["AAA"].same_run_proceeds_used_inr > Decimal("0.00")
+    assert by_symbol["AAA"].same_run_proceeds_available_inr == (
+        plan.same_run_sell_proceeds_spendable_inr
+    )
+    assert by_symbol["AAA"].hard_cash_reserve_inr == Decimal("5000.00")
+    assert by_symbol["AAA"].buy_price_buffer_pct == Decimal("5.0000")
 
 
 def test_portfolio_plan_allocation_allows_observable_active_soft_borrowing(

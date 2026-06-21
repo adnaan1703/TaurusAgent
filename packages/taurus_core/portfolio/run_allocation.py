@@ -21,12 +21,13 @@ from taurus_core.portfolio.rebalance_plan import (
     PortfolioPlanCandidate,
     PortfolioPlanTrade,
     PortfolioRebalancePlan,
+    THRESHOLD_REBALANCE_SOURCE,
 )
 from taurus_core.portfolio.score_semantics import calibrate_strategy_score
 from taurus_core.research.schemas import TraderProposal
 
 RUN_ALLOCATION_MODEL_VERSION = "run_level_dynamic_allocation_v1"
-PORTFOLIO_PLAN_ALLOCATION_MODEL_VERSION = "portfolio_plan_buy_allocation_v1"
+PORTFOLIO_PLAN_ALLOCATION_MODEL_VERSION = "portfolio_plan_rebalance_allocation_v2"
 MONEY_QUANT = Decimal("0.01")
 SCORE_QUANT = Decimal("0.0001")
 UNLIMITED_ROOM = Decimal("999999999999.99")
@@ -106,6 +107,13 @@ class AllocationLedgerEntry:
     planner_rank: int | None = None
     capacity_source: str | None = None
     borrowed_from_sleeve_ids: tuple[str, ...] = ()
+    funding_source: str | None = None
+    existing_cash_used_inr: Decimal = Decimal("0")
+    same_run_proceeds_used_inr: Decimal = Decimal("0")
+    same_run_proceeds_available_inr: Decimal = Decimal("0")
+    same_run_proceeds_haircut_pct: Decimal | None = None
+    hard_cash_reserve_inr: Decimal | None = None
+    buy_price_buffer_pct: Decimal | None = None
     proposal_source: str | None = None
     rationale: tuple[str, ...] = ()
 
@@ -135,6 +143,13 @@ class AllocationLedgerEntry:
                 "planner_rank": self.planner_rank,
                 "capacity_source": self.capacity_source,
                 "borrowed_from_sleeve_ids": self.borrowed_from_sleeve_ids,
+                "funding_source": self.funding_source,
+                "existing_cash_used_inr": self.existing_cash_used_inr,
+                "same_run_proceeds_used_inr": self.same_run_proceeds_used_inr,
+                "same_run_proceeds_available_inr": self.same_run_proceeds_available_inr,
+                "same_run_proceeds_haircut_pct": self.same_run_proceeds_haircut_pct,
+                "hard_cash_reserve_inr": self.hard_cash_reserve_inr,
+                "buy_price_buffer_pct": self.buy_price_buffer_pct,
                 "proposal_source": self.proposal_source,
                 "rationale": list(self.rationale),
             }
@@ -168,6 +183,21 @@ class _PlannerBuyCandidate:
     proposal: TraderProposal
     candidate: PortfolioPlanCandidate
     trade: PortfolioPlanTrade
+
+
+@dataclass(frozen=True, slots=True)
+class _PlannerSellCandidate:
+    proposal: TraderProposal
+    candidate: PortfolioPlanCandidate
+    trade: PortfolioPlanTrade
+    generated: bool = False
+
+
+@dataclass(slots=True)
+class _FundingTracker:
+    existing_cash_remaining_inr: Decimal
+    same_run_proceeds_remaining_inr: Decimal
+    same_run_proceeds_available_inr: Decimal
 
 
 class RunLevelAllocationService:
@@ -355,7 +385,7 @@ class RunLevelAllocationService:
 
 
 class PortfolioPlanAllocationService:
-    """Executable BUY allocator driven by the persisted portfolio plan."""
+    """Executable rebalance allocator driven by the persisted portfolio plan."""
 
     model_version = PORTFOLIO_PLAN_ALLOCATION_MODEL_VERSION
 
@@ -372,12 +402,42 @@ class PortfolioPlanAllocationService:
         service = PortfolioAllocationService(policy)
         simulated_positions = tuple(allocation_input.current_positions)
         simulated_sleeves = tuple(allocation_input.sleeve_snapshots)
-        available_cash = allocation_input.available_cash_inr
+        available_cash = (
+            allocation_input.available_cash_inr
+            + portfolio_plan.same_run_sell_proceeds_spendable_inr
+        ).quantize(MONEY_QUANT)
+        funding_tracker = _funding_tracker_for_plan(
+            allocation_input,
+            portfolio_plan=portfolio_plan,
+        )
         proposals: list[TraderProposal] = []
         ledger: list[AllocationLedgerEntry] = []
+        processed_proposal_ids: set[str] = set()
+
+        for item in _planner_sell_candidates(
+            allocation_input,
+            portfolio_plan=portfolio_plan,
+        ):
+            updated = _with_plan_sell_linkage(
+                item.proposal,
+                portfolio_plan=portfolio_plan,
+                candidate=item.candidate,
+                trade=item.trade,
+                proposal_source=_proposal_source_for_plan_candidate(item.candidate),
+            )
+            status = _lifecycle_status(updated)
+            updated = _with_run_status(
+                updated,
+                status=status,
+                summary_suffix="Portfolio-plan allocation selected this sell-side lifecycle proposal.",
+                allocation_model_version=self.model_version,
+            )
+            proposals.append(updated)
+            ledger.append(_ledger_entry(allocation_input, updated, status=status))
+            processed_proposal_ids.add(updated.proposal_id)
 
         for proposal in sorted(allocation_input.proposals, key=_proposal_sort_key):
-            if proposal.action == "BUY":
+            if proposal.action == "BUY" or proposal.proposal_id in processed_proposal_ids:
                 continue
             allocated = service.allocate(
                 _active_input_for(
@@ -434,6 +494,14 @@ class PortfolioPlanAllocationService:
             )
             decision = _require_decision(allocated)
             status = _money_management_buy_status(decision)
+            allocated = _with_funding_metadata(
+                allocated,
+                portfolio_plan=portfolio_plan,
+                funding_tracker=funding_tracker,
+                decision=decision,
+                status=status,
+            )
+            decision = _require_decision(allocated)
             updated = _with_run_status(
                 allocated,
                 status=status,
@@ -620,6 +688,85 @@ def _planner_buy_candidates(
     return tuple(rows)
 
 
+def _planner_sell_candidates(
+    allocation_input: RunAllocationInput,
+    *,
+    portfolio_plan: PortfolioRebalancePlan,
+) -> tuple[_PlannerSellCandidate, ...]:
+    proposals_by_symbol = {
+        proposal.symbol.upper(): proposal
+        for proposal in allocation_input.proposals
+    }
+    candidates_by_proposal_id = {
+        candidate.proposal_id: candidate
+        for candidate in portfolio_plan.candidates
+        if candidate.proposal_id
+    }
+    generated_candidates_by_symbol = {
+        candidate.symbol.upper(): candidate
+        for candidate in portfolio_plan.candidates
+        if candidate.proposal_id is None
+        and candidate.source in {CORE_STRATEGY_NAME, THRESHOLD_REBALANCE_SOURCE}
+    }
+    rows: list[_PlannerSellCandidate] = []
+    routed_symbols: set[str] = set()
+    for trade in sorted(
+        portfolio_plan.planned_trades,
+        key=lambda row: (
+            row.rank if row.rank is not None else 1_000_000,
+            row.source,
+            row.symbol,
+            row.trade_id,
+        ),
+    ):
+        symbol = trade.symbol.upper()
+        if symbol in routed_symbols:
+            continue
+        if trade.side != "SELL" or trade.status in {"missing_price", "no_trade"}:
+            continue
+        if trade.estimated_quantity <= 0:
+            continue
+        candidate = (
+            candidates_by_proposal_id.get(trade.proposal_id)
+            if trade.proposal_id
+            else generated_candidates_by_symbol.get(symbol)
+        )
+        if candidate is None or candidate.action not in {"REDUCE", "EXIT", "SELL"}:
+            continue
+        existing = proposals_by_symbol.get(symbol)
+        if existing is not None:
+            rows.append(
+                _PlannerSellCandidate(
+                    proposal=_proposal_for_plan_sell(
+                        existing,
+                        portfolio_plan=portfolio_plan,
+                        candidate=candidate,
+                        trade=trade,
+                    ),
+                    candidate=candidate,
+                    trade=trade,
+                    generated=False,
+                )
+            )
+            routed_symbols.add(symbol)
+            continue
+        rows.append(
+            _PlannerSellCandidate(
+                proposal=_generated_sell_proposal(
+                    allocation_input,
+                    portfolio_plan=portfolio_plan,
+                    candidate=candidate,
+                    trade=trade,
+                ),
+                candidate=candidate,
+                trade=trade,
+                generated=True,
+            )
+        )
+        routed_symbols.add(symbol)
+    return tuple(rows)
+
+
 def _core_generated_proposal(
     allocation_input: RunAllocationInput,
     *,
@@ -682,6 +829,117 @@ def _core_generated_proposal(
     )
 
 
+def _generated_sell_proposal(
+    allocation_input: RunAllocationInput,
+    *,
+    portfolio_plan: PortfolioRebalancePlan,
+    candidate: PortfolioPlanCandidate,
+    trade: PortfolioPlanTrade,
+) -> TraderProposal:
+    symbol = candidate.symbol.upper()
+    action = "EXIT" if trade.action == "SELL" else trade.action
+    source_ids = [portfolio_plan.plan_id, trade.trade_id]
+    current_quantity = _current_position_quantity(allocation_input, symbol)
+    return TraderProposal(
+        proposal_id=f"tp-rebalance-{portfolio_plan.run_id}-{symbol.lower()}",
+        run_id=portfolio_plan.run_id,
+        portfolio_id=portfolio_plan.portfolio_id,
+        symbol=symbol,
+        debate_id=f"deb-rebalance-{portfolio_plan.run_id}-{symbol.lower()}",
+        as_of=portfolio_plan.as_of,
+        action=action,  # type: ignore[arg-type]
+        confidence=candidate.confidence,
+        horizon="medium",
+        requested_position_pct_nav=trade.target_pct_nav,
+        current_position_quantity=current_quantity,
+        current_position_pct_nav=trade.current_pct_nav,
+        target_position_pct_nav=trade.target_pct_nav,
+        lifecycle_trigger="portfolio_rebalance",
+        evaluation_mode="after_close",
+        latest_price_inr=trade.latest_price_inr,
+        order_type="MARKET",
+        entry_rule=(
+            "portfolio_rebalance: planner-generated paper sell candidate "
+            "requires risk and final approval."
+        ),
+        stop_loss_pct=Decimal("6.0000"),
+        take_profit_pct=Decimal("12.0000"),
+        reason_summary=(
+            "Portfolio rebalance planner generated an executable "
+            f"{action} candidate from {trade.trade_id}."
+        ),
+        invalid_if=[
+            "Portfolio plan is superseded before risk review.",
+            "Risk review or final approval rejects the sell-side rebalance.",
+        ],
+        position_management_summary=(
+            "Portfolio-plan sell candidate generated for paper-only risk, "
+            "final approval, and sell-first next-open routing."
+        ),
+        source_report_ids=source_ids,
+        is_order=False,
+        requires_risk_approval=True,
+        target_sizing_metadata={
+            "proposal_source": _planner_generated_proposal_source(candidate),
+            "portfolio_plan_id": portfolio_plan.plan_id,
+            "portfolio_plan_trade_id": trade.trade_id,
+            "planner_candidate_id": candidate.candidate_id,
+            "planner_source": candidate.source,
+            "planner_rank": trade.rank,
+            "sleeve_id": trade.sleeve_id,
+            "score_evidence": candidate.score_evidence,
+        },
+        model_version="portfolio_rebalance_sell_proposal_v1",
+    )
+
+
+def _proposal_for_plan_sell(
+    proposal: TraderProposal,
+    *,
+    portfolio_plan: PortfolioRebalancePlan,
+    candidate: PortfolioPlanCandidate,
+    trade: PortfolioPlanTrade,
+) -> TraderProposal:
+    action = "EXIT" if trade.action == "SELL" else trade.action
+    metadata = dict(proposal.target_sizing_metadata)
+    metadata.update(
+        {
+            "proposal_source": _proposal_source_for_plan_candidate(candidate),
+            "portfolio_plan_id": portfolio_plan.plan_id,
+            "portfolio_plan_trade_id": trade.trade_id,
+            "planner_candidate_id": candidate.candidate_id,
+            "planner_source": candidate.source,
+            "planner_rank": trade.rank,
+            "sleeve_id": trade.sleeve_id,
+            "score_evidence": candidate.score_evidence,
+        }
+    )
+    return proposal.model_copy(
+        update={
+            "action": action,
+            "requested_position_pct_nav": trade.target_pct_nav,
+            "target_position_pct_nav": trade.target_pct_nav,
+            "lifecycle_trigger": "portfolio_rebalance",
+            "order_type": "MARKET",
+            "entry_rule": (
+                "portfolio_rebalance: plan-selected sell-side lifecycle proposal "
+                "requires risk and final approval."
+            ),
+            "reason_summary": (
+                f"Portfolio rebalance planner selected {action} from {trade.trade_id}."
+            ),
+            "position_management_summary": _append_sentence(
+                proposal.position_management_summary,
+                (
+                    "Portfolio-plan threshold selected sell-side lifecycle handling "
+                    f"for {trade.trade_id}."
+                ),
+            ),
+            "target_sizing_metadata": metadata,
+        }
+    )
+
+
 def _with_plan_linkage(
     proposal: TraderProposal,
     *,
@@ -736,6 +994,198 @@ def _with_plan_linkage(
             "target_sizing_metadata": metadata,
         }
     )
+
+
+def _with_plan_sell_linkage(
+    proposal: TraderProposal,
+    *,
+    portfolio_plan: PortfolioRebalancePlan,
+    candidate: PortfolioPlanCandidate,
+    trade: PortfolioPlanTrade,
+    proposal_source: str,
+) -> TraderProposal:
+    action = "EXIT" if trade.action == "SELL" else trade.action
+    decision = AllocationDecision(
+        symbol=proposal.symbol,
+        action=action,
+        strategy_name=candidate.strategy_name or "portfolio_rebalance",
+        sleeve_id=trade.sleeve_id,
+        sleeve_name=None,
+        status="unchanged",
+        candidate_score=candidate.allocation_score_component,
+        score_band="portfolio_rebalance_sell",
+        requested_position_pct_nav=proposal.requested_position_pct_nav,
+        approved_position_pct_nav=trade.target_pct_nav,
+        requested_notional_inr=trade.estimated_notional_inr,
+        approved_notional_inr=trade.estimated_notional_inr,
+        approved_quantity=trade.estimated_quantity,
+        binding_constraint="portfolio_rebalance_sell_lifecycle",
+        portfolio_plan_id=portfolio_plan.plan_id,
+        portfolio_plan_trade_id=trade.trade_id,
+        planner_candidate_id=candidate.candidate_id,
+        planner_source=candidate.source,
+        planner_rank=trade.rank,
+        capacity_source="sell_proceeds_source",
+        proposal_source=proposal_source,
+        same_run_proceeds_available_inr=portfolio_plan.same_run_sell_proceeds_spendable_inr,
+        same_run_proceeds_haircut_pct=portfolio_plan.same_run_sell_proceeds_haircut_pct,
+        hard_cash_reserve_inr=portfolio_plan.hard_cash_reserve_inr,
+        buy_price_buffer_pct=portfolio_plan.buy_price_buffer_pct,
+        rationale=(
+            f"Portfolio plan {portfolio_plan.plan_id} selected sell trade {trade.trade_id}.",
+            "Long-only sell quantity is capped by the current holding.",
+            (
+                "Only the configured haircut share of accepted same-run sell "
+                "proceeds may fund BUY sizing."
+            ),
+        ),
+    )
+    metadata = dict(proposal.target_sizing_metadata)
+    metadata.update(
+        {
+            "proposal_source": proposal_source,
+            "portfolio_plan_id": portfolio_plan.plan_id,
+            "portfolio_plan_trade_id": trade.trade_id,
+            "planner_candidate_id": candidate.candidate_id,
+            "planner_source": candidate.source,
+            "planner_rank": trade.rank,
+            "capacity_source": "sell_proceeds_source",
+        }
+    )
+    return proposal.model_copy(
+        update={
+            "allocation_decision": decision,
+            "target_sizing_metadata": metadata,
+        }
+    )
+
+
+def _with_funding_metadata(
+    proposal: TraderProposal,
+    *,
+    portfolio_plan: PortfolioRebalancePlan,
+    funding_tracker: _FundingTracker,
+    decision: AllocationDecision,
+    status: str,
+) -> TraderProposal:
+    if status not in SELECTED_LEDGER_STATUSES or decision.approved_notional_inr <= 0:
+        updated_decision = decision.model_copy(
+            update={
+                "same_run_proceeds_available_inr": funding_tracker.same_run_proceeds_available_inr,
+                "same_run_proceeds_haircut_pct": portfolio_plan.same_run_sell_proceeds_haircut_pct,
+                "hard_cash_reserve_inr": portfolio_plan.hard_cash_reserve_inr,
+                "buy_price_buffer_pct": portfolio_plan.buy_price_buffer_pct,
+            }
+        )
+        return proposal.model_copy(update={"allocation_decision": updated_decision})
+
+    approved_notional = decision.approved_notional_inr
+    existing_used = min(
+        funding_tracker.existing_cash_remaining_inr,
+        approved_notional,
+    ).quantize(MONEY_QUANT)
+    remaining = (approved_notional - existing_used).quantize(MONEY_QUANT)
+    proceeds_used = min(
+        funding_tracker.same_run_proceeds_remaining_inr,
+        remaining,
+    ).quantize(MONEY_QUANT)
+    funding_tracker.existing_cash_remaining_inr = max(
+        Decimal("0.00"),
+        funding_tracker.existing_cash_remaining_inr - existing_used,
+    ).quantize(MONEY_QUANT)
+    funding_tracker.same_run_proceeds_remaining_inr = max(
+        Decimal("0.00"),
+        funding_tracker.same_run_proceeds_remaining_inr - proceeds_used,
+    ).quantize(MONEY_QUANT)
+    funding_source = _funding_source_label(
+        existing_cash_used=existing_used,
+        same_run_proceeds_used=proceeds_used,
+        capacity_source=decision.capacity_source,
+    )
+    updated_decision = decision.model_copy(
+        update={
+            "funding_source": funding_source,
+            "existing_cash_used_inr": existing_used,
+            "same_run_proceeds_used_inr": proceeds_used,
+            "same_run_proceeds_available_inr": funding_tracker.same_run_proceeds_available_inr,
+            "same_run_proceeds_haircut_pct": portfolio_plan.same_run_sell_proceeds_haircut_pct,
+            "hard_cash_reserve_inr": portfolio_plan.hard_cash_reserve_inr,
+            "buy_price_buffer_pct": portfolio_plan.buy_price_buffer_pct,
+            "rationale": (
+                *decision.rationale,
+                (
+                    f"BUY funding source {funding_source}; existing cash used "
+                    f"{existing_used}, same-run proceeds used {proceeds_used}."
+                ),
+            ),
+        }
+    )
+    metadata = dict(proposal.target_sizing_metadata)
+    metadata.update(
+        {
+            "funding_source": funding_source,
+            "existing_cash_used_inr": str(existing_used),
+            "same_run_proceeds_used_inr": str(proceeds_used),
+            "same_run_proceeds_available_inr": str(
+                funding_tracker.same_run_proceeds_available_inr
+            ),
+        }
+    )
+    return proposal.model_copy(
+        update={
+            "allocation_decision": updated_decision,
+            "target_sizing_metadata": metadata,
+        }
+    )
+
+
+def _funding_tracker_for_plan(
+    allocation_input: RunAllocationInput,
+    *,
+    portfolio_plan: PortfolioRebalancePlan,
+) -> _FundingTracker:
+    existing_cash = max(
+        Decimal("0.00"),
+        allocation_input.available_cash_inr - portfolio_plan.hard_cash_reserve_inr,
+    ).quantize(MONEY_QUANT)
+    same_run_proceeds = portfolio_plan.same_run_sell_proceeds_spendable_inr.quantize(
+        MONEY_QUANT
+    )
+    return _FundingTracker(
+        existing_cash_remaining_inr=existing_cash,
+        same_run_proceeds_remaining_inr=same_run_proceeds,
+        same_run_proceeds_available_inr=same_run_proceeds,
+    )
+
+
+def _funding_source_label(
+    *,
+    existing_cash_used: Decimal,
+    same_run_proceeds_used: Decimal,
+    capacity_source: str | None,
+) -> str:
+    sources: list[str] = []
+    if existing_cash_used > 0:
+        sources.append("existing_cash")
+    if same_run_proceeds_used > 0:
+        sources.append("same_run_sell_proceeds")
+    if capacity_source == "borrowed_sleeve_capacity":
+        sources.append("borrowed_sleeve_capacity")
+    if not sources:
+        return "none"
+    return "+".join(sources)
+
+
+def _proposal_source_for_plan_candidate(candidate: PortfolioPlanCandidate) -> str:
+    if candidate.source == CORE_STRATEGY_NAME:
+        return "portfolio_plan_core"
+    if candidate.source == THRESHOLD_REBALANCE_SOURCE:
+        return "portfolio_plan_threshold"
+    return "trader_proposal"
+
+
+def _planner_generated_proposal_source(candidate: PortfolioPlanCandidate) -> str:
+    return _proposal_source_for_plan_candidate(candidate)
 
 
 def _planner_sort_key(
@@ -1166,6 +1616,13 @@ def _ledger_entry(
         planner_rank=decision.planner_rank,
         capacity_source=decision.capacity_source,
         borrowed_from_sleeve_ids=decision.borrowed_from_sleeve_ids,
+        funding_source=decision.funding_source,
+        existing_cash_used_inr=decision.existing_cash_used_inr,
+        same_run_proceeds_used_inr=decision.same_run_proceeds_used_inr,
+        same_run_proceeds_available_inr=decision.same_run_proceeds_available_inr,
+        same_run_proceeds_haircut_pct=decision.same_run_proceeds_haircut_pct,
+        hard_cash_reserve_inr=decision.hard_cash_reserve_inr,
+        buy_price_buffer_pct=decision.buy_price_buffer_pct,
         proposal_source=decision.proposal_source,
         rationale=decision.rationale,
     )

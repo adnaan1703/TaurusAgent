@@ -218,6 +218,21 @@ class DecisionReplayService:
             "same_run_sell_proceeds_haircut_pct": plan.get(
                 "same_run_sell_proceeds_haircut_pct"
             ),
+            "same_run_sell_proceeds_gross_inr": plan.get(
+                "same_run_sell_proceeds_gross_inr"
+            ),
+            "same_run_sell_proceeds_cost_inr": plan.get(
+                "same_run_sell_proceeds_cost_inr"
+            ),
+            "same_run_sell_proceeds_net_inr": plan.get(
+                "same_run_sell_proceeds_net_inr"
+            ),
+            "same_run_sell_proceeds_spendable_inr": plan.get(
+                "same_run_sell_proceeds_spendable_inr"
+            ),
+            "same_run_sell_proceeds_safety_reserve_inr": plan.get(
+                "same_run_sell_proceeds_safety_reserve_inr"
+            ),
             "buy_price_buffer_pct": plan.get("buy_price_buffer_pct"),
             "soft_borrowing_enabled": plan.get("soft_borrowing_enabled"),
             "max_borrowed_capacity_pct_nav": plan.get("max_borrowed_capacity_pct_nav"),

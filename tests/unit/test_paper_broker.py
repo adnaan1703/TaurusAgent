@@ -452,6 +452,41 @@ def test_after_close_buy_order_status_waits_for_next_open(tmp_path: Path) -> Non
     assert order.status_history == ["CREATED", "ACCEPTED", "PENDING_NEXT_OPEN"]
 
 
+def test_next_open_buy_affordability_can_include_pending_same_run_proceeds(
+    tmp_path: Path,
+) -> None:
+    settings = _settings_for_temp_db(tmp_path)
+    session_factory = _prepare_market_data_db(settings)
+    run_mock_final_approval(symbol="INFY", settings=settings)
+    with session_factory() as session:
+        decision = _latest_final_decision(session, "INFY").model_copy(
+            update={"approved_quantity": 20}
+        )
+        RiskRepository(session).replace_final_decision_for_run_symbol(decision)
+        session.commit()
+
+    with session_factory() as session:
+        rejected = PaperBroker(session, settings).place_order(
+            decision,
+            execution_policy="next_open",
+            pending_affordability_cash_inr=Decimal("0.01"),
+        )
+
+    with session_factory() as session:
+        queued = PaperBroker(session, settings).place_order(
+            decision,
+            execution_policy="next_open",
+            pending_affordability_cash_inr=Decimal("10000.00"),
+            submitted_at=decision.as_of + timedelta(seconds=1),
+        )
+
+    assert rejected.status == "REJECTED"
+    assert rejected.rejection_reason == "Insufficient paper cash or position for approved order."
+    assert queued.status == "PENDING_NEXT_OPEN"
+    assert queued.remaining_quantity == decision.approved_quantity
+    assert queued.submitted_at == decision.as_of + timedelta(seconds=1)
+
+
 def test_after_close_order_does_not_fill_at_same_day_candle_open(
     tmp_path: Path,
 ) -> None:

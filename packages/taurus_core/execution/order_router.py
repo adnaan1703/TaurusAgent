@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from datetime import datetime
+from decimal import Decimal
+
 from sqlalchemy.orm import Session
 
 from taurus_core.agents.runner import DEFAULT_ANALYST_RUN_ID
@@ -23,11 +26,18 @@ class ExecutionRouter:
         decision: FinalDecision,
         *,
         execution_policy: ExecutionPolicy | None = None,
+        submitted_at: datetime | None = None,
+        pending_affordability_cash_inr: Decimal | None = None,
     ) -> PaperOrder | None:
         if not self._is_paper_routable(decision):
             return None
         policy = execution_policy or self._execution_policy_for_decision(decision)
-        return self.paper_broker.place_order(decision, execution_policy=policy)
+        return self.paper_broker.place_order(
+            decision,
+            execution_policy=policy,
+            submitted_at=submitted_at,
+            pending_affordability_cash_inr=pending_affordability_cash_inr,
+        )
 
     def route_latest_for_symbol(
         self,

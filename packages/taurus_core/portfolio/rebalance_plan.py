@@ -9,8 +9,10 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from taurus_core.domain.market_data import DailyCandle
+from taurus_core.execution.costs import IndiaPaperCostModel
 from taurus_core.portfolio.active_allocation import (
     ACTIVE_SLEEVE_ID,
+    ALLOCATABLE_SLEEVE_IDS,
     ActiveAllocationPosition,
     SleeveAllocationSnapshot,
 )
@@ -19,11 +21,12 @@ from taurus_core.portfolio.money_management import MoneyManagementPolicy, Sleeve
 from taurus_core.portfolio.score_semantics import calibrate_strategy_score
 from taurus_core.research.schemas import TraderProposal
 
-PORTFOLIO_REBALANCE_PLAN_MODEL_VERSION = "portfolio_rebalance_plan_v2"
+PORTFOLIO_REBALANCE_PLAN_MODEL_VERSION = "portfolio_rebalance_plan_v3"
 MONEY_QUANT = Decimal("0.01")
 PCT_QUANT = Decimal("0.0001")
 DEFAULT_SAME_RUN_SELL_PROCEEDS_HAIRCUT_PCT = Decimal("80.0000")
 DEFAULT_BUY_PRICE_BUFFER_PCT = Decimal("5.0000")
+THRESHOLD_REBALANCE_SOURCE = "portfolio_rebalance_threshold"
 
 PlanSide = Literal["BUY", "SELL", "HOLD"]
 PlanTradeStatus = Literal["observed", "advisory_only", "missing_price", "no_trade"]
@@ -178,6 +181,11 @@ class PortfolioRebalancePlan(BaseModel):
     spendable_cash_before_reserve_inr: Decimal = Field(ge=Decimal("0"))
     spendable_cash_after_reserve_inr: Decimal = Field(ge=Decimal("0"))
     same_run_sell_proceeds_haircut_pct: Decimal = Field(ge=Decimal("0"), le=Decimal("100"))
+    same_run_sell_proceeds_gross_inr: Decimal = Field(default=Decimal("0.00"), ge=Decimal("0"))
+    same_run_sell_proceeds_cost_inr: Decimal = Field(default=Decimal("0.00"), ge=Decimal("0"))
+    same_run_sell_proceeds_net_inr: Decimal = Field(default=Decimal("0.00"), ge=Decimal("0"))
+    same_run_sell_proceeds_spendable_inr: Decimal = Field(default=Decimal("0.00"), ge=Decimal("0"))
+    same_run_sell_proceeds_safety_reserve_inr: Decimal = Field(default=Decimal("0.00"), ge=Decimal("0"))
     buy_price_buffer_pct: Decimal = Field(ge=Decimal("0"), le=Decimal("100"))
     soft_borrowing_enabled: bool = False
     max_borrowed_capacity_pct_nav: Decimal | None = Field(default=None, ge=Decimal("0"), le=Decimal("100"))
@@ -214,6 +222,9 @@ class PortfolioRebalancePlanInput:
     money_management_policy: MoneyManagementPolicy | None = None
     fallback_policy_source: str = "settings"
     sleeve_by_symbol: Mapping[str, str] = field(default_factory=dict)
+    paper_brokerage_bps: Decimal = Decimal("0")
+    paper_exchange_txn_charge_bps: Decimal = Decimal("0")
+    paper_tax_levy_bps: Decimal = Decimal("0")
 
 
 class PortfolioRebalancePlanService:
@@ -232,11 +243,20 @@ class PortfolioRebalancePlanService:
             )
         )
         positions = _position_rows(plan_input, core_symbols=core_symbols)
+        base_candidates = [
+            *_trader_candidate_rows(plan_input),
+            *_core_candidate_rows(plan_input, core_artifact),
+        ]
+        threshold_candidates = _threshold_position_candidate_rows(
+            plan_input,
+            positions=positions,
+            existing_candidates=tuple(base_candidates),
+        )
         candidates = tuple(
             sorted(
                 [
-                    *_trader_candidate_rows(plan_input),
-                    *_core_candidate_rows(plan_input, core_artifact),
+                    *base_candidates,
+                    *threshold_candidates,
                 ],
                 key=lambda candidate: (
                     candidate.symbol,
@@ -287,7 +307,9 @@ class PortfolioRebalancePlanService:
             spendable_after_reserve=spendable_after_reserve,
             planned_trades=planned_trades,
             same_run_sell_proceeds_haircut_pct=haircut_pct,
+            cost_model=_cost_model(plan_input),
         )
+        proceeds_summary = _same_run_proceeds_summary(cash_budget)
         return PortfolioRebalancePlan(
             plan_id=f"portfolio-plan-{plan_input.run_id}",
             run_id=plan_input.run_id,
@@ -303,6 +325,11 @@ class PortfolioRebalancePlanService:
             spendable_cash_before_reserve_inr=_money(plan_input.current_cash_inr),
             spendable_cash_after_reserve_inr=spendable_after_reserve,
             same_run_sell_proceeds_haircut_pct=haircut_pct,
+            same_run_sell_proceeds_gross_inr=proceeds_summary["gross"],
+            same_run_sell_proceeds_cost_inr=proceeds_summary["cost"],
+            same_run_sell_proceeds_net_inr=proceeds_summary["net"],
+            same_run_sell_proceeds_spendable_inr=proceeds_summary["spendable"],
+            same_run_sell_proceeds_safety_reserve_inr=proceeds_summary["safety_reserve"],
             buy_price_buffer_pct=buy_price_buffer_pct,
             soft_borrowing_enabled=(
                 bool(policy.rebalance_capacity.soft_borrowing_enabled)
@@ -335,11 +362,12 @@ class PortfolioRebalancePlanService:
             ),
             constraints=(
                 PortfolioPlanConstraint(
-                    constraint_id="buy_allocation_source",
+                    constraint_id="portfolio_rebalance_execution_scope",
                     status="informational",
                     message=(
-                        "Portfolio plan is the default source for executable BUY "
-                        "allocation; REDUCE/EXIT rows remain advisory until M60."
+                        "Portfolio plan is the default source for executable BUY, "
+                        "REDUCE, and EXIT rebalance proposals before paper-only risk, "
+                        "final approval, and next-open routing."
                     ),
                 ),
             ),
@@ -390,12 +418,32 @@ def _trader_candidate_rows(
             strategy_name=plan_input.strategy_name,
             fallback_policy_source=plan_input.fallback_policy_source,
         )
+        action = proposal.action
+        target_pct = proposal.target_position_pct_nav
+        score_evidence: dict[str, Any] = {}
+        threshold = _threshold_action_for_position(
+            plan_input,
+            symbol=symbol,
+            current_pct=proposal.current_position_pct_nav,
+            current_quantity=proposal.current_position_quantity,
+            sleeve_id=sleeve_id,
+            raw_score=raw_score,
+            existing_action=proposal.action,
+        )
+        if threshold is not None:
+            action = threshold["action"]
+            target_pct = threshold["target_pct"]
+            score_evidence = {
+                "threshold_reason": threshold["reason"],
+                "threshold_source": THRESHOLD_REBALANCE_SOURCE,
+                **threshold["metadata"],
+            }
         rows.append(
             PortfolioPlanCandidate(
                 candidate_id=f"candidate-{proposal.proposal_id}",
                 symbol=symbol,
                 proposal_id=proposal.proposal_id,
-                action=proposal.action,
+                action=action,
                 source="trader_proposal",
                 sleeve_id=sleeve_id,
                 strategy_name=plan_input.strategy_name,
@@ -407,15 +455,17 @@ def _trader_candidate_rows(
                 confidence=proposal.confidence,
                 requested_position_pct_nav=proposal.requested_position_pct_nav,
                 current_position_pct_nav=proposal.current_position_pct_nav,
-                target_position_pct_nav=proposal.target_position_pct_nav,
+                target_position_pct_nav=target_pct,
                 requested_notional_inr=_requested_notional(
                     current_pct=proposal.current_position_pct_nav,
-                    target_pct=proposal.target_position_pct_nav,
+                    target_pct=target_pct,
                     nav_inr=plan_input.nav_inr,
                 ),
                 latest_price_inr=_latest_close(
                     plan_input.histories_by_symbol.get(symbol, tuple())
                 ),
+                score_evidence=score_evidence,
+                decision_status="approved" if threshold is not None else None,
             )
         )
     return tuple(rows)
@@ -481,6 +531,227 @@ def _core_candidate_rows(
     return tuple(rows)
 
 
+def _threshold_position_candidate_rows(
+    plan_input: PortfolioRebalancePlanInput,
+    *,
+    positions: tuple[PortfolioPlanPosition, ...],
+    existing_candidates: tuple[PortfolioPlanCandidate, ...],
+) -> tuple[PortfolioPlanCandidate, ...]:
+    existing_symbols = {candidate.symbol.upper() for candidate in existing_candidates}
+    rows: list[PortfolioPlanCandidate] = []
+    for position in positions:
+        symbol = position.symbol.upper()
+        if symbol in existing_symbols:
+            continue
+        raw_score = _strategy_score(plan_input, symbol)
+        threshold = _threshold_action_for_position(
+            plan_input,
+            symbol=symbol,
+            current_pct=position.current_pct_nav,
+            current_quantity=position.quantity,
+            sleeve_id=position.sleeve_id,
+            raw_score=raw_score,
+            existing_action="HOLD",
+        )
+        if threshold is None:
+            continue
+        rank = _strategy_rank(plan_input, symbol)
+        calibration = calibrate_strategy_score(raw_score, strategy_rank=rank)
+        target_pct = threshold["target_pct"]
+        rows.append(
+            PortfolioPlanCandidate(
+                candidate_id=f"candidate-threshold-{symbol.lower()}",
+                symbol=symbol,
+                proposal_id=None,
+                action=threshold["action"],
+                source=THRESHOLD_REBALANCE_SOURCE,
+                sleeve_id=position.sleeve_id,
+                strategy_name=plan_input.strategy_name,
+                strategy_rank=rank,
+                raw_strategy_score=raw_score,
+                calibrated_strategy_score=calibration.calibrated_strategy_score,
+                allocation_score_component=calibration.allocation_score_component,
+                score_calibration_method=calibration.method,
+                confidence=Decimal("1.0000"),
+                requested_position_pct_nav=target_pct,
+                current_position_pct_nav=position.current_pct_nav,
+                target_position_pct_nav=target_pct,
+                requested_notional_inr=_requested_notional(
+                    current_pct=position.current_pct_nav,
+                    target_pct=target_pct,
+                    nav_inr=plan_input.nav_inr,
+                ),
+                latest_price_inr=_latest_close(
+                    plan_input.histories_by_symbol.get(symbol, tuple())
+                ),
+                score_evidence={
+                    "threshold_reason": threshold["reason"],
+                    "threshold_source": THRESHOLD_REBALANCE_SOURCE,
+                    **threshold["metadata"],
+                },
+                decision_status="approved",
+            )
+        )
+    return tuple(rows)
+
+
+def _threshold_action_for_position(
+    plan_input: PortfolioRebalancePlanInput,
+    *,
+    symbol: str,
+    current_pct: Decimal,
+    current_quantity: int,
+    sleeve_id: str,
+    raw_score: Decimal | None,
+    existing_action: str,
+) -> dict[str, Any] | None:
+    policy = plan_input.money_management_policy
+    if policy is None or current_quantity <= 0 or current_pct <= 0:
+        return None
+    if existing_action.upper() in {"REDUCE", "EXIT", "SELL"}:
+        return None
+
+    rebalance = policy.rebalance
+    normalized = symbol.upper()
+    core_targets = _core_target_weights(dict(plan_input.core_basket_artifact or {}))
+    core_review_available = bool(core_targets or plan_input.core_basket_symbols)
+
+    if (
+        sleeve_id == CORE_SLEEVE_ID
+        and core_review_available
+        and normalized not in core_targets
+    ):
+        return _threshold_result(
+            action="EXIT",
+            target_pct=Decimal("0.0000"),
+            reason="core_symbol_removed_from_target_basket",
+            current_pct=current_pct,
+            nav_inr=plan_input.nav_inr,
+            policy=policy,
+            metadata={"core_target_present": False},
+        )
+
+    if (
+        rebalance.stale_unmapped_exit_enabled
+        and sleeve_id not in ALLOCATABLE_SLEEVE_IDS
+        and sleeve_id != "cash_buffer"
+    ):
+        return _threshold_result(
+            action="EXIT",
+            target_pct=Decimal("0.0000"),
+            reason="stale_unmapped_sleeve_cleanup",
+            current_pct=current_pct,
+            nav_inr=plan_input.nav_inr,
+            policy=policy,
+            metadata={"sleeve_id": sleeve_id},
+        )
+
+    if raw_score is not None and raw_score <= rebalance.score_below_exit_threshold:
+        return _threshold_result(
+            action="EXIT",
+            target_pct=Decimal("0.0000"),
+            reason="strategy_score_below_exit_threshold",
+            current_pct=current_pct,
+            nav_inr=plan_input.nav_inr,
+            policy=policy,
+            metadata={
+                "raw_strategy_score": str(raw_score.quantize(PCT_QUANT)),
+                "score_below_exit_threshold": str(
+                    rebalance.score_below_exit_threshold.quantize(PCT_QUANT)
+                ),
+            },
+        )
+
+    if (
+        rebalance.over_hard_cap_trim_enabled
+        and current_pct > policy.limits.max_stock_hard_cap_pct_nav
+    ):
+        target_pct = min(
+            policy.limits.max_stock_pct_nav,
+            policy.limits.max_stock_hard_cap_pct_nav,
+        ).quantize(PCT_QUANT)
+        return _threshold_result(
+            action="REDUCE",
+            target_pct=target_pct,
+            reason="position_over_hard_cap_trim",
+            current_pct=current_pct,
+            nav_inr=plan_input.nav_inr,
+            policy=policy,
+            metadata={
+                "max_stock_pct_nav": str(policy.limits.max_stock_pct_nav),
+                "max_stock_hard_cap_pct_nav": str(policy.limits.max_stock_hard_cap_pct_nav),
+            },
+        )
+
+    if raw_score is not None and raw_score <= rebalance.score_below_trim_threshold:
+        target_pct = (current_pct / Decimal("2")).quantize(PCT_QUANT)
+        return _threshold_result(
+            action="REDUCE",
+            target_pct=target_pct,
+            reason="strategy_score_below_trim_threshold",
+            current_pct=current_pct,
+            nav_inr=plan_input.nav_inr,
+            policy=policy,
+            metadata={
+                "raw_strategy_score": str(raw_score.quantize(PCT_QUANT)),
+                "score_below_trim_threshold": str(
+                    rebalance.score_below_trim_threshold.quantize(PCT_QUANT)
+                ),
+            },
+        )
+
+    if sleeve_id == CORE_SLEEVE_ID and core_review_available:
+        target_pct = core_targets.get(normalized)
+        if target_pct is not None and target_pct < current_pct:
+            action = "EXIT" if target_pct <= 0 else "REDUCE"
+            return _threshold_result(
+                action=action,
+                target_pct=target_pct.quantize(PCT_QUANT),
+                reason="core_target_weight_below_current_position",
+                current_pct=current_pct,
+                nav_inr=plan_input.nav_inr,
+                policy=policy,
+                metadata={"core_target_pct_nav": str(target_pct.quantize(PCT_QUANT))},
+            )
+
+    return None
+
+
+def _threshold_result(
+    *,
+    action: str,
+    target_pct: Decimal,
+    reason: str,
+    current_pct: Decimal,
+    nav_inr: Decimal,
+    policy: MoneyManagementPolicy,
+    metadata: dict[str, Any],
+) -> dict[str, Any] | None:
+    target_pct = max(Decimal("0.0000"), target_pct).quantize(PCT_QUANT)
+    drift_pct = max(Decimal("0.0000"), current_pct - target_pct).quantize(PCT_QUANT)
+    trade_notional = _pct_to_notional(drift_pct, nav_inr)
+    if drift_pct < policy.rebalance.min_trade_drift_pct_nav:
+        return None
+    if trade_notional < policy.rebalance.min_rebalance_notional_inr:
+        return None
+    return {
+        "action": action,
+        "target_pct": target_pct,
+        "reason": reason,
+        "metadata": {
+            **metadata,
+            "min_trade_drift_pct_nav": str(
+                policy.rebalance.min_trade_drift_pct_nav.quantize(PCT_QUANT)
+            ),
+            "min_rebalance_notional_inr": str(
+                policy.rebalance.min_rebalance_notional_inr.quantize(MONEY_QUANT)
+            ),
+            "planned_drift_pct_nav": str(drift_pct),
+            "planned_trade_notional_inr": str(trade_notional),
+        },
+    }
+
+
 def _trade_from_candidate(
     plan_input: PortfolioRebalancePlanInput,
     candidate: PortfolioPlanCandidate,
@@ -510,22 +781,22 @@ def _trade_from_candidate(
     )
     constraints = [
         PortfolioPlanConstraint(
-            constraint_id="buy_routing_scope",
+            constraint_id="paper_risk_final_routing_scope",
             status="informational",
             message=(
-                "M59 routes selected BUY rows through risk, final approval, "
-                "and paper execution; REDUCE/EXIT rows remain advisory."
+                "Portfolio-plan BUY, REDUCE, and EXIT rows must pass paper-only "
+                "risk review, final approval, and next-open routing."
             ),
         )
     ]
     if candidate.source == CORE_STRATEGY_NAME:
         constraints.append(
             PortfolioPlanConstraint(
-                constraint_id="core_buy_routing_scope",
+                constraint_id="core_rebalance_routing_scope",
                 status="informational",
                 message=(
-                    "Core BUY candidates can become planner-generated proposals; "
-                    "core REDUCE/EXIT rows remain advisory until M60."
+                    "Core basket BUY, REDUCE, and EXIT candidates can become "
+                    "planner-generated paper proposal inputs."
                 ),
             )
         )
@@ -552,9 +823,12 @@ def _trade_from_candidate(
     else:
         constraints.append(
             PortfolioPlanConstraint(
-                constraint_id="same_run_proceeds_haircut_observed",
+                constraint_id="same_run_proceeds_haircut_applied",
                 status="informational",
-                message="Dry-run sell proceeds are tracked with the current 80% spendable haircut.",
+                message=(
+                    "Sell proceeds are forecast net of estimated paper costs and "
+                    "only the configured haircut share is spendable by same-run BUY sizing."
+                ),
             )
         )
     sleeve_id = (
@@ -657,8 +931,9 @@ def _cash_budget_rows(
     spendable_after_reserve: Decimal,
     planned_trades: tuple[PortfolioPlanTrade, ...],
     same_run_sell_proceeds_haircut_pct: Decimal,
+    cost_model: IndiaPaperCostModel,
 ) -> tuple[PortfolioPlanCashBudget, ...]:
-    forecast_sell_proceeds = sum(
+    forecast_sell_gross = sum(
         (
             trade.estimated_notional_inr
             for trade in planned_trades
@@ -666,10 +941,25 @@ def _cash_budget_rows(
         ),
         Decimal("0.00"),
     ).quantize(MONEY_QUANT)
+    forecast_sell_costs = sum(
+        (
+            cost_model.calculate(trade.estimated_notional_inr).total_inr
+            for trade in planned_trades
+            if trade.side == "SELL" and trade.status != "missing_price"
+        ),
+        Decimal("0.00"),
+    ).quantize(MONEY_QUANT)
+    forecast_sell_proceeds = max(
+        Decimal("0.00"),
+        forecast_sell_gross - forecast_sell_costs,
+    ).quantize(MONEY_QUANT)
     spendable_same_run_proceeds = (
         forecast_sell_proceeds
         * same_run_sell_proceeds_haircut_pct
         / Decimal("100")
+    ).quantize(MONEY_QUANT)
+    unspendable_same_run_proceeds = (
+        forecast_sell_proceeds - spendable_same_run_proceeds
     ).quantize(MONEY_QUANT)
     estimated_buy_notional = sum(
         (
@@ -698,11 +988,25 @@ def _cash_budget_rows(
             description="Hard cash reserve protected from portfolio-plan BUY sizing.",
         ),
         PortfolioPlanCashBudget(
+            row_id="forecast_sell_proceeds_gross",
+            label="Forecast sell proceeds gross",
+            amount_inr=forecast_sell_gross,
+            spendable=False,
+            description="Gross latest-close notional from planned REDUCE/EXIT rows.",
+        ),
+        PortfolioPlanCashBudget(
+            row_id="forecast_sell_costs",
+            label="Estimated sell costs",
+            amount_inr=forecast_sell_costs,
+            spendable=False,
+            description="Estimated paper costs deducted from forecast sell proceeds.",
+        ),
+        PortfolioPlanCashBudget(
             row_id="forecast_sell_proceeds",
-            label="Forecast sell proceeds",
+            label="Forecast sell proceeds net",
             amount_inr=forecast_sell_proceeds,
             spendable=False,
-            description="Gross notional from observed REDUCE/EXIT advisory rows.",
+            description="Forecast REDUCE/EXIT proceeds after estimated paper costs.",
         ),
         PortfolioPlanCashBudget(
             row_id="spendable_same_run_proceeds",
@@ -715,12 +1019,42 @@ def _cash_budget_rows(
             ),
         ),
         PortfolioPlanCashBudget(
+            row_id="unspendable_same_run_proceeds",
+            label="Same-run proceeds safety reserve",
+            amount_inr=unspendable_same_run_proceeds,
+            spendable=False,
+            description="Unspendable haircut reserve held back from same-run BUY sizing.",
+        ),
+        PortfolioPlanCashBudget(
             row_id="unallocated_cash",
             label="Unallocated cash",
             amount_inr=unallocated,
             spendable=unallocated > 0,
             description="Plan residual after reserve, spendable proceeds, and observed BUY rows.",
         ),
+    )
+
+
+def _same_run_proceeds_summary(
+    cash_budget: tuple[PortfolioPlanCashBudget, ...],
+) -> dict[str, Decimal]:
+    rows = {row.row_id: row.amount_inr for row in cash_budget}
+    return {
+        "gross": _money(rows.get("forecast_sell_proceeds_gross", Decimal("0.00"))),
+        "cost": _money(rows.get("forecast_sell_costs", Decimal("0.00"))),
+        "net": _money(rows.get("forecast_sell_proceeds", Decimal("0.00"))),
+        "spendable": _money(rows.get("spendable_same_run_proceeds", Decimal("0.00"))),
+        "safety_reserve": _money(
+            rows.get("unspendable_same_run_proceeds", Decimal("0.00"))
+        ),
+    }
+
+
+def _cost_model(plan_input: PortfolioRebalancePlanInput) -> IndiaPaperCostModel:
+    return IndiaPaperCostModel(
+        brokerage_bps=plan_input.paper_brokerage_bps,
+        exchange_txn_charge_bps=plan_input.paper_exchange_txn_charge_bps,
+        tax_levy_bps=plan_input.paper_tax_levy_bps,
     )
 
 

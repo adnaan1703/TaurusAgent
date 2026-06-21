@@ -170,9 +170,14 @@ function SelectionDecisionPanel({
       <KeyValueGrid
         items={[
           { label: "Rank", value: formatNumber(decision.rank ?? undefined) },
+          { label: "Planner rank", value: formatNumber(decision.planner_rank ?? undefined) },
           { label: "Raw strategy score", value: formatNumber(decision.strategy_score ?? undefined) },
           { label: "Allocation score", value: formatNumber(decision.candidate_score ?? undefined) },
           { label: "Trader action", value: decision.trader_action ?? "-" },
+          { label: "Planner source", value: decision.planner_source ?? decision.proposal_source ?? "-" },
+          { label: "Funding", value: decision.funding_source ?? "-" },
+          { label: "Existing cash", value: formatInr(decision.existing_cash_used_inr ?? undefined) },
+          { label: "Same-run proceeds", value: formatInr(decision.same_run_proceeds_used_inr ?? undefined) },
           { label: "Proposal confidence", value: formatPercent(decision.proposal_confidence ?? undefined) },
           { label: "Final status", value: <StatusBadge status={decision.final_status} size="sm" /> },
           { label: "Execution status", value: <StatusBadge status={decision.execution_status} size="sm" /> },
