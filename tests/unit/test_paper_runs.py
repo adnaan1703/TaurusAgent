@@ -855,12 +855,19 @@ def test_money_management_paper_run_creates_shariah_equity_core_decisions(
     universe_by_symbol = {entry.symbol: entry for entry in universe.symbols}
 
     core = run.artifacts["money_management"]["core_shariah_basket"]
+    plan = run.artifacts["portfolio_plan"]
     decision_symbols = {decision["symbol"] for decision in core["decisions"]}
+    core_candidate_symbols = {
+        candidate["symbol"]
+        for candidate in plan["candidates"]
+        if candidate["source"] == "core_shariah_basket_v1"
+    }
 
     assert run.status == "COMPLETED"
     assert core["strategy_name"] == "core_shariah_basket_v1"
     assert set(core["selected_symbols"]).issubset(set(universe_by_symbol))
     assert decision_symbols == set(core["target_weights"])
+    assert core_candidate_symbols == decision_symbols
     assert decision_symbols
     for symbol in decision_symbols:
         universe_symbol = universe_by_symbol[symbol]
@@ -1148,7 +1155,8 @@ def test_full_universe_money_management_run_completes_allocation_pipeline(
     assert "portfolio_plan" in run.artifacts
     assert allocation["policy_source"] == "money_management_policy"
     assert run.artifacts["portfolio_plan"]["policy_version"] == "active_integration_policy"
-    assert len(run.artifacts["portfolio_plan"]["candidates"]) == 3
+    plan_candidates = run.artifacts["portfolio_plan"]["candidates"]
+    assert sum(1 for candidate in plan_candidates if candidate["source"] == "trader_proposal") == 3
     assert allocation["ledger_count"] == 3
     assert sum(ledger_counts.values()) == 3
     assert (

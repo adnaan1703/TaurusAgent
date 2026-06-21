@@ -15,14 +15,15 @@ from taurus_core.portfolio.active_allocation import (
     SleeveAllocationSnapshot,
 )
 from taurus_core.portfolio.core_shariah_basket import CORE_SLEEVE_ID, CORE_STRATEGY_NAME
-from taurus_core.portfolio.money_management import MoneyManagementPolicy
+from taurus_core.portfolio.money_management import MoneyManagementPolicy, SleevePolicy
 from taurus_core.portfolio.score_semantics import calibrate_strategy_score
 from taurus_core.research.schemas import TraderProposal
 
 PORTFOLIO_REBALANCE_PLAN_MODEL_VERSION = "portfolio_rebalance_dry_run_v1"
 MONEY_QUANT = Decimal("0.01")
 PCT_QUANT = Decimal("0.0001")
-SAME_RUN_SELL_PROCEEDS_HAIRCUT_PCT = Decimal("80.0000")
+DEFAULT_SAME_RUN_SELL_PROCEEDS_HAIRCUT_PCT = Decimal("80.0000")
+DEFAULT_BUY_PRICE_BUFFER_PCT = Decimal("5.0000")
 
 PlanSide = Literal["BUY", "SELL", "HOLD"]
 PlanTradeStatus = Literal["observed", "advisory_only", "missing_price", "no_trade"]
@@ -81,6 +82,9 @@ class PortfolioPlanCandidate(BaseModel):
     target_position_pct_nav: Decimal = Field(ge=Decimal("0"), le=Decimal("100"))
     requested_notional_inr: Decimal = Field(ge=Decimal("0"))
     latest_price_inr: Decimal | None = Field(default=None, ge=Decimal("0"))
+    score_evidence: dict[str, Any] = Field(default_factory=dict)
+    rejection_reasons: tuple[str, ...] = Field(default_factory=tuple)
+    decision_status: str | None = None
 
     @field_validator("symbol")
     @classmethod
@@ -134,7 +138,11 @@ class PortfolioPlanSleeveBudget(BaseModel):
     target_exposure_inr: Decimal = Field(ge=Decimal("0"))
     current_exposure_inr: Decimal = Field(ge=Decimal("0"))
     idle_capacity_inr: Decimal = Field(ge=Decimal("0"))
+    protected_capacity_inr: Decimal = Field(default=Decimal("0.00"), ge=Decimal("0"))
+    borrowable_capacity_inr: Decimal = Field(default=Decimal("0.00"), ge=Decimal("0"))
     borrowed_capacity_inr: Decimal = Field(default=Decimal("0.00"), ge=Decimal("0"))
+    borrowed_by_sleeve_id: str | None = None
+    idle_reason: str | None = None
     projected_exposure_inr: Decimal = Field(ge=Decimal("0"))
     projected_pct_nav: Decimal = Field(ge=Decimal("0"))
 
@@ -170,6 +178,10 @@ class PortfolioRebalancePlan(BaseModel):
     spendable_cash_before_reserve_inr: Decimal = Field(ge=Decimal("0"))
     spendable_cash_after_reserve_inr: Decimal = Field(ge=Decimal("0"))
     same_run_sell_proceeds_haircut_pct: Decimal = Field(ge=Decimal("0"), le=Decimal("100"))
+    buy_price_buffer_pct: Decimal = Field(ge=Decimal("0"), le=Decimal("100"))
+    soft_borrowing_enabled: bool = False
+    max_borrowed_capacity_pct_nav: Decimal | None = Field(default=None, ge=Decimal("0"), le=Decimal("100"))
+    max_borrowed_capacity_inr: Decimal | None = Field(default=None, ge=Decimal("0"))
     positions: tuple[PortfolioPlanPosition, ...] = Field(default_factory=tuple)
     candidates: tuple[PortfolioPlanCandidate, ...] = Field(default_factory=tuple)
     core_basket_target_weights: dict[str, Decimal] = Field(default_factory=dict)
@@ -220,18 +232,26 @@ class PortfolioRebalancePlanService:
             )
         )
         positions = _position_rows(plan_input, core_symbols=core_symbols)
-        candidates = _candidate_rows(plan_input)
+        candidates = tuple(
+            sorted(
+                [
+                    *_trader_candidate_rows(plan_input),
+                    *_core_candidate_rows(plan_input, core_artifact),
+                ],
+                key=lambda candidate: (
+                    candidate.symbol,
+                    0 if candidate.source == "trader_proposal" else 1,
+                    candidate.strategy_rank
+                    if candidate.strategy_rank is not None
+                    else 1_000_000,
+                    candidate.candidate_id,
+                ),
+            )
+        )
         planned_trades = tuple(
             sorted(
                 [
-                    *[
-                        _trade_from_candidate(plan_input, candidate)
-                        for candidate in candidates
-                    ],
-                    *[
-                        _trade_from_core_decision(plan_input, row, rank=rank)
-                        for rank, row in enumerate(_core_decisions(core_artifact), start=1)
-                    ],
+                    *[_trade_from_candidate(plan_input, candidate) for candidate in candidates],
                 ],
                 key=lambda trade: (
                     trade.rank if trade.rank is not None else 1_000_000,
@@ -241,8 +261,18 @@ class PortfolioRebalancePlanService:
                 ),
             )
         )
+        haircut_pct = (
+            policy.rebalance_capacity.same_run_proceeds_haircut_pct
+            if policy is not None
+            else DEFAULT_SAME_RUN_SELL_PROCEEDS_HAIRCUT_PCT
+        ).quantize(PCT_QUANT)
+        buy_price_buffer_pct = (
+            policy.rebalance_capacity.buy_price_buffer_pct
+            if policy is not None
+            else DEFAULT_BUY_PRICE_BUFFER_PCT
+        ).quantize(PCT_QUANT)
         reserve_pct = (
-            policy.cash_buffer_target_pct
+            policy.rebalance_capacity.hard_cash_reserve_pct_nav
             if policy is not None
             else Decimal("0.0000")
         ).quantize(PCT_QUANT)
@@ -256,6 +286,7 @@ class PortfolioRebalancePlanService:
             hard_reserve=hard_reserve,
             spendable_after_reserve=spendable_after_reserve,
             planned_trades=planned_trades,
+            same_run_sell_proceeds_haircut_pct=haircut_pct,
         )
         return PortfolioRebalancePlan(
             plan_id=f"portfolio-plan-{plan_input.run_id}",
@@ -271,7 +302,23 @@ class PortfolioRebalancePlanService:
             hard_cash_reserve_inr=hard_reserve,
             spendable_cash_before_reserve_inr=_money(plan_input.current_cash_inr),
             spendable_cash_after_reserve_inr=spendable_after_reserve,
-            same_run_sell_proceeds_haircut_pct=SAME_RUN_SELL_PROCEEDS_HAIRCUT_PCT,
+            same_run_sell_proceeds_haircut_pct=haircut_pct,
+            buy_price_buffer_pct=buy_price_buffer_pct,
+            soft_borrowing_enabled=(
+                bool(policy.rebalance_capacity.soft_borrowing_enabled)
+                if policy is not None
+                else False
+            ),
+            max_borrowed_capacity_pct_nav=(
+                policy.rebalance_capacity.max_borrowed_capacity_pct_nav
+                if policy is not None
+                else None
+            ),
+            max_borrowed_capacity_inr=(
+                policy.rebalance_capacity.max_borrowed_capacity_inr
+                if policy is not None
+                else None
+            ),
             positions=positions,
             candidates=candidates,
             core_basket_target_weights=target_weights,
@@ -284,6 +331,7 @@ class PortfolioRebalancePlanService:
                 plan_input,
                 positions=positions,
                 planned_trades=planned_trades,
+                candidates=candidates,
             ),
             constraints=(
                 PortfolioPlanConstraint(
@@ -328,7 +376,7 @@ def _position_rows(
     return tuple(rows)
 
 
-def _candidate_rows(
+def _trader_candidate_rows(
     plan_input: PortfolioRebalancePlanInput,
 ) -> tuple[PortfolioPlanCandidate, ...]:
     rows = []
@@ -373,6 +421,66 @@ def _candidate_rows(
     return tuple(rows)
 
 
+def _core_candidate_rows(
+    plan_input: PortfolioRebalancePlanInput,
+    core_artifact: Mapping[str, Any],
+) -> tuple[PortfolioPlanCandidate, ...]:
+    score_by_symbol, rank_by_symbol = _core_selection_score_maps(core_artifact)
+    rejection_reasons = _core_rejection_reasons_by_symbol(core_artifact)
+    rows = []
+    for decision in _core_decisions(core_artifact):
+        symbol = str(decision.get("symbol") or "").strip().upper()
+        if not symbol:
+            continue
+        target_pct = _as_decimal(decision.get("target_weight_pct_nav")).quantize(PCT_QUANT)
+        current_pct = _as_decimal(decision.get("current_weight_pct_nav")).quantize(PCT_QUANT)
+        action = _core_candidate_action(decision, target_pct=target_pct, current_pct=current_pct)
+        score_evidence = score_by_symbol.get(symbol, {})
+        raw_score = (
+            _as_decimal(score_evidence.get("rank_score")).quantize(PCT_QUANT)
+            if score_evidence
+            else None
+        )
+        score_component = _core_score_component(raw_score)
+        decision_status = str(decision.get("status") or "").strip().lower() or None
+        rows.append(
+            PortfolioPlanCandidate(
+                candidate_id=f"candidate-core-{symbol.lower()}",
+                symbol=symbol,
+                proposal_id=None,
+                action=action,
+                source=CORE_STRATEGY_NAME,
+                sleeve_id=CORE_SLEEVE_ID,
+                strategy_name=CORE_STRATEGY_NAME,
+                strategy_rank=rank_by_symbol.get(symbol),
+                raw_strategy_score=raw_score,
+                calibrated_strategy_score=score_component,
+                allocation_score_component=score_component,
+                score_calibration_method=(
+                    "core_rank_score_observed_v1"
+                    if raw_score is not None
+                    else "core_missing_score_default_v1"
+                ),
+                confidence=Decimal("1.0000")
+                if decision_status == "approved"
+                else Decimal("0.5000"),
+                requested_position_pct_nav=target_pct,
+                current_position_pct_nav=current_pct,
+                target_position_pct_nav=target_pct,
+                requested_notional_inr=_money(
+                    _as_decimal(decision.get("trade_notional_inr"))
+                ),
+                latest_price_inr=_latest_close(
+                    plan_input.histories_by_symbol.get(symbol, tuple())
+                ),
+                score_evidence=_json_safe(score_evidence),
+                rejection_reasons=tuple(rejection_reasons.get(symbol, tuple())),
+                decision_status=decision_status,
+            )
+        )
+    return tuple(rows)
+
+
 def _trade_from_candidate(
     plan_input: PortfolioRebalancePlanInput,
     candidate: PortfolioPlanCandidate,
@@ -404,9 +512,23 @@ def _trade_from_candidate(
         PortfolioPlanConstraint(
             constraint_id="dry_run_not_routed",
             status="informational",
-            message="M57 portfolio-plan rows are not routed to risk, final approval, or broker execution.",
+            message=(
+                "Portfolio-plan rows are not routed to risk, final approval, "
+                "or broker execution in M58."
+            ),
         )
     ]
+    if candidate.source == CORE_STRATEGY_NAME:
+        constraints.append(
+            PortfolioPlanConstraint(
+                constraint_id="core_candidate_not_routed",
+                status="informational",
+                message=(
+                    "Core basket decisions are typed as portfolio-plan "
+                    "candidates only; executable routing starts in a later milestone."
+                ),
+            )
+        )
     status: PlanTradeStatus = "observed"
     if side == "HOLD" or notional <= 0:
         status = "no_trade"
@@ -441,7 +563,7 @@ def _trade_from_candidate(
         else candidate.sleeve_id
     )
     return PortfolioPlanTrade(
-        trade_id=f"trade-{candidate.proposal_id or candidate.symbol}",
+        trade_id=_trade_id_for_candidate(candidate),
         symbol=candidate.symbol,
         proposal_id=candidate.proposal_id,
         side=side,
@@ -460,61 +582,72 @@ def _trade_from_candidate(
     )
 
 
-def _trade_from_core_decision(
-    plan_input: PortfolioRebalancePlanInput,
+def _trade_id_for_candidate(candidate: PortfolioPlanCandidate) -> str:
+    if candidate.proposal_id:
+        return f"trade-{candidate.proposal_id}"
+    if candidate.source == CORE_STRATEGY_NAME:
+        return f"trade-core-{candidate.symbol.lower()}"
+    return f"trade-{candidate.candidate_id}"
+
+
+def _core_candidate_action(
     decision: Mapping[str, Any],
     *,
-    rank: int,
-) -> PortfolioPlanTrade:
-    symbol = str(decision.get("symbol") or "").strip().upper()
-    side_text = str(decision.get("side") or "HOLD").strip().upper()
-    side: PlanSide = "BUY" if side_text == "BUY" else "SELL" if side_text == "SELL" else "HOLD"
-    target_pct = _as_decimal(decision.get("target_weight_pct_nav")).quantize(PCT_QUANT)
-    current_pct = _as_decimal(decision.get("current_weight_pct_nav")).quantize(PCT_QUANT)
-    delta_pct = _as_decimal(decision.get("drift_pct_nav")).quantize(PCT_QUANT)
-    notional = _money(_as_decimal(decision.get("trade_notional_inr")))
-    latest_price = _latest_close(plan_input.histories_by_symbol.get(symbol, tuple()))
-    quantity = _estimated_quantity(
-        notional=notional,
-        latest_price=latest_price,
-        max_quantity=_current_quantity_for(plan_input, symbol) if side == "SELL" else None,
-        exit_all=False,
-    )
-    status: PlanTradeStatus = "advisory_only" if side != "HOLD" and notional > 0 else "no_trade"
-    constraints = [
-        PortfolioPlanConstraint(
-            constraint_id="core_advisory_only",
-            status="informational",
-            message="Core basket decisions remain advisory in M57 and are not executable plan candidates.",
-        )
-    ]
-    if side != "HOLD" and (latest_price is None or latest_price <= 0):
-        status = "missing_price"
-        constraints.append(
-            PortfolioPlanConstraint(
-                constraint_id="latest_price_missing",
-                status="blocked",
-                message="No latest close was available for core advisory quantity estimation.",
-            )
-        )
-    return PortfolioPlanTrade(
-        trade_id=f"core-advisory-{symbol}",
-        symbol=symbol,
-        proposal_id=None,
-        side=side,
-        action="BUY" if side == "BUY" else "REDUCE" if side == "SELL" else "HOLD",
-        source=CORE_STRATEGY_NAME,
-        sleeve_id=CORE_SLEEVE_ID,
-        rank=rank,
-        target_pct_nav=target_pct,
-        current_pct_nav=current_pct,
-        delta_pct_nav=delta_pct,
-        estimated_notional_inr=notional,
-        estimated_quantity=quantity,
-        latest_price_inr=latest_price,
-        constraints=tuple(constraints),
-        status=status,
-    )
+    target_pct: Decimal,
+    current_pct: Decimal,
+) -> str:
+    status = str(decision.get("status") or "").strip().lower()
+    if status != "approved":
+        return "HOLD"
+    side = str(decision.get("side") or "HOLD").strip().upper()
+    if side == "BUY":
+        return "BUY"
+    if side == "SELL":
+        return "EXIT" if target_pct <= 0 and current_pct > 0 else "REDUCE"
+    return "HOLD"
+
+
+def _core_score_component(raw_score: Decimal | None) -> Decimal:
+    if raw_score is None:
+        return Decimal("50.0000")
+    return max(Decimal("0"), min(Decimal("100"), raw_score)).quantize(PCT_QUANT)
+
+
+def _core_selection_score_maps(
+    core_artifact: Mapping[str, Any],
+) -> tuple[dict[str, dict[str, Any]], dict[str, int]]:
+    selection_scores = core_artifact.get("selection_scores")
+    if not isinstance(selection_scores, list | tuple):
+        return {}, {}
+    scores: dict[str, dict[str, Any]] = {}
+    ranks: dict[str, int] = {}
+    for rank, row in enumerate(selection_scores, start=1):
+        if not isinstance(row, Mapping):
+            continue
+        symbol = str(row.get("symbol") or "").strip().upper()
+        if not symbol:
+            continue
+        scores[symbol] = _json_safe(dict(row))
+        ranks[symbol] = rank
+    return scores, ranks
+
+
+def _core_rejection_reasons_by_symbol(
+    core_artifact: Mapping[str, Any],
+) -> dict[str, tuple[str, ...]]:
+    rejected = core_artifact.get("rejected_candidates")
+    if not isinstance(rejected, list | tuple):
+        return {}
+    reasons_by_symbol: dict[str, tuple[str, ...]] = {}
+    for row in rejected:
+        if not isinstance(row, Mapping):
+            continue
+        symbol = str(row.get("symbol") or "").strip().upper()
+        reasons = row.get("reasons")
+        if not symbol or not isinstance(reasons, list | tuple):
+            continue
+        reasons_by_symbol[symbol] = tuple(str(reason) for reason in reasons)
+    return reasons_by_symbol
 
 
 def _cash_budget_rows(
@@ -523,6 +656,7 @@ def _cash_budget_rows(
     hard_reserve: Decimal,
     spendable_after_reserve: Decimal,
     planned_trades: tuple[PortfolioPlanTrade, ...],
+    same_run_sell_proceeds_haircut_pct: Decimal,
 ) -> tuple[PortfolioPlanCashBudget, ...]:
     forecast_sell_proceeds = sum(
         (
@@ -534,7 +668,7 @@ def _cash_budget_rows(
     ).quantize(MONEY_QUANT)
     spendable_same_run_proceeds = (
         forecast_sell_proceeds
-        * SAME_RUN_SELL_PROCEEDS_HAIRCUT_PCT
+        * same_run_sell_proceeds_haircut_pct
         / Decimal("100")
     ).quantize(MONEY_QUANT)
     estimated_buy_notional = sum(
@@ -575,7 +709,10 @@ def _cash_budget_rows(
             label="Spendable same-run proceeds",
             amount_inr=spendable_same_run_proceeds,
             spendable=True,
-            description="Forecast sell proceeds after the current 80% spendable haircut.",
+            description=(
+                "Forecast sell proceeds after the current "
+                f"{same_run_sell_proceeds_haircut_pct}% spendable haircut."
+            ),
         ),
         PortfolioPlanCashBudget(
             row_id="unallocated_cash",
@@ -592,6 +729,7 @@ def _sleeve_budget_rows(
     *,
     positions: tuple[PortfolioPlanPosition, ...],
     planned_trades: tuple[PortfolioPlanTrade, ...],
+    candidates: tuple[PortfolioPlanCandidate, ...],
 ) -> tuple[PortfolioPlanSleeveBudget, ...]:
     policy = plan_input.money_management_policy
     deltas = _trade_deltas_by_sleeve(planned_trades)
@@ -608,6 +746,8 @@ def _sleeve_budget_rows(
                 target_exposure_inr=target,
                 current_exposure_inr=_money(current),
                 idle_capacity_inr=max(Decimal("0.00"), target - current).quantize(MONEY_QUANT),
+                protected_capacity_inr=Decimal("0.00"),
+                borrowable_capacity_inr=Decimal("0.00"),
                 borrowed_capacity_inr=Decimal("0.00"),
                 projected_exposure_inr=_money(projected),
                 projected_pct_nav=_pct_of_nav(projected, plan_input.nav_inr),
@@ -625,7 +765,11 @@ def _sleeve_budget_rows(
             + position.market_value_inr
         ).quantize(MONEY_QUANT)
 
-    rows = []
+    capacity = policy.rebalance_capacity
+    borrower_ids = set(capacity.borrower_sleeve_ids)
+    borrowable_ids = set(capacity.borrowable_sleeve_ids)
+    deployed_buy_by_sleeve = _deployable_buy_notional_by_sleeve(candidates)
+    row_inputs: dict[str, dict[str, Any]] = {}
     for sleeve in policy.sleeves:
         target = _pct_to_notional(sleeve.target_weight_pct, plan_input.nav_inr)
         snapshot = snapshot_by_sleeve.get(sleeve.sleeve_id)
@@ -639,20 +783,85 @@ def _sleeve_budget_rows(
             Decimal("0.00"),
             current + deltas.get(sleeve.sleeve_id, Decimal("0.00")),
         ).quantize(MONEY_QUANT)
+        raw_capacity = max(Decimal("0.00"), target - current).quantize(MONEY_QUANT)
+        has_deployable_buy = deployed_buy_by_sleeve.get(sleeve.sleeve_id, Decimal("0.00")) > 0
+        freeze_reason = _sleeve_freeze_reason(sleeve, snapshot)
+        idle_capacity = (
+            raw_capacity
+            if raw_capacity > 0 and not has_deployable_buy
+            else Decimal("0.00")
+        )
+        protected_capacity = Decimal("0.00")
+        borrowable_capacity = Decimal("0.00")
+        idle_reason: str | None = None
+
+        if sleeve.sleeve_id == "cash_buffer":
+            protected_capacity = _pct_to_notional(
+                capacity.hard_cash_reserve_pct_nav,
+                plan_input.nav_inr,
+            )
+            idle_capacity = Decimal("0.00")
+            idle_reason = "hard_cash_reserve_non_borrowable"
+        elif raw_capacity <= 0:
+            idle_reason = "sleeve_at_or_above_target"
+        elif has_deployable_buy:
+            protected_capacity = raw_capacity
+            idle_reason = "own_executable_candidate_available"
+        elif freeze_reason is not None:
+            protected_capacity = raw_capacity
+            idle_reason = freeze_reason
+        elif not capacity.soft_borrowing_enabled:
+            protected_capacity = raw_capacity
+            idle_reason = "soft_borrowing_disabled"
+        elif sleeve.sleeve_id not in borrowable_ids:
+            protected_capacity = raw_capacity
+            idle_reason = "sleeve_not_borrowable_by_policy"
+        elif sleeve.sleeve_id in borrower_ids:
+            protected_capacity = raw_capacity
+            idle_reason = "borrower_sleeve_not_lender"
+        else:
+            borrowable_capacity = idle_capacity
+            idle_reason = "borrowable_idle_capacity"
+
+        row_inputs[sleeve.sleeve_id] = {
+            "sleeve": sleeve,
+            "target": target,
+            "current": current,
+            "projected": projected,
+            "idle_capacity": idle_capacity,
+            "protected_capacity": protected_capacity,
+            "borrowable_capacity": borrowable_capacity,
+            "remaining_borrowable_capacity": borrowable_capacity,
+            "borrowed_capacity": Decimal("0.00"),
+            "borrowed_by_sleeve_id": None,
+            "idle_reason": idle_reason,
+        }
+
+    _assign_soft_borrowing(
+        row_inputs,
+        policy=policy,
+        nav_inr=plan_input.nav_inr,
+    )
+
+    rows = []
+    for sleeve in policy.sleeves:
+        row = row_inputs[sleeve.sleeve_id]
         rows.append(
             PortfolioPlanSleeveBudget(
                 sleeve_id=sleeve.sleeve_id,
                 sleeve_name=sleeve.name,
                 target_pct_nav=sleeve.target_weight_pct,
-                current_pct_nav=_pct_of_nav(current, plan_input.nav_inr),
-                target_exposure_inr=target,
-                current_exposure_inr=current,
-                idle_capacity_inr=max(Decimal("0.00"), target - current).quantize(
-                    MONEY_QUANT
-                ),
-                borrowed_capacity_inr=Decimal("0.00"),
-                projected_exposure_inr=projected,
-                projected_pct_nav=_pct_of_nav(projected, plan_input.nav_inr),
+                current_pct_nav=_pct_of_nav(row["current"], plan_input.nav_inr),
+                target_exposure_inr=row["target"],
+                current_exposure_inr=row["current"],
+                idle_capacity_inr=row["idle_capacity"],
+                protected_capacity_inr=row["protected_capacity"],
+                borrowable_capacity_inr=row["borrowable_capacity"],
+                borrowed_capacity_inr=row["borrowed_capacity"],
+                borrowed_by_sleeve_id=row["borrowed_by_sleeve_id"],
+                idle_reason=row["idle_reason"],
+                projected_exposure_inr=row["projected"],
+                projected_pct_nav=_pct_of_nav(row["projected"], plan_input.nav_inr),
             )
         )
     return tuple(rows)
@@ -671,6 +880,103 @@ def _trade_deltas_by_sleeve(
             + (trade.estimated_notional_inr * multiplier)
         ).quantize(MONEY_QUANT)
     return deltas
+
+
+def _deployable_buy_notional_by_sleeve(
+    candidates: tuple[PortfolioPlanCandidate, ...],
+) -> dict[str, Decimal]:
+    deployed: dict[str, Decimal] = {}
+    for candidate in candidates:
+        if candidate.action.upper() != "BUY":
+            continue
+        if candidate.requested_notional_inr <= 0:
+            continue
+        if candidate.latest_price_inr is None or candidate.latest_price_inr <= 0:
+            continue
+        if candidate.decision_status not in {None, "approved"}:
+            continue
+        deployed[candidate.sleeve_id] = (
+            deployed.get(candidate.sleeve_id, Decimal("0.00"))
+            + candidate.requested_notional_inr
+        ).quantize(MONEY_QUANT)
+    return deployed
+
+
+def _sleeve_freeze_reason(
+    sleeve: SleevePolicy,
+    snapshot: SleeveAllocationSnapshot | None,
+) -> str | None:
+    if snapshot is None or sleeve.drawdown_freeze_threshold_pct is None:
+        return None
+    if snapshot.drawdown_pct > sleeve.drawdown_freeze_threshold_pct:
+        return "sleeve_drawdown_freeze_protected"
+    return None
+
+
+def _assign_soft_borrowing(
+    row_inputs: dict[str, dict[str, Any]],
+    *,
+    policy: MoneyManagementPolicy,
+    nav_inr: Decimal,
+) -> None:
+    capacity = policy.rebalance_capacity
+    if not capacity.soft_borrowing_enabled:
+        return
+
+    remaining_guard = _soft_borrow_guard(policy, nav_inr=nav_inr)
+    if remaining_guard <= 0:
+        return
+
+    borrowable_order = tuple(capacity.borrowable_sleeve_ids)
+    for borrower_id in capacity.borrower_sleeve_ids:
+        borrower = row_inputs.get(borrower_id)
+        if borrower is None:
+            continue
+        borrower_need = max(
+            Decimal("0.00"),
+            borrower["projected"] - borrower["target"],
+        ).quantize(MONEY_QUANT)
+        if borrower_need <= 0:
+            continue
+        borrower_need = min(borrower_need, remaining_guard).quantize(MONEY_QUANT)
+        borrowed = Decimal("0.00")
+        for lender_id in borrowable_order:
+            if lender_id == borrower_id:
+                continue
+            lender = row_inputs.get(lender_id)
+            if lender is None:
+                continue
+            available = lender["remaining_borrowable_capacity"]
+            if available <= 0:
+                continue
+            amount = min(available, borrower_need - borrowed).quantize(MONEY_QUANT)
+            if amount <= 0:
+                continue
+            lender["remaining_borrowable_capacity"] = (available - amount).quantize(
+                MONEY_QUANT
+            )
+            lender["borrowed_by_sleeve_id"] = borrower_id
+            borrower["borrowed_capacity"] = (
+                borrower["borrowed_capacity"] + amount
+            ).quantize(MONEY_QUANT)
+            borrowed = (borrowed + amount).quantize(MONEY_QUANT)
+            remaining_guard = (remaining_guard - amount).quantize(MONEY_QUANT)
+            if borrowed >= borrower_need or remaining_guard <= 0:
+                break
+        if remaining_guard <= 0:
+            break
+
+
+def _soft_borrow_guard(policy: MoneyManagementPolicy, *, nav_inr: Decimal) -> Decimal:
+    capacity = policy.rebalance_capacity
+    guards: list[Decimal] = []
+    if capacity.max_borrowed_capacity_pct_nav is not None:
+        guards.append(_pct_to_notional(capacity.max_borrowed_capacity_pct_nav, nav_inr))
+    if capacity.max_borrowed_capacity_inr is not None:
+        guards.append(_money(capacity.max_borrowed_capacity_inr))
+    if not guards:
+        return Decimal("999999999999.99")
+    return min(guards).quantize(MONEY_QUANT)
 
 
 def _core_target_weights(core_artifact: Mapping[str, Any]) -> dict[str, Decimal]:

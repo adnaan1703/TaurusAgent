@@ -117,6 +117,7 @@ export function AllocationPanels({ allocation, showCore = true }: AllocationPane
 export function PortfolioPlanPanel({ plan }: { plan: JsonObject | null | undefined }) {
   const available = getPrimitive(plan, "available") === true || Boolean(getString(plan, "plan_id"));
   const plannedTrades = jsonArray(plan?.planned_trades).slice(0, 10);
+  const candidates = jsonArray(plan?.candidates).slice(0, 10);
   const cashBudget = jsonArray(plan?.cash_budget);
   const sleeveBudgets = jsonArray(plan?.sleeve_budgets);
 
@@ -178,12 +179,37 @@ export function PortfolioPlanPanel({ plan }: { plan: JsonObject | null | undefin
             { key: "target", header: "Target", align: "right", render: (row) => formatPercent(getPrimitive(row, "target_pct_nav")) },
             { key: "current", header: "Current", align: "right", render: (row) => formatPercent(getPrimitive(row, "current_pct_nav")) },
             { key: "idle", header: "Idle", align: "right", render: (row) => formatInr(getPrimitive(row, "idle_capacity_inr")) },
+            { key: "protected", header: "Protected", align: "right", render: (row) => formatInr(getPrimitive(row, "protected_capacity_inr")) },
+            { key: "borrowable", header: "Borrowable", align: "right", render: (row) => formatInr(getPrimitive(row, "borrowable_capacity_inr")) },
             { key: "borrowed", header: "Borrowed", align: "right", render: (row) => formatInr(getPrimitive(row, "borrowed_capacity_inr")) },
+            { key: "borrowedBy", header: "Borrowed by", render: (row) => getString(row, "borrowed_by_sleeve_id") || "-" },
             { key: "projected", header: "Projected", align: "right", render: (row) => formatPercent(getPrimitive(row, "projected_pct_nav")) },
           ]}
           emptyLabel="No sleeve budget rows"
           getRowKey={(row) => getString(row, "sleeve_id")}
           rows={sleeveBudgets}
+        />
+
+        <DataTable
+          columns={[
+            { key: "symbol", header: "Symbol", render: (row) => getString(row, "symbol") || "-" },
+            { key: "action", header: "Action", render: (row) => <StatusBadge status={getString(row, "action")} size="sm" /> },
+            { key: "source", header: "Source", render: (row) => getString(row, "source") || "-" },
+            { key: "sleeve", header: "Sleeve", render: (row) => getString(row, "sleeve_id") || "-" },
+            { key: "rank", header: "Rank", align: "right", render: (row) => formatNumber(getPrimitive(row, "strategy_rank")) },
+            { key: "score", header: "Score", align: "right", render: (row) => formatNumber(getPrimitive(row, "allocation_score_component")) },
+            { key: "target", header: "Target", align: "right", render: (row) => formatPercent(getPrimitive(row, "target_position_pct_nav")) },
+            { key: "status", header: "Status", render: (row) => getString(row, "decision_status") || "-" },
+            {
+              key: "reasons",
+              header: "Reasons",
+              render: (row) =>
+                (isJsonObject(row) ? jsonArray(row.rejection_reasons).map(String).join(", ") : "") || "-",
+            },
+          ]}
+          emptyLabel="No candidate rows"
+          getRowKey={(row) => getString(row, "candidate_id")}
+          rows={candidates}
         />
 
         <DataTable

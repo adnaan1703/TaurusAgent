@@ -67,8 +67,9 @@ removed during docs cleanup. Use Git history for detailed historical plans.
   checks, final operator docs, and approval-rules cleanup.
 - M56 score semantics and allocation precision work is complete.
 - M57 portfolio rebalance plan schema and dry-run artifact work is complete.
-  M58 soft sleeve capacity and executable core candidate modeling is the next
-  planned milestone.
+- M58 soft sleeve capacity and executable core candidate modeling is complete.
+  M59 holistic BUY allocation and executable core routing is the next planned
+  milestone.
 
 ## Standing Safety Rules
 
@@ -118,9 +119,10 @@ removed during docs cleanup. Use Git history for detailed historical plans.
 | M54 | Done | Added profile CRUD APIs, profile-scoped query parameters for run/paper/research/risk/UI read endpoints, active-profile UI metadata, a URL/local-storage-backed read-only React profile selector, profile-aware query keys/links, and focused API/UI tests. M55 final regression is complete. |
 | M55 | Done | Added deterministic two-profile regression for pending orders, settled fills, realized/unrealized P&L, dashboard/API scoping, stale profile filters, and profile smoke checks; API/Vite local smoke returned 200, while visual browser automation was unavailable in this session; finalized operator docs and milestone cleanup for the M51-M55 sequence. |
 | Ops LM Studio reasoning fallback | Done | Added a narrow LM Studio compatibility fallback that uses non-empty `message.reasoning_content` only when `message.content` is empty, while keeping existing parser and schema validation as the contract authority. |
-| M56-M61 plan document | Done | Created the flat portfolio rebalance plan covering score semantics, dry-run portfolio-plan artifacts, soft sleeve borrowing, executable core routing, same-run proceeds netting, execution buffers, UI/replay observability, and final regression. Implementation is complete through M57; M58 remains planned. |
+| M56-M61 plan document | Done | Created the flat portfolio rebalance plan covering score semantics, dry-run portfolio-plan artifacts, soft sleeve borrowing, executable core routing, same-run proceeds netting, execution buffers, UI/replay observability, and final regression. Implementation is complete through M58; M59 remains planned. |
 | M56 | Done | Added score metadata for analyst reports, raw technical/graph score lineage, shared calibrated allocation score semantics, trader target cap metadata, allocation candidate score visibility in API/UI selection rows, focused regressions, and architecture docs. Portfolio-level rebalance planning, executable core basket orders, sleeve borrowing, and same-run proceeds netting remain for M57-M61. |
 | M57 | Done | Added a typed dry-run portfolio rebalance plan artifact with position, candidate, planned-trade, cash-budget, sleeve-budget, and constraint rows; persisted it on paper runs; exposed it through replay, API aggregate payloads, and React allocation/run-detail panels; preserved legacy runs without plan artifacts; and kept executable allocation/order behavior unchanged. Soft sleeve borrowing, executable core routing, and same-run proceeds netting remain for M58-M61. |
+| M58 | Done | Added explicit rebalance-capacity policy rules, soft sleeve borrowing visibility in the dry-run plan, protected/borrowable/borrowed sleeve budget rows, typed core Shariah basket plan candidates with score/rejection evidence, API/UI/replay visibility, focused regressions, and money-management/architecture docs. Executable core routing, holistic BUY allocation, and same-run proceeds netting remain for M59-M61. |
 
 ### M56-M61 Plan Document Completion Summary
 
@@ -158,6 +160,20 @@ removed during docs cleanup. Use Git history for detailed historical plans.
   policy; core basket rows remain advisory-only until M58; same-run sell
   proceeds are forecast with the current 80% haircut for visibility but are not
   used by allocation in this milestone.
+- Mocks created: None.
+- Mocks used: Existing `FakeLLMProvider`, existing
+  `FakeKiteMarketDataProvider`, deterministic daily-candle fixtures, and
+  FastAPI `TestClient`.
+
+### M58 Completion Summary
+
+- Assumptions made: M58 should enrich the dry-run plan without changing
+  risk/final/paper routing; `cash_buffer` must remain hard and non-borrowable;
+  active soft borrowing should be visible only when planned active exposure
+  exceeds its own target and eligible non-cash sleeves are idle; frozen sleeves
+  should expose protected, not borrowable, idle capacity; core basket decisions
+  should become typed plan candidates but not trader-proposal-compatible
+  records until M59.
 - Mocks created: None.
 - Mocks used: Existing `FakeLLMProvider`, existing
   `FakeKiteMarketDataProvider`, deterministic daily-candle fixtures, and
@@ -394,7 +410,7 @@ implemented, verified, cleaned up, and documented.
 |---:|---|---|---|---|
 | 38 | M56 | Done | `docs/TAURUS_PORTFOLIO_REBALANCE_PLAN.md` | Add score semantics and allocation precision plumbing so raw, calibrated, bounded, and allocation scores remain distinct. |
 | 39 | M57 | Done | `docs/TAURUS_PORTFOLIO_REBALANCE_PLAN.md` | Add a dry-run portfolio rebalance plan artifact, API/UI/replay visibility, and legacy-safe serialization. |
-| 40 | M58 | Planned | `docs/TAURUS_PORTFOLIO_REBALANCE_PLAN.md` | Add soft sleeve capacity rules and convert core Shariah basket decisions into executable rebalance candidates. |
+| 40 | M58 | Done | `docs/TAURUS_PORTFOLIO_REBALANCE_PLAN.md` | Add soft sleeve capacity rules and convert core Shariah basket decisions into executable rebalance candidates. |
 | 41 | M59 | Planned | `docs/TAURUS_PORTFOLIO_REBALANCE_PLAN.md` | Make holistic BUY allocation and executable core routing flow through planner-linked allocation, risk, final, and paper queueing. |
 | 42 | M60 | Planned | `docs/TAURUS_PORTFOLIO_REBALANCE_PLAN.md` | Add threshold trims/exits, 80% same-run proceeds netting, 5% cash/price buffers, and sell-first next-open queueing. |
 | 43 | M61 | Planned | `docs/TAURUS_PORTFOLIO_REBALANCE_PLAN.md` | Run end-to-end regression, finalize operator docs, clean compatibility scaffolding, and close the sequence. |

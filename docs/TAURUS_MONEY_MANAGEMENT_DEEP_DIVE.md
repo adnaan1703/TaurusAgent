@@ -195,6 +195,43 @@ cash_room = available_cash - protected_cash
 
 If cash room is small, `cash_buffer` can become the binding constraint.
 
+## Rebalance Capacity Rules
+
+`rebalance_capacity` makes portfolio-plan capacity explicit without changing
+paper order routing:
+
+```yaml
+rebalance_capacity:
+  hard_cash_reserve_pct_nav: 5.0
+  same_run_proceeds_haircut_pct: 80.0
+  buy_price_buffer_pct: 5.0
+  soft_borrowing_enabled: true
+  borrowable_sleeve_ids:
+    - diversifying_strategy
+    - experimental_models
+    - core_shariah
+  borrower_sleeve_ids:
+    - active_strategy
+  max_borrowed_capacity_pct_nav: 20.0
+```
+
+The hard cash reserve is separate from soft sleeve capacity. `cash_buffer` is
+never borrowable, and the default policy keeps 5% NAV protected. Same-run sell
+proceeds are shown with an 80% spendable haircut, and BUY price-buffer metadata
+is visible for future executable sizing.
+
+In the dry-run portfolio plan, a non-cash sleeve has idle room only when it is
+below target and has no deployable same-sleeve BUY candidate in the plan. Idle
+room is protected, not borrowable, when soft borrowing is disabled, the sleeve
+is not listed as borrowable, the sleeve is itself a borrower, or the sleeve is
+frozen by its drawdown threshold. Otherwise the row exposes borrowable capacity.
+
+When `active_strategy` has planned exposure above its own target, the plan can
+show borrowed capacity from idle eligible non-cash sleeves up to the configured
+borrow guard. This is an observability model in M58: `RunLevelAllocationService`
+and `PortfolioAllocationService` still own executable sizing until the later
+holistic allocation milestone.
+
 ## Strategy Mappings
 
 Current policy:

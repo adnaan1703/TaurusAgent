@@ -177,6 +177,56 @@ class RebalanceThresholdPolicy(BaseModel):
     core_rebalance_frequency: str = Field(min_length=1)
 
 
+class RebalanceCapacityPolicy(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    hard_cash_reserve_pct_nav: Decimal = Field(
+        default=Decimal("5.0"),
+        ge=Decimal("0"),
+        le=Decimal("100"),
+    )
+    same_run_proceeds_haircut_pct: Decimal = Field(
+        default=Decimal("80.0"),
+        ge=Decimal("0"),
+        le=Decimal("100"),
+    )
+    buy_price_buffer_pct: Decimal = Field(
+        default=Decimal("5.0"),
+        ge=Decimal("0"),
+        le=Decimal("100"),
+    )
+    soft_borrowing_enabled: bool = True
+    borrowable_sleeve_ids: tuple[str, ...] = Field(default_factory=tuple)
+    borrower_sleeve_ids: tuple[str, ...] = Field(default_factory=tuple)
+    max_borrowed_capacity_pct_nav: Decimal | None = Field(
+        default=Decimal("20.0"),
+        ge=Decimal("0"),
+        le=Decimal("100"),
+    )
+    max_borrowed_capacity_inr: Decimal | None = Field(default=None, ge=Decimal("0"))
+    repay_priority_sleeve_ids: tuple[str, ...] = Field(default_factory=tuple)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator(
+        "borrowable_sleeve_ids",
+        "borrower_sleeve_ids",
+        "repay_priority_sleeve_ids",
+        mode="before",
+    )
+    @classmethod
+    def normalize_sleeve_ids(cls, value: object) -> tuple[str, ...]:
+        if value is None:
+            return tuple()
+        if not isinstance(value, list | tuple):
+            raise ValueError("rebalance capacity sleeve IDs must be a list.")
+        normalized: list[str] = []
+        for item in value:
+            sleeve_id = str(item).strip().lower()
+            if sleeve_id:
+                normalized.append(sleeve_id)
+        return tuple(dict.fromkeys(normalized))
+
+
 class MoneyManagementPolicy(BaseModel):
     model_config = ConfigDict(frozen=True)
 
@@ -189,6 +239,9 @@ class MoneyManagementPolicy(BaseModel):
     allocation_scoring: AllocationScoringPolicy
     drawdown_governors: tuple[DrawdownGovernorPolicy, ...] = Field(default_factory=tuple)
     rebalance: RebalanceThresholdPolicy
+    rebalance_capacity: RebalanceCapacityPolicy = Field(
+        default_factory=RebalanceCapacityPolicy
+    )
 
     @field_validator("sleeves")
     @classmethod
@@ -221,6 +274,54 @@ class MoneyManagementPolicy(BaseModel):
             raise ValueError(
                 "strategy mappings reference unknown sleeves: " + ", ".join(missing_sleeves)
             )
+
+        explicit_borrowable = tuple(self.rebalance_capacity.borrowable_sleeve_ids)
+        explicit_borrowers = tuple(self.rebalance_capacity.borrower_sleeve_ids)
+        explicit_repay = tuple(self.rebalance_capacity.repay_priority_sleeve_ids)
+
+        known_sleeves = set(sleeve_ids)
+        unknown_capacity_refs = sorted(
+            (
+                set(explicit_borrowable)
+                | set(explicit_borrowers)
+                | set(explicit_repay)
+            )
+            - known_sleeves
+        )
+        if unknown_capacity_refs:
+            raise ValueError(
+                "rebalance capacity references unknown sleeves: "
+                + ", ".join(unknown_capacity_refs)
+            )
+        if "cash_buffer" in explicit_borrowable:
+            raise ValueError("cash_buffer cannot be a borrowable sleeve.")
+        overlap = sorted(set(explicit_borrowable) & set(explicit_borrowers))
+        if overlap:
+            raise ValueError(
+                "rebalance capacity borrower sleeves cannot also be borrowable: "
+                + ", ".join(overlap)
+            )
+
+        borrower_ids = explicit_borrowers
+        if not borrower_ids and "active_strategy" in known_sleeves:
+            borrower_ids = ("active_strategy",)
+        borrowable_ids = explicit_borrowable
+        if not borrowable_ids:
+            borrower_set = set(borrower_ids)
+            borrowable_ids = tuple(
+                sleeve_id
+                for sleeve_id in sleeve_ids
+                if sleeve_id != "cash_buffer" and sleeve_id not in borrower_set
+            )
+        repay_ids = explicit_repay or borrowable_ids
+        capacity = self.rebalance_capacity.model_copy(
+            update={
+                "borrower_sleeve_ids": borrower_ids,
+                "borrowable_sleeve_ids": borrowable_ids,
+                "repay_priority_sleeve_ids": repay_ids,
+            }
+        )
+        object.__setattr__(self, "rebalance_capacity", capacity)
         return self
 
     @property
@@ -230,6 +331,10 @@ class MoneyManagementPolicy(BaseModel):
             for sleeve in self.sleeves
             if sleeve.sleeve_id == "cash_buffer"
         )
+
+    @property
+    def hard_cash_reserve_pct_nav(self) -> Decimal:
+        return self.rebalance_capacity.hard_cash_reserve_pct_nav
 
     def to_metadata(self) -> dict[str, Any]:
         return self.model_dump(mode="json")

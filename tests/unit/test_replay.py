@@ -45,6 +45,9 @@ def test_replay_portfolio_plan_stage_is_legacy_safe(tmp_path: Path) -> None:
         assert plan_stage.artifacts[0]["plan_id"] == f"portfolio-plan-{run.run_id}"
         assert plan_stage.artifacts[0]["candidate"]["symbol"] == "INFY"
         assert plan_stage.artifacts[0]["planned_trades"][0]["symbol"] == "INFY"
+        assert plan_stage.artifacts[0]["same_run_sell_proceeds_haircut_pct"] == "80.0000"
+        assert plan_stage.artifacts[0]["buy_price_buffer_pct"] == "5.0000"
+        assert plan_stage.artifacts[0]["soft_borrowing_enabled"] is False
 
         stored_run = session.get(PaperRunModel, run.run_id)
         assert stored_run is not None

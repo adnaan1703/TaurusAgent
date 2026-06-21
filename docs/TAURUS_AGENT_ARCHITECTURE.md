@@ -221,6 +221,14 @@ observational in M57: `RunLevelAllocationService` still owns executable sizing,
 and risk review, final approval, paper order routing, fills, positions, and
 account state are unchanged by plan generation.
 
+M58 enriches this artifact with explicit rebalance-capacity metadata. The plan
+shows the hard cash reserve, same-run proceeds haircut, BUY price buffer,
+protected sleeve room, borrowable idle non-cash capacity, and any active-sleeve
+capacity borrowed from idle sleeves. `cash_buffer` remains non-borrowable.
+Core Shariah basket decisions are also converted into typed portfolio-plan
+candidates with core rank/score evidence and rejection reasons, but they still
+do not bypass risk review, final approval, or paper execution.
+
 ## Research Debate Layer
 
 The research layer turns multiple analyst reports into one consensus artifact.

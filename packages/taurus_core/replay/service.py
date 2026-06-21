@@ -215,6 +215,13 @@ class DecisionReplayService:
             "spendable_cash_after_reserve_inr": plan.get(
                 "spendable_cash_after_reserve_inr"
             ),
+            "same_run_sell_proceeds_haircut_pct": plan.get(
+                "same_run_sell_proceeds_haircut_pct"
+            ),
+            "buy_price_buffer_pct": plan.get("buy_price_buffer_pct"),
+            "soft_borrowing_enabled": plan.get("soft_borrowing_enabled"),
+            "max_borrowed_capacity_pct_nav": plan.get("max_borrowed_capacity_pct_nav"),
+            "max_borrowed_capacity_inr": plan.get("max_borrowed_capacity_inr"),
             "candidate_count": len(plan.get("candidates", []))
             if isinstance(plan.get("candidates"), list)
             else 0,

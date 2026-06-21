@@ -80,3 +80,22 @@ rebalance:
   min_rebalance_notional_inr: 5000
   review_frequency: daily_after_close
   core_rebalance_frequency: monthly
+rebalance_capacity:
+  hard_cash_reserve_pct_nav: 5.0
+  same_run_proceeds_haircut_pct: 80.0
+  buy_price_buffer_pct: 5.0
+  soft_borrowing_enabled: true
+  borrowable_sleeve_ids:
+    - diversifying_strategy
+    - experimental_models
+    - core_shariah
+  borrower_sleeve_ids:
+    - active_strategy
+  max_borrowed_capacity_pct_nav: 20.0
+  max_borrowed_capacity_inr:
+  repay_priority_sleeve_ids:
+    - core_shariah
+    - diversifying_strategy
+    - experimental_models
+  metadata:
+    return_priority_note: Borrowed idle capacity should be returned before new borrower deployments when future executable routing uses this model.
