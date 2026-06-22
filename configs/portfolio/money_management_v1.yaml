@@ -96,6 +96,7 @@ rebalance_capacity:
     - core_shariah
   borrower_sleeve_ids:
     - active_strategy
+  # Extra capacity active_strategy may borrow on top of its 35% target; 60.0 means 35% + 60% = 95% max active capacity.
   max_borrowed_capacity_pct_nav: 20.0
   max_borrowed_capacity_inr:
   repay_priority_sleeve_ids:
