@@ -4,8 +4,8 @@ Last updated: 2026-06-22
 
 ## Current Status
 
-- Current milestone: M73 Regression, Documentation, and Visual QA.
-- Last completed milestone: M72 Incremental Node Expansion.
+- Current milestone: None.
+- Last completed milestone: M73 Regression, Documentation, and Visual QA.
 - Planning completed: M70-M73 graph explorer sequence.
 - Implementation state: M70 added the additive `/graph/neighborhood`
   API/client contract, counted arbitrary-node repository support,
@@ -17,8 +17,27 @@ Last updated: 2026-06-22
   inspection. M72 added explicit selected-node one-hop expansion through the
   node inspector, duplicate-free local graph-state merging, per-node
   loading/error/truncation state, and reset behavior for refreshed initial
-  neighborhoods.
-- Next recommended milestone: M73.
+  neighborhoods. M73 ran focused graph API/repository tests, React graph tests,
+  React production build, full backend regression, and browser QA against the
+  local API/UI. During visual QA, M73 fixed a Reagraph focus regression where
+  high-degree expansion could ask the canvas to fit a node that was not
+  currently rendered.
+- Next recommended milestone: None for the M70-M73 graph explorer sequence.
+
+## M73 Verification
+
+- `uv run pytest tests/unit/test_graph_api.py tests/unit/test_graph_repository.py -q`
+  -> 8 passed.
+- `pnpm --dir apps/web exec vitest run src/features/GraphPages.test.tsx`
+  -> 5 passed.
+- `pnpm --dir apps/web build` -> passed with the existing Vite large-chunk
+  warning.
+- `make test` -> 397 passed, 1 skipped.
+- Browser QA verified `/graph/company/INFY` on desktop and mobile, nonblank
+  Reagraph canvas rendering, fit/zoom/reset toolbar controls, live canvas node
+  and edge selection, edge evidence/stats inspection, explicit node expansion,
+  rejected-edge opt-in, and no post-fix Reagraph console errors during
+  expansion.
 
 ## Required Reading
 

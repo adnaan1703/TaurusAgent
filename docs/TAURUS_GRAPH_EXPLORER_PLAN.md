@@ -8,8 +8,8 @@ explorer. Each milestone below is a standalone milestone intended to be
 executed in a separate Codex thread. Stop after completing and documenting the
 current milestone; do not automatically continue to the next milestone.
 
-Status: Planning is complete. Implementation is complete through M72. M73
-remains planned.
+Status: Planning and implementation are complete through M73. The M70-M73 graph
+explorer sequence is closed.
 
 ## Target Behavior
 

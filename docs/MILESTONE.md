@@ -144,8 +144,8 @@ removed during docs cleanup. Use Git history for detailed historical plans.
   expose an explicit one-hop expansion action, merge returned neighborhoods
   into local graph state without duplicate nodes or edges, show per-node
   loading/error/truncation state, and reset expansion state when initial
-  neighborhoods refresh. M73 remains planned for final regression, operator
-  docs, and visual QA.
+  neighborhoods refresh. M73 final regression, operator docs, browser QA, and
+  graph explorer sequence closeout are complete.
 
 ## Standing Safety Rules
 
@@ -212,21 +212,22 @@ removed during docs cleanup. Use Git history for detailed historical plans.
 | M67 | Done | Added `TechnicalSignalService`, `TechnicalBacktestSignal`, and `TechnicalSignalResult` as DB-free shared technical-scoring foundations, exported them from `taurus_core.features`, and added focused parity tests for analyst-rule and SMA-spread behavior without runtime consumer wiring. |
 | M68 | Done | Routed `TechnicalAnalystAgent` and `GraphAwareScoreStrategy` through `TechnicalSignalService` while preserving technical analyst report metadata/source IDs/key points and graph-aware score, ranking, and signal payload behavior. |
 | M69 | Done | Completed final regression and documentation closeout for the shared technical signal service sequence, refreshed current architecture/deep-dive/money-management docs, confirmed no project-local approval cleanup was needed, and closed M66-M69 with no successor milestone. |
-| M70-M73 plan document | Done | Created the flat graph explorer plan covering the additive graph neighborhood API/client contract, Reagraph stock explorer shell, explicit one-hop node expansion, and final regression/docs/visual QA. Implementation is complete through M72; M73 remains planned. |
+| M70-M73 plan document | Done | Created the flat graph explorer plan covering the additive graph neighborhood API/client contract, Reagraph stock explorer shell, explicit one-hop node expansion, and final regression/docs/visual QA. Implementation is complete through M73 and the sequence is closed. |
 | M70 | Done | Added counted arbitrary-node graph neighborhood repository support, the read-only `/graph/neighborhood` API with active/candidate defaults and rejected opt-in, deterministic truncation metadata, React client/types, focused API/repository tests, and approval-rule cleanup inspection. |
 | M71 | Done | Replaced the static company SVG with a Reagraph-backed full main-content explorer shell, toolbar search/status/edge-type/camera/refresh controls, node and edge inspection, edge evidence/stats detail loading, focused JSDOM Reagraph tests, and approval-rule cleanup inspection. |
 | M72 | Done | Added explicit selected-node one-hop expansion in the Reagraph inspector, duplicate-free local node/edge merging, per-node expansion loading/error/truncation state, reset-on-refresh/filter behavior, focused React coverage, and approval-rule cleanup inspection. |
+| M73 | Done | Ran focused graph API/repository tests, React graph tests, React production build, the full backend suite, and browser QA; refreshed graph explorer operator/developer docs; fixed a Reagraph expansion focus regression found during visual QA; confirmed approval-rule cleanup was not needed; and closed the M70-M73 sequence. |
 
-## Planned Graph Explorer Sequence
+## Completed Graph Explorer Sequence
 
-This planned sequence should be executed in order as separate milestone work.
+This completed sequence was executed in order as separate milestone work.
 
 | Order | Milestone | Status | Plan | Purpose |
 |---:|---|---|---|---|
 | 70 | M70 | Done | `docs/TAURUS_GRAPH_EXPLORER_PLAN.md` | Added the additive graph neighborhood API/client contract for arbitrary node expansion. |
 | 71 | M71 | Done | `docs/TAURUS_GRAPH_EXPLORER_PLAN.md` | Replaced the static company SVG with a Reagraph full main-content explorer shell. |
 | 72 | M72 | Done | `docs/TAURUS_GRAPH_EXPLORER_PLAN.md` | Added explicit one-hop node expansion, graph-state merging, and truncation visibility. |
-| 73 | M73 | Planned | `docs/TAURUS_GRAPH_EXPLORER_PLAN.md` | Run regression, update operator docs, perform visual QA, and close the sequence. |
+| 73 | M73 | Done | `docs/TAURUS_GRAPH_EXPLORER_PLAN.md` | Ran regression, updated operator docs, performed visual QA, fixed the expansion focus regression, and closed the sequence. |
 
 ## Completed Technical Signal Service Sequence
 
@@ -238,6 +239,28 @@ This completed sequence was executed in order as separate milestone work.
 | 67 | M67 | Done | `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md` | Add the DB-free shared `TechnicalSignalService` foundation without runtime wiring. |
 | 68 | M68 | Done | `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md` | Route `TechnicalAnalystAgent` and `GraphAwareScoreStrategy` through the shared service without behavior drift. |
 | 69 | M69 | Done | `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md` | Run final regression, refresh architecture/deep-dive docs for implemented behavior, and close the sequence. |
+
+### M73 Completion Summary
+
+- Assumptions made: M73 should remain a closeout milestone and only fix
+  regressions found while verifying the implemented M70-M72 graph explorer;
+  focused graph API/repository tests, focused React graph tests, React
+  production build, full backend regression, and browser QA against the local
+  API/UI are sufficient to close the sequence; `docs/TAURUS_COMMANDS.md` needed
+  only the stale `/graph/neighborhood` API example and no command behavior
+  changed; `docs/TAURUS_AGENT_ARCHITECTURE.md` did not need a refresh because
+  graph explorer API/client behavior does not change the agent pipeline,
+  scoring, risk, promotion, Neo4j projection, or paper trading; no
+  project-local approval cleanup was needed because the global rules file had
+  no entries after the `# END MY CUSTOM ADDITION` marker.
+- Mocks created: A focused orphan expansion node fixture in
+  `GraphPages.test.tsx` and a Reagraph JSDOM mock guard that throws when a fit
+  request references a node that is not rendered.
+- Mocks used: Existing graph page fetch fixtures for overview, neighborhood,
+  expansion neighborhood, candidate edge, signal, edge detail, profile, and UI
+  overview responses, plus the existing Reagraph JSDOM module mock with the new
+  fit guard. Browser QA used local Docker Postgres and the real local API/UI
+  services rather than mocks.
 
 ### M72 Completion Summary
 

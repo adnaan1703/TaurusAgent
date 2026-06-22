@@ -71,6 +71,11 @@ type NodeExpansionState = {
   truncated: boolean;
 };
 
+type FitNodesOptions = {
+  animated: boolean;
+  fitOnlyIfNodesNotInView?: boolean;
+};
+
 const EDGE_TYPE_ALL = "all";
 const NEIGHBORHOOD_LIMIT = 1000;
 
@@ -150,7 +155,7 @@ export function GraphExplorer({
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      graphRef.current?.fitNodesInView(undefined, { animated: false });
+      fitNodesInViewSafely(graphRef.current, undefined, { animated: false });
     }, 0);
     return () => window.clearTimeout(timer);
   }, [payload]);
@@ -161,7 +166,9 @@ export function GraphExplorer({
     }
 
     const timer = window.setTimeout(() => {
-      graphRef.current?.fitNodesInView(pendingFocusNodeIds, {
+      const renderedNodeIds = new Set(graphData.reagraphNodes.map((node) => node.id));
+      const focusNodeIds = pendingFocusNodeIds.filter((nodeId) => renderedNodeIds.has(nodeId));
+      fitNodesInViewSafely(graphRef.current, focusNodeIds.length > 0 ? focusNodeIds : undefined, {
         animated: true,
         fitOnlyIfNodesNotInView: true,
       });
@@ -183,7 +190,7 @@ export function GraphExplorer({
   }
 
   function fitGraph() {
-    graphRef.current?.fitNodesInView(undefined, { animated: true });
+    fitNodesInViewSafely(graphRef.current, undefined, { animated: true });
   }
 
   function resetGraph() {
@@ -191,7 +198,7 @@ export function GraphExplorer({
     setExpansionsByNode({});
     setSelection({ type: "node", id: payload.center_node.node_key });
     graphRef.current?.resetControls(true);
-    graphRef.current?.fitNodesInView(undefined, { animated: true });
+    fitNodesInViewSafely(graphRef.current, undefined, { animated: true });
   }
 
   async function expandNode(node: GraphNode) {
@@ -412,6 +419,22 @@ function expansionFocusNodeIds(neighborhood: GraphNeighborhoodResponse) {
       ...neighborhood.nodes.map((node) => node.node_key),
     ]),
   );
+}
+
+function fitNodesInViewSafely(
+  graph: GraphCanvasRef | null,
+  nodeIds: string[] | undefined,
+  options: FitNodesOptions,
+) {
+  try {
+    graph?.fitNodesInView(nodeIds, options);
+  } catch {
+    try {
+      graph?.fitNodesInView(undefined, { animated: options.animated });
+    } catch {
+      // Reagraph may reject fit requests while a large expanded graph is still settling.
+    }
+  }
 }
 
 function emptyExpansionState(): NodeExpansionState {

@@ -286,6 +286,7 @@ Graph API:
 ```bash
 curl http://localhost:8000/graph/overview
 curl http://localhost:8000/graph/company/INFY
+curl 'http://localhost:8000/graph/neighborhood?node_key=company%3AINFY&status=active&status=candidate&limit=1000'
 curl http://localhost:8000/graph/candidate-edges
 curl http://localhost:8000/graph/signals
 curl http://localhost:8000/graph/bullish-candidates
@@ -294,6 +295,10 @@ curl http://localhost:8000/graph/edges/{edge_key}/evidence
 curl -X POST http://localhost:8000/graph/edges/{edge_key}/promote
 curl -X POST http://localhost:8000/graph/edges/{edge_key}/reject
 ```
+
+`/graph/neighborhood` accepts any stored `node_key`, repeated `status`
+parameters, and a `limit` capped at 1000. When `status` is omitted, it returns
+active plus candidate edges; rejected edges are opt-in.
 
 Candidate edge review requires `TAURUS_GRAPH_ENABLED=true`.
 Graph edge payloads expose `provenance_type` (`deterministic`, `derived`, or

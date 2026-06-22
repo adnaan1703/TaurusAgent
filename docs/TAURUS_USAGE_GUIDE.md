@@ -4,17 +4,17 @@ Last verified: 2026-06-22.
 
 ## Current State
 
-- Backend focused M61/rebalance verification:
-  `uv run pytest tests/unit/test_portfolio_rebalance_plan.py -q` -> `5 passed`;
-  `uv run pytest tests/unit/test_paper_runs.py tests/unit/test_paper_broker.py -q`
-  -> `56 passed`;
-  `uv run pytest tests/unit/test_replay.py tests/unit/test_ui_aggregate_api.py -q`
-  -> `17 passed`.
-- Backend full suite: `make test` -> `373 passed, 1 skipped`.
-- Frontend tests: `make test-ui` -> `28 passed`.
-- Compile check: `make lint` -> passed.
-- Paper-loop dry run: `make -n paper-loop-kite` -> resolved the canonical
-  Kite/graph/full-universe paper-loop command.
+- Graph explorer closeout verification:
+  `uv run pytest tests/unit/test_graph_api.py tests/unit/test_graph_repository.py -q`
+  -> `8 passed`;
+  `pnpm --dir apps/web exec vitest run src/features/GraphPages.test.tsx`
+  -> `5 passed`;
+  `pnpm --dir apps/web build` -> passed with the existing Vite large-chunk
+  warning.
+- Backend full suite: `make test` -> `397 passed, 1 skipped`.
+- Browser QA against the local API/UI verified `/graph/company/INFY` on desktop
+  and mobile, Reagraph canvas rendering, toolbar controls, edge inspector,
+  explicit node expansion, and rejected-edge opt-in.
 - Docker Postgres is the canonical Taurus database. Runtime, scripts, and tests
   reject SQLite database URLs.
 - Docker Compose persists Postgres and Grafana data in named volumes:
@@ -519,6 +519,7 @@ Graph API:
 ```bash
 curl http://localhost:8000/graph/overview
 curl http://localhost:8000/graph/company/INFY
+curl 'http://localhost:8000/graph/neighborhood?node_key=company%3AINFY&status=active&status=candidate&limit=1000'
 curl http://localhost:8000/graph/candidate-edges
 curl http://localhost:8000/graph/signals
 curl http://localhost:8000/graph/bullish-candidates
@@ -556,6 +557,16 @@ The run-loop views are read-only. The graph edge review route mutates graph edge
 review status only when the API is started with `TAURUS_GRAPH_ENABLED=true`; it
 does not route orders or bypass risk/final approval.
 
+The company graph route is a full Reagraph explorer. Open
+`/graph/company/{symbol}` to browse the stock-centered neighborhood, pan or zoom
+the canvas, fit/reset the view, inspect selected nodes and edges, filter by
+edge status or type, and explicitly expand a selected node's immediate
+neighborhood. The explorer loads active plus candidate edges by default;
+rejected edges appear only after the `Rejected` status chip is selected. Node
+expansion calls the read-only `/graph/neighborhood` API with a per-request
+limit capped at 1000 edges and shows truncation metadata when the graph has
+more matching edges than were returned.
+
 When money management is enabled, Overview, Risk, Portfolio, and the symbol
 decision trail expose the same allocation context: sleeve utilization, core
 basket drift, cash buffer, undeployed capacity, open risk used versus limit,
@@ -587,6 +598,11 @@ maps into edge provenance.
 the TaurusData provenance contract, but TaurusAgent imports the flattened CSVs
 under `configs/taurus_data/` rather than reading relationship arrays directly
 from the profile JSON.
+
+The React graph explorer reads Postgres-backed graph APIs only. It can inspect
+and expand local graph neighborhoods for review support, but it does not change
+graph scoring, graph analyst behavior, graph risk, candidate promotion, Neo4j
+projection, paper trading, or broker routing.
 
 Graph stats use Postgres graph edges and existing `daily_candles`. The job
 computes close-to-close return correlations across configured windows, market

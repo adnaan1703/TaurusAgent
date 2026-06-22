@@ -28,7 +28,13 @@ vi.mock("reagraph", async () => {
       React.useImperativeHandle(ref, () => ({
         centerGraph: () => undefined,
         exportCanvas: () => "",
-        fitNodesInView: () => undefined,
+        fitNodesInView: (nodeIds?: string[]) => {
+          if (
+            nodeIds?.some((nodeId) => !nodes.some((node) => node.id === nodeId))
+          ) {
+            throw new Error("Attempted to fit a node that is not rendered.");
+          }
+        },
         getControls: () => ({}),
         getGraph: () => ({}),
         renderScene: () => undefined,
@@ -203,6 +209,18 @@ const riskNode = {
   updated_at: "2026-05-27T09:00:00Z",
 };
 
+const orphanExpansionNode = {
+  id: 5,
+  node_key: "risk:orphaned-expansion-context",
+  node_type: "risk",
+  display_name: "Orphaned Expansion Context",
+  symbol: null,
+  isin: null,
+  metadata: { fixture: true },
+  created_at: "2026-05-27T09:00:00Z",
+  updated_at: "2026-05-27T09:00:00Z",
+};
+
 const sectorRiskEdge = {
   ...candidateEdge,
   id: 4,
@@ -289,9 +307,9 @@ const neighborhoodPayload = {
 
 const industryExpansionPayload = {
   center_node: companyPayload.nodes[2],
-  nodes: [companyPayload.nodes[2], riskNode],
+  nodes: [companyPayload.nodes[2], riskNode, orphanExpansionNode],
   edges: [activeEdge, sectorRiskEdge],
-  counts: { nodes: 2, edges: 2, active_edges: 2 },
+  counts: { nodes: 3, edges: 2, active_edges: 2 },
   limit: 1000,
   total_edges: 1200,
   truncated: true,
