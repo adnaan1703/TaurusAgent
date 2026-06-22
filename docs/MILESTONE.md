@@ -21,6 +21,10 @@ current operator detail in the usage and command docs.
   proceeds netting, and regression work.
 - `docs/TAURUS_GRAPH_PROVENANCE_PLAN.md`: completed M62-M65 graph provenance,
   promotion, confidence-weighting, API/UI, and regression work.
+- `docs/TAURUS_GRAPH_EXPLORER_PLAN.md`: planned M70-M73 Reagraph stock
+  explorer, graph neighborhood API, expansion, and regression work.
+- `docs/TAURUS_GRAPH_EXPLORER_HANDOFF.md`: current handoff for the planned
+  M70-M73 graph explorer sequence.
 - `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md`: completed M66-M69 shared
   `TechnicalSignalService` refactor and regression sequence.
 - `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_HANDOFF.md`: sequence closeout handoff
@@ -126,6 +130,11 @@ removed during docs cleanup. Use Git history for detailed historical plans.
   full unit suite passed; architecture, technical analyst deep-dive, and
   money-management docs now describe the implemented shared service; no
   accidental Taurus approvals were present after the global rules marker.
+- M70-M73 graph explorer planning is complete: implementation remains planned
+  and M70 has not started. The sequence will add an additive graph neighborhood
+  API/client contract, replace the static company SVG with a Reagraph-powered
+  full main-content explorer, add explicit one-hop node expansion, and close
+  with regression, docs, and visual QA.
 
 ## Standing Safety Rules
 
@@ -192,6 +201,18 @@ removed during docs cleanup. Use Git history for detailed historical plans.
 | M67 | Done | Added `TechnicalSignalService`, `TechnicalBacktestSignal`, and `TechnicalSignalResult` as DB-free shared technical-scoring foundations, exported them from `taurus_core.features`, and added focused parity tests for analyst-rule and SMA-spread behavior without runtime consumer wiring. |
 | M68 | Done | Routed `TechnicalAnalystAgent` and `GraphAwareScoreStrategy` through `TechnicalSignalService` while preserving technical analyst report metadata/source IDs/key points and graph-aware score, ranking, and signal payload behavior. |
 | M69 | Done | Completed final regression and documentation closeout for the shared technical signal service sequence, refreshed current architecture/deep-dive/money-management docs, confirmed no project-local approval cleanup was needed, and closed M66-M69 with no successor milestone. |
+| M70-M73 plan document | Done | Created the flat graph explorer plan covering the additive graph neighborhood API/client contract, Reagraph stock explorer shell, explicit one-hop node expansion, and final regression/docs/visual QA. Implementation remains planned and M70 has not started. |
+
+## Planned Graph Explorer Sequence
+
+This planned sequence should be executed in order as separate milestone work.
+
+| Order | Milestone | Status | Plan | Purpose |
+|---:|---|---|---|---|
+| 70 | M70 | Planned | `docs/TAURUS_GRAPH_EXPLORER_PLAN.md` | Add the additive graph neighborhood API/client contract for arbitrary node expansion. |
+| 71 | M71 | Planned | `docs/TAURUS_GRAPH_EXPLORER_PLAN.md` | Replace the static company SVG with a Reagraph full main-content explorer shell. |
+| 72 | M72 | Planned | `docs/TAURUS_GRAPH_EXPLORER_PLAN.md` | Add explicit one-hop node expansion, graph-state merging, and truncation visibility. |
+| 73 | M73 | Planned | `docs/TAURUS_GRAPH_EXPLORER_PLAN.md` | Run regression, update operator docs, perform visual QA, and close the sequence. |
 
 ## Completed Technical Signal Service Sequence
 
@@ -203,6 +224,19 @@ This completed sequence was executed in order as separate milestone work.
 | 67 | M67 | Done | `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md` | Add the DB-free shared `TechnicalSignalService` foundation without runtime wiring. |
 | 68 | M68 | Done | `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md` | Route `TechnicalAnalystAgent` and `GraphAwareScoreStrategy` through the shared service without behavior drift. |
 | 69 | M69 | Done | `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md` | Run final regression, refresh architecture/deep-dive docs for implemented behavior, and close the sequence. |
+
+### M70-M73 Plan Document Completion Summary
+
+- Assumptions made: The graph explorer should be a stock-centered React
+  dashboard workspace rooted at `/graph/company/:symbol`, should keep the
+  Taurus shell visible, should use Reagraph unless a hard implementation
+  blocker is found, should show active plus candidate edges by default, should
+  keep rejected edges opt-in, should expand selected nodes only through an
+  explicit inspector action, should cap each expansion at 1000 edges with
+  truncation metadata, and should not change graph scoring, graph analyst,
+  graph risk, promotion, Neo4j, or paper trading behavior.
+- Mocks created: None.
+- Mocks used: None.
 
 ### M69 Completion Summary
 
