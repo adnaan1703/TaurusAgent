@@ -4,14 +4,18 @@ Last updated: 2026-06-22
 
 ## Current Status
 
-- Current milestone: M71 Reagraph Explorer Shell.
-- Last completed milestone: M70 Graph Neighborhood API Contract.
+- Current milestone: M72 Incremental Node Expansion.
+- Last completed milestone: M71 Reagraph Explorer Shell.
 - Planning completed: M70-M73 graph explorer sequence.
 - Implementation state: M70 added the additive `/graph/neighborhood`
   API/client contract, counted arbitrary-node repository support,
   active/candidate defaults, rejected-edge opt-in, and truncation metadata.
-  Reagraph UI implementation has not started.
-- Next recommended milestone: M71.
+  M71 replaced the static company SVG with a full main-content Reagraph
+  explorer shell at `/graph/company/:symbol`, using the neighborhood client
+  helper, active plus candidate defaults, rejected opt-in, client-side edge-type
+  filtering, camera controls, refresh, node selection, and edge evidence/stats
+  inspection.
+- Next recommended milestone: M72.
 
 ## Required Reading
 
@@ -22,6 +26,7 @@ Last updated: 2026-06-22
 - `apps/api/routes_graph.py`
 - `packages/taurus_core/db/repositories.py`
 - `apps/web/src/features/GraphPages.tsx`
+- `apps/web/src/features/GraphExplorer.tsx`
 - `apps/web/src/api/client.ts`
 - `apps/web/src/api/types.ts`
 - `apps/web/src/features/GraphPages.test.tsx`

@@ -15,10 +15,9 @@ import { Link, NavLink, useNavigate, useParams, useSearchParams } from "react-ro
 
 import { taurusApi } from "../api/client";
 import type {
-  GraphCompanySubgraphResponse,
   GraphEdge,
   GraphEdgeDetailResponse,
-  GraphEdgeStatusFilter,
+  GraphNeighborhoodStatusFilter,
   GraphNode,
   GraphReviewAction,
   GraphSignal,
@@ -38,6 +37,7 @@ import {
   formatTimestamp,
   humanizeKey,
 } from "../utils/format";
+import { GraphExplorer } from "./GraphExplorer";
 import { PageScaffold } from "./PageScaffold";
 
 const GRAPH_EMPTY_COMMANDS = [
@@ -45,11 +45,15 @@ const GRAPH_EMPTY_COMMANDS = [
   "make import-taurus-graph DATA_DIR=configs/taurus_data",
 ];
 
-const GRAPH_STATUS_OPTIONS: GraphEdgeStatusFilter[] = [
-  "all",
+const GRAPH_NEIGHBORHOOD_STATUS_OPTIONS: GraphNeighborhoodStatusFilter[] = [
   "active",
   "candidate",
   "rejected",
+];
+
+const DEFAULT_GRAPH_NEIGHBORHOOD_STATUSES: GraphNeighborhoodStatusFilter[] = [
+  "active",
+  "candidate",
 ];
 
 const graphNavItems = [
@@ -216,98 +220,64 @@ export function GraphOverviewPage() {
 
 export function GraphCompanyPage() {
   const params = useParams();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [selectedEdgeKey, setSelectedEdgeKey] = useState<string | null>(null);
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const symbol = (params.symbol ?? "INFY").toUpperCase();
-  const status = normalizeStatus(searchParams.get("status"));
+  const [statuses, setStatuses] = useState<GraphNeighborhoodStatusFilter[]>(() =>
+    normalizeNeighborhoodStatuses(searchParams),
+  );
+  const centerNodeKey = `company:${symbol}`;
 
-  const companyQuery = useQuery({
-    queryKey: ["graph", "company", symbol, status],
-    queryFn: () => taurusApi.graphCompany({ symbol, status }),
+  const neighborhoodQuery = useQuery({
+    queryKey: ["graph", "neighborhood", centerNodeKey, statuses.join("|")],
+    queryFn: () =>
+      taurusApi.graphNeighborhood({
+        nodeKey: centerNodeKey,
+        statuses,
+        limit: 1000,
+      }),
     retry: false,
   });
 
-  const payload = companyQuery.data;
+  const payload = neighborhoodQuery.data;
+
+  function updateStatuses(nextStatuses: GraphNeighborhoodStatusFilter[]) {
+    setStatuses(normalizeStatusSelection(nextStatuses));
+  }
+
+  function openSymbol(nextSymbol: string) {
+    const normalized = nextSymbol.trim().toUpperCase();
+    if (normalized) {
+      navigate(`/graph/company/${encodeURIComponent(normalized)}`);
+    }
+  }
 
   return (
-    <PageScaffold
-      actions={
-        <RefreshButton
-          isRefreshing={companyQuery.isFetching}
-          onRefresh={() => void companyQuery.refetch()}
-        />
-      }
-      eyebrow="Company graph"
-      title={`${symbol} Graph`}
-    >
-      <GraphSubnav />
-      {companyQuery.isLoading && <LoadingState label={`Loading ${symbol} graph`} />}
-      {companyQuery.isError && <ErrorState message={companyQuery.error.message} />}
-      {payload && (
-        <div className="grid gap-6">
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <MetricCard label="Visible nodes" value={formatNumber(payload.counts.nodes)} />
-            <MetricCard label="Visible edges" value={formatNumber(payload.counts.edges)} />
-            <MetricCard label="Active edges" tone="success" value={formatNumber(payload.counts.active_edges)} />
-            <MetricCard label="Candidate edges" tone="caution" value={formatNumber(payload.counts.candidate_edges)} />
-          </div>
-
-          <DataPanel title="Filters">
-            <label className="grid max-w-xs gap-2 text-sm text-taurus-muted">
-              Edge status
-              <select
-                aria-label="Graph edge status"
-                className="rounded-md border border-taurus-outline bg-taurus-shell px-3 py-2 text-sm text-taurus-text outline-none focus:border-taurus-primary"
-                onChange={(event) => setSearchParams({ status: event.target.value })}
-                value={status}
-              >
-                {GRAPH_STATUS_OPTIONS.map((option) => (
-                  <option key={option} value={option}>
-                    {option === "all" ? "All statuses" : humanizeKey(option)}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </DataPanel>
-
-          {payload.edges.length === 0 ? (
-            <EmptyState
-              commands={GRAPH_EMPTY_COMMANDS}
-              message={`No ${status === "all" ? "" : `${status} `}graph edges are connected to ${symbol}.`}
-              title="No connected edges"
-            />
-          ) : (
-            <>
-              <DataPanel title="Relationship Map">
-                <GraphCanvas
-                  graph={payload}
-                  onSelectEdge={setSelectedEdgeKey}
-                  selectedEdgeKey={selectedEdgeKey}
-                />
-              </DataPanel>
-
-              <DataPanel title="Edges">
-                <EdgeTable
-                  edges={payload.edges}
-                  emptyLabel="No graph edges"
-                  renderActions={(edge) => (
-                    <IconButton
-                      label="Inspect edge"
-                      onClick={() => setSelectedEdgeKey(edge.edge_key)}
-                    >
-                      <Inspect aria-hidden="true" className="h-4 w-4" />
-                    </IconButton>
-                  )}
-                />
-              </DataPanel>
-            </>
-          )}
-
-          <JsonDrawer title={`${symbol} graph payload`} value={payload} />
-          <EdgeDetailDrawer edgeKey={selectedEdgeKey} onClose={() => setSelectedEdgeKey(null)} />
+    <div className="flex min-h-[calc(100vh-8rem)] flex-col gap-5">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="text-xs font-semibold uppercase text-taurus-primary">Company graph</p>
+          <h1 className="mt-2 text-2xl font-semibold text-taurus-text sm:text-3xl">
+            {symbol} Graph
+          </h1>
         </div>
+      </div>
+      <GraphSubnav />
+      {neighborhoodQuery.isLoading && <LoadingState label={`Loading ${symbol} graph`} />}
+      {neighborhoodQuery.isError && <ErrorState message={neighborhoodQuery.error.message} />}
+      {payload && (
+        <GraphExplorer
+          isRefreshing={neighborhoodQuery.isFetching}
+          onRefresh={() => void neighborhoodQuery.refetch()}
+          onStatusChange={updateStatuses}
+          onSymbolSubmit={openSymbol}
+          payload={payload}
+          statusOptions={GRAPH_NEIGHBORHOOD_STATUS_OPTIONS}
+          statuses={statuses}
+          symbol={symbol}
+        />
       )}
-    </PageScaffold>
+    </div>
   );
 }
 
@@ -693,115 +663,6 @@ function SignalTable({
   );
 }
 
-function GraphCanvas({
-  graph,
-  selectedEdgeKey,
-  onSelectEdge,
-}: {
-  graph: GraphCompanySubgraphResponse;
-  selectedEdgeKey: string | null;
-  onSelectEdge: (edgeKey: string) => void;
-}) {
-  const layout = useMemo(() => buildGraphLayout(graph.nodes, graph.center_node), [graph.nodes, graph.center_node]);
-  const visibleEdges = graph.edges.filter(
-    (edge) => layout.positions.has(edge.source_node_key) && layout.positions.has(edge.target_node_key),
-  );
-
-  return (
-    <div className="overflow-x-auto rounded-lg border border-taurus-outline bg-taurus-shell">
-      <svg
-        aria-label={`${graph.symbol} relationship map`}
-        className="h-[420px] min-w-[720px] w-full"
-        role="img"
-        viewBox="0 0 760 420"
-      >
-        <rect fill="#07101d" height="420" width="760" />
-        {visibleEdges.map((edge) => {
-          const source = layout.positions.get(edge.source_node_key);
-          const target = layout.positions.get(edge.target_node_key);
-          if (!source || !target) {
-            return null;
-          }
-          const midpoint = { x: (source.x + target.x) / 2, y: (source.y + target.y) / 2 };
-          const selected = selectedEdgeKey === edge.edge_key;
-          return (
-            <g
-              aria-label={`${edge.source_display_name} to ${edge.target_display_name}`}
-              className="cursor-pointer outline-none"
-              key={edge.edge_key}
-              onClick={() => onSelectEdge(edge.edge_key)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  onSelectEdge(edge.edge_key);
-                }
-              }}
-              role="button"
-              tabIndex={0}
-            >
-              <line
-                stroke={edgeStroke(edge.status)}
-                strokeOpacity={selected ? 1 : 0.62}
-                strokeWidth={selected ? 4 : 2}
-                x1={source.x}
-                x2={target.x}
-                y1={source.y}
-                y2={target.y}
-              />
-              <text
-                fill={selected ? "#e8f0fb" : "#8ea1b8"}
-                fontSize="10"
-                textAnchor="middle"
-                x={midpoint.x}
-                y={midpoint.y - 8}
-              >
-                {shortLabel(humanizeKey(edge.edge_type), 22)}
-              </text>
-            </g>
-          );
-        })}
-        {layout.nodes.map((node) => {
-          const position = layout.positions.get(node.node_key);
-          if (!position) {
-            return null;
-          }
-          const isCenter = node.node_key === graph.center_node.node_key;
-          return (
-            <g key={node.node_key}>
-              <circle
-                cx={position.x}
-                cy={position.y}
-                fill={isCenter ? "#38bdf8" : nodeFill(node.node_type)}
-                r={isCenter ? 28 : 22}
-                stroke={isCenter ? "#e0f2fe" : "#334155"}
-                strokeWidth="2"
-              />
-              <text
-                fill={isCenter ? "#07101d" : "#e8f0fb"}
-                fontSize={isCenter ? "12" : "11"}
-                fontWeight={isCenter ? 700 : 600}
-                textAnchor="middle"
-                x={position.x}
-                y={position.y + 4}
-              >
-                {shortLabel(node.symbol || node.display_name, isCenter ? 9 : 12)}
-              </text>
-              <text
-                fill="#8ea1b8"
-                fontSize="10"
-                textAnchor="middle"
-                x={position.x}
-                y={position.y + 38}
-              >
-                {shortLabel(humanizeKey(node.node_type), 16)}
-              </text>
-            </g>
-          );
-        })}
-      </svg>
-    </div>
-  );
-}
-
 function EdgeDetailDrawer({
   edgeKey,
   onClose,
@@ -1024,61 +885,14 @@ function Badge({ children }: { children: ReactNode }) {
   );
 }
 
-function normalizeStatus(value: string | null): GraphEdgeStatusFilter {
-  return GRAPH_STATUS_OPTIONS.includes(value as GraphEdgeStatusFilter)
-    ? (value as GraphEdgeStatusFilter)
-    : "all";
+function normalizeNeighborhoodStatuses(searchParams: URLSearchParams): GraphNeighborhoodStatusFilter[] {
+  return normalizeStatusSelection(searchParams.getAll("status"));
 }
 
-function buildGraphLayout(nodes: GraphNode[], centerNode: GraphNode) {
-  const visibleNodes = [
-    centerNode,
-    ...nodes.filter((node) => node.node_key !== centerNode.node_key).slice(0, 28),
-  ];
-  const positions = new Map<string, { x: number; y: number }>();
-  positions.set(centerNode.node_key, { x: 380, y: 210 });
-
-  const outerNodes = visibleNodes.filter((node) => node.node_key !== centerNode.node_key);
-  outerNodes.forEach((node, index) => {
-    const angle = (Math.PI * 2 * index) / Math.max(outerNodes.length, 1) - Math.PI / 2;
-    positions.set(node.node_key, {
-      x: 380 + Math.cos(angle) * 270,
-      y: 210 + Math.sin(angle) * 145,
-    });
-  });
-
-  return { nodes: visibleNodes, positions };
-}
-
-function nodeFill(nodeType: string) {
-  if (nodeType === "company") {
-    return "#1e293b";
-  }
-  if (nodeType.includes("industry") || nodeType.includes("segment")) {
-    return "#0f766e";
-  }
-  if (nodeType.includes("risk")) {
-    return "#7f1d1d";
-  }
-  return "#334155";
-}
-
-function edgeStroke(status: string) {
-  if (status === "active") {
-    return "#34d399";
-  }
-  if (status === "candidate") {
-    return "#fbbf24";
-  }
-  if (status === "rejected") {
-    return "#fb7185";
-  }
-  return "#64748b";
-}
-
-function shortLabel(value: string, maxLength: number) {
-  if (value.length <= maxLength) {
-    return value;
-  }
-  return `${value.slice(0, Math.max(1, maxLength - 3))}...`;
+function normalizeStatusSelection(values: string[]): GraphNeighborhoodStatusFilter[] {
+  const normalized = values.filter((value): value is GraphNeighborhoodStatusFilter =>
+    GRAPH_NEIGHBORHOOD_STATUS_OPTIONS.includes(value as GraphNeighborhoodStatusFilter),
+  );
+  const deduped = Array.from(new Set(normalized));
+  return deduped.length > 0 ? deduped : DEFAULT_GRAPH_NEIGHBORHOOD_STATUSES;
 }

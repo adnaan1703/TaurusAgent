@@ -7,6 +7,71 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createTaurusQueryClient } from "../app/providers";
 import { routes } from "../app/routes";
 
+vi.mock("reagraph", async () => {
+  const React = await import("react");
+
+  const GraphCanvas = React.forwardRef(
+    (
+      {
+        edges = [],
+        nodes = [],
+        onEdgeClick,
+        onNodeClick,
+      }: {
+        edges?: Array<{ id: string; label?: string; data?: object }>;
+        nodes?: Array<{ id: string; label?: string; data?: object }>;
+        onEdgeClick?: (edge: { id: string; data?: object }) => void;
+        onNodeClick?: (node: { id: string; data?: object }) => void;
+      },
+      ref,
+    ) => {
+      React.useImperativeHandle(ref, () => ({
+        centerGraph: () => undefined,
+        exportCanvas: () => "",
+        fitNodesInView: () => undefined,
+        getControls: () => ({}),
+        getGraph: () => ({}),
+        renderScene: () => undefined,
+        resetControls: () => undefined,
+        zoomIn: () => undefined,
+        zoomOut: () => undefined,
+      }));
+
+      return (
+        <div aria-label="Graph explorer canvas" role="img">
+          {nodes.map((node) => (
+            <button
+              key={node.id}
+              onClick={() => onNodeClick?.({ id: node.id, data: node.data })}
+              type="button"
+            >
+              {node.label}
+            </button>
+          ))}
+          {edges.map((edge) => (
+            <button
+              aria-label={`Select edge ${edge.label ?? edge.id}`}
+              key={edge.id}
+              onClick={() => onEdgeClick?.({ id: edge.id, data: edge.data })}
+              type="button"
+            >
+              {edge.label ?? edge.id}
+            </button>
+          ))}
+        </div>
+      );
+    },
+  );
+  GraphCanvas.displayName = "MockReagraphCanvas";
+
+  return {
+    GraphCanvas,
+    darkTheme: {
+      canvas: {},
+    },
+  };
+});
+
 const profile = {
   profile_id: "local-paper",
   display_name: "Local Paper",
@@ -178,6 +243,16 @@ const companyPayload = {
   counts: { nodes: 3, edges: 2, active_edges: 1, candidate_edges: 1 },
 };
 
+const neighborhoodPayload = {
+  center_node: companyPayload.center_node,
+  nodes: companyPayload.nodes,
+  edges: companyPayload.edges,
+  counts: companyPayload.counts,
+  limit: 1000,
+  total_edges: 2,
+  truncated: false,
+};
+
 const edgeDetailPayload = {
   edge: candidateEdge,
   source_node: companyPayload.nodes[0],
@@ -281,15 +356,26 @@ describe("GraphPages", () => {
     renderRoute("/graph/company/INFY");
 
     expect(await screen.findByRole("heading", { name: "INFY Graph" })).toBeInTheDocument();
-    expect((await screen.findAllByText("Peer Momentum")).length).toBeGreaterThan(0);
+    expect(await screen.findByLabelText("Graph company symbol")).toHaveValue("INFY");
+    expect(await screen.findByLabelText("Graph explorer canvas")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Active" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Candidate" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Rejected" })).toHaveAttribute("aria-pressed", "false");
+    expect(await screen.findByText("Node inspector")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Select edge Peer Momentum" }));
+
+    expect(await screen.findByText("Edge inspector")).toBeInTheDocument();
     expect(screen.getAllByText("Inferred").length).toBeGreaterThan(0);
-    expect(screen.getByLabelText("INFY relationship map")).toBeInTheDocument();
-
-    await user.click(screen.getAllByRole("button", { name: "Inspect edge" })[1]);
-
-    expect(await screen.findByText("Edge detail")).toBeInTheDocument();
     expect(screen.getByText("Both companies are IT services peers.")).toBeInTheDocument();
     expect(screen.getByText("90")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Rejected" }));
+    await waitFor(() =>
+      expect(fetchUrls()).toContainEqual(
+        expect.stringContaining("status=rejected"),
+      ),
+    );
   });
 
   it("posts candidate review actions using the approved API shape", async () => {
@@ -361,12 +447,14 @@ function renderRoute(initialEntry: string) {
 
 function stubGraphFetch({
   graphOverview = graphOverviewPayload,
+  neighborhood = neighborhoodPayload,
   candidateEdges = { total_returned: 1, edges: [candidateEdge] },
   signals = { total_returned: 1, signals: [signalPayload] },
   bullishCandidates = { total_returned: 1, candidates: [signalPayload] },
   reviewedDetail = edgeDetailPayload,
 }: {
   graphOverview?: object;
+  neighborhood?: object;
   candidateEdges?: object;
   signals?: object;
   bullishCandidates?: object;
@@ -388,6 +476,9 @@ function stubGraphFetch({
       }
       if (url.includes("/graph/company/INFY")) {
         return jsonResponse(companyPayload);
+      }
+      if (url.includes("/graph/neighborhood")) {
+        return jsonResponse(neighborhood);
       }
       if (url.includes("/graph/candidate-edges")) {
         return jsonResponse(candidateEdges);
