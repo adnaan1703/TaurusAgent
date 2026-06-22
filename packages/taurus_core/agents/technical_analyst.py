@@ -11,6 +11,10 @@ from taurus_core.db.models import BacktestSignalModel, FeatureValueModel
 from taurus_core.db.repositories import CandleRepository
 from taurus_core.domain.market_data import DailyCandle
 from taurus_core.features.store import FeatureSnapshot, TechnicalFeatureService
+from taurus_core.features.technical_signal import (
+    TechnicalBacktestSignal,
+    TechnicalSignalService,
+)
 
 
 class TechnicalAnalystAgent(BaseAnalystAgent):
@@ -19,60 +23,70 @@ class TechnicalAnalystAgent(BaseAnalystAgent):
     def run(self, *, symbol: str, run_id: str) -> AnalystReport:
         symbol = symbol.upper()
         snapshot = self._latest_feature_snapshot(symbol)
-        latest_signal = self._latest_signal(symbol)
-        values = snapshot.values if snapshot is not None else {}
-        raw_score = self._raw_score(values, latest_signal)
-        score = _bounded_score(raw_score)
-        source_ids: list[str] = []
-        if snapshot is not None:
-            source_ids.append(snapshot.snapshot_id)
-        if latest_signal is not None:
-            source_ids.append(f"signal:{latest_signal.id}")
-
-        key_points = self._key_points(symbol, values, latest_signal)
+        latest_signal = _technical_backtest_signal(self._latest_signal(symbol))
+        signal_result = TechnicalSignalService().score_analyst_rule(
+            snapshot,
+            latest_signal,
+            symbol=symbol,
+        )
+        if (
+            signal_result.raw_score is None
+            or signal_result.score is None
+            or signal_result.confidence is None
+        ):
+            raise RuntimeError("Technical analyst rule result must include score fields.")
+        raw_score = signal_result.raw_score
+        score = signal_result.score
+        confidence = signal_result.confidence
+        source_ids = list(signal_result.source_ids)
+        context_source_ids = (
+            [] if source_ids == ["technical:none"] else list(signal_result.source_ids)
+        )
+        key_points = list(signal_result.key_points)
         context = {
             "score": str(score),
-            "confidence": "0.68" if values else "0.35",
+            "confidence": str(confidence.quantize(Decimal("0.01"))),
             "horizon": "medium",
             "key_points": key_points,
             "risks": [
                 "Technical signals can reverse quickly when volatility rises.",
                 "Mock technical analysis is not an execution instruction.",
             ],
-            "source_ids": source_ids,
+            "source_ids": context_source_ids,
         }
         fallback = fallback_output(
             score=score,
-            confidence=Decimal("0.68") if values else Decimal("0.35"),
+            confidence=confidence,
             horizon="medium",
             key_points=key_points,
             risks=[
                 "Technical signals can reverse quickly when volatility rises.",
                 "Mock technical analysis is not an execution instruction.",
             ],
-            model_version="technical_rule_v1",
+            model_version=signal_result.score_source,
         )
         as_of = (
             datetime.combine(snapshot.as_of_date, time.min, tzinfo=timezone.utc)
             if snapshot is not None
             else utc_now()
         )
-        return self._build_report(
+        report = self._build_report(
             symbol=symbol,
             run_id=run_id,
             as_of=as_of,
             fallback=fallback,
             context=context,
-            source_ids=source_ids or ["technical:none"],
+            source_ids=source_ids,
             score_metadata=AnalystScoreMetadata(
                 raw_signal_score=raw_score,
                 bounded_report_score=score,
-                score_source="technical_rule_v1",
+                score_source=signal_result.score_source,
                 notes=(
                     "Raw technical rule score is stored before bounded analyst report clamping.",
                 ),
             ),
         )
+        return report.model_copy(update={"model_version": signal_result.score_source})
 
     def _latest_feature_snapshot(self, symbol: str) -> FeatureSnapshot | None:
         persisted = self._persisted_feature_snapshot(symbol)
@@ -139,51 +153,14 @@ class TechnicalAnalystAgent(BaseAnalystAgent):
             .limit(1)
         )
 
-    def _raw_score(
-        self,
-        values: dict[str, Decimal],
-        latest_signal: BacktestSignalModel | None,
-    ) -> Decimal:
-        if latest_signal is not None:
-            return latest_signal.score if latest_signal.action == "BUY" else -latest_signal.score
 
-        return_20d = values.get("return_20d", Decimal("0"))
-        return_5d = values.get("return_5d", Decimal("0"))
-        ema_12 = values.get("ema_12")
-        ema_26 = values.get("ema_26")
-        rsi = values.get("rsi_14", Decimal("50"))
-        volatility = values.get("volatility_20", Decimal("0"))
-        ema_trend = Decimal("0")
-        if ema_12 is not None and ema_26 not in (None, Decimal("0")):
-            ema_trend = (ema_12 / ema_26) - Decimal("1")
-        score = (
-            (return_20d * Decimal("1.8"))
-            + (return_5d * Decimal("0.8"))
-            + (ema_trend * Decimal("1.2"))
-            + (((rsi - Decimal("50")) / Decimal("50")) * Decimal("0.30"))
-            - (volatility * Decimal("0.75"))
-        )
-        return score
-
-    def _key_points(
-        self,
-        symbol: str,
-        values: dict[str, Decimal],
-        latest_signal: BacktestSignalModel | None,
-    ) -> list[str]:
-        points: list[str] = []
-        if latest_signal is not None:
-            points.append(
-                f"Latest strategy signal for {symbol} was {latest_signal.action} with score {latest_signal.score}."
-            )
-        if "return_20d" in values:
-            points.append(f"20-day return feature is {values['return_20d']}.")
-        if "rsi_14" in values:
-            points.append(f"RSI-14 feature is {values['rsi_14']}.")
-        if "volatility_20" in values:
-            points.append(f"20-day volatility feature is {values['volatility_20']}.")
-        return points or [f"No persisted technical features were available for {symbol}; neutral fallback used."]
-
-
-def _bounded_score(value: Decimal) -> Decimal:
-    return max(Decimal("-1"), min(Decimal("1"), value)).quantize(Decimal("0.0001"))
+def _technical_backtest_signal(
+    signal: BacktestSignalModel | None,
+) -> TechnicalBacktestSignal | None:
+    if signal is None:
+        return None
+    return TechnicalBacktestSignal(
+        signal_id=signal.id,
+        action=signal.action,
+        score=signal.score,
+    )

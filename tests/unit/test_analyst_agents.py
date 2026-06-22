@@ -140,6 +140,7 @@ def test_technical_analyst_keeps_bounded_score_with_raw_metadata(tmp_path: Path)
     assert report.score_metadata.bounded_report_score == report.score
     assert report.score_metadata.raw_signal_score is not None
     assert report.score_metadata.score_source == "technical_rule_v1"
+    assert report.model_version == "technical_rule_v1"
 
 
 def test_technical_analyst_characterizes_backtest_signal_override(

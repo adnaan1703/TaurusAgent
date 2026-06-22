@@ -5,12 +5,13 @@ Last updated: 2026-06-22
 ## Current Status
 
 - Current milestone: None.
-- Last completed milestone: M67 TechnicalSignalService foundation.
+- Last completed milestone: M68 Core Consumer Wiring.
 - Planning completed: M66-M69 shared `TechnicalSignalService` sequence.
-- Implementation state: Baseline characterization tests and the DB-free
-  `TechnicalSignalService` foundation are complete. No runtime consumer is
-  wired to the service yet.
-- Next recommended milestone: M68 - Core Consumer Wiring.
+- Implementation state: Baseline characterization tests, the DB-free
+  `TechnicalSignalService` foundation, and core consumer wiring are complete.
+  `TechnicalAnalystAgent` and `GraphAwareScoreStrategy` now delegate their
+  covered technical scoring paths to the shared service.
+- Next recommended milestone: M69 - Regression, Documentation, and Cleanup.
 
 ## Required Reading
 
@@ -29,8 +30,8 @@ Last updated: 2026-06-22
 ## Boundaries
 
 - Implement one milestone only, then stop.
-- Preserve current trading behavior through M68; M69 confirms regression and
-  docs.
+- Preserve current trading behavior; M69 confirms regression and refreshes
+  architecture/deep-dive docs.
 - Keep the first sequence scoped to `TechnicalAnalystAgent` and
   `GraphAwareScoreStrategy`.
 - Do not migrate `BlendedScoreStrategy` or `MovingAverageCrossoverStrategy`

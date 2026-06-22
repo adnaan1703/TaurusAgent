@@ -5,6 +5,7 @@ from decimal import Decimal
 from typing import Any, Mapping
 
 from taurus_core.features.store import FeatureSnapshot
+from taurus_core.features.technical_signal import TechnicalSignalService
 from taurus_core.strategies.base import (
     SignalExplanation,
     StrategyRanking,
@@ -36,6 +37,7 @@ class GraphAwareScoreStrategy:
         self.require_graph_signal = bool(parameters.get("require_graph_signal", False))
         if self.fast_window >= self.slow_window:
             raise ValueError("fast_window must be smaller than slow_window")
+        self._technical_signal_service = TechnicalSignalService()
 
     @property
     def name(self) -> str:
@@ -207,11 +209,14 @@ class GraphAwareScoreStrategy:
         return combined.quantize(SCORE_VALUE)
 
     def _technical_score(self, snapshot: FeatureSnapshot) -> Decimal | None:
-        fast = snapshot.get(f"sma_{self.fast_window}")
-        slow = snapshot.get(f"sma_{self.slow_window}")
-        if fast is None or slow is None or slow == ZERO:
+        result = self._technical_signal_service.score_sma_spread(
+            snapshot,
+            fast_window=self.fast_window,
+            slow_window=self.slow_window,
+        )
+        if not result.available:
             return None
-        return ((fast / slow) - Decimal("1")).quantize(SCORE_VALUE)
+        return result.score
 
     def _signals(
         self,
