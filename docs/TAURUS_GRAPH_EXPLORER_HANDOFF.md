@@ -4,12 +4,14 @@ Last updated: 2026-06-22
 
 ## Current Status
 
-- Current milestone: M70 Graph Neighborhood API Contract.
-- Last completed milestone: M69 Regression, Documentation, and Cleanup.
+- Current milestone: M71 Reagraph Explorer Shell.
+- Last completed milestone: M70 Graph Neighborhood API Contract.
 - Planning completed: M70-M73 graph explorer sequence.
-- Implementation state: Planning only. No API, React, dependency, test, or
-  runtime implementation has started for this sequence.
-- Next recommended milestone: M70.
+- Implementation state: M70 added the additive `/graph/neighborhood`
+  API/client contract, counted arbitrary-node repository support,
+  active/candidate defaults, rejected-edge opt-in, and truncation metadata.
+  Reagraph UI implementation has not started.
+- Next recommended milestone: M71.
 
 ## Required Reading
 

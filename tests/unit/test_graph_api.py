@@ -89,6 +89,71 @@ def test_graph_api_vertical_slice_returns_postgres_backed_graph_data(
     assert missing_company.status_code == 404
 
 
+def test_graph_neighborhood_defaults_to_active_candidate_and_supports_rejected_opt_in(
+    tmp_path: Path,
+) -> None:
+    settings = _settings_for_temp_db(tmp_path, graph_enabled=True)
+    keys = _seed_graph(settings, include_rejected_edge=True)
+    client = TestClient(create_app(settings))
+
+    default_neighborhood = client.get("/graph/neighborhood?node_key=company%3AINFY")
+    truncated_neighborhood = client.get(
+        "/graph/neighborhood?node_key=company%3AINFY&limit=1"
+    )
+    rejected_neighborhood = client.get(
+        "/graph/neighborhood?node_key=company%3AINFY&status=rejected"
+    )
+    mixed_neighborhood = client.get(
+        "/graph/neighborhood?node_key=company%3AINFY"
+        "&status=active&status=rejected"
+    )
+    missing_neighborhood = client.get("/graph/neighborhood?node_key=company%3AMISSING")
+
+    assert default_neighborhood.status_code == 200
+    default_payload = default_neighborhood.json()
+    assert default_payload["center_node"]["node_key"] == "company:INFY"
+    assert default_payload["limit"] == 1000
+    assert default_payload["total_edges"] == 2
+    assert default_payload["truncated"] is False
+    assert default_payload["counts"] == {
+        "nodes": 3,
+        "edges": 2,
+        "active_edges": 1,
+        "candidate_edges": 1,
+        "rejected_edges": 0,
+    }
+    assert {edge["edge_key"] for edge in default_payload["edges"]} == {
+        keys["active_edge"],
+        keys["candidate_edge"],
+    }
+
+    assert truncated_neighborhood.status_code == 200
+    truncated_payload = truncated_neighborhood.json()
+    assert truncated_payload["limit"] == 1
+    assert truncated_payload["total_edges"] == 2
+    assert truncated_payload["truncated"] is True
+    assert [edge["edge_key"] for edge in truncated_payload["edges"]] == [
+        keys["active_edge"]
+    ]
+
+    assert rejected_neighborhood.status_code == 200
+    rejected_payload = rejected_neighborhood.json()
+    assert rejected_payload["total_edges"] == 1
+    assert rejected_payload["counts"]["rejected_edges"] == 1
+    assert [edge["edge_key"] for edge in rejected_payload["edges"]] == [
+        keys["rejected_edge"]
+    ]
+
+    assert mixed_neighborhood.status_code == 200
+    assert {edge["edge_key"] for edge in mixed_neighborhood.json()["edges"]} == {
+        keys["active_edge"],
+        keys["rejected_edge"],
+    }
+
+    assert missing_neighborhood.status_code == 404
+    assert missing_neighborhood.json()["detail"] == "Graph node company:MISSING not found"
+
+
 def test_graph_edge_review_endpoints_update_status_and_allow_local_post_cors(
     tmp_path: Path,
 ) -> None:
@@ -166,6 +231,7 @@ def _seed_graph(
     *,
     candidate_confidence: Decimal = Decimal("0.70"),
     include_candidate_stats: bool = True,
+    include_rejected_edge: bool = False,
 ) -> dict[str, str]:
     run_migrations(settings)
     session_factory = build_session_factory(settings)
@@ -232,6 +298,26 @@ def _seed_graph(
             source_row_hash="row-candidate",
             metadata={"basis": "fixture"},
         )
+        rejected_edge_key = ""
+        if include_rejected_edge:
+            rejected_edge = graph_repo.upsert_edge(
+                edge_key="ge-rejected-infy-tcs-noise",
+                source_node_key="company:INFY",
+                target_node_key="company:TCS",
+                edge_type="noisy_peer",
+                direction="bidirectional",
+                expected_sign="unknown",
+                strength=Decimal("0.10"),
+                evidence_type="weak_overlap",
+                confidence=Decimal("0.20"),
+                provenance_type="inferred",
+                mechanism="Weak overlap rejected during review.",
+                tradability_relevance="none",
+                status="rejected",
+                source_file="fixture.csv",
+                source_row_hash="row-rejected",
+            )
+            rejected_edge_key = rejected_edge.edge_key
         graph_repo.upsert_edge_evidence(
             edge_key=candidate_edge.edge_key,
             evidence_id="evidence:peer:infy:tcs",
@@ -275,4 +361,5 @@ def _seed_graph(
     return {
         "active_edge": active_edge.edge_key,
         "candidate_edge": candidate_edge.edge_key,
+        "rejected_edge": rejected_edge_key,
     }

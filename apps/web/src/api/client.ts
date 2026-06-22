@@ -4,6 +4,8 @@ import type {
   GraphEdgeDetailResponse,
   GraphEdgeListResponse,
   GraphEdgeStatusFilter,
+  GraphNeighborhoodResponse,
+  GraphNeighborhoodStatusFilter,
   GraphOverviewResponse,
   GraphReviewAction,
   GraphSignalListResponse,
@@ -137,6 +139,24 @@ export const taurusApi = {
     });
     return apiFetch<GraphCompanySubgraphResponse>(
       `/graph/company/${encodeURIComponent(symbol)}?${params.toString()}`,
+    );
+  },
+  graphNeighborhood: ({
+    nodeKey,
+    statuses,
+    limit = 1000,
+  }: {
+    nodeKey: string;
+    statuses?: GraphNeighborhoodStatusFilter[];
+    limit?: number;
+  }) => {
+    const params = new URLSearchParams({
+      node_key: nodeKey,
+      limit: String(limit),
+    });
+    statuses?.forEach((status) => params.append("status", status));
+    return apiFetch<GraphNeighborhoodResponse>(
+      `/graph/neighborhood?${params.toString()}`,
     );
   },
   graphCandidateEdges: ({

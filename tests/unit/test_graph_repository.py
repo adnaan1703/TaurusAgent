@@ -4,6 +4,7 @@ from datetime import date, datetime, timezone
 from decimal import Decimal
 from pathlib import Path
 
+import pytest
 from sqlalchemy import func, inspect, select
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.schema import CreateTable
@@ -207,6 +208,105 @@ def test_graph_node_and_edge_upserts_are_idempotent(tmp_path: Path) -> None:
 
     assert node_count == 2
     assert edge_count == 1
+
+
+def test_graph_repository_lists_counted_node_neighborhood_with_multi_status(
+    tmp_path: Path,
+) -> None:
+    settings = _settings_for_temp_db(tmp_path)
+    run_migrations(settings)
+    session_factory = build_session_factory(settings)
+
+    with session_factory() as session:
+        instrument_repo = InstrumentRepository(session)
+        instrument_repo.upsert(Instrument(symbol="INFY", name="Infosys Limited"))
+        instrument_repo.upsert(Instrument(symbol="TCS", name="Tata Consultancy Services"))
+
+        graph_repo = GraphRepository(session)
+        graph_repo.upsert_node(
+            node_key="company:INFY",
+            node_type="company",
+            display_name="Infosys Limited",
+            symbol="INFY",
+        )
+        graph_repo.upsert_node(
+            node_key="company:TCS",
+            node_type="company",
+            display_name="Tata Consultancy Services",
+            symbol="TCS",
+        )
+        graph_repo.upsert_node(
+            node_key="industry:it-services",
+            node_type="industry",
+            display_name="IT Services",
+        )
+        active_edge = graph_repo.upsert_edge(
+            edge_key="neighborhood-active-infy-industry",
+            source_node_key="company:INFY",
+            target_node_key="industry:it-services",
+            edge_type="classified_as_industry",
+            expected_sign="unknown",
+            provenance_type="deterministic",
+            status="active",
+        )
+        candidate_edge = graph_repo.upsert_edge(
+            edge_key="neighborhood-candidate-infy-tcs",
+            source_node_key="company:INFY",
+            target_node_key="company:TCS",
+            edge_type="peer",
+            expected_sign="positive",
+            provenance_type="inferred",
+            status="candidate",
+        )
+        rejected_edge = graph_repo.upsert_edge(
+            edge_key="neighborhood-rejected-infy-tcs",
+            source_node_key="company:INFY",
+            target_node_key="company:TCS",
+            edge_type="noisy_peer",
+            expected_sign="unknown",
+            provenance_type="inferred",
+            status="rejected",
+        )
+
+        center_node, default_edges, default_total = graph_repo.list_node_neighborhood(
+            node_key="company:INFY",
+            statuses=["active", "candidate"],
+            limit=1,
+        )
+        _, rejected_edges, rejected_total = graph_repo.list_node_neighborhood(
+            node_key="company:INFY",
+            statuses=["rejected"],
+            limit=1000,
+        )
+        missing_node, missing_edges, missing_total = graph_repo.list_node_neighborhood(
+            node_key="company:MISSING",
+            statuses=["active"],
+        )
+
+        assert center_node is not None
+        assert center_node.node_key == "company:INFY"
+        assert default_total == 2
+        assert default_edges == [active_edge]
+        assert rejected_total == 1
+        assert rejected_edges == [rejected_edge]
+        assert graph_repo.list_node_neighborhood(
+            node_key="company:INFY",
+            statuses=None,
+            limit=1000,
+        ) == (
+            center_node,
+            [active_edge, candidate_edge, rejected_edge],
+            3,
+        )
+        assert missing_node is None
+        assert missing_edges == []
+        assert missing_total == 0
+
+        with pytest.raises(ValueError, match="active, candidate, or rejected"):
+            graph_repo.list_node_neighborhood(
+                node_key="company:INFY",
+                statuses=["all"],
+            )
 
 
 def _settings_for_temp_db(tmp_path: Path) -> Settings:

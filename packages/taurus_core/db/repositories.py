@@ -1981,6 +1981,42 @@ class GraphRepository:
             statement = statement.limit(limit)
         return list(self.session.scalars(statement))
 
+    def list_node_neighborhood(
+        self,
+        *,
+        node_key: str,
+        statuses: list[str] | tuple[str, ...] | set[str] | None = None,
+        limit: int = 500,
+    ) -> tuple[GraphNodeModel | None, list[GraphEdgeModel], int]:
+        node = self.get_node_by_key(node_key)
+        if node is None:
+            return None, [], 0
+
+        normalized_statuses = _normalize_graph_edge_statuses(statuses)
+        if normalized_statuses == []:
+            return node, [], 0
+
+        edge_predicate = or_(
+            GraphEdgeModel.source_node_id == node.id,
+            GraphEdgeModel.target_node_id == node.id,
+        )
+        count_statement = select(func.count()).select_from(GraphEdgeModel).where(edge_predicate)
+        edge_statement = select(GraphEdgeModel).where(edge_predicate).order_by(
+            GraphEdgeModel.edge_key
+        )
+        if normalized_statuses is not None:
+            count_statement = count_statement.where(
+                GraphEdgeModel.status.in_(normalized_statuses)
+            )
+            edge_statement = edge_statement.where(
+                GraphEdgeModel.status.in_(normalized_statuses)
+            )
+
+        capped_limit = min(max(int(limit), 1), 1000)
+        total_edges = int(self.session.scalar(count_statement) or 0)
+        edges = list(self.session.scalars(edge_statement.limit(capped_limit)))
+        return node, edges, total_edges
+
     def upsert_edge_evidence(
         self,
         *,
@@ -2475,6 +2511,24 @@ def _clean_graph_key(value: str, field_name: str) -> str:
     if not cleaned:
         raise ValueError(f"{field_name} must not be empty.")
     return cleaned
+
+
+def _normalize_graph_edge_statuses(
+    statuses: list[str] | tuple[str, ...] | set[str] | None,
+) -> list[str] | None:
+    if statuses is None:
+        return None
+    valid_statuses = {"active", "candidate", "rejected"}
+    normalized: list[str] = []
+    for status in statuses:
+        value = status.strip().lower()
+        if not value:
+            continue
+        if value not in valid_statuses:
+            raise ValueError("Graph edge status must be active, candidate, or rejected.")
+        if value not in normalized:
+            normalized.append(value)
+    return normalized
 
 
 def _decimal_or_none(value: Decimal | int | float | str | None) -> Decimal | None:

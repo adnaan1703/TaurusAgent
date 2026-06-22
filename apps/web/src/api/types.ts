@@ -325,6 +325,7 @@ export type UiShariahResponse = {
 
 export type GraphDecimal = string | number;
 export type GraphEdgeStatusFilter = "all" | "active" | "candidate" | "rejected";
+export type GraphNeighborhoodStatusFilter = "active" | "candidate" | "rejected";
 export type GraphEdgeProvenanceType = "deterministic" | "derived" | "inferred";
 export type GraphReviewAction = "promote" | "reject";
 
@@ -450,6 +451,16 @@ export type GraphCompanySubgraphResponse = {
   nodes: GraphNode[];
   edges: GraphEdge[];
   counts: Record<string, number>;
+};
+
+export type GraphNeighborhoodResponse = {
+  center_node: GraphNode;
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+  counts: Record<string, number>;
+  limit: number;
+  total_edges: number;
+  truncated: boolean;
 };
 
 export type GraphEdgeDetailResponse = {

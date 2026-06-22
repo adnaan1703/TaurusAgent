@@ -22,6 +22,11 @@ from taurus_core.db.repositories import GraphRepository
 router = APIRouter(prefix="/graph", tags=["graph"])
 
 GraphEdgeStatusFilter = Literal["all", "active", "candidate", "rejected"]
+GraphNeighborhoodStatusFilter = Literal["active", "candidate", "rejected"]
+DEFAULT_GRAPH_NEIGHBORHOOD_STATUSES: tuple[GraphNeighborhoodStatusFilter, ...] = (
+    "active",
+    "candidate",
+)
 
 
 class GraphNodeResponse(BaseModel):
@@ -148,6 +153,16 @@ class GraphCompanySubgraphResponse(BaseModel):
     counts: dict[str, int]
 
 
+class GraphNeighborhoodResponse(BaseModel):
+    center_node: GraphNodeResponse
+    nodes: list[GraphNodeResponse]
+    edges: list[GraphEdgeResponse]
+    counts: dict[str, int]
+    limit: int
+    total_edges: int
+    truncated: bool
+
+
 class GraphEdgeDetailResponse(BaseModel):
     edge: GraphEdgeResponse
     source_node: GraphNodeResponse
@@ -216,26 +231,45 @@ def company_subgraph(
         status=_status_filter(status),
         limit=limit,
     )
-    node_ids = {center_node.id}
-    for edge in edge_models:
-        node_ids.add(edge.source_node_id)
-        node_ids.add(edge.target_node_id)
-    node_models = graph_repo.list_nodes_by_ids(node_ids)
-    node_lookup = {node.id: node for node in node_models}
-
-    edges = [_edge_response(edge, node_lookup, graph_repo) for edge in edge_models]
-    nodes = [_node_response(node) for node in node_models]
+    nodes, edges, counts = _subgraph_response_parts(graph_repo, center_node, edge_models)
     return GraphCompanySubgraphResponse(
         symbol=normalized_symbol,
         center_node=_node_response(center_node),
         nodes=nodes,
         edges=edges,
-        counts={
-            "nodes": len(nodes),
-            "edges": len(edges),
-            "active_edges": sum(1 for edge in edges if edge.status == "active"),
-            "candidate_edges": sum(1 for edge in edges if edge.status == "candidate"),
-        },
+        counts=counts,
+    )
+
+
+@router.get("/neighborhood", response_model=GraphNeighborhoodResponse)
+def graph_neighborhood(
+    node_key: str = Query(..., min_length=1),
+    status: list[GraphNeighborhoodStatusFilter] | None = Query(default=None),
+    limit: int = Query(default=1000, ge=1, le=1000),
+    session: Session = Depends(get_db_session),
+) -> GraphNeighborhoodResponse:
+    graph_repo = GraphRepository(session)
+    statuses: list[GraphNeighborhoodStatusFilter] = (
+        list(status) if status is not None else list(DEFAULT_GRAPH_NEIGHBORHOOD_STATUSES)
+    )
+    center_node, edge_models, total_edges = graph_repo.list_node_neighborhood(
+        node_key=node_key,
+        statuses=statuses,
+        limit=limit,
+    )
+    if center_node is None:
+        raise HTTPException(status_code=404, detail=f"Graph node {node_key} not found")
+
+    nodes, edges, counts = _subgraph_response_parts(graph_repo, center_node, edge_models)
+    counts["rejected_edges"] = sum(1 for edge in edges if edge.status == "rejected")
+    return GraphNeighborhoodResponse(
+        center_node=_node_response(center_node),
+        nodes=nodes,
+        edges=edges,
+        counts=counts,
+        limit=limit,
+        total_edges=total_edges,
+        truncated=total_edges > len(edges),
     )
 
 
@@ -435,6 +469,28 @@ def _node_lookup_for_edges(
         node_ids.add(edge.source_node_id)
         node_ids.add(edge.target_node_id)
     return {node.id: node for node in graph_repo.list_nodes_by_ids(node_ids)}
+
+
+def _subgraph_response_parts(
+    graph_repo: GraphRepository,
+    center_node: GraphNodeModel,
+    edge_models: list[GraphEdgeModel],
+) -> tuple[list[GraphNodeResponse], list[GraphEdgeResponse], dict[str, int]]:
+    node_ids = {center_node.id}
+    for edge in edge_models:
+        node_ids.add(edge.source_node_id)
+        node_ids.add(edge.target_node_id)
+    node_models = graph_repo.list_nodes_by_ids(node_ids)
+    node_lookup = {node.id: node for node in node_models}
+    edges = [_edge_response(edge, node_lookup, graph_repo) for edge in edge_models]
+    nodes = [_node_response(node) for node in node_models]
+    counts = {
+        "nodes": len(nodes),
+        "edges": len(edges),
+        "active_edges": sum(1 for edge in edges if edge.status == "active"),
+        "candidate_edges": sum(1 for edge in edges if edge.status == "candidate"),
+    }
+    return nodes, edges, counts
 
 
 def _edge_response(
