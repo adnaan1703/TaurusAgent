@@ -21,6 +21,10 @@ current operator detail in the usage and command docs.
   proceeds netting, and regression work.
 - `docs/TAURUS_GRAPH_PROVENANCE_PLAN.md`: completed M62-M65 graph provenance,
   promotion, confidence-weighting, API/UI, and regression work.
+- `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md`: planned M66-M69 shared
+  `TechnicalSignalService` refactor and regression sequence.
+- `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_HANDOFF.md`: next-session handoff for
+  the planned M66-M69 technical signal service sequence.
 - `docs/agent_improvement_plans/LLM_AGENT_SYSTEM_PROMPTS_BACKLOG.md`: deferred
   prompt backlog for optional analyst upgrades.
 
@@ -164,6 +168,27 @@ removed during docs cleanup. Use Git history for detailed historical plans.
 | M63 | Done | Removed the legacy min-edge-confidence setting from runtime config, `.env.example`, tests, and docs; graph auto-promotion now ignores imported edge confidence and relies on the opt-in flag plus sample-size, stability, residual-correlation, or lead-lag thresholds; manual graph review can promote low-confidence inferred candidates without stats while preserving provenance metadata. |
 | M64 | Done | Removed raw edge confidence and candidate status multipliers from graph analyst and graph backtest contribution scoring, retained raw edge confidence/provenance as contribution audit metadata only, and added regressions proving active-edge score invariance across CSV confidence values plus candidate exclusion from graph analyst, graph backtests, and graph risk until promotion. |
 | M65 | Done | Ran final graph provenance closeout against the bundled TaurusData V2 outputs, verified edge-like CSV headers and populated strength/provenance fields, refreshed operator/developer docs to distinguish `provenance_type`, confidence metadata, `evidence_type`, and review `status`, documented the profile-JSON-versus-flattened-CSV contract, and closed the M62-M65 sequence. |
+| M66-M69 plan document | Done | Created the flat shared `TechnicalSignalService` plan covering baseline parity tests, service foundation, core analyst/graph-aware wiring, and final regression/docs. Implementation remains planned and has not started. |
+
+## Planned Milestone Tracker
+
+| Order | Milestone | Status | Plan | Purpose |
+|---:|---|---|---|---|
+| 66 | M66 | Planned | `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md` | Add baseline characterization tests for current technical analyst and graph-aware strategy scoring. |
+| 67 | M67 | Planned | `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md` | Add the DB-free shared `TechnicalSignalService` foundation without runtime wiring. |
+| 68 | M68 | Planned | `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md` | Route `TechnicalAnalystAgent` and `GraphAwareScoreStrategy` through the shared service without behavior drift. |
+| 69 | M69 | Planned | `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md` | Run final regression, refresh architecture/deep-dive docs for implemented behavior, and close the sequence. |
+
+### M66-M69 Plan Document Completion Summary
+
+- Assumptions made: The first implementation sequence should preserve current
+  trading behavior; M66-M69 should use flat milestone IDs; the first wiring
+  scope should be limited to `TechnicalAnalystAgent` and
+  `GraphAwareScoreStrategy`; richer technical profiles, strategy configurability,
+  and migration of `BlendedScoreStrategy` and `MovingAverageCrossoverStrategy`
+  should remain deferred; no implementation work was done in this planning task.
+- Mocks created: None.
+- Mocks used: None.
 
 ### M56-M61 Plan Document Completion Summary
 

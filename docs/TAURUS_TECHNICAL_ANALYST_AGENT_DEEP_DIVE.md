@@ -406,9 +406,22 @@ artifacts in `paper_runs.artifacts`.
 |---|---|
 | No selectable technical indicator suites yet | Indicator families/windows are mostly fixed in `TechnicalFeatureService`. |
 | Agent scoring uses a fixed formula | Extra computed indicators are ignored unless scoring/context logic is updated. |
+| Technical score ownership is duplicated | `TechnicalAnalystAgent` and `GraphAwareScoreStrategy` both interpret technical features with separate formulas. |
 | `feature_values` lookup is symbol-latest, not paper-run scoped | A persisted feature snapshot from another context can be selected if it is the latest for that symbol. |
 | `backtest_signals` lookup is symbol-latest, not paper-run scoped | A latest backtest signal can override feature-based scoring regardless of current paper run lineage. |
 | Fallback report is not used on LLM provider failure | Provider failure aborts the analyst suite for the symbol instead of storing a deterministic fallback report. |
+
+## Planned Shared Technical Signal Refactor
+
+The M66-M69 plan introduces a behavior-preserving `TechnicalSignalService` so
+the current technical analyst score and graph-aware strategy technical score
+can share one deterministic scoring contract without changing trading behavior.
+That sequence is documented in
+`docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md`.
+
+Until M66-M69 is implemented, this deep dive describes the current code path:
+`TechnicalAnalystAgent` owns its deterministic scoring formula directly, and
+`GraphAwareScoreStrategy` owns a separate SMA-spread technical score.
 
 ## Future Extension: Indicator Suites
 

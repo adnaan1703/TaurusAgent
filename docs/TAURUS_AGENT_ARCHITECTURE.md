@@ -210,6 +210,13 @@ collapse into the bounded analyst-report contract:
   downstream, with `target_sizing_metadata` recording the raw desired new-entry
   target and the configured cap when sizing is capped.
 
+Planned M66-M69 work introduces a shared `TechnicalSignalService` for the
+current duplicated technical scoring surfaces. Until that sequence is
+implemented, `TechnicalFeatureService` is the shared feature builder, while
+`TechnicalAnalystAgent` and `GraphAwareScoreStrategy` still interpret those
+features with separate behavior-preserving formulas. The plan is tracked in
+`docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md`.
+
 ## Portfolio Plan Artifact
 
 Every successful paper run now stores a typed, replayable portfolio plan at
