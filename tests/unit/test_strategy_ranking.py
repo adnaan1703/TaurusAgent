@@ -8,6 +8,7 @@ from taurus_core.domain.market_data import DailyCandle
 from taurus_core.features.store import FeatureSnapshot
 from taurus_core.strategies.blended_score import BlendedScoreStrategy
 from taurus_core.strategies.config import load_strategy_config
+from taurus_core.strategies.graph_aware import GraphAwareScoreStrategy
 from taurus_core.strategies.mock_momentum import MockMomentumStrategy
 from taurus_core.strategies.moving_average_crossover import MovingAverageCrossoverStrategy
 
@@ -105,6 +106,53 @@ def test_blended_score_ranks_all_eligible_symbols() -> None:
 
     assert [ranking.symbol for ranking in rankings if ranking.is_eligible] == ["AAA", "BBB"]
     assert {ranking.symbol for ranking in rankings if not ranking.is_eligible} == {"CCC"}
+
+
+def test_graph_aware_technical_score_requires_fast_and_slow_sma() -> None:
+    strategy = GraphAwareScoreStrategy(
+        name="graph_aware_missing_sma_test",
+        parameters={"fast_window": 3, "slow_window": 5},
+    )
+
+    assert (
+        strategy._technical_score(_feature_snapshot("AAA", {"sma_3": Decimal("101")}))
+        is None
+    )
+    assert (
+        strategy._technical_score(_feature_snapshot("AAA", {"sma_5": Decimal("100")}))
+        is None
+    )
+    assert (
+        strategy._technical_score(
+            _feature_snapshot(
+                "AAA",
+                {
+                    "sma_3": Decimal("101"),
+                    "sma_5": Decimal("0"),
+                },
+            )
+        )
+        is None
+    )
+
+
+def test_graph_aware_technical_score_quantizes_sma_spread() -> None:
+    strategy = GraphAwareScoreStrategy(
+        name="graph_aware_sma_spread_test",
+        parameters={"fast_window": 3, "slow_window": 5},
+    )
+
+    score = strategy._technical_score(
+        _feature_snapshot(
+            "AAA",
+            {
+                "sma_3": Decimal("112.34567890"),
+                "sma_5": Decimal("100.00000000"),
+            },
+        )
+    )
+
+    assert score == Decimal("0.12345679")
 
 
 def test_mock_momentum_legacy_selection_uses_explicit_cap_only() -> None:

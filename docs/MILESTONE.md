@@ -107,6 +107,11 @@ removed during docs cleanup. Use Git history for detailed historical plans.
   their non-edge `inferred` columns, operator/developer docs distinguish
   provenance, confidence metadata, evidence basis, and review status, and stale
   confidence-gate/scoring language has been removed.
+- M66 baseline technical signal characterization is complete: focused tests
+  now pin current `TechnicalAnalystAgent` backtest-signal override,
+  feature-formula scoring, report clamping, confidence fallback, key points,
+  and source IDs, plus current `GraphAwareScoreStrategy` SMA spread and
+  weighted graph-aware combined score behavior.
 
 ## Standing Safety Rules
 
@@ -168,16 +173,29 @@ removed during docs cleanup. Use Git history for detailed historical plans.
 | M63 | Done | Removed the legacy min-edge-confidence setting from runtime config, `.env.example`, tests, and docs; graph auto-promotion now ignores imported edge confidence and relies on the opt-in flag plus sample-size, stability, residual-correlation, or lead-lag thresholds; manual graph review can promote low-confidence inferred candidates without stats while preserving provenance metadata. |
 | M64 | Done | Removed raw edge confidence and candidate status multipliers from graph analyst and graph backtest contribution scoring, retained raw edge confidence/provenance as contribution audit metadata only, and added regressions proving active-edge score invariance across CSV confidence values plus candidate exclusion from graph analyst, graph backtests, and graph risk until promotion. |
 | M65 | Done | Ran final graph provenance closeout against the bundled TaurusData V2 outputs, verified edge-like CSV headers and populated strength/provenance fields, refreshed operator/developer docs to distinguish `provenance_type`, confidence metadata, `evidence_type`, and review `status`, documented the profile-JSON-versus-flattened-CSV contract, and closed the M62-M65 sequence. |
-| M66-M69 plan document | Done | Created the flat shared `TechnicalSignalService` plan covering baseline parity tests, service foundation, core analyst/graph-aware wiring, and final regression/docs. Implementation remains planned and has not started. |
+| M66-M69 plan document | Done | Created the flat shared `TechnicalSignalService` plan covering baseline parity tests, service foundation, core analyst/graph-aware wiring, and final regression/docs. Implementation is complete through M66; M67-M69 remain planned. |
+| M66 | Done | Added baseline characterization tests for current technical analyst and graph-aware strategy scoring, covering backtest signal override, feature formula output, report score clamping, confidence fallback, key points, source IDs, missing/valid SMA technical scores, and weighted graph-aware combined scoring. |
 
 ## Planned Milestone Tracker
 
 | Order | Milestone | Status | Plan | Purpose |
 |---:|---|---|---|---|
-| 66 | M66 | Planned | `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md` | Add baseline characterization tests for current technical analyst and graph-aware strategy scoring. |
+| 66 | M66 | Done | `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md` | Add baseline characterization tests for current technical analyst and graph-aware strategy scoring. |
 | 67 | M67 | Planned | `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md` | Add the DB-free shared `TechnicalSignalService` foundation without runtime wiring. |
 | 68 | M68 | Planned | `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md` | Route `TechnicalAnalystAgent` and `GraphAwareScoreStrategy` through the shared service without behavior drift. |
 | 69 | M69 | Planned | `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md` | Run final regression, refresh architecture/deep-dive docs for implemented behavior, and close the sequence. |
+
+### M66 Completion Summary
+
+- Assumptions made: M66 should add characterization coverage only; production
+  code, strategy formulas, ranking sort order, LLM prompts, allocation behavior,
+  database schema, API contracts, and React UI remain unchanged; direct
+  `_technical_score()` coverage is acceptable because the M68 plan requires
+  that compatibility surface to remain stable for local callers and tests.
+- Mocks created: None.
+- Mocks used: Existing `FakeLLMProvider` for deterministic analyst report
+  output; migration-backed test database rows for feature snapshots and latest
+  backtest signals; existing graph backtest signal fixtures.
 
 ### M66-M69 Plan Document Completion Summary
 

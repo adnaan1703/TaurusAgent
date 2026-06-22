@@ -5,11 +5,11 @@ Last updated: 2026-06-22
 ## Current Status
 
 - Current milestone: None.
-- Last completed milestone: M65 graph provenance closeout.
+- Last completed milestone: M66 baseline technical signal characterization.
 - Planning completed: M66-M69 shared `TechnicalSignalService` sequence.
-- Implementation state: Not started. No production code for
-  `TechnicalSignalService` exists yet.
-- Next recommended milestone: M66 - Baseline Technical Signal Characterization.
+- Implementation state: Baseline characterization tests are complete. No
+  production code for `TechnicalSignalService` exists yet.
+- Next recommended milestone: M67 - TechnicalSignalService Foundation.
 
 ## Required Reading
 
@@ -19,6 +19,9 @@ Last updated: 2026-06-22
 - `docs/TAURUS_TECHNICAL_ANALYST_AGENT_DEEP_DIVE.md`
 - `packages/taurus_core/agents/technical_analyst.py`
 - `packages/taurus_core/strategies/graph_aware.py`
+- `tests/unit/test_analyst_agents.py`
+- `tests/unit/test_graph_backtesting.py`
+- `tests/unit/test_strategy_ranking.py`
 
 ## Boundaries
 

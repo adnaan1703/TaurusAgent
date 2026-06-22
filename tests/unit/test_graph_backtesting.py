@@ -159,6 +159,52 @@ def test_graph_aware_strategy_combines_technical_and_graph_scores() -> None:
     assert signals[0].explanation.metadata["graph_signal"]["score"] == "0.50000000"
 
 
+def test_graph_aware_strategy_preserves_weighted_sma_and_graph_combined_score() -> None:
+    strategy = GraphAwareScoreStrategy(
+        name="graph_aware_weighted_score_test",
+        parameters={
+            "fast_window": 1,
+            "slow_window": 2,
+            "technical_weight": "0.60",
+            "graph_weight": "0.40",
+            "min_combined_score": "-1",
+            "require_graph_signal": True,
+        },
+    )
+    graph_signal = GraphBacktestSignal(
+        symbol="AAA",
+        as_of_date=date(2024, 1, 5),
+        score=Decimal("0.50000000"),
+        confidence=Decimal("0.90000000"),
+        contributions=(),
+    )
+
+    rankings = strategy.rank_universe(
+        trade_date=date(2024, 1, 5),
+        features_by_symbol={
+            "AAA": _feature_snapshot("AAA", sma_1=Decimal("110"), sma_2=Decimal("100")),
+        },
+        current_positions=set(),
+        graph_signals_by_symbol={"AAA": graph_signal},
+    )
+    targets, signals = strategy.select_targets_with_graph(
+        trade_date=date(2024, 1, 5),
+        features_by_symbol={
+            "AAA": _feature_snapshot("AAA", sma_1=Decimal("110"), sma_2=Decimal("100")),
+        },
+        current_positions=set(),
+        graph_signals_by_symbol={"AAA": graph_signal},
+    )
+
+    assert [ranking.symbol for ranking in rankings if ranking.is_eligible] == ["AAA"]
+    assert rankings[0].raw_strategy_score == Decimal("0.26000000")
+    assert rankings[0].metadata["technical_score"] == "0.10000000"
+    assert "technical_score=0.10000000" in rankings[0].reasons
+    assert targets == {"AAA"}
+    assert [signal.score for signal in signals] == [Decimal("0.26000000")]
+    assert signals[0].explanation.metadata["technical_score"] == "0.10000000"
+
+
 def test_graph_aware_backtest_summarizes_performance_by_edge_type(tmp_path: Path) -> None:
     settings = _settings_for_temp_db(tmp_path)
     run_migrations(settings)
