@@ -311,6 +311,11 @@ Technical score:
 technical_score = (SMA_10 / SMA_30) - 1
 ```
 
+`GraphAwareScoreStrategy` computes that value through
+`TechnicalSignalService.score_sma_spread()`, preserving the existing SMA-spread
+formula and `technical_score` payload key while keeping richer technical
+profiles deferred.
+
 Combined score:
 
 ```text

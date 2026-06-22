@@ -36,6 +36,7 @@ Main implementation files:
 | Analyst suite runner | `packages/taurus_core/agents/runner.py` |
 | Feature construction | `packages/taurus_core/features/store.py` |
 | Indicator math | `packages/taurus_core/features/technical.py` |
+| Shared technical scoring | `packages/taurus_core/features/technical_signal.py` |
 | Analyst report schema | `packages/taurus_core/agents/schemas.py` |
 | Persistence models | `packages/taurus_core/db/models.py` |
 | Persistence repository | `packages/taurus_core/db/repositories.py` |
@@ -143,11 +144,22 @@ full selectable indicator-suite system.
 ## Score Calculation
 
 The deterministic technical score is computed before the LLM report is created.
-The score is bounded to `[-1, 1]`.
+`TechnicalAnalystAgent` owns the database reads and snapshot selection, then
+passes a `FeatureSnapshot | None` plus an optional `TechnicalBacktestSignal` to
+`TechnicalSignalService.score_analyst_rule()`.
+
+`TechnicalSignalService` returns a DB-free `TechnicalSignalResult` containing
+the raw score, bounded report score, confidence, score source, key points,
+source IDs, component values, missing features, and metadata. The agent copies
+that result into the LLM context and into `AnalystReport.score_metadata`.
+
+The bounded report score remains clamped to `[-1, 1]` and quantized to
+`0.0001`.
 
 ### If a Backtest Signal Exists
 
-If `_latest_signal()` finds a `backtest_signals` row, that signal drives the
+If `_latest_signal()` finds a `backtest_signals` row, the agent converts it to
+a `TechnicalBacktestSignal`, and the shared service lets that signal drive the
 score:
 
 ```python
@@ -160,8 +172,8 @@ negative for score purposes.
 
 ### If No Backtest Signal Exists
 
-If there is no latest backtest signal, the score is computed from feature
-values:
+If there is no latest backtest signal, the shared service computes the score
+from feature values:
 
 ```text
 score =
@@ -199,7 +211,9 @@ It penalizes:
 
 ## Key Points and Risks
 
-The agent builds evidence strings from the signal and available features.
+`TechnicalSignalService.score_analyst_rule()` builds evidence strings from the
+signal and available features. The agent passes those strings to the LLM
+context and to the final report.
 
 Possible key points include:
 
@@ -228,7 +242,8 @@ provider returns the final structured report text.
 
 ## LLM Boundary
 
-`TechnicalAnalystAgent` builds deterministic context first:
+`TechnicalAnalystAgent` builds deterministic context from the
+`TechnicalSignalResult` first:
 
 ```python
 {
@@ -296,6 +311,7 @@ The output is an `AnalystReport` with this shape:
 |---|---|---|---|
 | `FeatureSnapshot` | In memory | `TechnicalFeatureService.build_snapshot()` | Contains computed indicator values. Not automatically persisted by `TechnicalAnalystAgent`. |
 | `FeatureValue` rows | In memory from feature service; persisted by backtesting paths | `TechnicalFeatureService.build_snapshot()` plus caller | Backtests persist these into `feature_values`; paper analyst fallback does not. |
+| `TechnicalSignalResult` | In memory | `TechnicalSignalService.score_analyst_rule()` | DB-free deterministic score, confidence, key-point, source, and metadata contract copied into the report. |
 | Technical analyst report | `analyst_reports` table | `AnalystReportRepository.replace_for_run_symbol()` | Durable per-run, per-symbol agent output. |
 | Full report payload | `analyst_reports.payload` JSON | Repository conversion | Stores the full serialized `AnalystReport`. |
 | Per-symbol analysis artifact | `paper_runs.artifacts["analysis"][symbol]` | `PaperRunService` | Stores report ids, analyst roster, debate id, proposal id, proposal action, and finalization status. |
@@ -405,30 +421,38 @@ artifacts in `paper_runs.artifacts`.
 | Limitation | Impact |
 |---|---|
 | No selectable technical indicator suites yet | Indicator families/windows are mostly fixed in `TechnicalFeatureService`. |
-| Agent scoring uses a fixed formula | Extra computed indicators are ignored unless scoring/context logic is updated. |
-| Technical score ownership is duplicated | `TechnicalAnalystAgent` and `GraphAwareScoreStrategy` both interpret technical features with separate formulas. |
+| Shared analyst-rule scoring uses a fixed formula | Extra computed indicators are ignored unless a future `TechnicalSignalService` profile consumes them. |
+| Only the core wired paths use `TechnicalSignalService` | `TechnicalAnalystAgent` and `GraphAwareScoreStrategy` are migrated; `BlendedScoreStrategy` and `MovingAverageCrossoverStrategy` remain deferred. |
 | `feature_values` lookup is symbol-latest, not paper-run scoped | A persisted feature snapshot from another context can be selected if it is the latest for that symbol. |
 | `backtest_signals` lookup is symbol-latest, not paper-run scoped | A latest backtest signal can override feature-based scoring regardless of current paper run lineage. |
 | Fallback report is not used on LLM provider failure | Provider failure aborts the analyst suite for the symbol instead of storing a deterministic fallback report. |
 
-## Planned Shared Technical Signal Refactor
+## Shared Technical Signal Service
 
-The M66-M69 plan introduces a behavior-preserving `TechnicalSignalService` so
-the current technical analyst score and graph-aware strategy technical score
-can share one deterministic scoring contract without changing trading behavior.
-That sequence is documented in
-`docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md`.
+The M66-M69 sequence introduced a behavior-preserving
+`TechnicalSignalService` so the technical analyst score and graph-aware
+strategy technical score share one deterministic scoring contract without
+changing trading behavior.
 
-Until M66-M69 is implemented, this deep dive describes the current code path:
-`TechnicalAnalystAgent` owns its deterministic scoring formula directly, and
-`GraphAwareScoreStrategy` owns a separate SMA-spread technical score.
+The implemented scopes are:
+
+- `score_analyst_rule()` reproduces the current technical analyst formula,
+  latest-signal override, bounded report score, confidence fallback, key
+  points, source IDs, and score source.
+- `score_sma_spread()` reproduces the graph-aware SMA-spread score used by
+  `GraphAwareScoreStrategy._technical_score()`.
+
+Future technical experiments should add or select profiles in
+`TechnicalSignalService` instead of embedding new scoring formulas directly in
+analyst or strategy classes.
 
 ## Future Extension: Indicator Suites
 
 A clean future design would split:
 
 1. Indicator suite: which features to compute.
-2. Technical scoring profile: how those features become a `-1..1` score.
+2. Technical scoring profile: how `TechnicalSignalService` turns those
+   features into a `-1..1` score.
 3. Strategy profile: how technical and graph scores produce targets.
 
 Example suite shape:

@@ -145,7 +145,7 @@ flowchart TD
 | Market-data refresh | Kite provider and importer | Kite API, market-data universe YAML | `instruments`, `instrument_provider_mappings`, `daily_candles` | Strategy and analysts |
 | News refresh | `MockNewsProvider` import path | Built-in mock news feed | `raw_documents`, derived news artifacts | Optional news/sentiment agents |
 | Strategy summary | Graph-aware strategy | `daily_candles`, graph signals, current positions | Strategy artifacts inside `paper_runs.artifacts` | Per-symbol selection and audit |
-| Technical analysis | `TechnicalAnalystAgent` | `daily_candles`, technical features | `analyst_reports` | Research debate |
+| Technical analysis | `TechnicalAnalystAgent` | `daily_candles`, technical features, latest backtest signal | `analyst_reports` | Research debate |
 | Graph analysis | `GraphAnalystAgent` | `graph_nodes`, `graph_edges`, `graph_edge_stats`, related candles | `graph_signals`, `graph_signal_contributions`, `analyst_reports` | Research debate and graph-risk review |
 | Optional news analysis | `NewsAnalystAgent` | `raw_documents`, `company_events` | `analyst_reports` | Research debate |
 | Optional sentiment analysis | `SentimentAnalystAgent` | `sentiment_scores`, event data | `analyst_reports` | Research debate |
@@ -210,11 +210,25 @@ collapse into the bounded analyst-report contract:
   downstream, with `target_sizing_metadata` recording the raw desired new-entry
   target and the configured cap when sizing is capped.
 
-Planned M66-M69 work introduces a shared `TechnicalSignalService` for the
-current duplicated technical scoring surfaces. Until that sequence is
-implemented, `TechnicalFeatureService` is the shared feature builder, while
-`TechnicalAnalystAgent` and `GraphAwareScoreStrategy` still interpret those
-features with separate behavior-preserving formulas. The plan is tracked in
+`TechnicalFeatureService` builds reusable `FeatureSnapshot` inputs from
+persisted `feature_values` or candle-derived history. `TechnicalSignalService`
+now owns the deterministic technical scoring profiles used by the wired core
+paths:
+
+- `TechnicalAnalystAgent` still owns database lookups, feature snapshot
+  selection, latest `backtest_signals` lookup, LLM context construction, and
+  report persistence, but it delegates analyst-rule score, confidence, source
+  IDs, and key-point selection to
+  `TechnicalSignalService.score_analyst_rule()`.
+- `GraphAwareScoreStrategy` still owns graph-aware filtering, ranking,
+  target selection, and strategy signal payloads, but its `_technical_score()`
+  compatibility method delegates SMA-spread scoring to
+  `TechnicalSignalService.score_sma_spread()`.
+
+The shared service is DB-free and behavior-preserving for the first
+implementation sequence. Richer technical profiles, strategy-configurable
+profiles, and migration of `BlendedScoreStrategy` or
+`MovingAverageCrossoverStrategy` remain deferred in
 `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md`.
 
 ## Portfolio Plan Artifact

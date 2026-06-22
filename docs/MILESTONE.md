@@ -21,10 +21,10 @@ current operator detail in the usage and command docs.
   proceeds netting, and regression work.
 - `docs/TAURUS_GRAPH_PROVENANCE_PLAN.md`: completed M62-M65 graph provenance,
   promotion, confidence-weighting, API/UI, and regression work.
-- `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md`: planned M66-M69 shared
+- `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md`: completed M66-M69 shared
   `TechnicalSignalService` refactor and regression sequence.
-- `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_HANDOFF.md`: next-session handoff for
-  the planned M66-M69 technical signal service sequence.
+- `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_HANDOFF.md`: sequence closeout handoff
+  for the completed M66-M69 technical signal service sequence.
 - `docs/agent_improvement_plans/LLM_AGENT_SYSTEM_PROMPTS_BACKLOG.md`: deferred
   prompt backlog for optional analyst upgrades.
 
@@ -121,6 +121,11 @@ removed during docs cleanup. Use Git history for detailed historical plans.
   `TechnicalSignalService`, while `GraphAwareScoreStrategy._technical_score()`
   delegates SMA-spread scoring to the shared service without changing
   graph-aware ranking or signal payload keys.
+- M69 final regression/docs closeout is complete: focused technical signal,
+  analyst, graph backtesting, strategy-ranking, and paper-run tests plus the
+  full unit suite passed; architecture, technical analyst deep-dive, and
+  money-management docs now describe the implemented shared service; no
+  accidental Taurus approvals were present after the global rules marker.
 
 ## Standing Safety Rules
 
@@ -182,19 +187,34 @@ removed during docs cleanup. Use Git history for detailed historical plans.
 | M63 | Done | Removed the legacy min-edge-confidence setting from runtime config, `.env.example`, tests, and docs; graph auto-promotion now ignores imported edge confidence and relies on the opt-in flag plus sample-size, stability, residual-correlation, or lead-lag thresholds; manual graph review can promote low-confidence inferred candidates without stats while preserving provenance metadata. |
 | M64 | Done | Removed raw edge confidence and candidate status multipliers from graph analyst and graph backtest contribution scoring, retained raw edge confidence/provenance as contribution audit metadata only, and added regressions proving active-edge score invariance across CSV confidence values plus candidate exclusion from graph analyst, graph backtests, and graph risk until promotion. |
 | M65 | Done | Ran final graph provenance closeout against the bundled TaurusData V2 outputs, verified edge-like CSV headers and populated strength/provenance fields, refreshed operator/developer docs to distinguish `provenance_type`, confidence metadata, `evidence_type`, and review `status`, documented the profile-JSON-versus-flattened-CSV contract, and closed the M62-M65 sequence. |
-| M66-M69 plan document | Done | Created the flat shared `TechnicalSignalService` plan covering baseline parity tests, service foundation, core analyst/graph-aware wiring, and final regression/docs. Implementation is complete through M68; M69 remains planned. |
+| M66-M69 plan document | Done | Created the flat shared `TechnicalSignalService` plan covering baseline parity tests, service foundation, core analyst/graph-aware wiring, and final regression/docs. Implementation is complete through M69; no next milestone remains for this sequence. |
 | M66 | Done | Added baseline characterization tests for current technical analyst and graph-aware strategy scoring, covering backtest signal override, feature formula output, report score clamping, confidence fallback, key points, source IDs, missing/valid SMA technical scores, and weighted graph-aware combined scoring. |
 | M67 | Done | Added `TechnicalSignalService`, `TechnicalBacktestSignal`, and `TechnicalSignalResult` as DB-free shared technical-scoring foundations, exported them from `taurus_core.features`, and added focused parity tests for analyst-rule and SMA-spread behavior without runtime consumer wiring. |
 | M68 | Done | Routed `TechnicalAnalystAgent` and `GraphAwareScoreStrategy` through `TechnicalSignalService` while preserving technical analyst report metadata/source IDs/key points and graph-aware score, ranking, and signal payload behavior. |
+| M69 | Done | Completed final regression and documentation closeout for the shared technical signal service sequence, refreshed current architecture/deep-dive/money-management docs, confirmed no project-local approval cleanup was needed, and closed M66-M69 with no successor milestone. |
 
-## Planned Milestone Tracker
+## Completed Technical Signal Service Sequence
+
+This completed sequence was executed in order as separate milestone work.
 
 | Order | Milestone | Status | Plan | Purpose |
 |---:|---|---|---|---|
 | 66 | M66 | Done | `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md` | Add baseline characterization tests for current technical analyst and graph-aware strategy scoring. |
 | 67 | M67 | Done | `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md` | Add the DB-free shared `TechnicalSignalService` foundation without runtime wiring. |
 | 68 | M68 | Done | `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md` | Route `TechnicalAnalystAgent` and `GraphAwareScoreStrategy` through the shared service without behavior drift. |
-| 69 | M69 | Planned | `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md` | Run final regression, refresh architecture/deep-dive docs for implemented behavior, and close the sequence. |
+| 69 | M69 | Done | `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md` | Run final regression, refresh architecture/deep-dive docs for implemented behavior, and close the sequence. |
+
+### M69 Completion Summary
+
+- Assumptions made: M69 should remain a regression and documentation closeout
+  only; M68 already completed behavior-preserving consumer wiring; current docs
+  should name `TechnicalSignalService` as the owner of migrated deterministic
+  technical scoring while explicitly leaving richer profiles and migration of
+  `BlendedScoreStrategy` and `MovingAverageCrossoverStrategy` deferred; no
+  project-local approval cleanup was needed because the global rules file had
+  no entries after the `# END MY CUSTOM ADDITION` marker.
+- Mocks created: None.
+- Mocks used: None.
 
 ### M68 Completion Summary
 

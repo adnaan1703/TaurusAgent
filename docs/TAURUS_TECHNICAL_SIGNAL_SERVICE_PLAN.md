@@ -8,6 +8,11 @@ to be executed in a separate Codex thread. Stop after completing and
 documenting the current milestone; do not automatically continue to the next
 milestone.
 
+Status: The M66-M69 sequence is complete. The baseline notes below describe the
+pre-sequence foundation, while current architecture and operator-facing behavior
+are summarized in `docs/TAURUS_AGENT_ARCHITECTURE.md` and
+`docs/TAURUS_TECHNICAL_ANALYST_AGENT_DEEP_DIVE.md`.
+
 ## Target Behavior
 
 Taurus should have one shared, deterministic technical scoring contract that can
@@ -27,14 +32,15 @@ The first implementation sequence is intentionally behavior-preserving:
 
 ## Existing Foundation
 
-- `TechnicalFeatureService` in `packages/taurus_core/features/store.py` already
-  builds reusable `FeatureSnapshot` objects from persisted `feature_values` or
-  candle-derived history.
-- `TechnicalAnalystAgent` currently loads persisted/candle-derived feature
-  snapshots, optionally loads the latest `backtest_signals` row, then computes
-  a deterministic technical score in `packages/taurus_core/agents/technical_analyst.py`.
-- `GraphAwareScoreStrategy` currently computes a separate SMA spread technical
-  score inside `packages/taurus_core/strategies/graph_aware.py`.
+- `TechnicalFeatureService` in `packages/taurus_core/features/store.py`
+  already built reusable `FeatureSnapshot` objects from persisted
+  `feature_values` or candle-derived history.
+- Before M68, `TechnicalAnalystAgent` loaded persisted/candle-derived feature
+  snapshots, optionally loaded the latest `backtest_signals` row, then computed
+  a deterministic technical score in
+  `packages/taurus_core/agents/technical_analyst.py`.
+- Before M68, `GraphAwareScoreStrategy` computed a separate SMA spread
+  technical score inside `packages/taurus_core/strategies/graph_aware.py`.
 - `BlendedScoreStrategy` and `MovingAverageCrossoverStrategy` also contain
   technical formulas, but they are not in the first wiring scope.
 - The canonical `make paper-loop-kite` path enables `technical,graph` analysts
