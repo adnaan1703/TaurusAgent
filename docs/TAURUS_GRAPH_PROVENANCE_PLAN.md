@@ -89,10 +89,12 @@ but the graph importer should not fail on profile JSON.
 - `packages/taurus_core/graph/stats.py` computes stats for active and candidate
   edges. Auto-promotion is opt-in and statistical; imported edge confidence is
   audit metadata only.
-- `packages/taurus_core/agents/graph_analyst.py` uses only active edges, but
-  currently multiplies contribution weight by `edge.confidence`.
-- `packages/taurus_core/backtesting/graph.py` currently multiplies backtest
-  contribution scores and contribution confidence by `edge.confidence`.
+- `packages/taurus_core/agents/graph_analyst.py` uses only active edges and
+  weights contributions by relationship strength plus graph-stat validation.
+  Raw edge confidence is contribution audit metadata only.
+- `packages/taurus_core/backtesting/graph.py` scores contributions with
+  relationship strength, graph-stat validation, and evidence weighting. Raw
+  edge confidence is backtest contribution audit metadata only.
 - `packages/taurus_core/risk/graph_concentration.py` uses active graph edges
   for graph concentration checks.
 - `apps/api/routes_graph.py`, `apps/web/src/api/types.ts`, and
@@ -432,3 +434,15 @@ Completion summary requirements:
 - Assumptions made
 - Mocks created
 - Mocks used
+
+### M65 Completion Summary
+
+- Assumptions made: M65 should remain a regression and documentation closeout
+  without regenerating TaurusData outputs; current bundled edge-like CSVs should
+  prove the `provenance_type` contract while segment/product CSVs intentionally
+  retain non-edge `inferred`; `company_profiles.jsonl` edge-like arrays are a
+  TaurusData provenance contract, while TaurusAgent imports flattened CSVs;
+  confidence should be documented as descriptive audit metadata or non-graph
+  output confidence, not graph edge eligibility, promotion, or scoring input.
+- Mocks created: None.
+- Mocks used: None.

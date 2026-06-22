@@ -93,8 +93,10 @@ Acceptance criteria:
   `company_industry_classifications.csv`, `company_segments.csv`,
   `company_products.csv`, `company_dependencies.csv`, `company_edges.csv`,
   `edge_candidates.csv`, `company_risks.csv`, and `source_evidence.csv`.
-- Preserve source file, source row hash, confidence, inferred flag, mechanism,
-  expected sign, lag range, relationship strength, and candidate/active status.
+- Preserve source file, source row hash, confidence metadata, edge
+  `provenance_type`, segment/product non-edge `inferred` flags, mechanism,
+  expected sign, lag range, relationship strength, `evidence_type`, and review
+  `status`.
 - Add a script and Make target, for example
   `make import-taurus-graph DATA_DIR=configs/taurus_data`.
 
@@ -227,9 +229,9 @@ The conceptual tables are:
 - `graph_nodes`: stable `node_key`, `node_type`, display name, optional symbol,
   optional ISIN, metadata, timestamps.
 - `graph_edges`: stable `edge_key`, source/target node IDs, type, direction,
-  expected sign, strength, evidence type, confidence, inferred flag, mechanism,
-  tradability relevance, status, validity window, source file, source row hash,
-  metadata, timestamps.
+  expected sign, strength, evidence type, confidence audit metadata, required
+  `provenance_type`, tradability relevance, review status, validity window,
+  source file, source row hash, metadata, timestamps.
 - `graph_edge_evidence`: evidence records attached to edges with claim/source
   metadata and confidence.
 - `graph_edge_stats`: point-in-time edge statistics by window and as-of date.

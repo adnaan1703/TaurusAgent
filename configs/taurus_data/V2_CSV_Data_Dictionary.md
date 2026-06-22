@@ -13,6 +13,9 @@ what each column means.
 - `confidence`: Context-specific confidence score from `0.0` to `1.0`.
   - In source and classification files, it usually means evidence/source confidence.
   - In relationship candidate files, it currently means candidate relationship usefulness/confidence, not just whether the source fact is true.
+  - Downstream graph systems should preserve relationship confidence as
+    descriptive metadata unless their own model explicitly defines a separate
+    confidence policy.
 - `inferred`: Whether a non-edge row contains analyst or sector inference rather than a directly disclosed fact. This remains on segment and product outputs.
 - `provenance_type`: Mandatory relationship provenance enum for edge-like rows. Values are `deterministic`, `derived`, and `inferred`.
   - `deterministic`: Direct structured relationship fact from an authoritative API/table with no interpretation. Reserve this strictly.
@@ -20,6 +23,9 @@ what each column means.
   - `inferred`: LLM, agent, analyst, annual-report interpretation, profile overlap, heuristic value-chain mapping, or ambiguous historical rows.
 - Empty strings mean unavailable, not disclosed, or not extracted.
 - `null` values in JSON profiles may become empty strings in CSV exports.
+- `company_profiles.jsonl` can contain edge-like relationship arrays for
+  provenance review, but the flattened CSVs are the downstream graph import
+  contract for TaurusAgent.
 - None of these files contain buy/sell recommendations. Relationship rows are research hypotheses unless explicitly disclosed.
 
 ## Confidence Scale
@@ -168,7 +174,7 @@ Upstream and downstream dependencies flattened from curated profiles.
 | `mechanism` | Explanation of how the dependency affects the company. | Human-readable causal hypothesis. |
 | `evidence_type` | Evidence basis such as `disclosed`, `inferred_from_industry`, `curated_profile_overlap`. | Source strength indicator. |
 | `source` | Source/provenance summary. | Review before using in high-stakes models. |
-| `confidence` | Confidence in the dependency mapping. | Combine with `provenance_type` and `evidence_type`. |
+| `confidence` | Confidence in the dependency mapping. | Descriptive metadata; review alongside `provenance_type` and `evidence_type`. |
 | `provenance_type` | Relationship provenance enum: `deterministic`, `derived`, or `inferred`. | Supplier/customer industry dependencies are usually `inferred` unless sourced from a direct structured relationship table. |
 
 ## company_edges.csv
@@ -196,7 +202,7 @@ Curated, higher-value graph edges between companies or nodes.
 | `mechanism` | Causal/tradability explanation. | Main field for model interpretation. |
 | `tradability_relevance` | Why the edge may matter for trading/research. | Use for feature selection. |
 | `source` | Source/provenance summary. | Evidence pointer. |
-| `confidence` | Confidence in the edge mapping. | Not a measured statistical correlation. |
+| `confidence` | Confidence in the edge mapping. | Descriptive metadata, not a measured statistical correlation or graph eligibility rule. |
 | `provenance_type` | Relationship provenance enum: `deterministic`, `derived`, or `inferred`. | Same NSE industry/basic-industry rule outputs are `derived`; profile overlap, filing interpretation, and LLM-assisted curation are `inferred`. |
 
 ## edge_candidates.csv
@@ -217,7 +223,7 @@ or `basis`.
 | `relationship_strength` | Qualitative usefulness strength. | Broad edges are often `low` even if source data is reliable. |
 | `evidence_type` | Evidence basis, such as `nse_classification` or `curated_profile_overlap`. | Helps distinguish NSE facts from curated overlaps. |
 | `expected_sign` | Expected sign if any. | Usually `mixed` for broad candidates. |
-| `confidence` | Current confidence in the candidate relationship's usefulness, not always source confidence. | Classification facts from NSE may be reliable even when this score is low. |
+| `confidence` | Current confidence in the candidate relationship's usefulness, not always source confidence. | Classification facts from NSE may be reliable even when this score is low; do not treat this field alone as a promotion or scoring rule. |
 | `provenance_type` | Relationship provenance enum: `deterministic`, `derived`, or `inferred`. | NSE classification equality candidates are `derived`; curated profile-overlap candidates are `inferred`. |
 | `notes` | Usage guidance. | Review before promoting to `company_edges.csv`. |
 
@@ -228,6 +234,8 @@ Recommended import behavior:
 - Treat `same_macro` and `same_sector` as broad factor exposures.
 - Treat `same_industry` and `same_basic_industry` as more specific peer-candidate signals.
 - Treat `common_raw_material_exposure` and `common_customer_industry` as hypothesis candidates requiring review.
+- TaurusAgent imports this flattened candidate CSV rather than edge-like arrays
+  from `company_profiles.jsonl`.
 
 ## company_risks.csv
 

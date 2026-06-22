@@ -297,7 +297,16 @@ Candidate edge review requires `TAURUS_GRAPH_ENABLED=true`.
 Graph edge payloads expose `provenance_type` (`deterministic`, `derived`, or
 `inferred`) instead of edge-level `inferred`; `confidence` remains audit
 metadata in the response and does not gate manual review or statistical
-auto-promotion.
+auto-promotion. Graph scoring uses active reviewed edges with relationship
+strength and graph-stat validation; imported edge confidence is not a
+score-weighting input. `evidence_type` describes the source/evidence basis, and
+edge `status` records the active/candidate/rejected review lifecycle.
+
+The bundled TaurusData V2 `company_profiles.jsonl` file may contain edge-like
+relationship arrays for TaurusData provenance review. TaurusAgent imports the
+flattened CSV outputs such as `company_edges.csv`, `edge_candidates.csv`, and
+`company_dependencies.csv`; it does not import graph relationships directly
+from profile arrays.
 
 ## Codex Project-Local Prefix Allowlist
 

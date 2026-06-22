@@ -575,8 +575,17 @@ Imported edge-like TaurusData CSVs require `provenance_type` values of
 `deterministic`, `derived`, or `inferred`. New or unreviewed deterministic and
 derived edges initialize as active, inferred edges initialize as candidates,
 and manual/API review history remains authoritative on re-import. Edge
-`confidence` remains visible as audit metadata; segment/product CSVs still use
-their non-edge `inferred` booleans, which Taurus maps into edge provenance.
+`confidence` remains visible as audit metadata and is not a graph eligibility,
+promotion, or score-weighting input. Graph signal/report `confidence` is a
+separate output confidence concept. `evidence_type` records the source/evidence
+basis, while `status` records the active/candidate/rejected review lifecycle.
+Segment/product CSVs still use their non-edge `inferred` booleans, which Taurus
+maps into edge provenance.
+
+`company_profiles.jsonl` can contain edge-like relationship arrays as part of
+the TaurusData provenance contract, but TaurusAgent imports the flattened CSVs
+under `configs/taurus_data/` rather than reading relationship arrays directly
+from the profile JSON.
 
 Graph stats use Postgres graph edges and existing `daily_candles`. The job
 computes close-to-close return correlations across configured windows, market

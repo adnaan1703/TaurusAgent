@@ -19,7 +19,7 @@ current operator detail in the usage and command docs.
 - `docs/TAURUS_PORTFOLIO_REBALANCE_PLAN.md`: completed M56-M61 holistic
   portfolio rebalance, score precision, soft sleeve borrowing, executable core,
   proceeds netting, and regression work.
-- `docs/TAURUS_GRAPH_PROVENANCE_PLAN.md`: active M62-M65 graph provenance,
+- `docs/TAURUS_GRAPH_PROVENANCE_PLAN.md`: completed M62-M65 graph provenance,
   promotion, confidence-weighting, API/UI, and regression work.
 - `docs/agent_improvement_plans/LLM_AGENT_SYSTEM_PROMPTS_BACKLOG.md`: deferred
   prompt backlog for optional analyst upgrades.
@@ -98,7 +98,11 @@ removed during docs cleanup. Use Git history for detailed historical plans.
   `provenance_type` and raw edge confidence for audit only; active edges with
   different CSV confidence values score identically; inferred candidates remain
   excluded from graph analyst, graph backtest, and graph risk until promoted.
-  M65 remains planned for final regression/docs.
+  M65 final regression/docs closeout is complete: the bundled TaurusData V2
+  edge-like CSVs import with `provenance_type`, segment/product CSVs preserve
+  their non-edge `inferred` columns, operator/developer docs distinguish
+  provenance, confidence metadata, evidence basis, and review status, and stale
+  confidence-gate/scoring language has been removed.
 
 ## Standing Safety Rules
 
@@ -155,10 +159,11 @@ removed during docs cleanup. Use Git history for detailed historical plans.
 | M59 | Done | Added default-on portfolio-plan-backed BUY allocation with a settings-controlled legacy allocator path, planner-linked allocation decisions and ledger rows, executable core BUY proposal/debate generation, soft-borrow capacity handoff into sizing, API/UI/replay visibility for planner source/rank/capacity, focused regressions, and operator/architecture docs. Threshold REDUCE/EXIT generation, same-run proceeds netting, and sell-first queueing remain for M60-M61. |
 | M60 | Done | Added threshold-driven REDUCE/EXIT plan candidates and generated sell-side proposals, net same-run sell proceeds with the configured 80% haircut before BUY sizing, preserved the 5% NAV cash reserve and 5% BUY price buffer, routed accepted sell-side paper orders before BUYs with pending affordability credit, exposed funding/proceeds metadata in API/UI/replay artifacts, and updated operator/architecture docs. |
 | M61 | Done | Added deterministic end-to-end portfolio rebalance regression covering seeded account state, raw-score ordering, core BUY routing, threshold EXIT routing, 80% same-run proceeds haircut, 5% cash reserve, 5% BUY buffer, protected cash-buffer capacity, soft sleeve borrowing, API/replay/dashboard visibility, sell-first pending queueing, and next-run settlement compatibility; refreshed operator/current-state docs and retained the M59 legacy allocator flag as an explicit troubleshooting fallback. |
-| M62-M65 plan document | Done | Created the flat graph provenance plan covering TaurusData V2 `provenance_type` ingestion, graph edge status/promotion, removal of confidence from graph behavior, API/UI/docs updates, and final regression. Implementation is complete through M64; M65 remains planned. |
+| M62-M65 plan document | Done | Created the flat graph provenance plan covering TaurusData V2 `provenance_type` ingestion, graph edge status/promotion, removal of confidence from graph behavior, API/UI/docs updates, and final regression. Implementation is complete through M65. |
 | M62 | Done | Replaced edge-level `inferred` with required `provenance_type` across the graph edge ORM, idempotent migration, repository contract, TaurusData CSV importer, FastAPI graph responses, React graph UI/types/tests, and Neo4j projection; edge-like CSVs now require valid provenance, segment/product CSVs still map non-edge `inferred` booleans into provenance, and reviewed edge statuses remain authoritative on re-import. Confidence remains stored/exposed as audit metadata; graph scoring changes remain for M64. |
 | M63 | Done | Removed the legacy min-edge-confidence setting from runtime config, `.env.example`, tests, and docs; graph auto-promotion now ignores imported edge confidence and relies on the opt-in flag plus sample-size, stability, residual-correlation, or lead-lag thresholds; manual graph review can promote low-confidence inferred candidates without stats while preserving provenance metadata. |
 | M64 | Done | Removed raw edge confidence and candidate status multipliers from graph analyst and graph backtest contribution scoring, retained raw edge confidence/provenance as contribution audit metadata only, and added regressions proving active-edge score invariance across CSV confidence values plus candidate exclusion from graph analyst, graph backtests, and graph risk until promotion. |
+| M65 | Done | Ran final graph provenance closeout against the bundled TaurusData V2 outputs, verified edge-like CSV headers and populated strength/provenance fields, refreshed operator/developer docs to distinguish `provenance_type`, confidence metadata, `evidence_type`, and review `status`, documented the profile-JSON-versus-flattened-CSV contract, and closed the M62-M65 sequence. |
 
 ### M56-M61 Plan Document Completion Summary
 
@@ -311,6 +316,18 @@ removed during docs cleanup. Use Git history for detailed historical plans.
 - Mocks used: Existing Postgres test databases, `FakeLLMProvider`, deterministic
   graph analyst/backtest/risk fixtures, and existing paper-run fake market-data
   providers.
+
+### M65 Completion Summary
+
+- Assumptions made: M65 should remain a regression and documentation closeout
+  without regenerating TaurusData outputs; current bundled edge-like CSVs should
+  prove the `provenance_type` contract while segment/product CSVs intentionally
+  retain non-edge `inferred`; `company_profiles.jsonl` edge-like arrays are a
+  TaurusData provenance contract, while TaurusAgent imports flattened CSVs;
+  confidence should be documented as descriptive audit metadata or non-graph
+  output confidence, not graph edge eligibility, promotion, or scoring input.
+- Mocks created: None.
+- Mocks used: None.
 
 ### M51-M55 Plan Document Completion Summary
 
@@ -549,16 +566,16 @@ documented with the standard completion summary.
 
 ## Planned Graph Provenance Sequence
 
-These milestones are planned and should be executed in order as separate
-milestone work. Stop after each milestone is complete, verified, cleaned up,
-and documented; do not automatically begin the next milestone.
+This completed sequence was executed in order as separate milestone work. Stop
+after each milestone is complete, verified, cleaned up, and documented; do not
+automatically begin later scope.
 
 | Order | Milestone | Status | Plan | Purpose |
 |---:|---|---|---|---|
 | 44 | M62 | Done | `docs/TAURUS_GRAPH_PROVENANCE_PLAN.md` | Replace graph edge `inferred` with required `provenance_type` across DB, import, API, React graph UI, and Neo4j projection. |
 | 45 | M63 | Done | `docs/TAURUS_GRAPH_PROVENANCE_PLAN.md` | Removed confidence thresholds from graph promotion and deleted the legacy min-edge-confidence setting while preserving opt-in statistical auto-promotion. |
 | 46 | M64 | Done | `docs/TAURUS_GRAPH_PROVENANCE_PLAN.md` | Remove edge confidence from graph analyst and graph backtest scoring while keeping confidence as audit metadata. |
-| 47 | M65 | Planned | `docs/TAURUS_GRAPH_PROVENANCE_PLAN.md` | Run full regression against bundled TaurusData V2 outputs and refresh graph provenance docs and tracker closeout. |
+| 47 | M65 | Done | `docs/TAURUS_GRAPH_PROVENANCE_PLAN.md` | Ran full regression against bundled TaurusData V2 outputs and refreshed graph provenance docs and tracker closeout. |
 
 ## Deferred Work
 

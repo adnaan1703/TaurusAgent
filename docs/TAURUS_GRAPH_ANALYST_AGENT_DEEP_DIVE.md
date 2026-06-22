@@ -99,7 +99,8 @@ The agent then reads graph and candle state from Postgres.
 
 `graph_edge_evidence` exists as supporting evidence for graph relationships, but
 the current graph analyst does not read it directly. Evidence enters indirectly
-through `graph_edges` metadata, confidence, mechanism, and source fields.
+through `graph_edges` metadata, raw confidence metadata, mechanism, and source
+fields.
 
 ## Database Tables Written
 
@@ -146,7 +147,7 @@ fields:
 | `score_contribution` | Numeric score contribution from this relationship. |
 | `weight` | Edge/stat weight before applying related momentum and sign. |
 | `explanation` | Human-readable contribution explanation. |
-| `metadata` | Related symbol, related 20-day momentum, stat window, correlations, stability, confidence, strength, and model version. |
+| `metadata` | Related symbol, related 20-day momentum, stat window, correlations, stability, raw edge confidence metadata, strength, and model version. |
 
 ### `analyst_reports`
 
@@ -302,9 +303,7 @@ stats_weight =
   )
 
 weight =
-  edge_confidence
-  * edge_strength
-  * status_weight
+  edge_strength
   * stats_weight
 
 score_contribution =
@@ -313,13 +312,14 @@ score_contribution =
 
 Notes:
 
-- `edge_confidence` comes from upstream TaurusData CSVs and is stored in
-  `graph_edges.confidence`.
 - `edge_strength` is converted during graph import from qualitative
-  `relationship_strength`.
-- `status_weight` is `1.00` for active edges and `0.65` for candidate edges,
-  but the current agent filters to active edges before scoring, so candidate
-  edges do not reach this formula.
+  `relationship_strength` or dependency `importance`. The current bundled V2
+  edge-like CSVs populate these strength fields.
+- Imported edge `confidence` is preserved as
+  `raw_edge_confidence_metadata`. It is not multiplied into graph analyst
+  contribution weight.
+- The current agent filters to active edges before scoring, so candidate edges
+  do not reach this formula until review promotion changes their `status`.
 - The contribution is quantized to four decimals.
 
 Strength mapping in the importer:
@@ -332,8 +332,10 @@ Strength mapping in the importer:
 | `low` | 0.25 |
 | `very_low` | 0.10 |
 
-If the qualitative strength is unknown, the importer falls back to the
-confidence value.
+If the qualitative strength is unknown on a legacy or partial row, the importer
+may fall back while creating stored `graph_edges.strength`; current bundled V2
+edge-like rows provide explicit strength/importance values. The scoring formula
+uses stored strength, not `graph_edges.confidence`.
 
 ### 8. Select Top Contributions
 
@@ -397,8 +399,11 @@ Current import rules:
 
 | Source File | Imported Status | Meaning |
 |---|---|---|
-| `company_edges.csv` | `active` | Curated/higher-value graph edges. |
-| `edge_candidates.csv` | `candidate` | Lower-threshold discovery edges requiring review. |
+| `company_edges.csv`, `edge_candidates.csv`, `company_dependencies.csv` | From `provenance_type` | `deterministic` and `derived` initialize as `active`; `inferred` initializes as `candidate`. |
+
+Manual/API review history is authoritative on re-import, so a promoted or
+rejected edge keeps that reviewed `status` even if the source CSV is imported
+again.
 
 Candidate edges can later become active by:
 
@@ -721,7 +726,8 @@ When a graph signal looks surprising, inspect these in order:
 6. Check which window the agent picked; usually latest `252d`.
 7. Check related-symbol 20-day momentum.
 8. Check `expected_sign`; `negative` reverses the related momentum interpretation.
-9. Check imported `edge.confidence` and numeric `edge.strength`.
+9. Check `provenance_type`, `evidence_type`, review `status`, numeric
+   `edge.strength`, and raw edge confidence metadata.
 10. Check `stats_weight`, contribution metadata, and final `graph_signals` score.
 
 Useful tables to inspect:
@@ -741,15 +747,17 @@ select * from analyst_reports where run_id = '...' and symbol = 'TCS' and agent_
 - It produces evidence, not trade decisions.
 - It uses only active graph edges; candidate edges are ignored.
 - Active/candidate is a property of each edge row, not the edge type globally.
-- `company_edges.csv` imports as active; `edge_candidates.csv` imports as candidate.
+- Edge-like CSVs import `provenance_type`; deterministic/derived edges
+  initialize as active, inferred edges initialize as candidate, and reviewed
+  status survives re-import.
 - The same company pair can have multiple edge rows with different edge types.
 - For TCS-INFY, only the active `direct_competitor` edge is currently used.
 - `expected_sign=negative` means related-stock weakness is bullish for the target.
-- Edge confidence comes from upstream TaurusData CSVs; it is not computed by
-  `GraphAnalystAgent`.
+- Edge confidence comes from upstream TaurusData CSVs and is retained as raw
+  audit metadata; it is not computed by `GraphAnalystAgent`.
 - Edge confidence is relationship-mapping confidence, not statistical
-  correlation.
+  correlation, eligibility, or graph-scoring weight.
 - Statistical validation lives in `graph_edge_stats`.
 - Auto-promotion is disabled by default and, with current default thresholds,
-  would promote zero current candidates because their imported confidence values
-  are below `0.65`.
+  uses only candidate status, sample size, stability, and residual/lead-lag
+  thresholds when explicitly enabled.
