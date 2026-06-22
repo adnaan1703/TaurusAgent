@@ -456,8 +456,6 @@ def _maybe_auto_promote_edge(
         return False
     if edge.status != "candidate":
         return False
-    if Decimal(edge.confidence) < settings.taurus_graph_min_edge_confidence:
-        return False
     if stats.sample_size < settings.taurus_graph_min_edge_sample_size:
         return False
     if stats.stability_score is None:
@@ -483,8 +481,8 @@ def _maybe_auto_promote_edge(
         status="active",
         reviewed_by="graph_stats_job",
         review_note=(
-            f"Auto-promoted from graph stats {stat_window} as of "
-            f"{as_of_date.isoformat()}."
+            "Auto-promoted after statistical validation from graph stats "
+            f"{stat_window} as of {as_of_date.isoformat()}."
         ),
     )
     return True

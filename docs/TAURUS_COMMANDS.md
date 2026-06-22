@@ -296,7 +296,8 @@ curl -X POST http://localhost:8000/graph/edges/{edge_key}/reject
 Candidate edge review requires `TAURUS_GRAPH_ENABLED=true`.
 Graph edge payloads expose `provenance_type` (`deterministic`, `derived`, or
 `inferred`) instead of edge-level `inferred`; `confidence` remains audit
-metadata in the response.
+metadata in the response and does not gate manual review or statistical
+auto-promotion.
 
 ## Codex Project-Local Prefix Allowlist
 

@@ -24,7 +24,6 @@ def test_default_settings_are_safe() -> None:
     assert settings.taurus_graph_auto_promote_edges is False
     assert settings.graph_stats_windows == (60, 120, 252)
     assert settings.taurus_graph_min_edge_sample_size == 30
-    assert settings.taurus_graph_min_edge_confidence == Decimal("0.65")
     assert settings.taurus_graph_min_residual_corr == Decimal("0.35")
     assert settings.taurus_graph_min_lead_lag_score == Decimal("0.35")
     assert settings.taurus_graph_min_stability_score == Decimal("0.50")

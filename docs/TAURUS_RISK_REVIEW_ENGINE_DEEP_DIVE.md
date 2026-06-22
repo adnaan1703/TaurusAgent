@@ -822,8 +822,8 @@ configs/portfolio/money_management_v1.yaml
 | `TAURUS_GRAPH_MIN_LEAD_LAG_SCORE` | `0.35` | correlated-cluster evidence | Minimum absolute lead-lag score to treat an edge as correlated. |
 
 Related graph variables such as `TAURUS_GRAPH_STATS_WINDOWS`,
-`TAURUS_GRAPH_MIN_EDGE_SAMPLE_SIZE`, `TAURUS_GRAPH_MIN_EDGE_CONFIDENCE`,
-`TAURUS_GRAPH_MIN_STABILITY_SCORE`, and `TAURUS_GRAPH_LEAD_LAG_MAX_DAYS`
+`TAURUS_GRAPH_MIN_EDGE_SAMPLE_SIZE`, `TAURUS_GRAPH_MIN_STABILITY_SCORE`,
+and `TAURUS_GRAPH_LEAD_LAG_MAX_DAYS`
 primarily affect graph data/stat generation upstream. The risk concentration
 stage consumes the persisted graph nodes, edges, and edge stats.
 

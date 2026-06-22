@@ -437,8 +437,8 @@ values for several candidate types:
 | `common_raw_material_exposure` | 0.38 |
 | `common_customer_industry` | 0.38 |
 
-This is why simply enabling auto-promotion with the default confidence threshold
-currently promotes no candidates: the default minimum confidence is `0.65`.
+This imported confidence is now audit metadata only. It does not block manual
+candidate review or opt-in statistical auto-promotion.
 
 ## Graph Edge Stats
 
@@ -598,7 +598,6 @@ All of these requirements must pass:
 |---|---:|
 | `TAURUS_GRAPH_AUTO_PROMOTE_EDGES=true` | default `false` |
 | edge status is `candidate` | required |
-| edge confidence >= `TAURUS_GRAPH_MIN_EDGE_CONFIDENCE` | 0.65 |
 | stat sample size >= `TAURUS_GRAPH_MIN_EDGE_SAMPLE_SIZE` | 30 |
 | stability score exists | required |
 | stability score >= `TAURUS_GRAPH_MIN_STABILITY_SCORE` | 0.50 |
@@ -608,13 +607,12 @@ Current local DB observation from the discussion:
 
 ```text
 candidate_edges = 92,549
-would_promote_if_enabled with current defaults = 0
-reason = all current candidates have confidence below 0.65
+promotion_candidates_require_statistical_validation = true
 ```
 
-Lowering `TAURUS_GRAPH_MIN_EDGE_CONFIDENCE` would make promotion possible, but
-that is a graph-governance decision. It can allow broad candidate relationships
-into active graph analysis if they pass the statistical filters.
+Auto-promotion remains disabled by default. Enabling it can allow broad
+candidate relationships into active graph analysis only if they pass the
+statistical filters.
 
 ## Environment Variables And Defaults
 
@@ -626,7 +624,6 @@ into active graph analysis if they pass the statistical filters.
 | `TAURUS_GRAPH_AUTO_PROMOTE_EDGES` | `false` | Graph stats job | Allows candidate edges to become active if thresholds pass. |
 | `TAURUS_GRAPH_STATS_WINDOWS` | `60,120,252` | Graph stats job | Controls stat windows written to `graph_edge_stats`. |
 | `TAURUS_GRAPH_MIN_EDGE_SAMPLE_SIZE` | `30` | Graph stats and auto-promotion | Minimum overlapping return observations. |
-| `TAURUS_GRAPH_MIN_EDGE_CONFIDENCE` | `0.65` | Auto-promotion | Minimum imported edge confidence required for candidate promotion. |
 | `TAURUS_GRAPH_MIN_RESIDUAL_CORR` | `0.35` | Auto-promotion | Minimum absolute residual correlation threshold. |
 | `TAURUS_GRAPH_MIN_LEAD_LAG_SCORE` | `0.35` | Auto-promotion | Minimum absolute lead-lag score threshold. |
 | `TAURUS_GRAPH_MIN_STABILITY_SCORE` | `0.50` | Auto-promotion | Minimum stability score threshold. |

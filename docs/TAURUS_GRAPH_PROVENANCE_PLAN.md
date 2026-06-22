@@ -87,8 +87,8 @@ but the graph importer should not fail on profile JSON.
   `provenance_type` for edge-like relationship rows, and still maps
   segment/product `inferred` booleans into graph edge provenance.
 - `packages/taurus_core/graph/stats.py` computes stats for active and candidate
-  edges and currently gates auto-promotion on
-  `TAURUS_GRAPH_MIN_EDGE_CONFIDENCE`.
+  edges. Auto-promotion is opt-in and statistical; imported edge confidence is
+  audit metadata only.
 - `packages/taurus_core/agents/graph_analyst.py` uses only active edges, but
   currently multiplies contribution weight by `edge.confidence`.
 - `packages/taurus_core/backtesting/graph.py` currently multiplies backtest
@@ -251,7 +251,7 @@ Instructions:
   - `apps/api/routes_graph.py`
   - `docs/TAURUS_COMMANDS.md`
   - tests covering config, graph stats, graph API, and observability
-- Remove `TAURUS_GRAPH_MIN_EDGE_CONFIDENCE` from settings, tests, and docs.
+- Remove the legacy minimum edge-confidence setting from settings, tests, and docs.
 - Update graph auto-promotion so it no longer checks `edge.confidence`.
 - Keep these auto-promotion guards:
   - `TAURUS_GRAPH_AUTO_PROMOTE_EDGES=true`
@@ -282,8 +282,8 @@ Acceptance criteria:
   thresholds pass and auto-promotion is enabled.
 - Low-confidence inferred candidate fixtures can be manually promoted without
   stats.
-- `TAURUS_GRAPH_MIN_EDGE_CONFIDENCE` is absent from config, config tests, and
-  operator docs.
+- The legacy minimum edge-confidence setting is absent from config, config
+  tests, and operator docs.
 - Existing default remains safe: auto-promotion is still disabled unless
   explicitly enabled.
 
@@ -382,8 +382,8 @@ Instructions:
     not graph edge eligibility
   - `evidence_type`: evidence/source basis
   - `status`: active/candidate/rejected review lifecycle
-- Remove stale docs that say candidate promotion depends on
-  `TAURUS_GRAPH_MIN_EDGE_CONFIDENCE` or imported edge confidence.
+- Remove stale docs that say candidate promotion depends on the legacy
+  min-edge-confidence setting or imported edge confidence.
 - Document that `company_profiles.jsonl` edge-like objects are a TaurusData
   provenance contract, but TaurusAgent imports the flattened CSVs rather than
   profile arrays.

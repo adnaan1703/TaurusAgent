@@ -82,13 +82,14 @@ def test_graph_stats_record_insufficient_data_without_crashing(tmp_path: Path) -
         assert stats[0].insufficient_data_reason == "missing_candles:BBB"
 
 
-def test_graph_stats_auto_promote_only_when_explicitly_enabled(tmp_path: Path) -> None:
+def test_graph_stats_auto_promotes_low_confidence_candidate_when_enabled(
+    tmp_path: Path,
+) -> None:
     settings = _settings_for_temp_db(
         tmp_path,
         taurus_graph_auto_promote_edges=True,
         taurus_graph_stats_windows="6",
         taurus_graph_min_edge_sample_size=3,
-        taurus_graph_min_edge_confidence=Decimal("0.50"),
         taurus_graph_min_residual_corr=Decimal("0"),
         taurus_graph_min_lead_lag_score=Decimal("0"),
         taurus_graph_min_stability_score=Decimal("0.90"),
@@ -110,8 +111,14 @@ def test_graph_stats_auto_promote_only_when_explicitly_enabled(tmp_path: Path) -
 
         assert edge is not None
         assert edge.status == "active"
+        assert edge.confidence == Decimal("0.10")
+        assert edge.provenance_type == "inferred"
         assert summary.promoted_edges == ("peer:AAA:BBB",)
         assert edge.edge_metadata["latest_review"]["reviewed_by"] == "graph_stats_job"
+        assert edge.edge_metadata["latest_review"]["note"] == (
+            "Auto-promoted after statistical validation from graph stats 6d "
+            "as of 2024-01-09."
+        )
 
 
 def test_graph_stats_emits_edge_window_progress_events(tmp_path: Path) -> None:
@@ -193,11 +200,11 @@ def _seed_correlated_edge_fixture(
             source_node_key="company:AAA",
             target_node_key="company:BBB",
             edge_type="peer_momentum",
-            provenance_type="derived",
+            provenance_type="inferred",
             direction="directed",
             expected_sign="positive",
             strength=Decimal("0.80"),
-            confidence=Decimal("0.90"),
+            confidence=Decimal("0.10"),
             evidence_type="synthetic",
             mechanism="Synthetic same-direction return fixture.",
             tradability_relevance="signal",

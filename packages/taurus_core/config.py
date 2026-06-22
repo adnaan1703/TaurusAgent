@@ -71,12 +71,6 @@ class Settings(BaseSettings):
         ge=2,
         validation_alias="TAURUS_GRAPH_MIN_EDGE_SAMPLE_SIZE",
     )
-    taurus_graph_min_edge_confidence: Decimal = Field(
-        default=Decimal("0.65"),
-        ge=Decimal("0"),
-        le=Decimal("1"),
-        validation_alias="TAURUS_GRAPH_MIN_EDGE_CONFIDENCE",
-    )
     taurus_graph_min_residual_corr: Decimal = Field(
         default=Decimal("0.35"),
         ge=Decimal("0"),

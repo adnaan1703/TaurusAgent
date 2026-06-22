@@ -93,7 +93,11 @@ def test_graph_edge_review_endpoints_update_status_and_allow_local_post_cors(
     tmp_path: Path,
 ) -> None:
     settings = _settings_for_temp_db(tmp_path, graph_enabled=True)
-    keys = _seed_graph(settings)
+    keys = _seed_graph(
+        settings,
+        candidate_confidence=Decimal("0.10"),
+        include_candidate_stats=False,
+    )
     client = TestClient(create_app(settings))
 
     cors = client.options(
@@ -120,6 +124,9 @@ def test_graph_edge_review_endpoints_update_status_and_allow_local_post_cors(
     assert promote.status_code == 200
     promote_payload = promote.json()
     assert promote_payload["edge"]["status"] == "active"
+    assert Decimal(str(promote_payload["edge"]["confidence"])) == Decimal("0.10")
+    assert promote_payload["edge"]["provenance_type"] == "inferred"
+    assert promote_payload["stats"] == []
     assert promote_payload["edge"]["metadata"]["latest_review"]["reviewed_by"] == "dashboard"
     assert promote_payload["edge"]["metadata"]["latest_review"]["note"] == (
         "Evidence is strong enough."
@@ -154,7 +161,12 @@ def _settings_for_temp_db(tmp_path: Path, *, graph_enabled: bool) -> Settings:
     )
 
 
-def _seed_graph(settings: Settings) -> dict[str, str]:
+def _seed_graph(
+    settings: Settings,
+    *,
+    candidate_confidence: Decimal = Decimal("0.70"),
+    include_candidate_stats: bool = True,
+) -> dict[str, str]:
     run_migrations(settings)
     session_factory = build_session_factory(settings)
     with session_factory() as session:
@@ -211,7 +223,7 @@ def _seed_graph(settings: Settings) -> dict[str, str]:
             expected_sign="positive",
             strength=Decimal("0.80"),
             evidence_type="curated_profile_overlap",
-            confidence=Decimal("0.70"),
+            confidence=candidate_confidence,
             provenance_type="inferred",
             mechanism="Indian IT services peers share demand drivers.",
             tradability_relevance="signal",
@@ -232,13 +244,14 @@ def _seed_graph(settings: Settings) -> dict[str, str]:
             source_file="source_evidence.csv",
             source_row_hash="row-evidence",
         )
-        graph_repo.upsert_edge_stats(
-            edge_key=candidate_edge.edge_key,
-            window="90d",
-            as_of_date=date(2026, 5, 27),
-            sample_size=90,
-            raw_correlation=Decimal("0.42"),
-        )
+        if include_candidate_stats:
+            graph_repo.upsert_edge_stats(
+                edge_key=candidate_edge.edge_key,
+                window="90d",
+                as_of_date=date(2026, 5, 27),
+                sample_size=90,
+                raw_correlation=Decimal("0.42"),
+            )
         signal = graph_repo.upsert_signal(
             signal_id="signal:INFY:2026-05-27",
             symbol="INFY",
