@@ -325,6 +325,7 @@ export type UiShariahResponse = {
 
 export type GraphDecimal = string | number;
 export type GraphEdgeStatusFilter = "all" | "active" | "candidate" | "rejected";
+export type GraphEdgeProvenanceType = "deterministic" | "derived" | "inferred";
 export type GraphReviewAction = "promote" | "reject";
 
 export type GraphNode = {
@@ -354,7 +355,7 @@ export type GraphEdge = {
   strength?: GraphDecimal | null;
   evidence_type: string;
   confidence: GraphDecimal;
-  inferred: boolean;
+  provenance_type: GraphEdgeProvenanceType;
   mechanism: string;
   tradability_relevance: string;
   status: string;

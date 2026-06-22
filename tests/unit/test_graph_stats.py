@@ -193,6 +193,7 @@ def _seed_correlated_edge_fixture(
             source_node_key="company:AAA",
             target_node_key="company:BBB",
             edge_type="peer_momentum",
+            provenance_type="derived",
             direction="directed",
             expected_sign="positive",
             strength=Decimal("0.80"),

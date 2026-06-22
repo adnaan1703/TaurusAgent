@@ -12,6 +12,11 @@ from typing import Callable
 
 from sqlalchemy.orm import Session
 
+from taurus_core.db.graph_contracts import (
+    graph_edge_provenance_from_inferred,
+    initial_graph_edge_status_for_provenance,
+    normalize_graph_edge_provenance,
+)
 from taurus_core.db.models import GraphEdgeModel, GraphNodeModel
 from taurus_core.db.repositories import GraphRepository, InstrumentRepository
 from taurus_core.domain.instruments import Instrument
@@ -221,10 +226,9 @@ class _TaurusGraphCSVImporter:
                 strength=_decimal_or_none(_value(row, "confidence")),
                 evidence_type="classification",
                 confidence=_decimal_or_default(_value(row, "confidence")),
-                inferred=False,
+                provenance_type="deterministic",
                 mechanism=f"NSE classification maps {company.display_name} to {display_name}.",
                 tradability_relevance="context",
-                status="active",
                 source_file=source_file,
                 source_row_hash=row_hash,
                 metadata={
@@ -273,10 +277,11 @@ class _TaurusGraphCSVImporter:
             strength=_decimal_or_none(_value(row, "confidence")),
             evidence_type="segment_mapping",
             confidence=_decimal_or_default(_value(row, "confidence")),
-            inferred=_parse_bool(_value(row, "inferred")),
+            provenance_type=graph_edge_provenance_from_inferred(
+                _parse_bool(_value(row, "inferred"))
+            ),
             mechanism=f"{company.display_name} has business segment {segment_name}.",
             tradability_relevance="context",
-            status="active",
             source_file=source_file,
             source_row_hash=row_hash,
             metadata={
@@ -329,10 +334,11 @@ class _TaurusGraphCSVImporter:
             strength=_decimal_or_none(_value(row, "confidence")),
             evidence_type="product_mapping",
             confidence=_decimal_or_default(_value(row, "confidence")),
-            inferred=_parse_bool(_value(row, "inferred")),
+            provenance_type=graph_edge_provenance_from_inferred(
+                _parse_bool(_value(row, "inferred"))
+            ),
             mechanism=f"{company.display_name} offers {product_name}.",
             tradability_relevance="context",
-            status="active",
             source_file=source_file,
             source_row_hash=row_hash,
             metadata={
@@ -393,6 +399,7 @@ class _TaurusGraphCSVImporter:
             target_node_key = dependency.node_key
 
         relationship_strength = _value(row, "importance")
+        provenance_type = _required_provenance_type(row, source_file, row_hash)
         self._upsert_edge(
             namespace="dependency",
             source_node_key=source_node_key,
@@ -403,10 +410,9 @@ class _TaurusGraphCSVImporter:
             strength=_strength_score(relationship_strength, _value(row, "confidence")),
             evidence_type=_value(row, "evidence_type"),
             confidence=_decimal_or_default(_value(row, "confidence")),
-            inferred=_parse_bool(_value(row, "inferred")),
+            provenance_type=provenance_type,
             mechanism=_value(row, "mechanism"),
             tradability_relevance="dependency",
-            status="active",
             source_file=source_file,
             source_row_hash=row_hash,
             metadata={
@@ -447,6 +453,7 @@ class _TaurusGraphCSVImporter:
             name=_first_value(row, "target_name", fallback=target_symbol),
         )
         relationship_strength = _value(row, "relationship_strength")
+        provenance_type = _required_provenance_type(row, source_file, row_hash)
         self._upsert_edge(
             namespace="company_edge",
             source_node_key=_value(row, "source_node_id") or source_node.node_key,
@@ -457,10 +464,9 @@ class _TaurusGraphCSVImporter:
             strength=_strength_score(relationship_strength, _value(row, "confidence")),
             evidence_type=_value(row, "evidence_type"),
             confidence=_decimal_or_default(_value(row, "confidence")),
-            inferred=_parse_bool(_value(row, "inferred")),
+            provenance_type=provenance_type,
             mechanism=_value(row, "mechanism"),
             tradability_relevance=_value(row, "tradability_relevance"),
-            status="active",
             source_file=source_file,
             source_row_hash=row_hash,
             metadata={
@@ -495,6 +501,7 @@ class _TaurusGraphCSVImporter:
             name=_first_value(row, "target_name", fallback=target_symbol),
         )
         relationship_strength = _value(row, "relationship_strength")
+        provenance_type = _required_provenance_type(row, source_file, row_hash)
         self._upsert_edge(
             namespace="edge_candidate",
             source_node_key=source_node.node_key,
@@ -505,10 +512,9 @@ class _TaurusGraphCSVImporter:
             strength=_strength_score(relationship_strength, _value(row, "confidence")),
             evidence_type=_value(row, "evidence_type"),
             confidence=_decimal_or_default(_value(row, "confidence")),
-            inferred=_parse_bool(_value(row, "inferred")),
+            provenance_type=provenance_type,
             mechanism=_value(row, "basis"),
             tradability_relevance="candidate_review",
-            status="candidate",
             source_file=source_file,
             source_row_hash=row_hash,
             metadata={
@@ -556,10 +562,9 @@ class _TaurusGraphCSVImporter:
             strength=_decimal_or_none(_value(row, "confidence")),
             evidence_type="risk_mapping",
             confidence=_decimal_or_default(_value(row, "confidence")),
-            inferred=True,
+            provenance_type="inferred",
             mechanism=f"{risk_name} can affect {company.display_name}.",
             tradability_relevance="risk_context",
-            status="active",
             source_file=source_file,
             source_row_hash=row_hash,
             metadata={
@@ -610,10 +615,9 @@ class _TaurusGraphCSVImporter:
             strength=_decimal_or_none(_value(row, "confidence")),
             evidence_type=_value(row, "source_type"),
             confidence=_decimal_or_default(_value(row, "confidence")),
-            inferred=False,
+            provenance_type="deterministic",
             mechanism=_value(row, "claim_summary"),
             tradability_relevance="evidence",
-            status="active",
             source_file=source_file,
             source_row_hash=row_hash,
             metadata={
@@ -701,33 +705,34 @@ class _TaurusGraphCSVImporter:
         source_node_key: str,
         target_node_key: str,
         edge_type: str,
+        provenance_type: str,
         direction: str = "directed",
         expected_sign: str = "unknown",
         strength: Decimal | None = None,
         evidence_type: str = "",
         confidence: Decimal = Decimal("0"),
-        inferred: bool = False,
         mechanism: str = "",
         tradability_relevance: str = "",
-        status: str = "candidate",
+        status: str | None = None,
         source_file: str = "",
         source_row_hash: str = "",
         metadata: dict[str, object] | None = None,
     ) -> GraphEdgeModel:
+        normalized_provenance_type = normalize_graph_edge_provenance(provenance_type)
         edge = self.graph_repo.upsert_edge(
             edge_key=_edge_key(namespace, source_node_key, target_node_key, edge_type, direction),
             source_node_key=source_node_key,
             target_node_key=target_node_key,
             edge_type=edge_type,
+            provenance_type=normalized_provenance_type,
             direction=direction,
             expected_sign=expected_sign,
             strength=strength,
             evidence_type=evidence_type,
             confidence=confidence,
-            inferred=inferred,
             mechanism=mechanism,
             tradability_relevance=tradability_relevance,
-            status=status,
+            status=status or initial_graph_edge_status_for_provenance(normalized_provenance_type),
             source_file=source_file,
             source_row_hash=source_row_hash,
             metadata=metadata,
@@ -852,6 +857,24 @@ def _int_or_none(value: str) -> int | None:
 
 def _parse_bool(value: str) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "y"}
+
+
+def _required_provenance_type(
+    row: dict[str, str],
+    source_file: str,
+    row_hash: str,
+) -> str:
+    raw_value = _value(row, "provenance_type")
+    if not raw_value:
+        raise TaurusGraphImportError(
+            f"{source_file} row {row_hash} is missing required provenance_type."
+        )
+    try:
+        return normalize_graph_edge_provenance(raw_value)
+    except ValueError as exc:
+        raise TaurusGraphImportError(
+            f"{source_file} row {row_hash} has invalid provenance_type {raw_value!r}."
+        ) from exc
 
 
 def _strength_score(relationship_strength: str, confidence: str) -> Decimal | None:

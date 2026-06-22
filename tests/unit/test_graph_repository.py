@@ -92,7 +92,7 @@ def test_graph_node_and_edge_upserts_are_idempotent(tmp_path: Path) -> None:
             strength=Decimal("0.70"),
             evidence_type="curated",
             confidence=Decimal("0.65"),
-            inferred=True,
+            provenance_type="inferred",
             mechanism="Indian IT services peers share demand drivers.",
             tradability_relevance="watchlist",
             status="candidate",
@@ -109,7 +109,7 @@ def test_graph_node_and_edge_upserts_are_idempotent(tmp_path: Path) -> None:
             strength=Decimal("0.80"),
             evidence_type="curated",
             confidence=Decimal("0.75"),
-            inferred=False,
+            provenance_type="derived",
             mechanism="Updated mechanism.",
             tradability_relevance="signal",
             status="active",
@@ -183,6 +183,7 @@ def test_graph_node_and_edge_upserts_are_idempotent(tmp_path: Path) -> None:
         assert contribution_again.contribution_id == contribution.contribution_id
         assert edge_again.status == "active"
         assert edge_again.confidence == Decimal("0.7500")
+        assert edge_again.provenance_type == "derived"
         assert graph_repo.list_edges_for_node(node_key="company:INFY") == [edge_again]
         assert graph_repo.list_edge_evidence(edge_key=edge.edge_key) == [evidence_again]
         assert graph_repo.list_edge_stats(edge_key=edge.edge_key) == [stats_again]

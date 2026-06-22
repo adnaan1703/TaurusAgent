@@ -232,6 +232,7 @@ def _seed_graph_fixture(
             source_node_key=f"company:{source_symbol}",
             target_node_key=f"company:{target_symbol}",
             edge_type=edge_type,
+            provenance_type="derived",
             direction=direction,
             expected_sign=expected_sign,
             strength=Decimal("0.80"),

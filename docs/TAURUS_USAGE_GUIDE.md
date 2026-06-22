@@ -571,6 +571,13 @@ than any static policy symbol list.
 
 Postgres is the canonical graph store. Neo4j is optional and disposable.
 
+Imported edge-like TaurusData CSVs require `provenance_type` values of
+`deterministic`, `derived`, or `inferred`. New or unreviewed deterministic and
+derived edges initialize as active, inferred edges initialize as candidates,
+and manual/API review history remains authoritative on re-import. Edge
+`confidence` remains visible as audit metadata; segment/product CSVs still use
+their non-edge `inferred` booleans, which Taurus maps into edge provenance.
+
 Graph stats use Postgres graph edges and existing `daily_candles`. The job
 computes close-to-close return correlations across configured windows, market
 residual correlation, lead-lag score, stability score, sample size, and

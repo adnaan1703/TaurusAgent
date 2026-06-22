@@ -52,7 +52,7 @@ state in this release.
 | Table | Stores |
 |---|---|
 | `graph_nodes` | Graph nodes such as companies, sectors, products, industries, dependencies, and risks. |
-| `graph_edges` | Relationships between graph nodes: competitor, supplier/customer, cost driver, dependency, and related edge types. |
+| `graph_edges` | Relationships between graph nodes: competitor, supplier/customer, cost driver, dependency, and related edge types. Each edge stores required `provenance_type` (`deterministic`, `derived`, or `inferred`), status, confidence as audit metadata, and source-row lineage. |
 | `graph_edge_evidence` | Evidence backing graph edges, including source title, source type, source date, confidence, excerpt, and reference. |
 | `graph_edge_stats` | Statistical validation for graph edges: correlation, residual correlation, lead-lag score, stability, p-value, and sample size. |
 | `graph_signals` | Per-symbol graph analyst signals: score, confidence, horizon, and explanation. |

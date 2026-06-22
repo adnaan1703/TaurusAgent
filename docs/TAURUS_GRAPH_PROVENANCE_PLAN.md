@@ -75,15 +75,17 @@ but the graph importer should not fail on profile JSON.
 - `configs/taurus_data/company_segments.csv` and
   `configs/taurus_data/company_products.csv` still use non-edge `inferred` and
   must keep that file contract.
-- `packages/taurus_core/db/models.py` currently stores
-  `GraphEdgeModel.inferred`.
-- `packages/taurus_core/db/repositories.py` accepts and persists `inferred` in
-  `GraphRepository.upsert_edge()`.
+- M62 replaced `GraphEdgeModel.inferred` with required
+  `GraphEdgeModel.provenance_type` and added shared validation for
+  `deterministic`, `derived`, and `inferred`.
+- M62 updated `GraphRepository.upsert_edge()` to accept validated
+  `provenance_type` and preserve reviewed edge status during re-import.
 - `scripts/migrate.py` uses SQLAlchemy metadata plus small idempotent migration
   helpers; Taurus does not use Alembic.
 - `packages/taurus_core/graph/importer.py` imports all TaurusData graph CSVs,
-  stores CSV confidence in `graph_edges.confidence`, and currently reads
-  `inferred` for edge-like relationship rows.
+  stores CSV confidence in `graph_edges.confidence`, requires
+  `provenance_type` for edge-like relationship rows, and still maps
+  segment/product `inferred` booleans into graph edge provenance.
 - `packages/taurus_core/graph/stats.py` computes stats for active and candidate
   edges and currently gates auto-promotion on
   `TAURUS_GRAPH_MIN_EDGE_CONFIDENCE`.
@@ -94,9 +96,10 @@ but the graph importer should not fail on profile JSON.
 - `packages/taurus_core/risk/graph_concentration.py` uses active graph edges
   for graph concentration checks.
 - `apps/api/routes_graph.py`, `apps/web/src/api/types.ts`, and
-  `apps/web/src/features/GraphPages.tsx` expose/display edge `inferred`.
-- `packages/taurus_core/graph/neo4j_projection.py` projects edge `inferred` to
-  Neo4j.
+  `apps/web/src/features/GraphPages.tsx` expose/display edge
+  `provenance_type`.
+- `packages/taurus_core/graph/neo4j_projection.py` projects
+  `provenance_type` to Neo4j.
 - The working tree may already contain regenerated `configs/taurus_data/*`
   outputs from TaurusData. Do not revert or regenerate those files unless the
   user explicitly asks.
@@ -220,6 +223,20 @@ Completion summary requirements:
 - Assumptions made
 - Mocks created
 - Mocks used
+
+### M62 Completion Summary
+
+- Assumptions made: `provenance_type` should be required for
+  `company_edges.csv`, `edge_candidates.csv`, and `company_dependencies.csv`;
+  `deterministic` and `derived` edges should initialize as `active` and
+  `inferred` edges as `candidate`; reviewed status from `latest_review` or
+  review history should survive re-import; segment/product `inferred` remains a
+  source-file boolean and maps only into edge provenance; confidence remains
+  stored and exposed as audit metadata until later milestones remove behavioral
+  confidence use.
+- Mocks created: None.
+- Mocks used: Existing Postgres test databases, FastAPI `TestClient`, React
+  fetch stubs, fake Neo4j driver, and deterministic graph CSV fixtures.
 
 ## M63 - Promotion Lifecycle And Confidence Setting Cleanup
 

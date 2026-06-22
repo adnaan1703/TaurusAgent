@@ -7,6 +7,7 @@ from typing import Any
 from sqlalchemy import Select, delete, func, or_, select
 from sqlalchemy.orm import Session
 
+from taurus_core.db.graph_contracts import normalize_graph_edge_provenance
 from taurus_core.db.models import (
     AnalystReportModel,
     AuditLogModel,
@@ -1810,12 +1811,12 @@ class GraphRepository:
         source_node_key: str,
         target_node_key: str,
         edge_type: str,
+        provenance_type: str,
         direction: str = "directed",
         expected_sign: str = "unknown",
         strength: Decimal | int | float | str | None = None,
         evidence_type: str = "",
         confidence: Decimal | int | float | str = Decimal("0"),
-        inferred: bool = False,
         mechanism: str = "",
         tradability_relevance: str = "",
         status: str = "candidate",
@@ -1833,6 +1834,8 @@ class GraphRepository:
             raise ValueError(f"Unknown graph target node_key: {target_node_key}")
 
         normalized_key = _clean_graph_key(edge_key, "edge_key")
+        normalized_provenance_type = normalize_graph_edge_provenance(provenance_type)
+        normalized_status = status.strip().lower()
         model = self.get_edge_by_key(normalized_key)
         if model is None:
             model = GraphEdgeModel(
@@ -1845,10 +1848,10 @@ class GraphRepository:
                 strength=_decimal_or_none(strength),
                 evidence_type=evidence_type.strip().lower(),
                 confidence=_decimal_or_value(confidence),
-                inferred=inferred,
+                provenance_type=normalized_provenance_type,
                 mechanism=mechanism,
                 tradability_relevance=tradability_relevance.strip().lower(),
-                status=status.strip().lower(),
+                status=normalized_status,
                 valid_from=valid_from,
                 valid_to=valid_to,
                 source_file=source_file,
@@ -1865,15 +1868,19 @@ class GraphRepository:
             model.strength = _decimal_or_none(strength)
             model.evidence_type = evidence_type.strip().lower()
             model.confidence = _decimal_or_value(confidence)
-            model.inferred = inferred
+            model.provenance_type = normalized_provenance_type
             model.mechanism = mechanism
             model.tradability_relevance = tradability_relevance.strip().lower()
-            model.status = status.strip().lower()
+            if not _has_reviewed_graph_edge_status(model.edge_metadata):
+                model.status = normalized_status
             model.valid_from = valid_from
             model.valid_to = valid_to
             model.source_file = source_file
             model.source_row_hash = source_row_hash
-            model.edge_metadata = _json_safe(metadata or {})
+            model.edge_metadata = _merge_graph_edge_metadata(
+                model.edge_metadata,
+                metadata or {},
+            )
         self.session.flush()
         return model
 
@@ -2480,6 +2487,31 @@ def _decimal_or_value(value: Decimal | int | float | str) -> Decimal:
     if isinstance(value, Decimal):
         return value
     return Decimal(str(value))
+
+
+def _has_reviewed_graph_edge_status(metadata: dict[str, object] | None) -> bool:
+    if not isinstance(metadata, dict):
+        return False
+    if isinstance(metadata.get("latest_review"), dict):
+        return True
+    reviews = metadata.get("reviews")
+    return isinstance(reviews, list) and bool(reviews)
+
+
+def _merge_graph_edge_metadata(
+    existing: dict[str, object] | None,
+    incoming: dict[str, object],
+) -> dict[str, object]:
+    merged = _json_safe(incoming or {})
+    if not isinstance(merged, dict):
+        merged = {}
+    if not isinstance(existing, dict):
+        return merged
+
+    for key in ("latest_review", "reviews"):
+        if key in existing and key not in merged:
+            merged[key] = _json_safe(existing[key])
+    return merged
 
 
 def _snapshot_to_model(snapshot: MarketPriceSnapshot) -> MarketPriceSnapshotModel:

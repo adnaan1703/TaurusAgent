@@ -2655,6 +2655,7 @@ def _seed_paper_graph_fixture(settings: Settings) -> None:
             source_node_key="company:INFY",
             target_node_key="company:RELIANCE",
             edge_type="peer_momentum",
+            provenance_type="derived",
             direction="bidirectional",
             expected_sign="positive",
             strength=Decimal("0.8500"),

@@ -3,11 +3,17 @@ from __future__ import annotations
 from decimal import Decimal
 from pathlib import Path
 
+import pytest
+
 from scripts.migrate import run_migrations
 from taurus_core.config import Settings
 from taurus_core.db.repositories import GraphRepository
 from taurus_core.db.session import build_session_factory
-from taurus_core.graph.importer import TAURUS_GRAPH_CSV_FILES, import_taurus_graph_csvs
+from taurus_core.graph.importer import (
+    TAURUS_GRAPH_CSV_FILES,
+    TaurusGraphImportError,
+    import_taurus_graph_csvs,
+)
 
 
 def test_taurus_graph_importer_is_idempotent_and_preserves_edge_metadata(
@@ -23,9 +29,10 @@ def test_taurus_graph_importer_is_idempotent_and_preserves_edge_metadata(
     with session_factory() as session:
         second_summary = import_taurus_graph_csvs(session, data_dir=data_dir)
         graph_repo = GraphRepository(session)
+        all_edges = graph_repo.list_edges(limit=None)
         active_edges = graph_repo.list_edges(status="active", limit=None)
         candidate_edges = graph_repo.list_edges(status="candidate", limit=None)
-        company_edge = next(edge for edge in active_edges if edge.edge_type == "direct_competitor")
+        company_edge = next(edge for edge in all_edges if edge.edge_type == "direct_competitor")
         candidate_edge = next(
             edge
             for edge in candidate_edges
@@ -36,7 +43,7 @@ def test_taurus_graph_importer_is_idempotent_and_preserves_edge_metadata(
 
     assert first_summary.files_missing == ()
     assert second_summary.overview_counts == first_summary.overview_counts
-    assert second_summary.overview_counts["candidate_edges"] == 1
+    assert second_summary.overview_counts["candidate_edges"] >= 1
     assert second_summary.overview_counts["active_edges"] > second_summary.overview_counts[
         "candidate_edges"
     ]
@@ -45,7 +52,7 @@ def test_taurus_graph_importer_is_idempotent_and_preserves_edge_metadata(
     assert company_edge.source_file == "company_edges.csv"
     assert company_edge.source_row_hash
     assert company_edge.confidence == Decimal("0.7200")
-    assert company_edge.inferred is True
+    assert company_edge.provenance_type == "derived"
     assert company_edge.expected_sign == "negative"
     assert company_edge.mechanism == "Shared IT services demand drivers."
     assert company_edge.edge_metadata["relationship_strength"] == "high"
@@ -53,6 +60,7 @@ def test_taurus_graph_importer_is_idempotent_and_preserves_edge_metadata(
     assert company_edge.edge_metadata["expected_lag_days_max"] == 180
 
     assert candidate_edge.status == "candidate"
+    assert candidate_edge.provenance_type == "inferred"
     assert candidate_edge.source_file == "edge_candidates.csv"
     assert candidate_edge.edge_metadata["relationship_strength"] == "low"
     assert candidate_edge.edge_metadata["basis"] == "Cloud migration exposure"
@@ -68,8 +76,8 @@ def test_taurus_graph_importer_warns_for_missing_optional_csvs(tmp_path: Path) -
     data_dir.mkdir()
     _write_csv(
         data_dir / "company_edges.csv",
-        """batch_id,source_node_id,source_node_type,source_symbol,source_name,target_node_id,target_node_type,target_symbol,target_name,edge_type,direction,expected_sign,expected_lag_days_min,expected_lag_days_max,relationship_strength,evidence_type,mechanism,tradability_relevance,source,confidence,inferred
-test,company:INFY,company,INFY,Infosys Limited,company:TCS,company,TCS,Tata Consultancy Services,direct_competitor,bidirectional,negative,0,180,high,inferred_from_filings,Shared IT services demand drivers.,peer testing,fixture,0.72,True
+        """batch_id,source_node_id,source_node_type,source_symbol,source_name,target_node_id,target_node_type,target_symbol,target_name,edge_type,direction,expected_sign,expected_lag_days_min,expected_lag_days_max,relationship_strength,evidence_type,mechanism,tradability_relevance,source,confidence,provenance_type
+test,company:INFY,company,INFY,Infosys Limited,company:TCS,company,TCS,Tata Consultancy Services,direct_competitor,bidirectional,negative,0,180,high,inferred_from_filings,Shared IT services demand drivers.,peer testing,fixture,0.72,derived
 """,
     )
     settings = Settings()
@@ -85,6 +93,64 @@ test,company:INFY,company,INFY,Infosys Limited,company:TCS,company,TCS,Tata Cons
     assert summary.overview_counts["edges"] == 1
     assert summary.overview_counts["active_edges"] == 1
     assert summary.overview_counts["candidate_edges"] == 0
+
+
+def test_taurus_graph_importer_preserves_reviewed_edge_status_on_reimport(
+    tmp_path: Path,
+) -> None:
+    data_dir = _write_graph_fixture(tmp_path / "taurus_data")
+    settings = Settings()
+    run_migrations(settings)
+    session_factory = build_session_factory(settings)
+
+    with session_factory() as session:
+        import_taurus_graph_csvs(session, data_dir=data_dir)
+        graph_repo = GraphRepository(session)
+        candidate_edge = next(
+            edge
+            for edge in graph_repo.list_edges(status="candidate", limit=None)
+            if edge.edge_type == "common_raw_material_exposure"
+        )
+        graph_repo.update_edge_status(
+            edge_key=candidate_edge.edge_key,
+            status="rejected",
+            reviewed_by="pytest",
+            review_note="Not tradable enough.",
+        )
+        session.commit()
+
+    with session_factory() as session:
+        import_taurus_graph_csvs(session, data_dir=data_dir)
+        graph_repo = GraphRepository(session)
+        edge = graph_repo.get_edge_by_key(candidate_edge.edge_key)
+
+    assert edge is not None
+    assert edge.status == "rejected"
+    assert edge.provenance_type == "inferred"
+    assert edge.edge_metadata["latest_review"]["reviewed_by"] == "pytest"
+
+
+@pytest.mark.parametrize("provenance_type", ["", "speculative"])
+def test_taurus_graph_importer_rejects_missing_or_invalid_edge_provenance(
+    tmp_path: Path,
+    provenance_type: str,
+) -> None:
+    data_dir = tmp_path / "taurus_data"
+    data_dir.mkdir()
+    _write_csv(
+        data_dir / "company_edges.csv",
+        """batch_id,source_node_id,source_node_type,source_symbol,source_name,target_node_id,target_node_type,target_symbol,target_name,edge_type,direction,expected_sign,expected_lag_days_min,expected_lag_days_max,relationship_strength,evidence_type,mechanism,tradability_relevance,source,confidence,provenance_type
+test,company:INFY,company,INFY,Infosys Limited,company:TCS,company,TCS,Tata Consultancy Services,direct_competitor,bidirectional,negative,0,180,high,inferred_from_filings,Shared IT services demand drivers.,peer testing,fixture,0.72,{provenance_type}
+""".format(provenance_type=provenance_type),
+    )
+    settings = Settings()
+    run_migrations(settings)
+    session_factory = build_session_factory(settings)
+
+    with session_factory() as session, pytest.raises(TaurusGraphImportError) as exc_info:
+        import_taurus_graph_csvs(session, data_dir=data_dir)
+
+    assert "provenance_type" in str(exc_info.value)
 
 
 def _write_graph_fixture(data_dir: Path) -> Path:
@@ -109,20 +175,20 @@ test,INFY,Infosys Ltd.,Cloud migration services,cloud services,Digital Services,
     )
     _write_csv(
         data_dir / "company_dependencies.csv",
-        """batch_id,input_symbol,input_company_name,dependency_name,dependency_type,upstream_or_downstream,related_industry,related_commodity_or_macro_factor,importance,expected_sign,expected_lag_days_min,expected_lag_days_max,mechanism,evidence_type,source,confidence,inferred
-test,INFY,Infosys Ltd.,enterprise technology budgets,customer_industry,downstream,enterprise IT,,high,positive,0,90,Technology budget expansion can lift demand.,inferred_from_industry,annual report,0.60,True
+        """batch_id,input_symbol,input_company_name,dependency_name,dependency_type,upstream_or_downstream,related_industry,related_commodity_or_macro_factor,importance,expected_sign,expected_lag_days_min,expected_lag_days_max,mechanism,evidence_type,source,confidence,provenance_type
+test,INFY,Infosys Ltd.,enterprise technology budgets,customer_industry,downstream,enterprise IT,,high,positive,0,90,Technology budget expansion can lift demand.,inferred_from_industry,annual report,0.60,inferred
 """,
     )
     _write_csv(
         data_dir / "company_edges.csv",
-        """batch_id,source_node_id,source_node_type,source_symbol,source_name,target_node_id,target_node_type,target_symbol,target_name,edge_type,direction,expected_sign,expected_lag_days_min,expected_lag_days_max,relationship_strength,evidence_type,mechanism,tradability_relevance,source,confidence,inferred
-test,company:INFY,company,INFY,Infosys Limited,company:TCS,company,TCS,Tata Consultancy Services,direct_competitor,bidirectional,negative,0,180,high,inferred_from_filings,Shared IT services demand drivers.,peer testing,fixture,0.72,True
+        """batch_id,source_node_id,source_node_type,source_symbol,source_name,target_node_id,target_node_type,target_symbol,target_name,edge_type,direction,expected_sign,expected_lag_days_min,expected_lag_days_max,relationship_strength,evidence_type,mechanism,tradability_relevance,source,confidence,provenance_type
+test,company:INFY,company,INFY,Infosys Limited,company:TCS,company,TCS,Tata Consultancy Services,direct_competitor,bidirectional,negative,0,180,high,inferred_from_filings,Shared IT services demand drivers.,peer testing,fixture,0.72,derived
 """,
     )
     _write_csv(
         data_dir / "edge_candidates.csv",
-        """batch_id,source_symbol,source_name,target_symbol,target_name,candidate_edge_type,basis,relationship_strength,evidence_type,expected_sign,confidence,inferred,notes
-test,INFY,Infosys Limited,TCS,Tata Consultancy Services,common_raw_material_exposure,Cloud migration exposure,low,curated_profile_overlap,mixed,0.38,True,Review before promoting.
+        """batch_id,source_symbol,source_name,target_symbol,target_name,candidate_edge_type,basis,relationship_strength,evidence_type,expected_sign,confidence,provenance_type,notes
+test,INFY,Infosys Limited,TCS,Tata Consultancy Services,common_raw_material_exposure,Cloud migration exposure,low,curated_profile_overlap,mixed,0.38,inferred,Review before promoting.
 """,
     )
     _write_csv(

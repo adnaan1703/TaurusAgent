@@ -4,6 +4,7 @@ from sqlalchemy import inspect, text
 from sqlalchemy.engine import Engine
 
 from taurus_core.config import Settings, get_settings
+from taurus_core.db.graph_contracts import GRAPH_EDGE_PROVENANCE_SQL_LIST
 from taurus_core.db.models import Base, TaurusProfileModel
 from taurus_core.db.session import create_engine_from_url
 from taurus_core.profiles.schemas import (
@@ -23,6 +24,7 @@ def run_migrations(settings: Settings | None = None) -> None:
     settings = settings or get_settings()
     engine = create_engine_from_url(settings.database_url)
     Base.metadata.create_all(bind=engine)
+    _migrate_graph_edge_provenance(engine)
     _seed_default_profile(engine)
     _add_missing_backtest_signal_columns(engine)
     _add_missing_daily_candle_columns(engine)
@@ -153,6 +155,70 @@ def _widen_graph_edge_columns(engine: Engine) -> None:
         connection.execute(
             text("ALTER TABLE graph_edges ALTER COLUMN tradability_relevance TYPE TEXT")
         )
+
+
+def _migrate_graph_edge_provenance(engine: Engine) -> None:
+    inspector = inspect(engine)
+    if "graph_edges" not in inspector.get_table_names():
+        return
+
+    columns = {
+        column["name"]
+        for column in inspector.get_columns("graph_edges")
+    }
+    has_provenance_type = "provenance_type" in columns
+    has_inferred = "inferred" in columns
+
+    statements: list[str] = []
+    if not has_provenance_type:
+        statements.append("ALTER TABLE graph_edges ADD COLUMN provenance_type VARCHAR(32)")
+    if has_inferred:
+        statements.append(
+            "UPDATE graph_edges "
+            "SET provenance_type = CASE "
+            "WHEN inferred IS TRUE THEN 'inferred' "
+            "ELSE 'deterministic' END "
+            "WHERE provenance_type IS NULL OR provenance_type = ''"
+        )
+    else:
+        statements.append(
+            "UPDATE graph_edges "
+            "SET provenance_type = 'deterministic' "
+            "WHERE provenance_type IS NULL OR provenance_type = ''"
+        )
+
+    if engine.dialect.name == "postgresql":
+        statements.extend(
+            [
+                "ALTER TABLE graph_edges "
+                "ALTER COLUMN provenance_type SET DEFAULT 'deterministic'",
+                "ALTER TABLE graph_edges ALTER COLUMN provenance_type SET NOT NULL",
+            ]
+        )
+        if has_inferred:
+            statements.append("ALTER TABLE graph_edges DROP COLUMN inferred")
+    elif has_inferred:
+        # Taurus runtime rejects SQLite URLs, but keep non-Postgres test/dev
+        # migrations data-safe by leaving the legacy column in place.
+        pass
+
+    with engine.begin() as connection:
+        for statement in statements:
+            connection.execute(text(statement))
+
+        if engine.dialect.name == "postgresql":
+            constraints = {
+                constraint["name"]
+                for constraint in inspect(connection).get_check_constraints("graph_edges")
+            }
+            if "ck_graph_edges_provenance_type" not in constraints:
+                connection.execute(
+                    text(
+                        "ALTER TABLE graph_edges ADD CONSTRAINT "
+                        "ck_graph_edges_provenance_type CHECK "
+                        f"(provenance_type IN ({GRAPH_EDGE_PROVENANCE_SQL_LIST}))"
+                    )
+                )
 
 
 def _add_missing_m28_position_lifecycle_columns(engine: Engine) -> None:

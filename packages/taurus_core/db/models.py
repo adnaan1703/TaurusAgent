@@ -18,6 +18,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
+from taurus_core.db.graph_contracts import GRAPH_EDGE_PROVENANCE_SQL_LIST
+
 
 def utc_now() -> datetime:
     return datetime.now(timezone.utc)
@@ -391,6 +393,10 @@ class GraphEdgeModel(Base):
     __tablename__ = "graph_edges"
     __table_args__ = (
         UniqueConstraint("edge_key", name="uq_graph_edges_edge_key"),
+        CheckConstraint(
+            f"provenance_type IN ({GRAPH_EDGE_PROVENANCE_SQL_LIST})",
+            name="ck_graph_edges_provenance_type",
+        ),
         Index("ix_graph_edges_source_target", "source_node_id", "target_node_id"),
         Index("ix_graph_edges_type_status", "edge_type", "status"),
     )
@@ -411,7 +417,7 @@ class GraphEdgeModel(Base):
     strength: Mapped[Decimal | None] = mapped_column(Numeric(8, 4), nullable=True)
     evidence_type: Mapped[str] = mapped_column(String(64), nullable=False, default="")
     confidence: Mapped[Decimal] = mapped_column(Numeric(8, 4), nullable=False, default=Decimal("0"))
-    inferred: Mapped[bool] = mapped_column(nullable=False, default=False)
+    provenance_type: Mapped[str] = mapped_column(String(32), nullable=False, default="deterministic")
     mechanism: Mapped[str] = mapped_column(Text, nullable=False, default="")
     tradability_relevance: Mapped[str] = mapped_column(Text, nullable=False, default="")
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="candidate")

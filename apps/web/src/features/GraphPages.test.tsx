@@ -94,7 +94,7 @@ const candidateEdge = {
   strength: "0.80",
   evidence_type: "curated_profile_overlap",
   confidence: "0.70",
-  inferred: true,
+  provenance_type: "inferred",
   mechanism: "Indian IT services peers share demand drivers.",
   tradability_relevance: "signal",
   status: "candidate",
@@ -119,7 +119,7 @@ const activeEdge = {
   strength: "0.90",
   evidence_type: "classification",
   confidence: "0.90",
-  inferred: false,
+  provenance_type: "deterministic",
   mechanism: "NSE classifies Infosys as IT Services.",
   tradability_relevance: "context",
   status: "active",
@@ -282,6 +282,7 @@ describe("GraphPages", () => {
 
     expect(await screen.findByRole("heading", { name: "INFY Graph" })).toBeInTheDocument();
     expect((await screen.findAllByText("Peer Momentum")).length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Inferred").length).toBeGreaterThan(0);
     expect(screen.getByLabelText("INFY relationship map")).toBeInTheDocument();
 
     await user.click(screen.getAllByRole("button", { name: "Inspect edge" })[1]);

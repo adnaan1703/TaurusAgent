@@ -617,6 +617,11 @@ function EdgeTable({
           render: (edge) => <StatusBadge status={edge.status} size="sm" />,
         },
         {
+          key: "provenance",
+          header: "Provenance",
+          render: (edge) => humanizeKey(edge.provenance_type),
+        },
+        {
           key: "confidence",
           header: "Confidence",
           align: "right",
@@ -852,7 +857,7 @@ function EdgeDetailContent({ detail }: { detail: GraphEdgeDetailResponse }) {
           <StatusBadge status={detail.edge.status} size="sm" />
           <Badge>{humanizeKey(detail.edge.edge_type)}</Badge>
           <Badge>{humanizeKey(detail.edge.expected_sign)}</Badge>
-          {detail.edge.inferred && <Badge>Inferred</Badge>}
+          <Badge>{humanizeKey(detail.edge.provenance_type)}</Badge>
         </div>
         <p className="mt-4 text-sm leading-6 text-slate-200">
           {detail.edge.mechanism || "No mechanism recorded."}

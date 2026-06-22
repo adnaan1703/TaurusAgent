@@ -57,6 +57,8 @@ def test_graph_api_vertical_slice_returns_postgres_backed_graph_data(
     detail_payload = edge_detail.json()
     assert detail_payload["edge"]["edge_key"] == keys["candidate_edge"]
     assert detail_payload["edge"]["status"] == "candidate"
+    assert detail_payload["edge"]["provenance_type"] == "inferred"
+    assert "inferred" not in detail_payload["edge"]
     assert detail_payload["source_node"]["node_key"] == "company:INFY"
     assert detail_payload["target_node"]["node_key"] == "company:TCS"
     assert detail_payload["evidence"][0]["evidence_id"] == "evidence:peer:infy:tcs"
@@ -193,7 +195,7 @@ def _seed_graph(settings: Settings) -> dict[str, str]:
             strength=Decimal("0.90"),
             evidence_type="classification",
             confidence=Decimal("0.90"),
-            inferred=False,
+            provenance_type="deterministic",
             mechanism="NSE classifies Infosys as IT Services.",
             tradability_relevance="context",
             status="active",
@@ -210,7 +212,7 @@ def _seed_graph(settings: Settings) -> dict[str, str]:
             strength=Decimal("0.80"),
             evidence_type="curated_profile_overlap",
             confidence=Decimal("0.70"),
-            inferred=True,
+            provenance_type="inferred",
             mechanism="Indian IT services peers share demand drivers.",
             tradability_relevance="signal",
             status="candidate",

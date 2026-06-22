@@ -76,6 +76,8 @@ def test_neo4j_projection_rebuild_uses_stable_keys_and_is_idempotent(
     assert driver.edges["peer:INFY:TCS"]["source_node_key"] == "company:INFY"
     assert driver.edges["peer:INFY:TCS"]["target_node_key"] == "company:TCS"
     assert driver.edges["peer:INFY:TCS"]["properties"]["status"] == "active"
+    assert driver.edges["peer:INFY:TCS"]["properties"]["provenance_type"] == "inferred"
+    assert "inferred" not in driver.edges["peer:INFY:TCS"]["properties"]
 
 
 def test_live_neo4j_projection_skips_cleanly_when_service_is_absent(
@@ -143,7 +145,7 @@ def _seed_projection_graph(settings: Settings) -> None:
             strength=Decimal("0.80"),
             evidence_type="fixture",
             confidence=Decimal("0.75"),
-            inferred=True,
+            provenance_type="inferred",
             mechanism="Fixture peer relationship.",
             tradability_relevance="signal",
             status="active",

@@ -51,7 +51,7 @@ class GraphEdgeResponse(BaseModel):
     strength: Decimal | None
     evidence_type: str
     confidence: Decimal
-    inferred: bool
+    provenance_type: str
     mechanism: str
     tradability_relevance: str
     status: str
@@ -467,7 +467,7 @@ def _edge_response(
         strength=edge.strength,
         evidence_type=edge.evidence_type,
         confidence=edge.confidence,
-        inferred=edge.inferred,
+        provenance_type=edge.provenance_type,
         mechanism=edge.mechanism,
         tradability_relevance=edge.tradability_relevance,
         status=edge.status,
