@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import clsx from "clsx";
 import {
   Maximize2,
+  Network,
   RefreshCw,
   RotateCcw,
   Search,
@@ -54,7 +55,24 @@ type Selection =
   | { type: "node"; id: string }
   | { type: "edge"; id: string };
 
+type ExplorerGraphState = {
+  centerNode: GraphNode;
+  nodesByKey: Map<string, GraphNode>;
+  edgesByKey: Map<string, GraphEdge>;
+};
+
+type NodeExpansionState = {
+  error: string | null;
+  expanded: boolean;
+  isLoading: boolean;
+  limit: number;
+  returnedEdges: number;
+  totalEdges: number;
+  truncated: boolean;
+};
+
 const EDGE_TYPE_ALL = "all";
+const NEIGHBORHOOD_LIMIT = 1000;
 
 const graphTheme = {
   ...darkTheme,
@@ -77,18 +95,28 @@ export function GraphExplorer({
   const graphRef = useRef<GraphCanvasRef>(null);
   const [symbolDraft, setSymbolDraft] = useState(symbol);
   const [edgeTypeFilter, setEdgeTypeFilter] = useState(EDGE_TYPE_ALL);
+  const [explorerGraph, setExplorerGraph] = useState<ExplorerGraphState>(() =>
+    initialExplorerGraph(payload),
+  );
+  const [expansionsByNode, setExpansionsByNode] = useState<Record<string, NodeExpansionState>>(
+    {},
+  );
+  const [pendingFocusNodeIds, setPendingFocusNodeIds] = useState<string[] | null>(null);
   const [selection, setSelection] = useState<Selection>({
     type: "node",
     id: payload.center_node.node_key,
   });
 
   const graphData = useMemo(
-    () => buildVisibleGraph(payload, edgeTypeFilter),
-    [payload, edgeTypeFilter],
+    () => buildVisibleGraph(explorerGraph, edgeTypeFilter),
+    [explorerGraph, edgeTypeFilter],
   );
   const edgeTypes = useMemo(
-    () => Array.from(new Set(payload.edges.map((edge) => edge.edge_type))).sort(),
-    [payload.edges],
+    () =>
+      Array.from(
+        new Set(Array.from(explorerGraph.edgesByKey.values()).map((edge) => edge.edge_type)),
+      ).sort(),
+    [explorerGraph.edgesByKey],
   );
   const selectedNode =
     selection.type === "node" ? graphData.nodeByKey.get(selection.id) ?? null : null;
@@ -100,8 +128,10 @@ export function GraphExplorer({
   }, [symbol]);
 
   useEffect(() => {
+    setExplorerGraph(initialExplorerGraph(payload));
+    setExpansionsByNode({});
     setSelection({ type: "node", id: payload.center_node.node_key });
-  }, [payload.center_node.node_key]);
+  }, [payload]);
 
   useEffect(() => {
     if (edgeTypeFilter !== EDGE_TYPE_ALL && !edgeTypes.includes(edgeTypeFilter)) {
@@ -123,7 +153,22 @@ export function GraphExplorer({
       graphRef.current?.fitNodesInView(undefined, { animated: false });
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [graphData.reagraphNodes.length, graphData.reagraphEdges.length, payload.center_node.node_key]);
+  }, [payload]);
+
+  useEffect(() => {
+    if (!pendingFocusNodeIds) {
+      return undefined;
+    }
+
+    const timer = window.setTimeout(() => {
+      graphRef.current?.fitNodesInView(pendingFocusNodeIds, {
+        animated: true,
+        fitOnlyIfNodesNotInView: true,
+      });
+      setPendingFocusNodeIds(null);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [graphData.reagraphNodes.length, graphData.reagraphEdges.length, pendingFocusNodeIds]);
 
   function submitSymbol(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -142,8 +187,56 @@ export function GraphExplorer({
   }
 
   function resetGraph() {
+    setExplorerGraph(initialExplorerGraph(payload));
+    setExpansionsByNode({});
+    setSelection({ type: "node", id: payload.center_node.node_key });
     graphRef.current?.resetControls(true);
     graphRef.current?.fitNodesInView(undefined, { animated: true });
+  }
+
+  async function expandNode(node: GraphNode) {
+    const nodeKey = node.node_key;
+    setExpansionsByNode((current) => ({
+      ...current,
+      [nodeKey]: {
+        ...emptyExpansionState(),
+        ...current[nodeKey],
+        error: null,
+        isLoading: true,
+      },
+    }));
+
+    try {
+      const neighborhood = await taurusApi.graphNeighborhood({
+        nodeKey,
+        statuses,
+        limit: NEIGHBORHOOD_LIMIT,
+      });
+      setExplorerGraph((current) => mergeNeighborhood(current, neighborhood));
+      setExpansionsByNode((current) => ({
+        ...current,
+        [nodeKey]: {
+          error: null,
+          expanded: true,
+          isLoading: false,
+          limit: neighborhood.limit,
+          returnedEdges: neighborhood.edges.length,
+          totalEdges: neighborhood.total_edges,
+          truncated: neighborhood.truncated,
+        },
+      }));
+      setPendingFocusNodeIds(expansionFocusNodeIds(neighborhood));
+    } catch (error) {
+      setExpansionsByNode((current) => ({
+        ...current,
+        [nodeKey]: {
+          ...emptyExpansionState(),
+          ...current[nodeKey],
+          error: error instanceof Error ? error.message : "Unable to expand neighborhood",
+          isLoading: false,
+        },
+      }));
+    }
   }
 
   return (
@@ -210,7 +303,7 @@ export function GraphExplorer({
           <ToolbarIconButton label="Zoom out" onClick={() => graphRef.current?.zoomOut()}>
             <ZoomOut aria-hidden="true" className="h-4 w-4" />
           </ToolbarIconButton>
-          <ToolbarIconButton label="Reset view" onClick={resetGraph}>
+          <ToolbarIconButton label="Reset graph" onClick={resetGraph}>
             <RotateCcw aria-hidden="true" className="h-4 w-4" />
           </ToolbarIconButton>
           <ToolbarIconButton disabled={isRefreshing} label="Refresh graph" onClick={onRefresh}>
@@ -268,6 +361,8 @@ export function GraphExplorer({
             <Inspector
               detailEdgeKey={selectedEdge?.edge_key ?? null}
               edge={selectedEdge}
+              expansion={selectedNode ? expansionsByNode[selectedNode.node_key] : undefined}
+              onExpandNode={expandNode}
               node={selectedNode}
               payload={payload}
               visibleEdges={graphData.visibleEdges}
@@ -279,17 +374,70 @@ export function GraphExplorer({
   );
 }
 
-function buildVisibleGraph(payload: GraphNeighborhoodResponse, edgeTypeFilter: string) {
-  const allNodes = uniqueNodes([payload.center_node, ...payload.nodes]);
+function initialExplorerGraph(payload: GraphNeighborhoodResponse): ExplorerGraphState {
+  const nodesByKey = new Map<string, GraphNode>();
+  uniqueNodes([payload.center_node, ...payload.nodes]).forEach((node) =>
+    nodesByKey.set(node.node_key, node),
+  );
+  const edgesByKey = new Map<string, GraphEdge>();
+  payload.edges.forEach((edge) => edgesByKey.set(edge.edge_key, edge));
+  return {
+    centerNode: payload.center_node,
+    nodesByKey,
+    edgesByKey,
+  };
+}
+
+function mergeNeighborhood(
+  current: ExplorerGraphState,
+  neighborhood: GraphNeighborhoodResponse,
+): ExplorerGraphState {
+  const nodesByKey = new Map(current.nodesByKey);
+  uniqueNodes([neighborhood.center_node, ...neighborhood.nodes]).forEach((node) =>
+    nodesByKey.set(node.node_key, node),
+  );
+  const edgesByKey = new Map(current.edgesByKey);
+  neighborhood.edges.forEach((edge) => edgesByKey.set(edge.edge_key, edge));
+  return {
+    ...current,
+    nodesByKey,
+    edgesByKey,
+  };
+}
+
+function expansionFocusNodeIds(neighborhood: GraphNeighborhoodResponse) {
+  return Array.from(
+    new Set([
+      neighborhood.center_node.node_key,
+      ...neighborhood.nodes.map((node) => node.node_key),
+    ]),
+  );
+}
+
+function emptyExpansionState(): NodeExpansionState {
+  return {
+    error: null,
+    expanded: false,
+    isLoading: false,
+    limit: NEIGHBORHOOD_LIMIT,
+    returnedEdges: 0,
+    totalEdges: 0,
+    truncated: false,
+  };
+}
+
+function buildVisibleGraph(graph: ExplorerGraphState, edgeTypeFilter: string) {
+  const allNodes = Array.from(graph.nodesByKey.values());
   const nodeByKey = new Map(allNodes.map((node) => [node.node_key, node]));
+  const allEdges = Array.from(graph.edgesByKey.values());
   const filteredEdges =
     edgeTypeFilter === EDGE_TYPE_ALL
-      ? payload.edges
-      : payload.edges.filter((edge) => edge.edge_type === edgeTypeFilter);
+      ? allEdges
+      : allEdges.filter((edge) => edge.edge_type === edgeTypeFilter);
   const visibleEdges = filteredEdges.filter(
     (edge) => nodeByKey.has(edge.source_node_key) && nodeByKey.has(edge.target_node_key),
   );
-  const visibleNodeKeys = new Set<string>([payload.center_node.node_key]);
+  const visibleNodeKeys = new Set<string>([graph.centerNode.node_key]);
   visibleEdges.forEach((edge) => {
     visibleNodeKeys.add(edge.source_node_key);
     visibleNodeKeys.add(edge.target_node_key);
@@ -302,7 +450,7 @@ function buildVisibleGraph(payload: GraphNeighborhoodResponse, edgeTypeFilter: s
     edgeByKey,
     visibleNodes,
     visibleEdges,
-    reagraphNodes: visibleNodes.map((node) => toReagraphNode(node, payload.center_node.node_key)),
+    reagraphNodes: visibleNodes.map((node) => toReagraphNode(node, graph.centerNode.node_key)),
     reagraphEdges: visibleEdges.map(toReagraphEdge),
   };
 }
@@ -341,13 +489,17 @@ function toReagraphEdge(edge: GraphEdge): ReagraphEdge {
 function Inspector({
   detailEdgeKey,
   edge,
+  expansion,
   node,
+  onExpandNode,
   payload,
   visibleEdges,
 }: {
   detailEdgeKey: string | null;
   edge: GraphEdge | null;
+  expansion?: NodeExpansionState;
   node: GraphNode | null;
+  onExpandNode: (node: GraphNode) => void;
   payload: GraphNeighborhoodResponse;
   visibleEdges: GraphEdge[];
 }) {
@@ -371,16 +523,29 @@ function Inspector({
 
   return (
     <NodeInspector
+      expansion={expansion}
       node={node ?? payload.center_node}
+      onExpandNode={onExpandNode}
       visibleEdges={visibleEdges}
     />
   );
 }
 
-function NodeInspector({ node, visibleEdges }: { node: GraphNode; visibleEdges: GraphEdge[] }) {
+function NodeInspector({
+  expansion,
+  node,
+  onExpandNode,
+  visibleEdges,
+}: {
+  expansion?: NodeExpansionState;
+  node: GraphNode;
+  onExpandNode: (node: GraphNode) => void;
+  visibleEdges: GraphEdge[];
+}) {
   const connectedEdges = visibleEdges.filter(
     (edge) => edge.source_node_key === node.node_key || edge.target_node_key === node.node_key,
   );
+  const expansionState = expansion ?? emptyExpansionState();
 
   return (
     <section className="rounded-md border border-taurus-outline bg-taurus-shell p-4">
@@ -398,6 +563,39 @@ function NodeInspector({ node, visibleEdges }: { node: GraphNode; visibleEdges: 
         <KeyValue label="Visible edges" value={formatNumber(connectedEdges.length)} />
         <KeyValue label="Created" value={formatTimestamp(node.created_at)} />
         <KeyValue label="Updated" value={formatTimestamp(node.updated_at)} />
+      </div>
+      <div className="mt-5 border-t border-taurus-outline pt-4">
+        <button
+          aria-label={expansionState.expanded ? "Refresh neighborhood" : "Expand neighborhood"}
+          className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-taurus-primary bg-sky-400/10 px-3 py-2 text-sm font-semibold text-taurus-text transition hover:bg-sky-400/15 disabled:opacity-50"
+          disabled={expansionState.isLoading}
+          onClick={() => onExpandNode(node)}
+          type="button"
+        >
+          <Network aria-hidden="true" className="h-4 w-4" />
+          {expansionState.isLoading
+            ? "Expanding..."
+            : expansionState.expanded
+              ? "Refresh neighborhood"
+              : "Expand neighborhood"}
+        </button>
+        {expansionState.error && (
+          <div className="mt-3">
+            <ErrorState message={expansionState.error} />
+          </div>
+        )}
+        {expansionState.expanded && !expansionState.error && (
+          <div className="mt-4 grid gap-3 text-sm">
+            <KeyValue label="Loaded edges" value={formatNumber(expansionState.returnedEdges)} />
+            <KeyValue label="Total matching" value={formatNumber(expansionState.totalEdges)} />
+            {expansionState.truncated && (
+              <div className="rounded-md border border-amber-300/40 bg-amber-300/10 p-3 text-xs font-medium text-amber-100">
+                Returned {formatNumber(expansionState.returnedEdges)} of{" "}
+                {formatNumber(expansionState.totalEdges)} matching edges for this node.
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </section>
   );

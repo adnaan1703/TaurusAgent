@@ -4,8 +4,8 @@ Last updated: 2026-06-22
 
 ## Current Status
 
-- Current milestone: M72 Incremental Node Expansion.
-- Last completed milestone: M71 Reagraph Explorer Shell.
+- Current milestone: M73 Regression, Documentation, and Visual QA.
+- Last completed milestone: M72 Incremental Node Expansion.
 - Planning completed: M70-M73 graph explorer sequence.
 - Implementation state: M70 added the additive `/graph/neighborhood`
   API/client contract, counted arbitrary-node repository support,
@@ -14,8 +14,11 @@ Last updated: 2026-06-22
   explorer shell at `/graph/company/:symbol`, using the neighborhood client
   helper, active plus candidate defaults, rejected opt-in, client-side edge-type
   filtering, camera controls, refresh, node selection, and edge evidence/stats
-  inspection.
-- Next recommended milestone: M72.
+  inspection. M72 added explicit selected-node one-hop expansion through the
+  node inspector, duplicate-free local graph-state merging, per-node
+  loading/error/truncation state, and reset behavior for refreshed initial
+  neighborhoods.
+- Next recommended milestone: M73.
 
 ## Required Reading
 

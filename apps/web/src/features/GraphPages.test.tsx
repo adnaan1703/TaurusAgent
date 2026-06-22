@@ -191,6 +191,40 @@ const activeEdge = {
   source_row_hash: "row-active",
 };
 
+const riskNode = {
+  id: 4,
+  node_key: "risk:digital-demand",
+  node_type: "risk",
+  display_name: "Digital Demand Risk",
+  symbol: null,
+  isin: null,
+  metadata: { fixture: true },
+  created_at: "2026-05-27T09:00:00Z",
+  updated_at: "2026-05-27T09:00:00Z",
+};
+
+const sectorRiskEdge = {
+  ...candidateEdge,
+  id: 4,
+  edge_key: "ge-active-it-services-digital-risk",
+  source_node_id: 3,
+  source_node_key: "industry:it-services",
+  source_display_name: "IT Services",
+  target_node_id: 4,
+  target_node_key: "risk:digital-demand",
+  target_display_name: "Digital Demand Risk",
+  edge_type: "sector_risk",
+  expected_sign: "negative",
+  strength: "0.65",
+  evidence_type: "risk_mapping",
+  confidence: "0.75",
+  provenance_type: "derived",
+  mechanism: "IT services demand is sensitive to digital transformation budgets.",
+  tradability_relevance: "risk_context",
+  status: "active",
+  source_row_hash: "row-sector-risk",
+};
+
 const companyPayload = {
   symbol: "INFY",
   center_node: {
@@ -251,6 +285,16 @@ const neighborhoodPayload = {
   limit: 1000,
   total_edges: 2,
   truncated: false,
+};
+
+const industryExpansionPayload = {
+  center_node: companyPayload.nodes[2],
+  nodes: [companyPayload.nodes[2], riskNode],
+  edges: [activeEdge, sectorRiskEdge],
+  counts: { nodes: 2, edges: 2, active_edges: 2 },
+  limit: 1000,
+  total_edges: 1200,
+  truncated: true,
 };
 
 const edgeDetailPayload = {
@@ -378,6 +422,55 @@ describe("GraphPages", () => {
     );
   });
 
+  it("expands selected graph nodes only through the inspector action", async () => {
+    const user = userEvent.setup();
+    stubGraphFetch({ expansionNeighborhood: industryExpansionPayload });
+
+    renderRoute("/graph/company/INFY");
+
+    expect(await screen.findByLabelText("Graph explorer canvas")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "IT Services" }));
+
+    expect(screen.getByText("industry:it-services")).toBeInTheDocument();
+    expect(
+      fetchUrls().some((url) => url.includes("node_key=industry%3Ait-services")),
+    ).toBe(false);
+
+    await user.click(screen.getByRole("button", { name: "Expand neighborhood" }));
+
+    await waitFor(() =>
+      expect(fetchUrls()).toContainEqual(
+        expect.stringContaining("node_key=industry%3Ait-services"),
+      ),
+    );
+    expect(
+      await screen.findByRole("button", { name: "Digital Demand Risk" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Returned 2 of 1,200 matching edges for this node."),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Refresh neighborhood" }));
+    await waitFor(() =>
+      expect(
+        fetchUrls().filter((url) => url.includes("node_key=industry%3Ait-services")),
+      ).toHaveLength(2),
+    );
+    expect(screen.getAllByRole("button", { name: "Digital Demand Risk" })).toHaveLength(1);
+    expect(screen.getAllByRole("button", { name: "Select edge Sector Risk" })).toHaveLength(1);
+
+    const companyNeighborhoodCalls = fetchUrls().filter((url) =>
+      url.includes("node_key=company%3AINFY"),
+    ).length;
+    await user.click(screen.getByRole("button", { name: "Rejected" }));
+    await waitFor(() =>
+      expect(
+        fetchUrls().filter((url) => url.includes("node_key=company%3AINFY")),
+      ).toHaveLength(companyNeighborhoodCalls + 1),
+    );
+    expect(screen.queryByRole("button", { name: "Digital Demand Risk" })).not.toBeInTheDocument();
+  });
+
   it("posts candidate review actions using the approved API shape", async () => {
     const user = userEvent.setup();
     const reviewedDetail = {
@@ -448,6 +541,7 @@ function renderRoute(initialEntry: string) {
 function stubGraphFetch({
   graphOverview = graphOverviewPayload,
   neighborhood = neighborhoodPayload,
+  expansionNeighborhood = industryExpansionPayload,
   candidateEdges = { total_returned: 1, edges: [candidateEdge] },
   signals = { total_returned: 1, signals: [signalPayload] },
   bullishCandidates = { total_returned: 1, candidates: [signalPayload] },
@@ -455,6 +549,7 @@ function stubGraphFetch({
 }: {
   graphOverview?: object;
   neighborhood?: object;
+  expansionNeighborhood?: object;
   candidateEdges?: object;
   signals?: object;
   bullishCandidates?: object;
@@ -478,6 +573,10 @@ function stubGraphFetch({
         return jsonResponse(companyPayload);
       }
       if (url.includes("/graph/neighborhood")) {
+        const parsedUrl = new URL(url, "http://localhost");
+        if (parsedUrl.searchParams.get("node_key") === "industry:it-services") {
+          return jsonResponse(expansionNeighborhood);
+        }
         return jsonResponse(neighborhood);
       }
       if (url.includes("/graph/candidate-edges")) {

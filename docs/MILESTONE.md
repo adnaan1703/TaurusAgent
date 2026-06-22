@@ -139,8 +139,13 @@ removed during docs cleanup. Use Git history for detailed historical plans.
   renders a full main-content Reagraph workspace inside the Taurus shell using
   the M70 neighborhood client contract, active plus candidate defaults, rejected
   opt-in, client-side edge-type filtering, camera controls, refresh, node
-  inspection, and edge evidence/stats inspection. M72-M73 remain planned for
-  explicit node expansion and final regression/docs/visual QA.
+  inspection, and edge evidence/stats inspection.
+- M72 incremental node expansion work is complete: selected graph nodes now
+  expose an explicit one-hop expansion action, merge returned neighborhoods
+  into local graph state without duplicate nodes or edges, show per-node
+  loading/error/truncation state, and reset expansion state when initial
+  neighborhoods refresh. M73 remains planned for final regression, operator
+  docs, and visual QA.
 
 ## Standing Safety Rules
 
@@ -207,9 +212,10 @@ removed during docs cleanup. Use Git history for detailed historical plans.
 | M67 | Done | Added `TechnicalSignalService`, `TechnicalBacktestSignal`, and `TechnicalSignalResult` as DB-free shared technical-scoring foundations, exported them from `taurus_core.features`, and added focused parity tests for analyst-rule and SMA-spread behavior without runtime consumer wiring. |
 | M68 | Done | Routed `TechnicalAnalystAgent` and `GraphAwareScoreStrategy` through `TechnicalSignalService` while preserving technical analyst report metadata/source IDs/key points and graph-aware score, ranking, and signal payload behavior. |
 | M69 | Done | Completed final regression and documentation closeout for the shared technical signal service sequence, refreshed current architecture/deep-dive/money-management docs, confirmed no project-local approval cleanup was needed, and closed M66-M69 with no successor milestone. |
-| M70-M73 plan document | Done | Created the flat graph explorer plan covering the additive graph neighborhood API/client contract, Reagraph stock explorer shell, explicit one-hop node expansion, and final regression/docs/visual QA. Implementation is complete through M71; M72-M73 remain planned. |
+| M70-M73 plan document | Done | Created the flat graph explorer plan covering the additive graph neighborhood API/client contract, Reagraph stock explorer shell, explicit one-hop node expansion, and final regression/docs/visual QA. Implementation is complete through M72; M73 remains planned. |
 | M70 | Done | Added counted arbitrary-node graph neighborhood repository support, the read-only `/graph/neighborhood` API with active/candidate defaults and rejected opt-in, deterministic truncation metadata, React client/types, focused API/repository tests, and approval-rule cleanup inspection. |
 | M71 | Done | Replaced the static company SVG with a Reagraph-backed full main-content explorer shell, toolbar search/status/edge-type/camera/refresh controls, node and edge inspection, edge evidence/stats detail loading, focused JSDOM Reagraph tests, and approval-rule cleanup inspection. |
+| M72 | Done | Added explicit selected-node one-hop expansion in the Reagraph inspector, duplicate-free local node/edge merging, per-node expansion loading/error/truncation state, reset-on-refresh/filter behavior, focused React coverage, and approval-rule cleanup inspection. |
 
 ## Planned Graph Explorer Sequence
 
@@ -219,7 +225,7 @@ This planned sequence should be executed in order as separate milestone work.
 |---:|---|---|---|---|
 | 70 | M70 | Done | `docs/TAURUS_GRAPH_EXPLORER_PLAN.md` | Added the additive graph neighborhood API/client contract for arbitrary node expansion. |
 | 71 | M71 | Done | `docs/TAURUS_GRAPH_EXPLORER_PLAN.md` | Replaced the static company SVG with a Reagraph full main-content explorer shell. |
-| 72 | M72 | Planned | `docs/TAURUS_GRAPH_EXPLORER_PLAN.md` | Add explicit one-hop node expansion, graph-state merging, and truncation visibility. |
+| 72 | M72 | Done | `docs/TAURUS_GRAPH_EXPLORER_PLAN.md` | Added explicit one-hop node expansion, graph-state merging, and truncation visibility. |
 | 73 | M73 | Planned | `docs/TAURUS_GRAPH_EXPLORER_PLAN.md` | Run regression, update operator docs, perform visual QA, and close the sequence. |
 
 ## Completed Technical Signal Service Sequence
@@ -232,6 +238,25 @@ This completed sequence was executed in order as separate milestone work.
 | 67 | M67 | Done | `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md` | Add the DB-free shared `TechnicalSignalService` foundation without runtime wiring. |
 | 68 | M68 | Done | `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md` | Route `TechnicalAnalystAgent` and `GraphAwareScoreStrategy` through the shared service without behavior drift. |
 | 69 | M69 | Done | `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md` | Run final regression, refresh architecture/deep-dive docs for implemented behavior, and close the sequence. |
+
+### M72 Completion Summary
+
+- Assumptions made: M72 should stay React-only on top of the M70
+  `/graph/neighborhood` client helper; selected-node clicks should inspect only
+  while the node inspector owns expansion; refreshed initial neighborhoods,
+  including status-filter changes and manual refreshes, should clear local
+  expansion state rather than re-query every expanded node; repeated expansion
+  should be allowed as a refresh action while merging by node and edge keys;
+  graph overview, review, signals, scoring, analyst, risk, promotion, Neo4j
+  projection, and paper-trading behavior should remain unchanged; no
+  project-local approval cleanup was needed because the global rules file had
+  no entries after the `# END MY CUSTOM ADDITION` marker.
+- Mocks created: A focused M72 graph-neighborhood expansion fixture and fetch
+  branch in `GraphPages.test.tsx` covering an expanded industry node, a risk
+  neighbor, and truncation metadata.
+- Mocks used: Existing graph page fetch fixtures for overview, candidate edge,
+  signal, edge detail, profile, and UI overview responses, plus the existing
+  Reagraph JSDOM module mock and the new M72 expansion fixture.
 
 ### M71 Completion Summary
 
