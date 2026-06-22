@@ -112,6 +112,10 @@ removed during docs cleanup. Use Git history for detailed historical plans.
   feature-formula scoring, report clamping, confidence fallback, key points,
   and source IDs, plus current `GraphAwareScoreStrategy` SMA spread and
   weighted graph-aware combined score behavior.
+- M67 `TechnicalSignalService` foundation is complete: the new DB-free service
+  exposes immutable input/result types, behavior-preserving analyst-rule and
+  SMA-spread scoring profiles, package exports, and focused parity tests
+  without wiring runtime consumers yet.
 
 ## Standing Safety Rules
 
@@ -173,17 +177,30 @@ removed during docs cleanup. Use Git history for detailed historical plans.
 | M63 | Done | Removed the legacy min-edge-confidence setting from runtime config, `.env.example`, tests, and docs; graph auto-promotion now ignores imported edge confidence and relies on the opt-in flag plus sample-size, stability, residual-correlation, or lead-lag thresholds; manual graph review can promote low-confidence inferred candidates without stats while preserving provenance metadata. |
 | M64 | Done | Removed raw edge confidence and candidate status multipliers from graph analyst and graph backtest contribution scoring, retained raw edge confidence/provenance as contribution audit metadata only, and added regressions proving active-edge score invariance across CSV confidence values plus candidate exclusion from graph analyst, graph backtests, and graph risk until promotion. |
 | M65 | Done | Ran final graph provenance closeout against the bundled TaurusData V2 outputs, verified edge-like CSV headers and populated strength/provenance fields, refreshed operator/developer docs to distinguish `provenance_type`, confidence metadata, `evidence_type`, and review `status`, documented the profile-JSON-versus-flattened-CSV contract, and closed the M62-M65 sequence. |
-| M66-M69 plan document | Done | Created the flat shared `TechnicalSignalService` plan covering baseline parity tests, service foundation, core analyst/graph-aware wiring, and final regression/docs. Implementation is complete through M66; M67-M69 remain planned. |
+| M66-M69 plan document | Done | Created the flat shared `TechnicalSignalService` plan covering baseline parity tests, service foundation, core analyst/graph-aware wiring, and final regression/docs. Implementation is complete through M67; M68-M69 remain planned. |
 | M66 | Done | Added baseline characterization tests for current technical analyst and graph-aware strategy scoring, covering backtest signal override, feature formula output, report score clamping, confidence fallback, key points, source IDs, missing/valid SMA technical scores, and weighted graph-aware combined scoring. |
+| M67 | Done | Added `TechnicalSignalService`, `TechnicalBacktestSignal`, and `TechnicalSignalResult` as DB-free shared technical-scoring foundations, exported them from `taurus_core.features`, and added focused parity tests for analyst-rule and SMA-spread behavior without runtime consumer wiring. |
 
 ## Planned Milestone Tracker
 
 | Order | Milestone | Status | Plan | Purpose |
 |---:|---|---|---|---|
 | 66 | M66 | Done | `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md` | Add baseline characterization tests for current technical analyst and graph-aware strategy scoring. |
-| 67 | M67 | Planned | `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md` | Add the DB-free shared `TechnicalSignalService` foundation without runtime wiring. |
+| 67 | M67 | Done | `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md` | Add the DB-free shared `TechnicalSignalService` foundation without runtime wiring. |
 | 68 | M68 | Planned | `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md` | Route `TechnicalAnalystAgent` and `GraphAwareScoreStrategy` through the shared service without behavior drift. |
 | 69 | M69 | Planned | `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md` | Run final regression, refresh architecture/deep-dive docs for implemented behavior, and close the sequence. |
+
+### M67 Completion Summary
+
+- Assumptions made: M67 should introduce the shared service and exports only;
+  `TechnicalAnalystAgent`, `GraphAwareScoreStrategy`, runtime artifact
+  payloads, database schema, API contracts, React UI, strategy thresholds, and
+  paper-run behavior remain unchanged until M68 wiring; the analyst-rule
+  service accepts an optional symbol for the no-snapshot fallback wording
+  because `FeatureSnapshot | None` alone cannot preserve the current symbolized
+  fallback message.
+- Mocks created: None.
+- Mocks used: None.
 
 ### M66 Completion Summary
 

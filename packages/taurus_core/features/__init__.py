@@ -3,5 +3,17 @@ from taurus_core.features.store import (
     FeatureValue,
     TechnicalFeatureService,
 )
+from taurus_core.features.technical_signal import (
+    TechnicalBacktestSignal,
+    TechnicalSignalResult,
+    TechnicalSignalService,
+)
 
-__all__ = ["FeatureSnapshot", "FeatureValue", "TechnicalFeatureService"]
+__all__ = [
+    "FeatureSnapshot",
+    "FeatureValue",
+    "TechnicalBacktestSignal",
+    "TechnicalFeatureService",
+    "TechnicalSignalResult",
+    "TechnicalSignalService",
+]
