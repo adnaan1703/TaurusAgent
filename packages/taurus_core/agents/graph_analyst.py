@@ -268,16 +268,15 @@ class GraphAnalystAgent(BaseAnalystAgent):
         related_momentum_20d: Decimal,
         relation_sign: Decimal,
     ) -> _GraphContribution:
-        confidence = _clamp_decimal(Decimal(edge.confidence), ZERO, ONE)
+        raw_edge_confidence = _clamp_decimal(Decimal(edge.confidence), ZERO, ONE)
         strength = _clamp_decimal(edge.strength or Decimal("0.50"), ZERO, ONE)
-        status_weight = ONE if edge.status == "active" else Decimal("0.65")
         stats_weight = self._stats_weight(stat)
         momentum_signal = _clamp_decimal(
             related_momentum_20d / Decimal("0.10"),
             Decimal("-1"),
             ONE,
         )
-        weight = _report_decimal(confidence * strength * status_weight * stats_weight)
+        weight = _report_decimal(strength * stats_weight)
         score_contribution = _bounded_report_decimal(relation_sign * momentum_signal * weight)
         direction = _direction_from_score(score_contribution)
         explanation = (
@@ -289,6 +288,7 @@ class GraphAnalystAgent(BaseAnalystAgent):
             "edge_key": edge.edge_key,
             "edge_status": edge.status,
             "edge_type": edge.edge_type,
+            "provenance_type": edge.provenance_type,
             "expected_sign": edge.expected_sign,
             "related_node_key": related_node.node_key,
             "related_symbol": related_node.symbol,
@@ -301,10 +301,9 @@ class GraphAnalystAgent(BaseAnalystAgent):
             "residual_correlation": _decimal_text(stat.residual_correlation),
             "lead_lag_score": _decimal_text(stat.lead_lag_score),
             "stability_score": _decimal_text(stat.stability_score),
-            "confidence": str(_report_decimal(confidence)),
+            "raw_edge_confidence_metadata": str(_report_decimal(raw_edge_confidence)),
             "strength": str(_report_decimal(strength)),
             "stats_weight": str(_report_decimal(stats_weight)),
-            "status_weight": str(_report_decimal(status_weight)),
             "model_version": GRAPH_ANALYST_MODEL_VERSION,
         }
         return _GraphContribution(

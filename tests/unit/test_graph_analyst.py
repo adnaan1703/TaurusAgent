@@ -83,7 +83,11 @@ def test_graph_analyst_explains_bullish_positive_peer_momentum(tmp_path: Path) -
     assert len(contributions) == 1
     assert contributions[0].direction == "bullish"
     assert contributions[0].score_contribution == report.score
-    assert contributions[0].contribution_metadata["related_symbol"] == "BBB"
+    metadata = contributions[0].contribution_metadata
+    assert metadata["related_symbol"] == "BBB"
+    assert metadata["provenance_type"] == "derived"
+    assert metadata["raw_edge_confidence_metadata"] == "0.9000"
+    assert "confidence" not in metadata
 
 
 def test_graph_analyst_explains_bearish_negative_dependency_signal(tmp_path: Path) -> None:
@@ -123,13 +127,14 @@ def test_graph_analyst_explains_bearish_negative_dependency_signal(tmp_path: Pat
     assert contributions[0].contribution_metadata["expected_sign"] == "negative"
 
 
-def test_graph_analyst_ignores_candidate_edges_by_default(tmp_path: Path) -> None:
+def test_graph_analyst_ignores_inferred_candidate_edges_by_default(tmp_path: Path) -> None:
     settings = _settings_for_temp_db(tmp_path)
     run_migrations(settings)
     _seed_graph_fixture(
         settings,
         edge_key="peer:AAA:BBB",
         expected_sign="positive",
+        provenance_type="inferred",
         status="candidate",
     )
 
@@ -151,6 +156,39 @@ def test_graph_analyst_ignores_candidate_edges_by_default(tmp_path: Path) -> Non
     assert report.stance == "neutral"
     assert report.score == Decimal("0.0000")
     assert contribution_count == 0
+
+
+def test_graph_analyst_contribution_ignores_raw_edge_confidence(tmp_path: Path) -> None:
+    settings = _settings_for_temp_db(tmp_path)
+    run_migrations(settings)
+    _seed_graph_fixture(
+        settings,
+        edge_key="peer:AAA:BBB",
+        expected_sign="positive",
+        confidence=Decimal("0.1000"),
+    )
+
+    low_confidence_contribution = _run_graph_contribution(
+        settings,
+        run_id="graph-low-edge-confidence",
+    )
+    _seed_graph_fixture(
+        settings,
+        edge_key="peer:AAA:BBB",
+        expected_sign="positive",
+        confidence=Decimal("0.9500"),
+    )
+    high_confidence_contribution = _run_graph_contribution(
+        settings,
+        run_id="graph-high-edge-confidence",
+    )
+
+    assert low_confidence_contribution["score_contribution"] == high_confidence_contribution[
+        "score_contribution"
+    ]
+    assert low_confidence_contribution["weight"] == high_confidence_contribution["weight"]
+    assert low_confidence_contribution["metadata"]["raw_edge_confidence_metadata"] == "0.1000"
+    assert high_confidence_contribution["metadata"]["raw_edge_confidence_metadata"] == "0.9500"
 
 
 def test_graph_analyst_does_not_let_llm_failure_override_deterministic_output(
@@ -208,10 +246,12 @@ def _seed_graph_fixture(
     edge_key: str,
     expected_sign: str,
     edge_type: str = "peer_momentum",
+    provenance_type: str = "derived",
     direction: str = "bidirectional",
     source_symbol: str = "AAA",
     target_symbol: str = "BBB",
     status: str = "active",
+    confidence: Decimal = Decimal("0.90"),
 ) -> None:
     session_factory = build_session_factory(settings)
     with session_factory() as session:
@@ -232,11 +272,11 @@ def _seed_graph_fixture(
             source_node_key=f"company:{source_symbol}",
             target_node_key=f"company:{target_symbol}",
             edge_type=edge_type,
-            provenance_type="derived",
+            provenance_type=provenance_type,
             direction=direction,
             expected_sign=expected_sign,
             strength=Decimal("0.80"),
-            confidence=Decimal("0.90"),
+            confidence=confidence,
             evidence_type="synthetic",
             mechanism="Synthetic graph analyst fixture.",
             tradability_relevance="signal",
@@ -256,6 +296,35 @@ def _seed_graph_fixture(
         candle_repo = CandleRepository(session)
         candle_repo.upsert(_candles_with_constant_return("BBB", Decimal("0.012")))
         session.commit()
+
+
+def _run_graph_contribution(settings: Settings, *, run_id: str) -> dict[str, object]:
+    session_factory = build_session_factory(settings)
+    with session_factory() as session:
+        run_analyst_suite(
+            session,
+            symbol="AAA",
+            run_id=run_id,
+            llm_provider=FakeLLMProvider(),
+            enabled_analysts=("graph",),
+        )
+
+    with session_factory() as session:
+        graph_repo = GraphRepository(session)
+        signals = [
+            signal
+            for signal in graph_repo.list_signals(symbol="AAA", source_agent="GraphAnalystAgent")
+            if signal.signal_metadata.get("run_id") == run_id
+        ]
+        assert len(signals) == 1
+        contributions = graph_repo.list_signal_contributions(signal_id=signals[0].signal_id)
+        assert len(contributions) == 1
+        contribution = contributions[0]
+        return {
+            "score_contribution": contribution.score_contribution,
+            "weight": contribution.weight,
+            "metadata": dict(contribution.contribution_metadata),
+        }
 
 
 def _candles_with_constant_return(symbol: str, daily_return: Decimal) -> list[DailyCandle]:

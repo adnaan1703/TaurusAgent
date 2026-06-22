@@ -288,17 +288,16 @@ def _score_contribution(
     stat: GraphEdgeStatsModel,
     evidence: tuple[GraphEdgeEvidenceModel, ...],
 ) -> GraphBacktestContribution:
-    confidence = _clamp_decimal(Decimal(edge.confidence), ZERO, ONE)
+    raw_edge_confidence = _clamp_decimal(Decimal(edge.confidence), ZERO, ONE)
     strength = _clamp_decimal(edge.strength or Decimal("0.50"), ZERO, ONE)
-    status_weight = ONE if edge.status == "active" else Decimal("0.65")
     stats_weight = _stats_weight(stat)
     evidence_weight = _evidence_weight(evidence)
     directional_score = _directional_score(edge=edge, stat=stat)
     score = _bounded_score(
-        directional_score * confidence * strength * status_weight * stats_weight * evidence_weight
+        directional_score * strength * stats_weight * evidence_weight
     )
     contribution_confidence = _score_decimal(
-        _clamp_decimal(confidence * stats_weight * evidence_weight, ZERO, ONE)
+        _clamp_decimal(stats_weight * evidence_weight, ZERO, ONE)
     )
     return GraphBacktestContribution(
         edge_key=edge.edge_key,
@@ -312,6 +311,8 @@ def _score_contribution(
         confidence=contribution_confidence,
         direction=_direction_from_score(score),
         metadata={
+            "provenance_type": edge.provenance_type,
+            "raw_edge_confidence_metadata": str(_score_decimal(raw_edge_confidence)),
             "expected_sign": edge.expected_sign,
             "sample_size": stat.sample_size,
             "raw_correlation": _decimal_text(stat.raw_correlation),
@@ -319,7 +320,6 @@ def _score_contribution(
             "lead_lag_score": _decimal_text(stat.lead_lag_score),
             "stability_score": _decimal_text(stat.stability_score),
             "stats_weight": str(_score_decimal(stats_weight)),
-            "status_weight": str(_score_decimal(status_weight)),
             "evidence_weight": str(_score_decimal(evidence_weight)),
         },
     )

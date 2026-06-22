@@ -130,6 +130,32 @@ def test_graph_risk_reduces_correlated_cluster_only_when_stats_exist(tmp_path: P
     assert "edge peer:AAA:BBB" in with_stats_rule.details
 
 
+def test_graph_risk_excludes_inferred_candidate_edges_until_promoted(
+    tmp_path: Path,
+) -> None:
+    settings = _settings_for_temp_db(
+        tmp_path,
+        taurus_graph_max_product_group_exposure_pct=Decimal("7.0000"),
+    )
+    run_migrations(settings)
+    _seed_product_group_fixture(settings, status="candidate")
+
+    candidate_result = _evaluate(settings, current_exposures={"BBB": Decimal("5.0000")})
+    candidate_rule = _rule(candidate_result, "graph_product_group_concentration")
+    _seed_product_group_fixture(settings, status="active")
+    promoted_result = _evaluate(settings, current_exposures={"BBB": Decimal("5.0000")})
+    promoted_rule = _rule(promoted_result, "graph_product_group_concentration")
+
+    assert candidate_result.status == "APPROVED"
+    assert candidate_result.approved_position_pct_nav == Decimal("5.0000")
+    assert candidate_rule.status == "passed"
+    assert "No graph product group exposure metadata" in candidate_rule.details
+    assert promoted_result.status == "APPROVED_WITH_REDUCTION"
+    assert promoted_result.approved_position_pct_nav == Decimal("2.0000")
+    assert promoted_rule.status == "reduced"
+    assert "Cloud Services" in promoted_rule.details
+
+
 def _settings_for_temp_db(tmp_path: Path, **overrides: object) -> Settings:
     values = {
         "taurus_graph_risk_enabled": True,
@@ -282,6 +308,36 @@ def _seed_static_graph_fixture(settings: Settings) -> None:
                 confidence=Decimal("0.9000"),
                 status="active",
                 metadata={"risk_category": "Demand Cyclicality"},
+            )
+        session.commit()
+
+
+def _seed_product_group_fixture(settings: Settings, *, status: str) -> None:
+    session_factory = build_session_factory(settings)
+    with session_factory() as session:
+        _seed_instruments(session)
+        graph_repo = GraphRepository(session)
+        for symbol in ("AAA", "BBB"):
+            graph_repo.upsert_node(
+                node_key=f"company:{symbol}",
+                node_type="company",
+                display_name=f"{symbol} Limited",
+                symbol=symbol,
+            )
+        graph_repo.upsert_node(
+            node_key="product_group:cloud_services",
+            node_type="product_group",
+            display_name="Cloud Services",
+        )
+        for symbol in ("AAA", "BBB"):
+            graph_repo.upsert_edge(
+                edge_key=f"product:{symbol}:cloud_services",
+                source_node_key=f"company:{symbol}",
+                target_node_key="product_group:cloud_services",
+                edge_type="offers_product",
+                provenance_type="inferred",
+                confidence=Decimal("0.0500"),
+                status=status,
             )
         session.commit()
 

@@ -56,6 +56,54 @@ def test_graph_signal_loader_excludes_future_edges_and_evidence(tmp_path: Path) 
     assert after_available.contributions[0].evidence_count == 1
 
 
+def test_graph_signal_loader_ignores_raw_edge_confidence_for_contributions(
+    tmp_path: Path,
+) -> None:
+    settings = _settings_for_temp_db(tmp_path)
+    run_migrations(settings)
+    _seed_graph_fixture(settings, confidence=Decimal("0.1000"))
+
+    low_confidence_signal = _load_graph_signal(settings, as_of_date=date(2024, 1, 10))
+    _seed_graph_fixture(settings, confidence=Decimal("0.9500"))
+    high_confidence_signal = _load_graph_signal(settings, as_of_date=date(2024, 1, 10))
+
+    assert low_confidence_signal is not None
+    assert high_confidence_signal is not None
+    low_contribution = low_confidence_signal.contributions[0]
+    high_contribution = high_confidence_signal.contributions[0]
+    assert low_confidence_signal.score == high_confidence_signal.score
+    assert low_confidence_signal.confidence == high_confidence_signal.confidence
+    assert low_contribution.score == high_contribution.score
+    assert low_contribution.confidence == high_contribution.confidence
+    assert low_contribution.metadata["raw_edge_confidence_metadata"] == "0.10000000"
+    assert high_contribution.metadata["raw_edge_confidence_metadata"] == "0.95000000"
+
+
+def test_graph_signal_loader_excludes_inferred_candidates_until_promoted(
+    tmp_path: Path,
+) -> None:
+    settings = _settings_for_temp_db(tmp_path)
+    run_migrations(settings)
+    _seed_graph_fixture(
+        settings,
+        provenance_type="inferred",
+        status="candidate",
+    )
+
+    candidate_signal = _load_graph_signal(settings, as_of_date=date(2024, 1, 10))
+    _seed_graph_fixture(
+        settings,
+        provenance_type="inferred",
+        status="active",
+    )
+    promoted_signal = _load_graph_signal(settings, as_of_date=date(2024, 1, 10))
+
+    assert candidate_signal is None
+    assert promoted_signal is not None
+    assert promoted_signal.contributions[0].edge_status == "active"
+    assert promoted_signal.contributions[0].metadata["provenance_type"] == "inferred"
+
+
 def test_graph_aware_strategy_combines_technical_and_graph_scores() -> None:
     strategy = GraphAwareScoreStrategy(
         name="graph_aware_test",
@@ -153,12 +201,22 @@ def _settings_for_temp_db(tmp_path: Path) -> Settings:
     return Settings()
 
 
+def _load_graph_signal(settings: Settings, *, as_of_date: date) -> GraphBacktestSignal | None:
+    session_factory = build_session_factory(settings)
+    with session_factory() as session:
+        loader = GraphBacktestSignalLoader(session)
+        return loader.load_symbol(as_of_date=as_of_date, symbol="AAA")
+
+
 def _seed_graph_fixture(
     settings: Settings,
     *,
     valid_from: date | None = date(2024, 1, 1),
     evidence_date: date | None = date(2024, 1, 3),
     include_future_stat: bool = True,
+    provenance_type: str = "derived",
+    status: str = "active",
+    confidence: Decimal = Decimal("0.9000"),
 ) -> None:
     session_factory = build_session_factory(settings)
     with session_factory() as session:
@@ -170,12 +228,12 @@ def _seed_graph_fixture(
             source_node_key="company:AAA",
             target_node_key="company:BBB",
             edge_type="peer_momentum",
-            provenance_type="derived",
+            provenance_type=provenance_type,
             direction="bidirectional",
             expected_sign="positive",
             strength=Decimal("0.8000"),
-            confidence=Decimal("0.9000"),
-            status="active",
+            confidence=confidence,
+            status=status,
             valid_from=valid_from,
         )
         if evidence_date is not None:
