@@ -18,8 +18,10 @@ redraws one terminal line instead of printing a line for every progress event:
 
 - `make import-kite-candles`: current symbol, imported candles, cumulative
   candle count, percent, elapsed time, and ETA.
-- `make compute-graph-stats`: current edge/window, source and target symbols,
-  validated/insufficient/promoted counts, percent, elapsed time, and ETA.
+- `make import-taurus-graph`: current TaurusData CSV file, rows seen/imported,
+  cumulative node/edge/evidence upserts, percent, elapsed time, and ETA.
+- `make compute-graph-stats`: source and target symbols, stats window,
+  percent, elapsed time, and ETA.
 - `make paper-loop-kite`: iteration, run ID, setup stage, analyzed symbols,
   current symbol pipeline stage, succeeded/failed counts, elapsed time, and
   approximate ETA.

@@ -25,6 +25,7 @@ from taurus_core.observability.metrics import (
     record_graph_import_summary,
     record_graph_job_failure,
 )
+from taurus_core.ops.progress import ProgressEventCallback, emit_progress
 
 TAURUS_GRAPH_CSV_FILES: tuple[str, ...] = (
     "company_industry_classifications.csv",
@@ -85,8 +86,14 @@ class TaurusGraphImportSummary:
 def import_taurus_graph_csvs(
     session: Session,
     data_dir: str | Path = "configs/taurus_data",
+    *,
+    progress: ProgressEventCallback | None = None,
 ) -> TaurusGraphImportSummary:
-    importer = _TaurusGraphCSVImporter(session=session, data_dir=Path(data_dir).expanduser())
+    importer = _TaurusGraphCSVImporter(
+        session=session,
+        data_dir=Path(data_dir).expanduser(),
+        progress=progress,
+    )
     try:
         summary = importer.import_all()
     except Exception as exc:
@@ -97,9 +104,16 @@ def import_taurus_graph_csvs(
 
 
 class _TaurusGraphCSVImporter:
-    def __init__(self, *, session: Session, data_dir: Path) -> None:
+    def __init__(
+        self,
+        *,
+        session: Session,
+        data_dir: Path,
+        progress: ProgressEventCallback | None = None,
+    ) -> None:
         self.session = session
         self.data_dir = data_dir
+        self.progress = progress
         self.graph_repo = GraphRepository(session)
         self.instrument_repo = InstrumentRepository(session)
         self.files_imported: list[str] = []
@@ -129,11 +143,24 @@ class _TaurusGraphCSVImporter:
             "company_risks.csv": self._import_company_risk,
             "source_evidence.csv": self._import_source_evidence,
         }
-        for filename in TAURUS_GRAPH_CSV_FILES:
-            self._import_file(filename, importers[filename])
+        total_files = len(TAURUS_GRAPH_CSV_FILES)
+        emit_progress(
+            self.progress,
+            "graph.import.started",
+            data_dir=str(self.data_dir),
+            file_count=total_files,
+            total=total_files,
+        )
+        for current, filename in enumerate(TAURUS_GRAPH_CSV_FILES, start=1):
+            self._import_file(
+                filename,
+                importers[filename],
+                current=current,
+                total=total_files,
+            )
 
         self.session.commit()
-        return TaurusGraphImportSummary(
+        summary = TaurusGraphImportSummary(
             data_dir=str(self.data_dir),
             files_imported=tuple(self.files_imported),
             files_missing=tuple(self.files_missing),
@@ -147,18 +174,54 @@ class _TaurusGraphCSVImporter:
             warnings=tuple(self.warnings),
             overview_counts=self.graph_repo.overview_counts(),
         )
+        emit_progress(
+            self.progress,
+            "graph.import.completed",
+            total=total_files,
+            files_imported=len(summary.files_imported),
+            files_missing=len(summary.files_missing),
+            rows_seen=sum(summary.rows_seen.values()),
+            rows_imported=sum(summary.rows_imported.values()),
+            nodes_upserted=summary.nodes_upserted,
+            edges_upserted=summary.edges_upserted,
+            evidence_upserted=summary.evidence_upserted,
+        )
+        return summary
 
     def _import_file(
         self,
         filename: str,
         row_importer: Callable[[dict[str, str], str, str], bool],
+        *,
+        current: int,
+        total: int,
     ) -> None:
         path = self.data_dir / filename
+        emit_progress(
+            self.progress,
+            "graph.import.file_started",
+            current=current,
+            total=total,
+            source_file=filename,
+        )
         if not path.exists():
             self.files_missing.append(filename)
             self.warnings.append(f"Optional TaurusData graph CSV missing: {filename}")
             self.rows_seen[filename] = 0
             self.rows_imported[filename] = 0
+            emit_progress(
+                self.progress,
+                "graph.import.file_completed",
+                current=current,
+                total=total,
+                source_file=filename,
+                status="missing",
+                rows_seen=0,
+                rows_imported=0,
+                nodes_upserted=self.nodes_upserted,
+                edges_upserted=self.edges_upserted,
+                evidence_upserted=self.evidence_upserted,
+            )
             return
         if not path.is_file():
             raise TaurusGraphImportError(f"TaurusData graph CSV path is not a file: {path}")
@@ -176,6 +239,19 @@ class _TaurusGraphCSVImporter:
         self.files_imported.append(filename)
         self.rows_seen[filename] = seen
         self.rows_imported[filename] = imported
+        emit_progress(
+            self.progress,
+            "graph.import.file_completed",
+            current=current,
+            total=total,
+            source_file=filename,
+            status="imported",
+            rows_seen=seen,
+            rows_imported=imported,
+            nodes_upserted=self.nodes_upserted,
+            edges_upserted=self.edges_upserted,
+            evidence_upserted=self.evidence_upserted,
+        )
 
     def _import_industry_classification(
         self,

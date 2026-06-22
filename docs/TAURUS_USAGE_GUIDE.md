@@ -130,8 +130,9 @@ in ignored `.env`.
 - `make import-kite-candles`: imports Kite daily candles.
 - `make kite-ltp-smoke`: stores latest Kite quote snapshots.
 
-`make import-kite-candles`, `make compute-graph-stats`, and
-`make paper-loop-kite` show terminal progress on stderr. The default
+`make import-kite-candles`, `make import-taurus-graph`,
+`make compute-graph-stats`, and `make paper-loop-kite` show terminal progress
+on stderr. The default
 `TAURUS_PROGRESS=auto` uses Rich in interactive terminals and a plain single-line
 redraw fallback in CI/non-TTY streams. Use `TAURUS_PROGRESS=false` to disable
 terminal progress. After paper-loop progress completes, Taurus always prints a

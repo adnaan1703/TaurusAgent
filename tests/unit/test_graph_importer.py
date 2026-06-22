@@ -95,6 +95,44 @@ test,company:INFY,company,INFY,Infosys Limited,company:TCS,company,TCS,Tata Cons
     assert summary.overview_counts["candidate_edges"] == 0
 
 
+def test_taurus_graph_importer_emits_file_progress_events(tmp_path: Path) -> None:
+    data_dir = _write_graph_fixture(tmp_path / "taurus_data")
+    settings = Settings()
+    run_migrations(settings)
+    session_factory = build_session_factory(settings)
+    events: list[tuple[str, dict[str, object]]] = []
+
+    with session_factory() as session:
+        summary = import_taurus_graph_csvs(
+            session,
+            data_dir=data_dir,
+            progress=lambda event, payload: events.append((event, dict(payload))),
+        )
+
+    event_names = [event for event, _payload in events]
+    company_edges_completed = next(
+        payload
+        for event, payload in events
+        if event == "graph.import.file_completed"
+        and payload["source_file"] == "company_edges.csv"
+    )
+    final = events[-1][1]
+
+    assert event_names[0] == "graph.import.started"
+    assert event_names.count("graph.import.file_started") == len(TAURUS_GRAPH_CSV_FILES)
+    assert event_names.count("graph.import.file_completed") == len(TAURUS_GRAPH_CSV_FILES)
+    assert events[-1][0] == "graph.import.completed"
+    assert company_edges_completed["status"] == "imported"
+    assert company_edges_completed["rows_seen"] == 1
+    assert company_edges_completed["rows_imported"] == 1
+    assert company_edges_completed["nodes_upserted"] >= 1
+    assert company_edges_completed["edges_upserted"] >= 1
+    assert final["files_imported"] == len(summary.files_imported)
+    assert final["files_missing"] == 0
+    assert final["rows_seen"] == sum(summary.rows_seen.values())
+    assert final["rows_imported"] == sum(summary.rows_imported.values())
+
+
 def test_taurus_graph_importer_preserves_reviewed_edge_status_on_reimport(
     tmp_path: Path,
 ) -> None:

@@ -94,9 +94,49 @@ def test_auto_progress_uses_plain_stderr_for_non_tty_stream() -> None:
 
     output = stream.getvalue()
     assert "compute-graph-stats" in output
-    assert "edge=peer:AAA:BBB" in output
+    assert "source=AAA" in output
+    assert "target=BBB" in output
+    assert "window=60d" in output
     assert "progress=1/3" in output
+    assert "edge=peer:AAA:BBB" not in output
+    assert "current=1/3" not in output
+    assert "validated=1" not in output
+    assert "insufficient=0" not in output
+    assert "promoted=0" not in output
     assert output.count("\n") == 1
+
+
+def test_taurus_graph_import_progress_line_includes_file_counts_and_eta() -> None:
+    line = format_plain_progress_line(
+        "import-taurus-graph",
+        "graph.import.file_completed",
+        {
+            "current": 2,
+            "total": 8,
+            "source_file": "company_edges.csv",
+            "status": "imported",
+            "rows_seen": 12,
+            "rows_imported": 11,
+            "nodes_upserted": 4,
+            "edges_upserted": 9,
+            "evidence_upserted": 1,
+        },
+        elapsed_seconds=10,
+        eta_seconds=30,
+    )
+
+    assert line is not None
+    assert "import-taurus-graph" in line
+    assert "file=company_edges.csv" in line
+    assert "status=imported" in line
+    assert "rows_seen=12" in line
+    assert "rows_imported=11" in line
+    assert "nodes=4" in line
+    assert "edges=9" in line
+    assert "evidence=1" in line
+    assert "progress=2/8" in line
+    assert "percent=25.0" in line
+    assert "eta=30s" in line
 
 
 def test_plain_progress_redraws_instead_of_printing_each_event_on_new_line() -> None:

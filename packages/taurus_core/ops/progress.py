@@ -71,6 +71,8 @@ def format_rich_progress_snapshot(
 ) -> ProgressSnapshot | None:
     if command == "import-kite-candles":
         return _import_snapshot(event, payload)
+    if command == "import-taurus-graph":
+        return _taurus_graph_import_snapshot(event, payload)
     if command == "compute-graph-stats":
         return _graph_snapshot(event, payload)
     if command in {"paper-loop", "paper-loop-kite"}:
@@ -295,6 +297,61 @@ def _import_snapshot(event: str, payload: Mapping[str, object]) -> ProgressSnaps
     return None
 
 
+def _taurus_graph_import_snapshot(
+    event: str,
+    payload: Mapping[str, object],
+) -> ProgressSnapshot | None:
+    if event == "graph.import.setup_started":
+        stage = _string(payload, "stage", "setup")
+        return ProgressSnapshot("import-taurus-graph", f"stage={stage}", 0, 1)
+    if event == "graph.import.started":
+        total = _int(payload, "total", _int(payload, "file_count", 0))
+        data_dir = _string(payload, "data_dir", "-")
+        return ProgressSnapshot(
+            "import-taurus-graph",
+            f"files={total} data_dir={data_dir}",
+            0,
+            total,
+        )
+    if event in {"graph.import.file_started", "graph.import.file_completed"}:
+        current = _int(payload, "current", 0)
+        total = _int(payload, "total", 0)
+        source_file = _string(payload, "source_file", "-")
+        status = _string(
+            payload,
+            "status",
+            "started" if event.endswith("started") else "completed",
+        )
+        rows_seen = _int(payload, "rows_seen", 0)
+        rows_imported = _int(payload, "rows_imported", 0)
+        nodes = _int(payload, "nodes_upserted", 0)
+        edges = _int(payload, "edges_upserted", 0)
+        evidence = _int(payload, "evidence_upserted", 0)
+        completed = current if event.endswith("completed") else max(current - 1, 0)
+        details = (
+            f"file={source_file} status={status} rows_seen={rows_seen} "
+            f"rows_imported={rows_imported} nodes={nodes} "
+            f"edges={edges} evidence={evidence}"
+        )
+        return ProgressSnapshot("import-taurus-graph", details, completed, total)
+    if event == "graph.import.completed":
+        total = _int(payload, "total", 0)
+        files_imported = _int(payload, "files_imported", 0)
+        files_missing = _int(payload, "files_missing", 0)
+        rows_seen = _int(payload, "rows_seen", 0)
+        rows_imported = _int(payload, "rows_imported", 0)
+        nodes = _int(payload, "nodes_upserted", 0)
+        edges = _int(payload, "edges_upserted", 0)
+        evidence = _int(payload, "evidence_upserted", 0)
+        details = (
+            f"files_imported={files_imported} files_missing={files_missing} "
+            f"rows_seen={rows_seen} rows_imported={rows_imported} "
+            f"nodes={nodes} edges={edges} evidence={evidence}"
+        )
+        return ProgressSnapshot("import-taurus-graph", details, total, total)
+    return None
+
+
 def _graph_snapshot(event: str, payload: Mapping[str, object]) -> ProgressSnapshot | None:
     if event == "graph.stats.started":
         edge_count = _int(payload, "edge_count", 0)
@@ -309,19 +366,11 @@ def _graph_snapshot(event: str, payload: Mapping[str, object]) -> ProgressSnapsh
     if event in {"graph.stats.window_started", "graph.stats.window_completed"}:
         current = _int(payload, "current", 0)
         total = _int(payload, "total", 0)
-        edge_key = _string(payload, "edge_key", "-")
         source = _string(payload, "source_symbol", "-")
         target = _string(payload, "target_symbol", "-")
         window = _string(payload, "window", "-")
-        validated = _int(payload, "validated_count", 0)
-        insufficient = _int(payload, "insufficient_count", 0)
-        promoted = _int(payload, "promoted_count", 0)
         completed = current if event.endswith("completed") else max(current - 1, 0)
-        details = (
-            f"edge={edge_key} source={source} target={target} window={window} "
-            f"current={current}/{total} validated={validated} "
-            f"insufficient={insufficient} promoted={promoted}"
-        )
+        details = f"source={source} target={target} window={window}"
         return ProgressSnapshot("compute-graph-stats", details, completed, total)
     if event == "graph.stats.completed":
         total = _int(payload, "total", _int(payload, "stats_upserted", 0))
