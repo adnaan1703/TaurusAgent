@@ -290,8 +290,15 @@ regimes, India VIX level/change/regime, delivery state, circuit penalties, and
 implementability evidence into deterministic score metadata. Missing official
 context makes v2B unavailable; partial official coverage lowers confidence and
 surfaces explicit missing features. `graph_aware_score_v1` and
-`graph_aware_score_v2` remain unchanged until an evidence-backed promotion
-decision.
+`graph_aware_score_v2` remain unchanged.
+
+M86 closed the M74-M86 technical-layer sequence with a defer decision rather
+than promotion. The fresh standard validation run
+`techval-748ec624a9fe1297` had 282 common local candles against the 1009-candle
+requirement, so the M82 gate could not run comparable v1, v2A, and v2B profile
+backtests or 21-day rank evidence. The canonical paper loop therefore still uses
+`configs/strategies/graph_aware_score_v1.yaml`, and v2A/v2B remain explicit
+operator opt-ins.
 
 The shared service is DB-free and behavior-preserving for the first
 implementation sequence. Runtime profile selection is currently implemented for

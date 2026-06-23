@@ -315,6 +315,14 @@ short coverage as a non-zero exit. Useful overrides include
 `TECHNICAL_VALIDATION_COST_BPS=...`, and
 `TECHNICAL_VALIDATION_SLIPPAGE_BPS=...`.
 
+M86 used the standard validation mode and produced run
+`techval-748ec624a9fe1297` with `status=insufficient_data` and
+`promotion_decision=defer`: 282 common candles were available across the
+configured 17-symbol validation universe, versus 1009 required. Until a future
+complete validation passes the conservative gate, keep `graph_aware_score_v2`
+and `graph_aware_score_v2b` opt-in and leave `make paper-loop-kite` on the
+canonical v1 strategy.
+
 Paper workflow:
 
 ```bash

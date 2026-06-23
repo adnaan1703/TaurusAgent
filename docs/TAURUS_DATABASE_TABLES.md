@@ -9,6 +9,8 @@ tables created during the migration to Kite-backed market data and paper runs.
 - Active application tables: 40
 - Legacy mock archive tables: 11
 - Total tables: 51
+- M86 made no schema changes. The official-data tables remain opt-in v2B
+  technical evidence sources, and the canonical paper loop remains on v1.
 
 ## Market Data and Instruments
 

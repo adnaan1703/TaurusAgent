@@ -8,10 +8,12 @@ milestone intended to be executed in a separate Codex thread. Stop after
 completing and documenting the current milestone; do not automatically continue
 to the next milestone.
 
-Status: Planning is complete. M74-M84 implementation are complete. M85-M86
-remain planned. The intended execution model is one fresh Codex thread per
-milestone, using GPT 5.5 with xhigh thinking, unless the user explicitly
-changes that instruction in the worker thread.
+Status: M74-M86 implementation is complete. M86 kept the v2A/v2B technical
+profiles opt-in because the standard local validation run did not have enough
+common candle coverage to compare v1, v2A, and v2B through the conservative M82
+promotion gate. The intended execution model was one fresh Codex thread per
+milestone, using GPT 5.5 with xhigh thinking, unless the user explicitly changed
+that instruction in the worker thread.
 
 ## Target Behavior
 
@@ -961,6 +963,48 @@ Acceptance criteria:
 - Operator docs and architecture docs match actual behavior.
 - The tracker records sequence closeout and no next milestone is implied unless
   the user asks for a follow-up plan.
+
+### M86 Closeout Decision
+
+Decision: defer promotion and keep v2 profiles opt-in.
+
+Implemented behavior after M86:
+
+- `make paper-loop-kite` remains on
+  `configs/strategies/graph_aware_score_v1.yaml`.
+- `TechnicalAnalystAgent` remains on `technical_rule_v1` unless the caller
+  explicitly selects `technical_ohlcv_v2` or `technical_official_v2b`.
+- `graph_aware_score_v2` and `graph_aware_score_v2b` remain selectable strategy
+  configs and remain mapped to the `active_strategy` money-management sleeve,
+  but neither profile is canonical.
+- No scoring formula, API payload, React surface, table schema, or paper-order
+  routing changed in M86.
+
+Validation evidence:
+
+- Command: `make validate-technical-v2`
+- Run id: `techval-748ec624a9fe1297`
+- Mode: standard 3-year validation plus 252-trading-day warm-up.
+- Universe: `configs/market_data/nifty_50_shariah.yaml`, 17 symbols.
+- Result: `status=insufficient_data`, `promotion_decision=defer`.
+- Common candle coverage: 282 common candles from 2025-05-05 through
+  2026-06-22, versus 1009 required common candles.
+- Missing coverage: 727 common candles.
+- Gate blockers: insufficient data readiness, missing v1/v2A full-system
+  backtest comparison, missing v2A 21-day rank evidence, and unavailable
+  operational-safety profile-run evidence.
+- The manifest includes v1, v1 technical-only, v2A, v2A technical-only, v2B,
+  and v2B technical-only profile rows, but the comparable profile runs did not
+  execute because readiness failed.
+
+Deferred evidence before any future promotion:
+
+- Import deeper local Kite history, for example
+  `TAURUS_MARKET_DATA_LOOKBACK_DAYS=1434 make import-kite-candles`.
+- Rerun `make validate-technical-v2` in standard mode, and use strong mode only
+  if local/Kite history supports the 5-year window.
+- Promote only after the M82 gate has complete v1 baseline, v2A candidate, and
+  v2B official-candidate evidence with no blocking failure.
 
 Verification:
 

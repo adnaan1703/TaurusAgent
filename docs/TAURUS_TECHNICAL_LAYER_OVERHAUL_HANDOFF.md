@@ -5,10 +5,11 @@ Last updated: 2026-06-23
 ## Current Status
 
 - Current milestone: None.
-- Last completed milestone: M85 V2B Official-Data Technical Profile.
+- Last completed milestone: M86 Promotion Decision, Regression, Docs, And
+  Cleanup.
 - Planning completed: M74-M86 technical layer overhaul sequence.
 - Implementation state: M74, M75, M76, M77, M78, M79, M80, M81, M82, M83,
-  M84, and M85 are complete. The
+  M84, M85, and M86 are complete. The
   canonical/default runtime remains behavior-preserving:
   `TechnicalAnalystAgent` uses `technical_rule_v1` unless the analyst runner is
   explicitly passed `technical_ohlcv_v2` or `technical_official_v2b`, and
@@ -92,9 +93,16 @@ Last updated: 2026-06-23
   through strategy ranking/signals, `TechnicalAnalystAgent`, paper summaries,
   backtesting, money-management mapping, and validation profile manifests.
   Missing official context makes v2B unavailable and partial official coverage
-  lowers confidence. M85 did not promote v2B or change v1/v2A defaults.
-- Next recommended milestone: M86 promotion decision, regression, docs, and
-  cleanup.
+  lowers confidence. M85 did not promote v2B or change v1/v2A defaults. M86 ran
+  the standard validation command, produced run
+  `techval-748ec624a9fe1297`, and deferred promotion because the local
+  validation universe had only 282 common candles versus the 1009-candle
+  requirement. The M82 gate could not run comparable v1/v2A/v2B profile
+  backtests, 21-day rank evidence, or operational-safety profile-run checks.
+  `graph_aware_score_v1` remains the canonical Kite paper-loop strategy, and
+  `graph_aware_score_v2` / `graph_aware_score_v2b` remain explicit opt-ins.
+- Next recommended milestone: None. The M74-M86 sequence is closed; do not start
+  follow-up planning or implementation unless the user explicitly asks.
 - Thread model requirement from the user: each milestone worker thread should
   use GPT 5.5 with xhigh thinking.
 - Commit policy from the user: do not commit anything unless explicitly asked.
@@ -160,7 +168,7 @@ sequence is:
 - M83: official index, sector, and India VIX data ingestion. Done.
 - M84: official delivery, circuit, and tradability data ingestion. Done.
 - M85: v2B official-data technical profile. Done.
-- M86: promotion decision, regression, docs, and cleanup.
+- M86: promotion decision, regression, docs, and cleanup. Done.
 
 ## Update Rules
 
@@ -179,9 +187,9 @@ sequence is:
 
 ## Known Boundaries
 
-- `graph_aware_score_v1` remains canonical until M86 or a later explicit user
-  instruction changes it. `graph_aware_score_v2` and `graph_aware_score_v2b`
-  are opt-in only via their strategy YAMLs.
+- `graph_aware_score_v1` remains canonical after M86 because promotion was
+  deferred on insufficient local validation history. `graph_aware_score_v2` and
+  `graph_aware_score_v2b` are opt-in only via their strategy YAMLs.
 - v2A may use full OHLCV plus universe cross-sectional ranks, but must not use
   local market/sector proxies for official market-relative or sector-relative
   scoring.

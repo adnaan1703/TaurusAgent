@@ -322,6 +322,13 @@ adds official market-relative return, configured sector-relative return,
 market/sector regime, India VIX level/change/regime, delivery participation,
 circuit-band penalty, and implementability/impact-cost evidence.
 
+M86 kept both v2 analyst profiles opt-in. The standard validation run
+`techval-748ec624a9fe1297` deferred promotion because local common candle
+coverage was 282 of 1009 required candles, so comparable predictive and
+full-system evidence was not available. The default analyst call still uses
+`technical_rule_v1`; v2A or v2B scoring is used only when the caller explicitly
+passes the matching profile.
+
 ## Key Points and Risks
 
 `TechnicalSignalService.score_analyst_rule()` builds evidence strings from the
@@ -545,6 +552,7 @@ artifacts in `paper_runs.artifacts`.
 | V2A analyst visibility is additive | M80 exposes v2A metadata in API, decision-trail, replay, and React debugging views only when present; legacy v1 runs omit those fields cleanly. |
 | Shared analyst-rule scoring uses a fixed formula | Extra computed indicators are ignored unless a future `TechnicalSignalService` profile consumes them. |
 | Only the core wired paths use `TechnicalSignalService` | `TechnicalAnalystAgent` and `GraphAwareScoreStrategy` are migrated; `BlendedScoreStrategy` and `MovingAverageCrossoverStrategy` remain deferred. |
+| V2 profiles remain opt-in after M86 | The M86 validation gate deferred promotion because local history was insufficient for comparable evidence. |
 | `feature_values` lookup is symbol-latest, not paper-run scoped | A persisted feature snapshot from another context can be selected if it is the latest for that symbol. V2 analyst calls filter persisted snapshots to `technical_ohlcv_v2` and otherwise rebuild from candles or use the caller-provided snapshot. |
 | `backtest_signals` lookup is symbol-latest, not paper-run scoped | A latest backtest signal can still override default v1 scoring regardless of current paper run lineage. V2 keeps the latest signal only as audit metadata. |
 | Fallback report is not used on LLM provider failure | Provider failure aborts the analyst suite for the symbol instead of storing a deterministic fallback report. |

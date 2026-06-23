@@ -399,7 +399,8 @@ Allocation impact:
 - maps to `active_strategy`
 - raw composite strategy score contributes through the existing strategy-score
   calibration and 30% allocation candidate-score component
-- remains opt-in until a later evidence-backed promotion decision
+- remains opt-in after M86 because the standard validation gate deferred
+  promotion on insufficient local common candle coverage
 
 ### `graph_aware_score_v2b`
 
@@ -441,7 +442,14 @@ Allocation impact:
 - maps to `active_strategy`
 - raw v2B composite strategy score contributes through the existing
   strategy-score calibration and 30% allocation candidate-score component
-- remains opt-in until M86 or a later evidence-backed promotion decision
+- remains opt-in after M86 because the standard validation gate deferred
+  promotion on insufficient local common candle coverage
+
+M86 closeout did not change sleeve mappings or allocation formulas. The fresh
+standard validation run `techval-748ec624a9fe1297` had 282 common candles versus
+1009 required, so v1/v2A/v2B comparable backtests and rank evidence did not run.
+The canonical Kite paper loop therefore remains on `graph_aware_score_v1`, with
+v2A and v2B available only through explicit `STRATEGY=...` selection.
 
 ### `moving_average_crossover_v1`
 
@@ -698,9 +706,10 @@ signals
 technical_v2_by_symbol
 ```
 
-For the opt-in `graph_aware_score_v2` profile, `technical_v2_by_symbol` lets
-operators trace the raw strategy-score evidence into allocation without
-recomputing the v2 technical vector from nested ranked-candidate metadata.
+For the opt-in `graph_aware_score_v2` and `graph_aware_score_v2b` profiles,
+`technical_v2_by_symbol` lets operators trace the raw strategy-score evidence
+into allocation without recomputing the v2 technical vector from nested
+ranked-candidate metadata.
 
 ### Step 2: Run Analysts, Debate, and TraderAgent
 
