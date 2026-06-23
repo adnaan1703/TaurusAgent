@@ -378,6 +378,12 @@ the existing `technical_score`, `raw_strategy_score`, and
 tradability, confidence, composite, coverage, top contributors, and missing
 features.
 
+M80 makes that v2 metadata visible beyond the strategy object by copying it into
+`paper_runs.artifacts.strategy.technical_v2_by_symbol`, strategy signals,
+selection rows, allocation ledger rows, replay strategy/allocation stages, and
+React debugging tables. These copies are additive evidence for operators; they
+do not change candidate-score formulas or allocation ordering.
+
 Allocation impact:
 
 - maps to `active_strategy`
@@ -570,6 +576,8 @@ Ledger fields include:
 - `approved_quantity`
 - `binding_constraint`
 - `rationale`
+- `technical_v2`, when the selected strategy carried opt-in v2A metadata for
+  that symbol
 
 ### Proposal-Level Allocation Decision
 
@@ -599,6 +607,7 @@ Important fields:
 | `existing_cash_used_inr` / `same_run_proceeds_used_inr` | Shows how much approved BUY notional came from existing cash versus the haircut proceeds pool. |
 | `same_run_proceeds_available_inr` / `same_run_proceeds_haircut_pct` | Shows the same-run proceeds pool and haircut visible to BUY sizing. |
 | `hard_cash_reserve_inr` / `buy_price_buffer_pct` | Shows the hard cash reserve and buffered BUY reference price policy used by planner-backed sizing. |
+| `technical_v2` | Additive v2A technical vector copied from the strategy summary for debugging raw strategy score inputs. |
 | `rationale` | Human-readable calculation notes. |
 
 If allocation approves zero shares for a new BUY, the proposal is normalized to:
@@ -634,7 +643,12 @@ strategy_ranked_symbols
 strategy_score_by_symbol
 targets
 signals
+technical_v2_by_symbol
 ```
+
+For the opt-in `graph_aware_score_v2` profile, `technical_v2_by_symbol` lets
+operators trace the raw strategy-score evidence into allocation without
+recomputing the v2 technical vector from nested ranked-candidate metadata.
 
 ### Step 2: Run Analysts, Debate, and TraderAgent
 

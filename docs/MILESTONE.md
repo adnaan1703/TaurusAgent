@@ -153,7 +153,7 @@ removed during docs cleanup. Use Git history for detailed historical plans.
 - M74 baseline characterization and validation-contract work is complete:
   focused tests now pin current `technical_rule_v1`, `sma_spread`,
   `graph_aware_score_v1` ranking payload, allocation score calibration, and
-  current `BaseAnalystAgent` LLM numeric ownership behavior. M80-M86 technical
+  current `BaseAnalystAgent` LLM numeric ownership behavior. M81-M86 technical
   layer overhaul implementation remains planned.
 - M75 OHLCV indicator primitive expansion is complete: pure Decimal-based
   primitives now cover MACD, ADX/+DI/-DI, Bollinger bands, breakout distances,
@@ -187,8 +187,13 @@ removed during docs cleanup. Use Git history for detailed historical plans.
   v2 reports store deterministic `TechnicalSignalService.score_ohlcv_v2()`
   score/confidence/stance, expose alpha/risk/tradability/confidence/top
   contributors in `AnalystScoreMetadata.technical_v2`, and retain latest
-  `backtest_signals` only as audit metadata. M80-M86 technical layer overhaul
+  `backtest_signals` only as audit metadata. M81-M86 technical layer overhaul
   implementation remains planned.
+- M80 v2A artifact, API, replay, and React visibility is complete: v2A
+  technical vectors now pass additively through strategy ranked candidates,
+  strategy signals, selection/allocation rows, analyst report API payloads,
+  decision-trail inputs, replay stages, and compact React debugging panels
+  without changing scoring formulas or validation logic.
 
 ## Standing Safety Rules
 
@@ -260,13 +265,14 @@ removed during docs cleanup. Use Git history for detailed historical plans.
 | M71 | Done | Replaced the static company SVG with a Reagraph-backed full main-content explorer shell, toolbar search/status/edge-type/camera/refresh controls, node and edge inspection, edge evidence/stats detail loading, focused JSDOM Reagraph tests, and approval-rule cleanup inspection. |
 | M72 | Done | Added explicit selected-node one-hop expansion in the Reagraph inspector, duplicate-free local node/edge merging, per-node expansion loading/error/truncation state, reset-on-refresh/filter behavior, focused React coverage, and approval-rule cleanup inspection. |
 | M73 | Done | Ran focused graph API/repository tests, React graph tests, React production build, the full backend suite, and browser QA; refreshed graph explorer operator/developer docs; fixed a Reagraph expansion focus regression found during visual QA; confirmed approval-rule cleanup was not needed; and closed the M70-M73 sequence. |
-| M74-M86 plan document | Done | Created the flat technical layer overhaul plan and handoff covering v1 baselines, OHLCV v2A indicators, cross-sectional context, deterministic scoring, opt-in strategy and analyst wiring, API/UI visibility, historical validation reports, official index/VIX/delivery/circuit ingestion, v2B scoring, and evidence-gated promotion. Implementation remains planned and no implementation work was done. |
+| M74-M86 plan document | Done | Created the flat technical layer overhaul plan and handoff covering v1 baselines, OHLCV v2A indicators, cross-sectional context, deterministic scoring, opt-in strategy and analyst wiring, API/UI visibility, historical validation reports, official index/VIX/delivery/circuit ingestion, v2B scoring, and evidence-gated promotion. Implementation is complete through M80. |
 | M74 | Done | Added focused v1 technical-layer characterization coverage for analyst-rule metadata, SMA-spread availability and precision, graph-aware ranked-candidate payloads, allocation score calibration, and current base analyst LLM numeric ownership; documented the validation output contract for later M81-M82 evidence reports. |
 | M75 | Done | Added pure OHLCV indicator primitives and opt-in `technical_ohlcv_v2` feature snapshots while preserving v1 defaults and graph-aware v1 scoring behavior. |
 | M76 | Done | Added the pure DB-free universe technical context builder with deterministic cross-sectional ranks, percentiles, z-scores, missing-feature maps, availability counts, and JSON-friendly universe metadata without changing v1 runtime behavior. |
 | M77 | Done | Added the pure DB-free `technical_ohlcv_v2` scoring profile in `TechnicalSignalService`, exposing typed alpha/risk/tradability/confidence/composite outputs with coverage, contributors, missing-feature metadata, and focused tests while preserving v1 runtime behavior. |
 | M78 | Done | Added opt-in `graph_aware_score_v2` strategy wiring that selects the v2A OHLCV technical profile, carries nested technical metadata in ranking/signal payloads, preserves v1 behavior, and maps the v2 strategy to `active_strategy` without changing canonical defaults. |
 | M79 | Done | Wired `TechnicalAnalystAgent` to the opt-in v2A OHLCV profile with deterministic score/confidence ownership, optional universe context from the paper strategy stage, symbol-local fallback metadata, and v2 score metadata while preserving v1 defaults. |
+| M80 | Done | Surfaced v2A technical vectors additively across strategy artifacts, allocation rows, analyst-report API payloads, decision-trail input stages, replay output, and compact React debugging views while preserving scoring and validation behavior. |
 
 ## Completed Graph Explorer Sequence
 
@@ -293,7 +299,7 @@ up, and documented; do not automatically begin later scope.
 | 77 | M77 | Done | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Add the deterministic `technical_ohlcv_v2` alpha/risk/tradability/confidence scoring profile. |
 | 78 | M78 | Done | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Add opt-in `graph_aware_score_v2` strategy wiring while preserving v1 behavior. |
 | 79 | M79 | Done | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Wire `TechnicalAnalystAgent` to v2A with deterministic numeric ownership and optional universe context. |
-| 80 | M80 | Planned | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Surface v2A technical vectors in artifacts, API, replay, and React debugging views. |
+| 80 | M80 | Done | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Surface v2A technical vectors in artifacts, API, replay, and React debugging views. |
 | 81 | M81 | Planned | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Add the historical validation command and data-readiness checks for v1/v2 comparisons. |
 | 82 | M82 | Planned | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Generate technical-agent and full-system validation reports with a conservative promotion gate. |
 | 83 | M83 | Planned | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Ingest official benchmark, sector-index, and India VIX data for v2B. |
@@ -311,6 +317,25 @@ This completed sequence was executed in order as separate milestone work.
 | 67 | M67 | Done | `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md` | Add the DB-free shared `TechnicalSignalService` foundation without runtime wiring. |
 | 68 | M68 | Done | `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md` | Route `TechnicalAnalystAgent` and `GraphAwareScoreStrategy` through the shared service without behavior drift. |
 | 69 | M69 | Done | `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md` | Run final regression, refresh architecture/deep-dive docs for implemented behavior, and close the sequence. |
+
+### M80 Completion Summary
+
+- Assumptions made: M80 should copy existing v2A metadata into operator-visible
+  artifacts without changing `TechnicalSignalService` scoring formulas,
+  validation logic, strategy ranking math, or allocation candidate-score math;
+  legacy v1 runs should omit v2-only fields cleanly; compact React visibility is
+  sufficient when it shows profile, composite score, confidence,
+  alpha/risk/tradability, top contributors, and missing-feature warnings; no
+  project-local approval cleanup was needed because the global rules file had no
+  entries after the `# END MY CUSTOM ADDITION` marker.
+- Mocks created: `TECHNICAL_V2_FIXTURE` metadata fixtures in
+  `tests/unit/test_ui_aggregate_api.py`, `tests/unit/test_replay.py`, and
+  `apps/web/src/features/ScreenStates.test.tsx`.
+- Mocks used: Existing deterministic paper-run and replay fixtures plus the
+  existing React screen-state mocked API payloads.
+- Verification: `uv run pytest tests/unit/test_ui_aggregate_api.py
+  tests/unit/test_paper_runs.py tests/unit/test_replay.py` passed with 52 tests;
+  `pnpm --dir apps/web test -- --run` passed with 30 tests.
 
 ### M79 Completion Summary
 

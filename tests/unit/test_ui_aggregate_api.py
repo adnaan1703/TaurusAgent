@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 
 from apps.api.main import create_app
 from scripts.migrate import run_migrations
@@ -16,6 +17,7 @@ from taurus_core.db.repositories import (
     PaperRunRepository,
     TaurusProfileRepository,
 )
+from taurus_core.db.models import AnalystReportModel, PaperRunModel
 from taurus_core.db.session import build_session_factory
 from taurus_core.execution.schemas import (
     PaperAccount,
@@ -44,6 +46,33 @@ EXPECTED_TRAIL_STAGES = [
     "audit_log",
 ]
 
+TECHNICAL_V2_FIXTURE = {
+    "profile_name": "technical_ohlcv_v2",
+    "alpha_score": "0.4200",
+    "risk_score": "0.1800",
+    "tradability_score": "0.2400",
+    "confidence": "0.7600",
+    "composite_score": "0.3120",
+    "coverage": "0.9200",
+    "score_source": "technical_ohlcv_v2",
+    "top_contributors": [
+        {
+            "feature_name": "return_63d",
+            "label": "63d return",
+            "family": "alpha",
+            "direction": "positive",
+            "score": "0.6400",
+            "contribution": "0.1200",
+        }
+    ],
+    "missing_features": ["turnover_z_score_20"],
+    "metadata": {
+        "universe_context_available": True,
+        "symbol_context_available": True,
+        "universe_size": 3,
+    },
+}
+
 
 @pytest.fixture(autouse=True)
 def fake_llm_provider(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -60,6 +89,7 @@ def fake_llm_provider(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_ui_aggregate_endpoints_return_completed_run_trail(tmp_path: Path) -> None:
     settings = _settings_for_temp_db(tmp_path)
     run = PaperRunService(settings).run_once(symbols=["INFY"])
+    _inject_technical_v2_visibility_fixture(settings, run_id=run.run_id, symbol="INFY")
     client = TestClient(create_app(settings))
 
     overview = client.get("/ui/overview")
@@ -68,6 +98,7 @@ def test_ui_aggregate_endpoints_return_completed_run_trail(tmp_path: Path) -> No
     trail = client.get(f"/ui/runs/{run.run_id}/symbols/INFY/decision-trail")
     risk = client.get("/ui/risk")
     portfolio = client.get("/ui/portfolio")
+    agent_reports = client.get("/agent-reports?symbol=INFY")
 
     assert overview.status_code == 200
     assert overview.json()["safety"]["live_trading_enabled"] is False
@@ -131,6 +162,16 @@ def test_ui_aggregate_endpoints_return_completed_run_trail(tmp_path: Path) -> No
     assert detail_payload["artifacts"]["settlement"]["details"] == []
     assert detail_payload["selection_ledger"][0]["symbol"] == "INFY"
     assert (
+        detail_payload["strategy_summary"]["technical_v2_by_symbol"]["INFY"][
+            "profile_name"
+        ]
+        == "technical_ohlcv_v2"
+    )
+    assert (
+        detail_payload["selection_ledger"][0]["technical_v2"]["composite_score"]
+        == "0.3120"
+    )
+    assert (
         detail_payload["selection_ledger"][0]["reason"]
         == "paper_order_status:pending_next_open"
     )
@@ -150,6 +191,19 @@ def test_ui_aggregate_endpoints_return_completed_run_trail(tmp_path: Path) -> No
     assert [stage["id"] for stage in trail_payload["stages"]] == EXPECTED_TRAIL_STAGES
     assert trail_payload["final_status"] == "APPROVED_FOR_PAPER"
     assert trail_payload["selection_decision"]["allocation_status"] == "selected"
+    assert trail_payload["selection_decision"]["technical_v2"]["confidence"] == "0.7600"
+    assert trail_payload["allocation_decision"]["technical_v2"]["profile_name"] == (
+        "technical_ohlcv_v2"
+    )
+    assert _stage_artifacts(trail_payload, "inputs")[0]["technical_v2"][
+        "missing_features"
+    ] == ["turnover_z_score_20"]
+    assert (
+        _stage_artifacts(trail_payload, "analyst_reports")[0]["score_metadata"][
+            "technical_v2"
+        ]["composite_score"]
+        == "0.3120"
+    )
     assert trail_payload["decision_reason"] == "paper_order_status:pending_next_open"
     proposal_stage = _stage_artifacts(trail_payload, "trader_proposal")[0]
     assert proposal_stage["evaluation_mode"] == "after_close"
@@ -166,6 +220,18 @@ def test_ui_aggregate_endpoints_return_completed_run_trail(tmp_path: Path) -> No
     assert replay.status_code == 200
     replay_payload = replay.json()
     assert replay_payload["decision_id"] == trail_payload["decision_id"]
+    assert (
+        _stage_artifacts(replay_payload, "strategy_ranking")[0]["technical_v2"][
+            "profile_name"
+        ]
+        == "technical_ohlcv_v2"
+    )
+    assert (
+        _stage_artifacts(replay_payload, "allocation_ledger")[0]["technical_v2"][
+            "composite_score"
+        ]
+        == "0.3120"
+    )
     assert _stage_status(replay_payload, "portfolio_plan") == "complete"
     assert (
         _stage_artifacts(replay_payload, "portfolio_plan")[0]["candidate"]["symbol"]
@@ -198,6 +264,12 @@ def test_ui_aggregate_endpoints_return_completed_run_trail(tmp_path: Path) -> No
     assert portfolio.json()["allocation"]["portfolio_plan"]["available"] is True
     assert len(portfolio.json()["orders"]) == 1
     assert portfolio.json()["fills"] == []
+
+    assert agent_reports.status_code == 200
+    assert (
+        agent_reports.json()[0]["score_metadata"]["technical_v2"]["profile_name"]
+        == "technical_ohlcv_v2"
+    )
 
 
 def test_profile_api_creates_updates_lists_and_archives_profiles(
@@ -919,6 +991,85 @@ def test_ui_cors_allows_local_vite_origin(tmp_path: Path) -> None:
 
     assert response.status_code == 200
     assert response.headers["access-control-allow-origin"] == "http://localhost:5173"
+
+
+def _inject_technical_v2_visibility_fixture(
+    settings: Settings,
+    *,
+    run_id: str,
+    symbol: str,
+) -> None:
+    normalized_symbol = symbol.upper()
+    with build_session_factory(settings)() as session:
+        stored_run = session.get(PaperRunModel, run_id)
+        assert stored_run is not None
+        artifacts = dict(stored_run.artifacts or {})
+
+        strategy = dict(artifacts.get("strategy") or {})
+        ranked_candidates = [
+            dict(item) if isinstance(item, dict) else item
+            for item in strategy.get("ranked_candidates", [])
+        ]
+        for item in ranked_candidates:
+            if not isinstance(item, dict):
+                continue
+            if str(item.get("symbol") or "").upper() != normalized_symbol:
+                continue
+            metadata = dict(item.get("metadata") or {})
+            metadata["technical_v2"] = TECHNICAL_V2_FIXTURE
+            item["metadata"] = metadata
+        strategy["ranked_candidates"] = ranked_candidates
+        strategy["technical_v2_by_symbol"] = {normalized_symbol: TECHNICAL_V2_FIXTURE}
+
+        signals = [
+            dict(item) if isinstance(item, dict) else item
+            for item in strategy.get("signals", [])
+        ]
+        for signal in signals:
+            if not isinstance(signal, dict):
+                continue
+            if str(signal.get("symbol") or "").upper() != normalized_symbol:
+                continue
+            signal["technical_v2"] = TECHNICAL_V2_FIXTURE
+            explanation = dict(signal.get("explanation") or {})
+            metadata = dict(explanation.get("metadata") or {})
+            metadata["technical_v2"] = TECHNICAL_V2_FIXTURE
+            explanation["metadata"] = metadata
+            signal["explanation"] = explanation
+        strategy["signals"] = signals
+        artifacts["strategy"] = strategy
+
+        allocation = dict(artifacts.get("allocation") or {})
+        ledger = [
+            dict(item) if isinstance(item, dict) else item
+            for item in allocation.get("ledger", [])
+        ]
+        for entry in ledger:
+            if not isinstance(entry, dict):
+                continue
+            if str(entry.get("symbol") or "").upper() == normalized_symbol:
+                entry["technical_v2"] = TECHNICAL_V2_FIXTURE
+        allocation["ledger"] = ledger
+        allocation["technical_v2_by_symbol"] = {normalized_symbol: TECHNICAL_V2_FIXTURE}
+        artifacts["allocation"] = allocation
+
+        stored_run.artifacts = artifacts
+        stored_run.payload = {**dict(stored_run.payload or {}), "artifacts": artifacts}
+
+        reports = session.scalars(
+            select(AnalystReportModel).where(
+                AnalystReportModel.run_id == run_id,
+                AnalystReportModel.symbol == normalized_symbol,
+                AnalystReportModel.agent_name == "TechnicalAnalystAgent",
+            )
+        )
+        for report in reports:
+            payload = dict(report.payload or {})
+            score_metadata = dict(payload.get("score_metadata") or {})
+            score_metadata["technical_v2"] = TECHNICAL_V2_FIXTURE
+            payload["score_metadata"] = score_metadata
+            report.payload = payload
+        session.commit()
 
 
 def _settings_for_temp_db(

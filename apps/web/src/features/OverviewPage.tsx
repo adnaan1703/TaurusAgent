@@ -27,6 +27,7 @@ import {
 } from "../utils/format";
 import { AllocationPanels } from "./AllocationPanels";
 import { emptyDataCommands, PageScaffold } from "./PageScaffold";
+import { TechnicalV2Inline } from "./TechnicalV2Panel";
 
 export function OverviewPage() {
   const { selectedProfileId } = useSelectedProfileId();
@@ -391,6 +392,7 @@ function SelectionPreviewTable({
         },
         { key: "rank", header: "Rank", align: "right", render: (row) => formatNumber(row.rank ?? row.planner_rank ?? undefined) },
         { key: "score", header: "Raw score", align: "right", render: (row) => formatNumber(row.strategy_score ?? undefined) },
+        { key: "technicalV2", header: "Technical v2A", render: (row) => <TechnicalV2Inline technicalV2={row.technical_v2} /> },
         { key: "allocationScore", header: "Allocation score", align: "right", render: (row) => formatNumber(row.candidate_score ?? undefined) },
         { key: "action", header: "Action", render: (row) => row.trader_action ?? "-" },
         { key: "funding", header: "Funding", render: (row) => row.funding_source ?? "-" },

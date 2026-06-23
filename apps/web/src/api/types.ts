@@ -93,6 +93,7 @@ export type UiRunSelectionRow = {
   same_run_proceeds_haircut_pct?: string | null;
   hard_cash_reserve_inr?: string | null;
   buy_price_buffer_pct?: string | null;
+  technical_v2?: JsonObject | null;
   reason?: string | null;
 };
 

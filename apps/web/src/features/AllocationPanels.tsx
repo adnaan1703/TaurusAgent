@@ -14,6 +14,11 @@ import {
   isJsonObject,
   jsonArray,
 } from "../utils/format";
+import {
+  TechnicalV2Inline,
+  TechnicalV2Panel,
+  technicalV2FromObject,
+} from "./TechnicalV2Panel";
 
 type AllocationPanelsProps = {
   allocation: JsonObject | null | undefined;
@@ -101,6 +106,7 @@ export function AllocationPanels({ allocation, showCore = true }: AllocationPane
             { key: "proceeds", header: "Same-run used", align: "right", render: (row) => formatInr(getPrimitive(row, "same_run_proceeds_used_inr")) },
             { key: "sleeve", header: "Sleeve", render: (row) => getString(row, "sleeve_name") || getString(row, "sleeve_id") || "-" },
             { key: "strategy", header: "Strategy", render: (row) => getString(row, "strategy_name") || "-" },
+            { key: "technicalV2", header: "Technical v2A", render: (row) => <TechnicalV2Inline technicalV2={technicalV2FromObject(row)} /> },
             { key: "status", header: "Status", render: (row) => <StatusBadge status={getString(row, "status") || getString(row, "allocation_status")} size="sm" /> },
             { key: "requested", header: "Requested", align: "right", render: (row) => formatPercent(getPrimitive(row, "requested_position_pct_nav")) },
             { key: "approved", header: "Approved", align: "right", render: (row) => formatPercent(getPrimitive(row, "approved_position_pct_nav")) },
@@ -264,53 +270,59 @@ export function AllocationDecisionPanel({
   }
 
   return (
-    <DataPanel
-      actions={<StatusBadge status={getString(allocationDecision, "status")} size="sm" />}
-      title="Allocation Decision"
-    >
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard
-          label="Sleeve"
-          supportingText={getString(allocationDecision, "strategy_name")}
-          value={getString(allocationDecision, "sleeve_name") || getString(allocationDecision, "sleeve_id") || "-"}
-        />
-        <MetricCard
-          label="Approved NAV"
-          supportingText={`Requested ${formatPercent(getPrimitive(allocationDecision, "requested_position_pct_nav"))}`}
-          value={formatPercent(getPrimitive(allocationDecision, "approved_position_pct_nav"))}
-        />
-        <MetricCard
-          label="Estimated risk"
-          supportingText={`Allowed ${formatInr(getPrimitive(allocationDecision, "allowed_risk_inr"))}`}
-          value={formatInr(getPrimitive(allocationDecision, "estimated_risk_inr"))}
-        />
-        <MetricCard
-          label="Constraint"
-          supportingText={constraintReasons(allocationDecision)}
-          value={getString(allocationDecision, "binding_constraint") || "None"}
-        />
-        <MetricCard
-          label="Planner"
-          supportingText={getString(allocationDecision, "portfolio_plan_trade_id") || "No plan trade"}
-          value={getString(allocationDecision, "planner_source") || getString(allocationDecision, "proposal_source") || "-"}
-        />
-        <MetricCard
-          label="Capacity"
-          supportingText={listValue(allocationDecision.borrowed_from_sleeve_ids)}
-          value={getString(allocationDecision, "capacity_source") || "-"}
-        />
-        <MetricCard
-          label="Funding"
-          supportingText={`Existing ${formatInr(getPrimitive(allocationDecision, "existing_cash_used_inr"))}`}
-          value={getString(allocationDecision, "funding_source") || "-"}
-        />
-        <MetricCard
-          label="Same-run proceeds"
-          supportingText={`Available ${formatInr(getPrimitive(allocationDecision, "same_run_proceeds_available_inr"))}`}
-          value={formatInr(getPrimitive(allocationDecision, "same_run_proceeds_used_inr"))}
-        />
-      </div>
-    </DataPanel>
+    <div className="grid gap-6">
+      <DataPanel
+        actions={<StatusBadge status={getString(allocationDecision, "status")} size="sm" />}
+        title="Allocation Decision"
+      >
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <MetricCard
+            label="Sleeve"
+            supportingText={getString(allocationDecision, "strategy_name")}
+            value={getString(allocationDecision, "sleeve_name") || getString(allocationDecision, "sleeve_id") || "-"}
+          />
+          <MetricCard
+            label="Approved NAV"
+            supportingText={`Requested ${formatPercent(getPrimitive(allocationDecision, "requested_position_pct_nav"))}`}
+            value={formatPercent(getPrimitive(allocationDecision, "approved_position_pct_nav"))}
+          />
+          <MetricCard
+            label="Estimated risk"
+            supportingText={`Allowed ${formatInr(getPrimitive(allocationDecision, "allowed_risk_inr"))}`}
+            value={formatInr(getPrimitive(allocationDecision, "estimated_risk_inr"))}
+          />
+          <MetricCard
+            label="Constraint"
+            supportingText={constraintReasons(allocationDecision)}
+            value={getString(allocationDecision, "binding_constraint") || "None"}
+          />
+          <MetricCard
+            label="Planner"
+            supportingText={getString(allocationDecision, "portfolio_plan_trade_id") || "No plan trade"}
+            value={getString(allocationDecision, "planner_source") || getString(allocationDecision, "proposal_source") || "-"}
+          />
+          <MetricCard
+            label="Capacity"
+            supportingText={listValue(allocationDecision.borrowed_from_sleeve_ids)}
+            value={getString(allocationDecision, "capacity_source") || "-"}
+          />
+          <MetricCard
+            label="Funding"
+            supportingText={`Existing ${formatInr(getPrimitive(allocationDecision, "existing_cash_used_inr"))}`}
+            value={getString(allocationDecision, "funding_source") || "-"}
+          />
+          <MetricCard
+            label="Same-run proceeds"
+            supportingText={`Available ${formatInr(getPrimitive(allocationDecision, "same_run_proceeds_available_inr"))}`}
+            value={formatInr(getPrimitive(allocationDecision, "same_run_proceeds_used_inr"))}
+          />
+        </div>
+      </DataPanel>
+      <TechnicalV2Panel
+        technicalV2={technicalV2FromObject(allocationDecision)}
+        title="Allocation Technical V2A"
+      />
+    </div>
   );
 }
 

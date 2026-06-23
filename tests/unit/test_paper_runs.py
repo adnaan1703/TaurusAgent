@@ -1168,6 +1168,21 @@ def test_graph_aware_v2_paper_run_passes_universe_context_to_technical_analyst(
     assert strategy["strategy_name"] == "graph_aware_score_v2"
     assert strategy["technical_analyst_profile"] == OHLCV_V2_PROFILE
     assert strategy["feature_snapshot_count"] >= 2
+    technical_v2_by_symbol = strategy["technical_v2_by_symbol"]
+    assert set(technical_v2_by_symbol) >= {"INFY", "RELIANCE"}
+    assert technical_v2_by_symbol["INFY"]["profile_name"] == OHLCV_V2_PROFILE
+    assert any(
+        signal.get("technical_v2", {}).get("profile_name") == OHLCV_V2_PROFILE
+        for signal in strategy["signals"]
+    )
+    allocation = run.artifacts["allocation"]
+    assert allocation["technical_v2_by_symbol"]["INFY"]["profile_name"] == (
+        OHLCV_V2_PROFILE
+    )
+    assert any(
+        entry.get("technical_v2", {}).get("profile_name") == OHLCV_V2_PROFILE
+        for entry in allocation["ledger"]
+    )
 
     session_factory = build_session_factory(settings)
     with session_factory() as session:

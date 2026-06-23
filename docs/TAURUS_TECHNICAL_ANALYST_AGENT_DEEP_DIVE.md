@@ -290,6 +290,13 @@ the latest signal is stored only under
 `technical_v2.latest_backtest_signal_audit` with
 `score_override_applied=false`.
 
+After M80, the same `score_metadata.technical_v2` payload is visible in
+operator debugging surfaces without changing report scoring: `/agent-reports`
+returns `score_metadata`, the decision trail includes v2 analyst metadata in
+its analyst-report stage, and React renders a compact v2 panel with profile,
+composite score, confidence, alpha/risk/tradability, top contributors, and
+missing-feature warnings when the payload exists.
+
 ## Key Points and Risks
 
 `TechnicalSignalService.score_analyst_rule()` builds evidence strings from the
@@ -389,6 +396,7 @@ The output is an `AnalystReport` with this shape:
 | `risks` | Risk bullets. |
 | `source_ids` | Feature snapshot id and optional signal id. |
 | `model_version` | LLM/model version or rule-model version. |
+| `score_metadata` | Additive deterministic score evidence. For v2A reports, `score_metadata.technical_v2` contains alpha/risk/tradability/confidence/composite metadata. |
 
 ## Artifacts Created
 
@@ -399,7 +407,7 @@ The output is an `AnalystReport` with this shape:
 | `TechnicalSignalResult` | In memory | `TechnicalSignalService.score_analyst_rule()` | DB-free deterministic v1 score, confidence, key-point, source, and metadata contract copied into the report. |
 | `TechnicalOhlcvSignalResult` | In memory | `TechnicalSignalService.score_ohlcv_v2()` | DB-free deterministic v2 alpha/risk/tradability/confidence/composite contract copied into `score_metadata.technical_v2`. |
 | Technical analyst report | `analyst_reports` table | `AnalystReportRepository.replace_for_run_symbol()` | Durable per-run, per-symbol agent output. |
-| Full report payload | `analyst_reports.payload` JSON | Repository conversion | Stores the full serialized `AnalystReport`. |
+| Full report payload | `analyst_reports.payload` JSON | Repository conversion | Stores the full serialized `AnalystReport`, including additive `score_metadata.technical_v2` when the v2A profile is selected. |
 | Per-symbol analysis artifact | `paper_runs.artifacts["analysis"][symbol]` | `PaperRunService` | Stores report ids, analyst roster, debate id, proposal id, proposal action, and finalization status. |
 | Strategy summary artifact | `paper_runs.artifacts["strategy"]` | `PaperRunService._generate_strategy_summary()` | Stores feature snapshot count, ranked candidates, targets, strategy scores, and signals. |
 | Agent run metrics/logs | Observability pipeline | `run_analyst_suite()` | Emits `agent.report.created` logs and agent runtime metrics. |
@@ -506,7 +514,7 @@ artifacts in `paper_runs.artifacts`.
 
 | Limitation | Impact |
 |---|---|
-| V2A analyst visibility is still payload-only | M79 wires deterministic v2A score/confidence and metadata into `AnalystReport`, but dedicated API, replay, and React debugging views remain planned for M80. |
+| V2A analyst visibility is additive | M80 exposes v2A metadata in API, decision-trail, replay, and React debugging views only when present; legacy v1 runs omit those fields cleanly. |
 | Shared analyst-rule scoring uses a fixed formula | Extra computed indicators are ignored unless a future `TechnicalSignalService` profile consumes them. |
 | Only the core wired paths use `TechnicalSignalService` | `TechnicalAnalystAgent` and `GraphAwareScoreStrategy` are migrated; `BlendedScoreStrategy` and `MovingAverageCrossoverStrategy` remain deferred. |
 | `feature_values` lookup is symbol-latest, not paper-run scoped | A persisted feature snapshot from another context can be selected if it is the latest for that symbol. V2 analyst calls filter persisted snapshots to `technical_ohlcv_v2` and otherwise rebuild from candles or use the caller-provided snapshot. |

@@ -48,6 +48,9 @@ from taurus_core.db.repositories import (
     TaurusProfileRepository,
 )
 from taurus_core.data.universe import load_market_data_universe
+from taurus_core.features.technical_visibility import (
+    technical_v2_by_symbol_from_strategy_summary,
+)
 from taurus_core.observability.metrics import current_llm_failure_count
 from taurus_core.portfolio import money_management_metadata
 from taurus_core.profiles.schemas import TaurusProfileResponse
@@ -141,6 +144,7 @@ class UiRunSelectionRow(BaseModel):
     same_run_proceeds_haircut_pct: str | None = None
     hard_cash_reserve_inr: str | None = None
     buy_price_buffer_pct: str | None = None
+    technical_v2: dict[str, Any] | None = None
     reason: str | None = None
 
 
@@ -529,6 +533,10 @@ def get_decision_trail(
         symbol=normalized_symbol,
         context=context,
     )
+    allocation_decision = _latest_allocation_decision(context)
+    technical_v2 = _technical_v2_for_symbol(run, normalized_symbol)
+    if allocation_decision is not None and technical_v2 is not None:
+        allocation_decision = {**allocation_decision, "technical_v2": technical_v2}
     return UiDecisionTrailResponse(
         active_profile=profile_response(profile),
         run=_run_summary(
@@ -547,7 +555,7 @@ def get_decision_trail(
         can_send_to_broker=final_decision.can_send_to_broker
         if final_decision is not None
         else None,
-        allocation_decision=_latest_allocation_decision(context),
+        allocation_decision=allocation_decision,
         selection_decision=selection_decision,
         decision_reason=selection_decision.reason
         if selection_decision is not None
@@ -1100,6 +1108,7 @@ def _selection_rows(
     }
     order_by_symbol = {order.symbol.upper(): order for order in orders}
     execution_by_symbol = _execution_artifacts_by_symbol(run)
+    technical_v2_by_symbol = _technical_v2_by_symbol(run)
 
     rows: list[UiRunSelectionRow] = []
     for raw_entry in ledger:
@@ -1114,6 +1123,7 @@ def _selection_rows(
             final_decision=final_by_symbol.get(symbol),
             order=order_by_symbol.get(symbol),
             execution_artifact=execution_by_symbol.get(symbol),
+            technical_v2=technical_v2_by_symbol.get(symbol),
         )
         rows.append(row)
 
@@ -1140,6 +1150,7 @@ def _selection_row_for_symbol(
             final_decision=context["final_decision"],
             order=orders[0] if orders else None,
             execution_artifact=_execution_artifacts_by_symbol(run).get(normalized),
+            technical_v2=_technical_v2_for_symbol(run, normalized),
         )
     return None
 
@@ -1151,6 +1162,7 @@ def _selection_row_from_entry(
     final_decision: FinalDecisionModel | None,
     order: PaperOrderModel | None,
     execution_artifact: dict[str, Any] | None,
+    technical_v2: dict[str, Any] | None = None,
 ) -> UiRunSelectionRow:
     symbol = str(entry.get("symbol") or "").strip().upper()
     allocation_status = _optional_string(entry.get("status"))
@@ -1271,6 +1283,12 @@ def _selection_row_from_entry(
         or (
             _optional_string(execution_artifact.get("buy_price_buffer_pct"))
             if execution_artifact is not None
+            else None
+        ),
+        technical_v2=technical_v2
+        or (
+            entry.get("technical_v2")
+            if isinstance(entry.get("technical_v2"), dict)
             else None
         ),
         reason=_selection_reason(
@@ -1665,6 +1683,7 @@ def _input_stage(
     market_summary = _json_safe(run.market_data_summary)
     strategy = _strategy_summary(run)
     symbol_artifacts = _symbol_artifacts(run, symbol)
+    technical_v2 = _technical_v2_for_symbol(run, symbol)
     status: StageStatus = "complete" if market_summary or strategy else "missing"
     event_payloads = [_event_payload(event) for event in events]
     provider = _market_provider(run) or "unknown"
@@ -1684,6 +1703,7 @@ def _input_stage(
                 "market_data_summary": market_summary,
                 "strategy_summary": strategy,
                 "symbol_artifacts": symbol_artifacts,
+                "technical_v2": technical_v2,
                 "events": event_payloads,
             }
         ],
@@ -1692,11 +1712,13 @@ def _input_stage(
             "candle_count": candle_count,
             "event_count": len(events),
             "feature_snapshot_count": strategy.get("feature_snapshot_count"),
+            **_technical_v2_stage_metrics(technical_v2),
         },
         raw={
             "market_data_summary": market_summary,
             "strategy_summary": strategy,
             "symbol_artifacts": symbol_artifacts,
+            "technical_v2": technical_v2,
             "events": event_payloads,
         },
     )
@@ -2306,6 +2328,7 @@ def _latest_allocation_decisions(
         }
         order_by_symbol = {order.symbol.upper(): order for order in orders}
         execution_by_symbol = _execution_artifacts_by_symbol(run)
+        technical_v2_by_symbol = _technical_v2_by_symbol(run)
 
         for entry in ledger:
             symbol = str(entry.get("symbol") or "").strip().upper()
@@ -2320,6 +2343,7 @@ def _latest_allocation_decisions(
                 final_decision=final_by_symbol.get(symbol),
                 order=order_by_symbol.get(symbol),
                 execution_artifact=execution_by_symbol.get(symbol),
+                technical_v2=technical_v2_by_symbol.get(symbol),
             )
             decisions.append(
                 _json_safe(
@@ -2344,6 +2368,7 @@ def _latest_allocation_decisions(
                         "trader_action": selection.trader_action,
                         "proposal_confidence": selection.proposal_confidence,
                         "allocation_status": selection.allocation_status,
+                        "technical_v2": selection.technical_v2,
                         "final_status": selection.final_status,
                         "final_action": selection.final_action,
                         "execution_status": selection.execution_status,
@@ -2780,7 +2805,34 @@ def _event_payload(row: CompanyEventModel) -> dict[str, Any]:
 def _strategy_summary(run: PaperRunModel) -> dict[str, Any]:
     artifacts = run.artifacts or {}
     strategy = artifacts.get("strategy", {})
-    return _json_safe(strategy if isinstance(strategy, dict) else {})
+    summary = _json_safe(strategy if isinstance(strategy, dict) else {})
+    if isinstance(summary, dict):
+        technical_v2_by_symbol = technical_v2_by_symbol_from_strategy_summary(summary)
+        if technical_v2_by_symbol and "technical_v2_by_symbol" not in summary:
+            summary["technical_v2_by_symbol"] = _json_safe(technical_v2_by_symbol)
+    return summary
+
+
+def _technical_v2_by_symbol(run: PaperRunModel) -> dict[str, dict[str, Any]]:
+    return technical_v2_by_symbol_from_strategy_summary(_strategy_summary(run))
+
+
+def _technical_v2_for_symbol(run: PaperRunModel, symbol: str) -> dict[str, Any] | None:
+    return _technical_v2_by_symbol(run).get(symbol.upper())
+
+
+def _technical_v2_stage_metrics(technical_v2: dict[str, Any] | None) -> dict[str, Any]:
+    if not technical_v2:
+        return {}
+    missing_features = technical_v2.get("missing_features")
+    return {
+        "technical_v2_profile": technical_v2.get("profile_name"),
+        "technical_v2_composite_score": technical_v2.get("composite_score"),
+        "technical_v2_confidence": technical_v2.get("confidence"),
+        "technical_v2_missing_feature_count": len(missing_features)
+        if isinstance(missing_features, list)
+        else 0,
+    }
 
 
 def _symbol_artifacts(run: PaperRunModel, symbol: str) -> dict[str, Any]:

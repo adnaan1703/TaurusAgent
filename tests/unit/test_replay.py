@@ -13,6 +13,27 @@ from taurus_core.replay.service import DecisionReplayService
 from tests.llm_fakes import FakeLLMProvider
 from tests.market_data_fixtures import FakeKiteMarketDataProvider
 
+TECHNICAL_V2_FIXTURE = {
+    "profile_name": "technical_ohlcv_v2",
+    "alpha_score": "0.4200",
+    "risk_score": "0.1800",
+    "tradability_score": "0.2400",
+    "confidence": "0.7600",
+    "composite_score": "0.3120",
+    "coverage": "0.9200",
+    "top_contributors": [
+        {
+            "feature_name": "return_63d",
+            "label": "63d return",
+            "family": "alpha",
+            "direction": "positive",
+            "score": "0.6400",
+            "contribution": "0.1200",
+        }
+    ],
+    "missing_features": ["turnover_z_score_20"],
+}
+
 
 @pytest.fixture(autouse=True)
 def fake_runtime_providers(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -35,9 +56,33 @@ def test_replay_portfolio_plan_stage_is_legacy_safe(tmp_path: Path) -> None:
         decision = session.scalars(
             select(FinalDecisionModel).where(FinalDecisionModel.run_id == run.run_id)
         ).one()
+        stored_run = session.get(PaperRunModel, run.run_id)
+        assert stored_run is not None
+        artifacts = dict(stored_run.artifacts)
+        strategy = dict(artifacts["strategy"])
+        strategy["technical_v2_by_symbol"] = {"INFY": TECHNICAL_V2_FIXTURE}
+        ranked_candidates = [dict(item) for item in strategy["ranked_candidates"]]
+        ranked_candidates[0]["metadata"] = {
+            **dict(ranked_candidates[0].get("metadata") or {}),
+            "technical_v2": TECHNICAL_V2_FIXTURE,
+        }
+        strategy["ranked_candidates"] = ranked_candidates
+        artifacts["strategy"] = strategy
+        allocation = dict(artifacts["allocation"])
+        ledger = [dict(item) for item in allocation["ledger"]]
+        ledger[0]["technical_v2"] = TECHNICAL_V2_FIXTURE
+        allocation["ledger"] = ledger
+        allocation["technical_v2_by_symbol"] = {"INFY": TECHNICAL_V2_FIXTURE}
+        artifacts["allocation"] = allocation
+        stored_run.artifacts = artifacts
+        stored_run.payload = {**stored_run.payload, "artifacts": artifacts}
+        session.commit()
+
         replay = DecisionReplayService(session).replay(decision_id=decision.decision_id)
         stage_names = [stage.name for stage in replay.stages]
+        strategy_stage = _stage(replay, "strategy_ranking")
         plan_stage = _stage(replay, "portfolio_plan")
+        allocation_stage = _stage(replay, "allocation_ledger")
 
         assert (
             stage_names.index("portfolio_plan")
@@ -46,6 +91,12 @@ def test_replay_portfolio_plan_stage_is_legacy_safe(tmp_path: Path) -> None:
         assert (
             stage_names.index("allocation_ledger")
             == stage_names.index("portfolio_plan") + 1
+        )
+        assert strategy_stage.artifacts[0]["technical_v2"]["profile_name"] == (
+            "technical_ohlcv_v2"
+        )
+        assert allocation_stage.artifacts[0]["technical_v2"]["composite_score"] == (
+            "0.3120"
         )
         assert plan_stage.artifact_count == 1
         assert plan_stage.artifacts[0]["plan_id"] == f"portfolio-plan-{run.run_id}"
@@ -57,8 +108,6 @@ def test_replay_portfolio_plan_stage_is_legacy_safe(tmp_path: Path) -> None:
         assert plan_stage.artifacts[0]["buy_price_buffer_pct"] == "5.0000"
         assert plan_stage.artifacts[0]["soft_borrowing_enabled"] is False
 
-        stored_run = session.get(PaperRunModel, run.run_id)
-        assert stored_run is not None
         legacy_artifacts = dict(stored_run.artifacts)
         legacy_artifacts.pop("portfolio_plan")
         stored_run.artifacts = legacy_artifacts

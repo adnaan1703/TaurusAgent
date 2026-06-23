@@ -29,6 +29,11 @@ import {
 } from "../utils/format";
 import { AllocationDecisionPanel } from "./AllocationPanels";
 import { PageScaffold } from "./PageScaffold";
+import {
+  TechnicalV2Inline,
+  TechnicalV2Panel,
+  technicalV2FromObject,
+} from "./TechnicalV2Panel";
 
 export function DecisionTrailPage() {
   const { runId = "", symbol = "" } = useParams();
@@ -163,29 +168,32 @@ function SelectionDecisionPanel({
   }
 
   return (
-    <DataPanel
-      actions={<StatusBadge status={decision.allocation_status} size="sm" />}
-      title="Run Selection Decision"
-    >
-      <KeyValueGrid
-        items={[
-          { label: "Rank", value: formatNumber(decision.rank ?? undefined) },
-          { label: "Planner rank", value: formatNumber(decision.planner_rank ?? undefined) },
-          { label: "Raw strategy score", value: formatNumber(decision.strategy_score ?? undefined) },
-          { label: "Allocation score", value: formatNumber(decision.candidate_score ?? undefined) },
-          { label: "Trader action", value: decision.trader_action ?? "-" },
-          { label: "Planner source", value: decision.planner_source ?? decision.proposal_source ?? "-" },
-          { label: "Funding", value: decision.funding_source ?? "-" },
-          { label: "Existing cash", value: formatInr(decision.existing_cash_used_inr ?? undefined) },
-          { label: "Same-run proceeds", value: formatInr(decision.same_run_proceeds_used_inr ?? undefined) },
-          { label: "Proposal confidence", value: formatPercent(decision.proposal_confidence ?? undefined) },
-          { label: "Final status", value: <StatusBadge status={decision.final_status} size="sm" /> },
-          { label: "Execution status", value: <StatusBadge status={decision.execution_status} size="sm" /> },
-          { label: "Constraint", value: decision.binding_constraint ?? "None" },
-          { label: "Reason", value: decision.reason ?? "-" },
-        ]}
-      />
-    </DataPanel>
+    <div className="grid gap-6">
+      <DataPanel
+        actions={<StatusBadge status={decision.allocation_status} size="sm" />}
+        title="Run Selection Decision"
+      >
+        <KeyValueGrid
+          items={[
+            { label: "Rank", value: formatNumber(decision.rank ?? undefined) },
+            { label: "Planner rank", value: formatNumber(decision.planner_rank ?? undefined) },
+            { label: "Raw strategy score", value: formatNumber(decision.strategy_score ?? undefined) },
+            { label: "Allocation score", value: formatNumber(decision.candidate_score ?? undefined) },
+            { label: "Trader action", value: decision.trader_action ?? "-" },
+            { label: "Planner source", value: decision.planner_source ?? decision.proposal_source ?? "-" },
+            { label: "Funding", value: decision.funding_source ?? "-" },
+            { label: "Existing cash", value: formatInr(decision.existing_cash_used_inr ?? undefined) },
+            { label: "Same-run proceeds", value: formatInr(decision.same_run_proceeds_used_inr ?? undefined) },
+            { label: "Proposal confidence", value: formatPercent(decision.proposal_confidence ?? undefined) },
+            { label: "Final status", value: <StatusBadge status={decision.final_status} size="sm" /> },
+            { label: "Execution status", value: <StatusBadge status={decision.execution_status} size="sm" /> },
+            { label: "Constraint", value: decision.binding_constraint ?? "None" },
+            { label: "Reason", value: decision.reason ?? "-" },
+          ]}
+        />
+      </DataPanel>
+      <TechnicalV2Panel technicalV2={decision.technical_v2} title="Selection Technical V2A" />
+    </div>
   );
 }
 
@@ -306,6 +314,7 @@ function StageArtifactTable({ stage }: { stage: UiTimelineStage }) {
           { key: "stance", header: "Stance", render: (row) => getString(row, "stance") || "-" },
           { key: "score", header: "Score", align: "right", render: (row) => formatNumber(getPrimitive(row, "score")) },
           { key: "confidence", header: "Confidence", align: "right", render: (row) => formatPercent(getPrimitive(row, "confidence")) },
+          { key: "technicalV2", header: "Technical v2A", render: (row) => <TechnicalV2Inline technicalV2={technicalV2FromObject(row)} /> },
           { key: "points", header: "Key points", render: (row) => listSummary(row, "key_points") },
         ]}
         getRowKey={(row) => getString(row, "report_id")}

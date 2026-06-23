@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Iterator
 from datetime import datetime
 from decimal import Decimal
+from typing import Any
 
 from fastapi import APIRouter, Depends, Query, Request
 from pydantic import BaseModel, ConfigDict
@@ -48,6 +49,7 @@ class AnalystReportResponse(BaseModel):
     risks: list[str]
     source_ids: list[str]
     model_version: str
+    score_metadata: dict[str, Any] | None = None
 
 
 def get_db_session(request: Request) -> Iterator[Session]:
@@ -103,4 +105,25 @@ def list_agent_reports(
     session: Session = Depends(get_db_session),
 ) -> list[AnalystReportResponse]:
     reports = AnalystReportRepository(session).list(symbol=symbol, limit=limit)
-    return [AnalystReportResponse.model_validate(report) for report in reports]
+    return [
+        AnalystReportResponse(
+            report_id=report.report_id,
+            run_id=report.run_id,
+            decision_id=report.decision_id,
+            symbol=report.symbol,
+            agent_name=report.agent_name,
+            as_of=report.as_of,
+            score=report.score,
+            confidence=report.confidence,
+            stance=report.stance,
+            horizon=report.horizon,
+            key_points=list(report.key_points),
+            risks=list(report.risks),
+            source_ids=list(report.source_ids),
+            model_version=report.model_version,
+            score_metadata=report.payload.get("score_metadata")
+            if isinstance(report.payload, dict)
+            else None,
+        )
+        for report in reports
+    ]

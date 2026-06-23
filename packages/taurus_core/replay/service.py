@@ -19,6 +19,10 @@ from taurus_core.db.models import (
     RiskReviewModel,
     TraderProposalModel,
 )
+from taurus_core.features.technical_visibility import (
+    technical_v2_by_symbol_from_strategy_summary,
+    technical_v2_from_ranking,
+)
 from taurus_core.replay.schemas import DecisionReplay, ReplayStage
 
 
@@ -185,10 +189,22 @@ class DecisionReplayService:
             "strategy_ranked_symbols": strategy.get("strategy_ranked_symbols", []),
             "targets": strategy.get("targets", []),
         }
+        technical_v2_by_symbol = technical_v2_by_symbol_from_strategy_summary(strategy)
+        technical_v2 = technical_v2_by_symbol.get(normalized_symbol)
+        if technical_v2 is not None:
+            summary["technical_v2"] = technical_v2
+            summary["technical_v2_by_symbol"] = technical_v2_by_symbol
         if matched:
+            artifacts = []
+            for item in matched:
+                artifact = {**summary, "ranking": item}
+                ranking_technical_v2 = technical_v2_from_ranking(item) or technical_v2
+                if ranking_technical_v2 is not None:
+                    artifact["technical_v2"] = ranking_technical_v2
+                artifacts.append(artifact)
             return _stage(
                 "strategy_ranking",
-                [{**summary, "ranking": item} for item in matched],
+                artifacts,
             )
         return _stage(
             "strategy_ranking",
@@ -262,6 +278,8 @@ class DecisionReplayService:
 
         normalized_symbol = symbol.upper()
         ledger = allocation.get("ledger")
+        strategy = self._paper_run_artifact(run_id).get("strategy")
+        technical_v2_by_symbol = technical_v2_by_symbol_from_strategy_summary(strategy)
         matched = []
         if isinstance(ledger, list):
             matched = [
@@ -279,10 +297,23 @@ class DecisionReplayService:
             "ledger_count": allocation.get("ledger_count"),
             "status_counts": allocation.get("status_counts", {}),
         }
+        technical_v2 = technical_v2_by_symbol.get(normalized_symbol)
+        if technical_v2 is not None:
+            summary["technical_v2"] = technical_v2
+            summary["technical_v2_by_symbol"] = technical_v2_by_symbol
         if matched:
+            artifacts = []
+            for item in matched:
+                artifact = {**summary, "ledger_entry": item}
+                item_technical_v2 = item.get("technical_v2")
+                if isinstance(item_technical_v2, dict):
+                    artifact["technical_v2"] = item_technical_v2
+                elif technical_v2 is not None:
+                    artifact["technical_v2"] = technical_v2
+                artifacts.append(artifact)
             return _stage(
                 "allocation_ledger",
-                [{**summary, "ledger_entry": item} for item in matched],
+                artifacts,
             )
         return _stage(
             "allocation_ledger",

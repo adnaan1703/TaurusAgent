@@ -52,6 +52,10 @@ from taurus_core.features.technical_context import (
     build_universe_technical_context,
 )
 from taurus_core.features.technical_signal import ANALYST_RULE_PROFILE, OHLCV_V2_PROFILE
+from taurus_core.features.technical_visibility import (
+    technical_v2_by_symbol_from_strategy_summary,
+    technical_v2_from_strategy_signal,
+)
 from taurus_core.graph.preflight import assert_graph_ready_for_paper
 from taurus_core.intelligence.mock_news_provider import MockNewsProvider
 from taurus_core.llm import LLMProvider, build_llm_provider
@@ -694,7 +698,8 @@ class PaperRunService:
                     ),
                 )
                 artifacts["allocation"] = _allocation_artifact_from_result(
-                    allocation_result
+                    allocation_result,
+                    strategy_summary=strategy_summary,
                 )
                 allocation_status_by_symbol = {
                     entry.symbol: entry.status for entry in allocation_result.ledger
@@ -2112,69 +2117,69 @@ class PaperRunService:
             for ranking in rankings
             if ranking.raw_strategy_score is not None
         }
-        return StrategySummaryResult(
-            summary={
-                "strategy_name": strategy_config.strategy_name,
-                "strategy_config_path": str(strategy_config.source_path),
-                "strategy_type": strategy_config.strategy_type,
-                "technical_analyst_profile": technical_analyst_profile,
-                "legacy_target_limit": legacy_target_limit,
-                "targets": selected_symbols,
-                "signals": [
-                    {
-                        "trade_date": signal.trade_date.isoformat(),
-                        "symbol": signal.symbol,
-                        "action": signal.action,
-                        "score": str(signal.score),
-                        "reason": signal.reason,
-                        "explanation": signal.explanation.to_dict(),
-                    }
-                    for signal in signals
-                    if signal.symbol in requested or signal.symbol in targets
-                ],
-                "ranked_candidates": ranked_candidates,
-                "eligible_symbol_count": sum(
-                    1 for ranking in rankings if ranking.is_eligible
-                ),
-                "ranked_symbol_count": sum(
-                    1 for ranking in rankings if ranking.rank is not None
-                ),
-                "strategy_ranked_symbols": strategy_ranked_symbols,
-                "strategy_score_by_symbol": strategy_score_by_symbol,
-                "feature_snapshot_count": len(snapshots),
-                "graph_enabled_profile": graph_profile_enabled,
-                "graph_risk_enabled": self.settings.taurus_graph_risk_enabled,
-                "graph_readiness": graph_readiness,
-                "graph_signal_count": len(graph_signals_by_symbol),
-                "symbols_with_graph_signals": sorted(graph_signals_by_symbol),
-                "graph_signals": {
-                    symbol: signal.to_dict()
-                    for symbol, signal in sorted(graph_signals_by_symbol.items())
-                },
-                "graph_selected_symbols": selected_symbols
-                if select_targets_with_graph_called
-                else [],
-                "graph_strategy_config_path": str(strategy_config.source_path)
-                if graph_profile_enabled
-                else None,
-                "select_targets_with_graph_called": select_targets_with_graph_called,
-                "run_scope_symbols": run_scope_symbols,
-                "requested_symbols": requested_for_metadata,
-                "pre_settlement_pending_next_open_order_symbols": pre_settlement_pending_symbols,
-                "pending_next_open_order_symbols": pending_next_open_symbols,
-                "open_position_symbols": sorted(current_positions),
-                "symbol_selection": _symbol_selection_metadata(
-                    requested_symbols=requested_for_metadata,
-                    selected_symbols=selected_symbols,
-                    current_positions=current_positions,
-                    pending_next_open_order_symbols=set(
-                        [*pre_settlement_pending_symbols, *pending_next_open_symbols]
-                    ),
-                    graph_signals_by_symbol=graph_signals_by_symbol,
-                    universe=universe,
-                    select_targets_with_graph_called=select_targets_with_graph_called,
-                ),
+        signals_payload = [
+            _strategy_signal_artifact(signal)
+            for signal in signals
+            if signal.symbol in requested or signal.symbol in targets
+        ]
+        technical_v2_by_symbol = technical_v2_by_symbol_from_strategy_summary(
+            {"ranked_candidates": ranked_candidates, "signals": signals_payload}
+        )
+        summary = {
+            "strategy_name": strategy_config.strategy_name,
+            "strategy_config_path": str(strategy_config.source_path),
+            "strategy_type": strategy_config.strategy_type,
+            "technical_analyst_profile": technical_analyst_profile,
+            "legacy_target_limit": legacy_target_limit,
+            "targets": selected_symbols,
+            "signals": signals_payload,
+            "ranked_candidates": ranked_candidates,
+            "eligible_symbol_count": sum(
+                1 for ranking in rankings if ranking.is_eligible
+            ),
+            "ranked_symbol_count": sum(
+                1 for ranking in rankings if ranking.rank is not None
+            ),
+            "strategy_ranked_symbols": strategy_ranked_symbols,
+            "strategy_score_by_symbol": strategy_score_by_symbol,
+            "feature_snapshot_count": len(snapshots),
+            "graph_enabled_profile": graph_profile_enabled,
+            "graph_risk_enabled": self.settings.taurus_graph_risk_enabled,
+            "graph_readiness": graph_readiness,
+            "graph_signal_count": len(graph_signals_by_symbol),
+            "symbols_with_graph_signals": sorted(graph_signals_by_symbol),
+            "graph_signals": {
+                symbol: signal.to_dict()
+                for symbol, signal in sorted(graph_signals_by_symbol.items())
             },
+            "graph_selected_symbols": selected_symbols
+            if select_targets_with_graph_called
+            else [],
+            "graph_strategy_config_path": str(strategy_config.source_path)
+            if graph_profile_enabled
+            else None,
+            "select_targets_with_graph_called": select_targets_with_graph_called,
+            "run_scope_symbols": run_scope_symbols,
+            "requested_symbols": requested_for_metadata,
+            "pre_settlement_pending_next_open_order_symbols": pre_settlement_pending_symbols,
+            "pending_next_open_order_symbols": pending_next_open_symbols,
+            "open_position_symbols": sorted(current_positions),
+            "symbol_selection": _symbol_selection_metadata(
+                requested_symbols=requested_for_metadata,
+                selected_symbols=selected_symbols,
+                current_positions=current_positions,
+                pending_next_open_order_symbols=set(
+                    [*pre_settlement_pending_symbols, *pending_next_open_symbols]
+                ),
+                graph_signals_by_symbol=graph_signals_by_symbol,
+                universe=universe,
+                select_targets_with_graph_called=select_targets_with_graph_called,
+            ),
+        }
+        if technical_v2_by_symbol:
+            summary["technical_v2_by_symbol"] = technical_v2_by_symbol
+        return StrategySummaryResult(
+            summary=summary,
             technical_analyst_profile=technical_analyst_profile,
             technical_feature_snapshots=technical_feature_snapshots,
             universe_technical_context=universe_technical_context,
@@ -2655,10 +2660,41 @@ def _symbol_artifact_from_results(
     return result
 
 
+def _strategy_signal_artifact(signal: Any) -> dict[str, object]:
+    artifact = {
+        "trade_date": signal.trade_date.isoformat(),
+        "symbol": signal.symbol,
+        "action": signal.action,
+        "score": str(signal.score),
+        "reason": signal.reason,
+        "explanation": signal.explanation.to_dict(),
+    }
+    technical_v2 = technical_v2_from_strategy_signal(artifact)
+    if technical_v2 is not None:
+        artifact["technical_v2"] = technical_v2
+    return artifact
+
+
 def _allocation_artifact_from_result(
     allocation_result: RunAllocationResult,
+    *,
+    strategy_summary: dict[str, object] | None = None,
 ) -> dict[str, object]:
     artifact = allocation_result.to_artifact()
+    technical_v2_by_symbol = technical_v2_by_symbol_from_strategy_summary(
+        strategy_summary
+    )
+    if technical_v2_by_symbol:
+        artifact["technical_v2_by_symbol"] = technical_v2_by_symbol
+        ledger = artifact.get("ledger")
+        if isinstance(ledger, list):
+            for entry in ledger:
+                if not isinstance(entry, dict):
+                    continue
+                symbol = str(entry.get("symbol") or "").upper()
+                technical_v2 = technical_v2_by_symbol.get(symbol)
+                if technical_v2 is not None:
+                    entry["technical_v2"] = technical_v2
     artifact["ledger_count"] = len(allocation_result.ledger)
     artifact["ledger_counts"] = dict(
         sorted(Counter(entry.status for entry in allocation_result.ledger).items())

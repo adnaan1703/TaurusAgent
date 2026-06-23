@@ -29,6 +29,33 @@ const profile = {
   updated_at: "2026-06-10T00:00:00Z",
 };
 
+const technicalV2 = {
+  profile_name: "technical_ohlcv_v2",
+  alpha_score: "0.4200",
+  risk_score: "0.1800",
+  tradability_score: "0.2400",
+  confidence: "0.7600",
+  composite_score: "0.3120",
+  coverage: "0.9200",
+  score_source: "technical_ohlcv_v2",
+  top_contributors: [
+    {
+      feature_name: "return_63d",
+      label: "63d return",
+      family: "alpha",
+      direction: "positive",
+      score: "0.6400",
+      contribution: "0.1200",
+    },
+  ],
+  missing_features: ["turnover_z_score_20"],
+  metadata: {
+    universe_context_available: true,
+    symbol_context_available: true,
+    universe_size: 3,
+  },
+};
+
 const runSummary = {
   run_id: "pr-test",
   profile_id: "local-paper",
@@ -71,6 +98,7 @@ const runSummary = {
       execution_status: "FILLED",
       selected: true,
       binding_constraint: null,
+      technical_v2: technicalV2,
       reason: "executed_by_paper_order:filled",
     },
     {
@@ -156,6 +184,7 @@ const allocationDecision = {
   governor_scale_factor: 1,
   governor_reasons: [],
   binding_constraint: "cash_buffer",
+  technical_v2: technicalV2,
 };
 
 const portfolioPlan = {
@@ -473,10 +502,16 @@ const stages = [
     status: "complete",
     timestamp: "2026-05-21T15:00:00Z",
     summary: "Market provider kite; 252 candles; 1 event.",
-    metrics: { market_provider: "kite", candle_count: 252, event_count: 1 },
+    metrics: {
+      market_provider: "kite",
+      candle_count: 252,
+      event_count: 1,
+      technical_v2_profile: "technical_ohlcv_v2",
+      technical_v2_composite_score: "0.3120",
+    },
     artifact_ids: ["pr-test"],
-    artifacts: [{ run_id: "pr-test", provider: "kite" }],
-    raw: { provider: "kite" },
+    artifacts: [{ run_id: "pr-test", provider: "kite", technical_v2: technicalV2 }],
+    raw: { provider: "kite", technical_v2: technicalV2 },
   },
   {
     id: "analyst_reports",
@@ -492,6 +527,7 @@ const stages = [
         stance: "bullish",
         score: 0.7,
         confidence: 0.8,
+        score_metadata: { technical_v2: technicalV2 },
         key_points: ["Trend improved"],
       },
     ],
@@ -616,7 +652,11 @@ const runDetail = {
     },
   ],
   market_data_summary: { provider_name: "kite", candle_count: 252 },
-  strategy_summary: { strategy_name: "blended_score", signal_count: 1 },
+  strategy_summary: {
+    strategy_name: "graph_aware_score_v2",
+    signal_count: 1,
+    technical_v2_by_symbol: { INFY: technicalV2 },
+  },
   selection_ledger: runSummary.selection_preview,
   errors: [],
   artifacts: {},
@@ -638,6 +678,50 @@ const trail = {
   selected_stage_id: "inputs",
   stages,
   warnings: [],
+};
+
+const replay = {
+  decision_id: "dec-test",
+  run_id: "pr-test",
+  symbol: "INFY",
+  status: "APPROVED_FOR_PAPER",
+  generated_at: "2026-05-21T15:02:00Z",
+  note: "Replay is reconstructed from stored Taurus artifacts.",
+  stages: [
+    {
+      id: "strategy_ranking",
+      label: "Strategy Ranking",
+      status: "complete",
+      summary: "1 strategy ranking artifact.",
+      metrics: { artifact_count: 1 },
+      artifact_ids: [],
+      artifacts: [
+        {
+          symbol: "INFY",
+          strategy_name: "graph_aware_score_v2",
+          technical_v2: technicalV2,
+          ranking: { symbol: "INFY", rank: 1, metadata: { technical_v2: technicalV2 } },
+        },
+      ],
+      raw: [],
+    },
+    {
+      id: "allocation_ledger",
+      label: "Allocation Ledger",
+      status: "complete",
+      summary: "1 allocation ledger artifact.",
+      metrics: { artifact_count: 1 },
+      artifact_ids: [],
+      artifacts: [
+        {
+          symbol: "INFY",
+          technical_v2: technicalV2,
+          ledger_entry: { symbol: "INFY", status: "selected", binding_constraint: "cash_buffer" },
+        },
+      ],
+      raw: [],
+    },
+  ],
 };
 
 const risk = {
@@ -752,6 +836,8 @@ describe("M16.4 screen states", () => {
     expect(screen.getAllByText("Borrowed by").length).toBeGreaterThan(0);
     expect(screen.getAllByText("threshold_exit").length).toBeGreaterThan(0);
     expect(screen.getAllByText("core_shariah_basket_v1").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("technical_ohlcv_v2").length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/63d return/).length).toBeGreaterThan(0);
   });
 
   it("renders the run-detail selection ledger empty state for legacy runs", async () => {
@@ -770,12 +856,28 @@ describe("M16.4 screen states", () => {
     expect(screen.getByText("Run Selection Decision")).toBeInTheDocument();
     expect(screen.getAllByText("executed_by_paper_order:filled").length).toBeGreaterThan(0);
     expect(screen.getByText("Allocation Decision")).toBeInTheDocument();
+    expect(screen.getByText("Selection Technical V2A")).toBeInTheDocument();
+    expect(screen.getByText("Allocation Technical V2A")).toBeInTheDocument();
+    expect(screen.getAllByText("technical_ohlcv_v2").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("turnover_z_score_20").length).toBeGreaterThan(0);
     expect(screen.getAllByText("cash_buffer").length).toBeGreaterThan(0);
     expect(screen.getByText("Analyst Roster")).toBeInTheDocument();
     expect(screen.getByText("technical")).toBeInTheDocument();
     expect(screen.getByText("fundamentals")).toBeInTheDocument();
     expect(screen.getByText("No debate report is stored for this run and symbol.")).toBeInTheDocument();
     expect(screen.getByText("Paper Fills")).toBeInTheDocument();
+  });
+
+  it("renders replay technical v2 evidence", async () => {
+    stubFetch({ overview, replay });
+    renderRoute("/replay/dec-test");
+
+    expect(await screen.findByText("Open Replay")).toBeInTheDocument();
+    expect(screen.getByText("Strategy Ranking")).toBeInTheDocument();
+    expect(screen.getByText("Allocation Ledger")).toBeInTheDocument();
+    expect(screen.getAllByText("technical_ohlcv_v2").length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/63d return/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText("cash_buffer").length).toBeGreaterThan(0);
   });
 
   it("highlights blocked and reduced risk reviews", async () => {

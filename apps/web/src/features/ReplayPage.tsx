@@ -20,9 +20,11 @@ import {
   formatTimestamp,
   getPrimitive,
   getString,
+  isJsonObject,
   objectEntries,
 } from "../utils/format";
 import { PageScaffold } from "./PageScaffold";
+import { TechnicalV2Inline, technicalV2FromObject } from "./TechnicalV2Panel";
 
 export function ReplayPage() {
   const { decisionId = "" } = useParams();
@@ -203,6 +205,24 @@ function replayColumns(stage: UiTimelineStage) {
     ];
   }
 
+  if (stage.id === "strategy_ranking") {
+    return [
+      { key: "symbol", header: "Symbol", render: (row: JsonObject) => getString(row, "symbol") || "-" },
+      { key: "strategy", header: "Strategy", render: (row: JsonObject) => getString(row, "strategy_name") || "-" },
+      { key: "technicalV2", header: "Technical v2A", render: (row: JsonObject) => <TechnicalV2Inline technicalV2={technicalV2FromObject(row)} /> },
+      { key: "reason", header: "Reason", render: (row: JsonObject) => getString(row, "reason") || "-" },
+    ];
+  }
+
+  if (stage.id === "allocation_ledger") {
+    return [
+      { key: "symbol", header: "Symbol", render: (row: JsonObject) => getString(row, "symbol") || "-" },
+      { key: "technicalV2", header: "Technical v2A", render: (row: JsonObject) => <TechnicalV2Inline technicalV2={technicalV2FromObject(row)} /> },
+      { key: "status", header: "Status", render: (row: JsonObject) => replayLedgerValue(row, "status") },
+      { key: "reason", header: "Constraint", render: (row: JsonObject) => replayLedgerValue(row, "binding_constraint") },
+    ];
+  }
+
   const keys = Array.from(new Set(stage.artifacts.flatMap((artifact) => Object.keys(artifact)))).slice(0, 5);
   return keys.map((key) => ({
     key,
@@ -210,6 +230,15 @@ function replayColumns(stage: UiTimelineStage) {
     render: (row: JsonObject) =>
       key.endsWith("_id") ? formatId(getString(row, key)) : formatMetricValue(key, getPrimitive(row, key)),
   }));
+}
+
+function replayLedgerValue(row: JsonObject, key: string): string {
+  const direct = getString(row, key);
+  if (direct) {
+    return direct;
+  }
+  const ledgerEntry = isJsonObject(row.ledger_entry) ? row.ledger_entry : null;
+  return getString(ledgerEntry, key) || "-";
 }
 
 function statusHistory(row: JsonObject) {

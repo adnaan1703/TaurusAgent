@@ -252,6 +252,14 @@ and metadata fields. It is wired into the opt-in `graph_aware_score_v2`
 strategy profile and into `TechnicalAnalystAgent` when the analyst profile is
 `technical_ohlcv_v2`.
 
+For M80 visibility, the v2A metadata is copied through artifacts and APIs
+additively when present: `paper_runs.artifacts.strategy.technical_v2_by_symbol`,
+strategy ranked candidates, strategy signals, allocation ledger rows,
+decision-trail input stages, `/agent-reports` `score_metadata`, and replay
+strategy/allocation stages can all expose the same compact vector. The vector is
+for debugging and traceability only; M80 does not change scoring formulas,
+allocation calibration, validation gates, or default v1 behavior.
+
 The shared service is DB-free and behavior-preserving for the first
 implementation sequence. Runtime profile selection is currently implemented for
 `GraphAwareScoreStrategy` and `TechnicalAnalystAgent`; migration of

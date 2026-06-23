@@ -5,10 +5,10 @@ Last updated: 2026-06-23
 ## Current Status
 
 - Current milestone: None.
-- Last completed milestone: M79 `TechnicalAnalystAgent` V2A Deterministic
-  Numeric Wiring.
+- Last completed milestone: M80 V2A Artifact, API, Replay, And React
+  Visibility.
 - Planning completed: M74-M86 technical layer overhaul sequence.
-- Implementation state: M74, M75, M76, M77, M78, and M79 are complete. The
+- Implementation state: M74, M75, M76, M77, M78, M79, and M80 are complete. The
   canonical/default runtime remains behavior-preserving:
   `TechnicalAnalystAgent` uses `technical_rule_v1` unless the analyst runner is
   explicitly passed `technical_ohlcv_v2`, and `GraphAwareScoreStrategy` uses the
@@ -36,10 +36,13 @@ Last updated: 2026-06-23
   `TechnicalAnalystAgent` stores deterministic v2 score/confidence/stance from
   `TechnicalSignalService.score_ohlcv_v2()` while preserving LLM narrative
   generation. Latest `backtest_signals` no longer override v2 analyst score;
-  they are retained only as audit metadata. M79 did not add API/UI/React
-  surfacing, validation commands, official-data ingestion, or promotion.
-- Next recommended milestone: M80 v2A artifact, API, replay, and React
-  visibility.
+  they are retained only as audit metadata. M80 added additive v2A visibility
+  across strategy ranked candidates, strategy signals, selection/allocation
+  rows, analyst-report API payloads, decision-trail input stages, replay stages,
+  and compact React debugging panels. It did not change scoring formulas,
+  validation logic, official-data ingestion, or promotion.
+- Next recommended milestone: M81 historical validation command and data
+  readiness.
 - Thread model requirement from the user: each milestone worker thread should
   use GPT 5.5 with xhigh thinking.
 - Commit policy from the user: do not commit anything unless explicitly asked.
@@ -94,7 +97,7 @@ sequence is:
 - M77: `TechnicalSignalService` v2A scoring profile. Done.
 - M78: opt-in `graph_aware_score_v2` strategy runtime profile. Done.
 - M79: `TechnicalAnalystAgent` v2A deterministic numeric wiring. Done.
-- M80: v2A artifact, API, replay, and React visibility.
+- M80: v2A artifact, API, replay, and React visibility. Done.
 - M81: historical validation command and data readiness.
 - M82: technical validation reports and conservative gate.
 - M83: official index, sector, and India VIX data ingestion.
@@ -128,6 +131,9 @@ sequence is:
 - v2A technical analyst score/confidence are deterministic when the analyst
   profile is `technical_ohlcv_v2`; LLM output may provide narrative, key
   points, and risks but must not own stored v2 score/confidence.
+- M80 visibility is additive only: v2A metadata may be absent on legacy v1 runs,
+  and API/UI/replay consumers must omit it cleanly instead of treating it as
+  required.
 - v2B official relative-strength/regime/microstructure features wait for M83
   and M84 ingestion.
 - Validation must prove both technical-agent predictive quality and full-system
