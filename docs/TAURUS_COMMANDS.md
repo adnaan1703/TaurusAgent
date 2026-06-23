@@ -183,25 +183,56 @@ Technical validation:
 make validate-technical-v2
 make validate-technical-v2 TECHNICAL_VALIDATION_MODE=strong
 make validate-technical-v2 TECHNICAL_VALIDATION_SYMBOLS=INFY,TCS
+make validate-technical-v2 TECHNICAL_VALIDATION_REPORT_ROOT=/tmp/taurus-tech-reports
 ```
 
 `make validate-technical-v2` writes deterministic machine-readable artifacts
-under `artifacts/technical_validation/<run_id>/`. The standard mode validates a
-3-year evaluation window after a 252-trading-day indicator warm-up. The strong
-mode uses a 5-year evaluation window with the same warm-up. The command compares
-`graph_aware_score_v1`, v1 with graph contribution weight set to zero,
-`graph_aware_score_v2`, and v2A with graph contribution weight set to zero on
-the same symbols, dates, costs, slippage, NAV, rebalance cadence, and position
-limits when local `daily_candles` coverage is sufficient.
+under `artifacts/technical_validation/<run_id>/` and an operator-readable
+Markdown report under `docs/reports/technical_validation/<run_id>.md` by
+default. Generated report and artifact directories are ignored because they are
+run output. Override the report directory with
+`TECHNICAL_VALIDATION_REPORT_ROOT=...` when a durable external report location
+is preferred.
+
+The standard mode validates a 3-year evaluation window after a 252-trading-day
+indicator warm-up. The strong mode uses a 5-year evaluation window with the
+same warm-up. The command compares `graph_aware_score_v1`, v1 with graph
+contribution weight set to zero, `graph_aware_score_v2`, and v2A with graph
+contribution weight set to zero on the same symbols, dates, costs, slippage,
+NAV, rebalance cadence, and position limits when local `daily_candles` coverage
+is sufficient.
+
+M82 report artifacts include:
+
+- `technical_agent_predictive_report.json`, `.md`, and
+  `technical_agent_prediction_checks.csv` with 5d, 21d, and 63d future-return
+  checks, rank correlation, top-vs-bottom spread, confidence calibration,
+  coverage/missing-feature diagnostics, and explanation quality.
+- `system_backtest_report.json`, `.md`, and
+  `system_backtest_profile_summary.csv` with return/CAGR, Sharpe/Sortino,
+  drawdown, turnover, win rate/profit factor, selected symbols, cash
+  utilization, backtest allocation-score proxy behavior, rejected/trimmed
+  counts, inferred sizing failures, and equity curve summaries.
+- `profile_comparison_matrix.csv` for cross-profile comparison.
+- `promotion_gate.json` with a conservative recommendation of `promote`,
+  `keep_opt_in`, or `defer`.
+
+The promotion gate is report-only. It requires v2A to beat or tie v1 after
+costs, avoid material drawdown worsening, keep turnover controlled, show
+positive 21d rank/decile evidence, and avoid allocation utilization or sizing
+failures. It does not switch `make paper-loop-kite`, `graph_aware_score_v1`, or
+`technical_rule_v1` to v2.
 
 If coverage is insufficient, the command still writes `data_readiness.json` and
-`validation_manifest.json`, prints the missing common-candle count, and names a
+`validation_manifest.json`, writes not-run technical/system reports plus a
+`defer` promotion gate, prints the missing common-candle count, and names a
 deeper Kite import command such as
 `TAURUS_MARKET_DATA_LOOKBACK_DAYS=1434 make import-kite-candles`. Set
 `TECHNICAL_VALIDATION_STRICT_INSUFFICIENT=true` when automation should treat
 short coverage as a non-zero exit. Useful overrides include
 `TECHNICAL_VALIDATION_UNIVERSE=configs/market_data/nifty_50_shariah.yaml`,
 `TECHNICAL_VALIDATION_ARTIFACT_ROOT=...`,
+`TECHNICAL_VALIDATION_REPORT_ROOT=...`,
 `TECHNICAL_VALIDATION_INITIAL_CAPITAL_INR=...`,
 `TECHNICAL_VALIDATION_MAX_OPEN_POSITIONS=...`,
 `TECHNICAL_VALIDATION_PORTFOLIO_BREADTH=...`,

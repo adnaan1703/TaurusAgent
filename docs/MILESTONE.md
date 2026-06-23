@@ -202,6 +202,13 @@ removed during docs cleanup. Use Git history for detailed historical plans.
   v1/v2 graph-aware and technical-only backtest profiles when coverage is
   sufficient, and prints actionable deeper Kite import guidance when local
   coverage is short.
+- M82 technical validation reports and conservative gate work is complete:
+  `make validate-technical-v2` now writes an operator Markdown report under
+  `docs/reports/technical_validation/<run_id>.md`, technical-agent predictive
+  JSON/CSV/Markdown artifacts, full-system backtest JSON/CSV/Markdown
+  artifacts, an expanded profile comparison matrix, and a conservative
+  `promotion_gate.json` that recommends `promote`, `keep_opt_in`, or `defer`
+  without promoting v2.
 
 ## Standing Safety Rules
 
@@ -273,7 +280,7 @@ removed during docs cleanup. Use Git history for detailed historical plans.
 | M71 | Done | Replaced the static company SVG with a Reagraph-backed full main-content explorer shell, toolbar search/status/edge-type/camera/refresh controls, node and edge inspection, edge evidence/stats detail loading, focused JSDOM Reagraph tests, and approval-rule cleanup inspection. |
 | M72 | Done | Added explicit selected-node one-hop expansion in the Reagraph inspector, duplicate-free local node/edge merging, per-node expansion loading/error/truncation state, reset-on-refresh/filter behavior, focused React coverage, and approval-rule cleanup inspection. |
 | M73 | Done | Ran focused graph API/repository tests, React graph tests, React production build, the full backend suite, and browser QA; refreshed graph explorer operator/developer docs; fixed a Reagraph expansion focus regression found during visual QA; confirmed approval-rule cleanup was not needed; and closed the M70-M73 sequence. |
-| M74-M86 plan document | Done | Created the flat technical layer overhaul plan and handoff covering v1 baselines, OHLCV v2A indicators, cross-sectional context, deterministic scoring, opt-in strategy and analyst wiring, API/UI visibility, historical validation reports, official index/VIX/delivery/circuit ingestion, v2B scoring, and evidence-gated promotion. Implementation is complete through M80. |
+| M74-M86 plan document | Done | Created the flat technical layer overhaul plan and handoff covering v1 baselines, OHLCV v2A indicators, cross-sectional context, deterministic scoring, opt-in strategy and analyst wiring, API/UI visibility, historical validation reports, official index/VIX/delivery/circuit ingestion, v2B scoring, and evidence-gated promotion. Implementation is complete through M82. |
 | M74 | Done | Added focused v1 technical-layer characterization coverage for analyst-rule metadata, SMA-spread availability and precision, graph-aware ranked-candidate payloads, allocation score calibration, and current base analyst LLM numeric ownership; documented the validation output contract for later M81-M82 evidence reports. |
 | M75 | Done | Added pure OHLCV indicator primitives and opt-in `technical_ohlcv_v2` feature snapshots while preserving v1 defaults and graph-aware v1 scoring behavior. |
 | M76 | Done | Added the pure DB-free universe technical context builder with deterministic cross-sectional ranks, percentiles, z-scores, missing-feature maps, availability counts, and JSON-friendly universe metadata without changing v1 runtime behavior. |
@@ -282,6 +289,7 @@ removed during docs cleanup. Use Git history for detailed historical plans.
 | M79 | Done | Wired `TechnicalAnalystAgent` to the opt-in v2A OHLCV profile with deterministic score/confidence ownership, optional universe context from the paper strategy stage, symbol-local fallback metadata, and v2 score metadata while preserving v1 defaults. |
 | M80 | Done | Surfaced v2A technical vectors additively across strategy artifacts, allocation rows, analyst-report API payloads, decision-trail input stages, replay output, and compact React debugging views while preserving scoring and validation behavior. |
 | M81 | Done | Added the project-local historical validation command, data-readiness artifacts, comparable v1/v2 backtest profiles, and deeper-history guidance while preserving canonical paper-loop defaults. |
+| M82 | Done | Added deterministic technical-agent predictive reports, full-system backtest reports, expanded validation CSVs, an operator Markdown report, and a conservative promotion gate that reports `promote`, `keep_opt_in`, or `defer` without changing v1 defaults or promoting v2. |
 
 ## Completed Graph Explorer Sequence
 
@@ -310,7 +318,7 @@ up, and documented; do not automatically begin later scope.
 | 79 | M79 | Done | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Wire `TechnicalAnalystAgent` to v2A with deterministic numeric ownership and optional universe context. |
 | 80 | M80 | Done | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Surface v2A technical vectors in artifacts, API, replay, and React debugging views. |
 | 81 | M81 | Done | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Add the historical validation command and data-readiness checks for v1/v2 comparisons. |
-| 82 | M82 | Planned | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Generate technical-agent and full-system validation reports with a conservative promotion gate. |
+| 82 | M82 | Done | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Generate technical-agent and full-system validation reports with a conservative promotion gate. |
 | 83 | M83 | Planned | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Ingest official benchmark, sector-index, and India VIX data for v2B. |
 | 84 | M84 | Planned | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Ingest official delivery, circuit, and tradability data for v2B. |
 | 85 | M85 | Planned | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Add the opt-in official-data `technical_official_v2b` profile and v2B validation. |
@@ -326,6 +334,37 @@ This completed sequence was executed in order as separate milestone work.
 | 67 | M67 | Done | `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md` | Add the DB-free shared `TechnicalSignalService` foundation without runtime wiring. |
 | 68 | M68 | Done | `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md` | Route `TechnicalAnalystAgent` and `GraphAwareScoreStrategy` through the shared service without behavior drift. |
 | 69 | M69 | Done | `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md` | Run final regression, refresh architecture/deep-dive docs for implemented behavior, and close the sequence. |
+
+### M82 Completion Summary
+
+- Assumptions made: M82 should extend the existing validation command instead
+  of adding a second runner; report generation should remain deterministic from
+  validation artifacts and local candles, so generated report files are ignored
+  as run output; the backtest layer does not execute the live planner
+  allocation ledger, so full-system allocation behavior is reported as an
+  explicit backtest proxy using raw strategy score distribution, calibrated
+  allocation score components, selected/fill counts, cash utilization, and
+  inferred sizing failures; insufficient local history should still exit zero
+  by default and produce a conservative `defer` report.
+- Mocks created: Added a focused long-horizon `VGA`/`VGB` validation fixture in
+  `tests/unit/test_graph_backtesting.py` so 5d, 21d, and 63d predictive checks
+  have real future-return labels; added `tests/unit/test_backtesting.py` so the
+  documented verification command has a concrete backtesting test target.
+- Mocks used: Existing graph backtest fixture helpers, deterministic `_candles()`
+  test candles, temp artifact/report roots, and the existing project-local
+  Postgres-backed test settings.
+- Verification: `make validate-technical-v2` passed and wrote
+  `artifacts/technical_validation/techval-7114d6243f898127/` plus ignored
+  operator report
+  `docs/reports/technical_validation/techval-7114d6243f898127.md`; current
+  local `configs/market_data/nifty_50_shariah.yaml` coverage remained
+  insufficient at 282 common candles versus the required window, so the
+  conservative recommendation was `defer` with deeper import guidance
+  `TAURUS_MARKET_DATA_LOOKBACK_DAYS=1434 make import-kite-candles`.
+  `uv run pytest tests/unit/test_backtesting.py
+  tests/unit/test_graph_backtesting.py tests/unit/test_paper_runs.py` passed
+  with 46 tests. Approval-rule cleanup found no accidental Taurus-specific
+  global approvals after the `# END MY CUSTOM ADDITION` marker.
 
 ### M81 Completion Summary
 

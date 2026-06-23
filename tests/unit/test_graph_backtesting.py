@@ -356,6 +356,100 @@ def test_technical_validation_runs_comparable_profiles_with_shared_window(
     assert (outcome.artifact_dir / "profile_comparison_matrix.csv").exists()
 
 
+def test_technical_validation_writes_reports_and_conservative_gate(
+    tmp_path: Path,
+) -> None:
+    settings = _settings_for_temp_db(tmp_path)
+    run_migrations(settings)
+    session_factory = build_session_factory(settings)
+    symbols = ("VGA", "VGB")
+    with session_factory() as session:
+        _seed_instruments(session, symbols)
+        CandleRepository(session).upsert(_candles("VGA", list(range(100, 230))))
+        CandleRepository(session).upsert(_candles("VGB", list(range(230, 100, -1))))
+        session.commit()
+
+    request = _validation_request(
+        tmp_path,
+        symbols=symbols,
+        warmup_days=30,
+        evaluation_days=80,
+    )
+    outcome = run_validation(settings=settings, request=request)
+
+    assert outcome.status == "complete"
+    assert outcome.report_path is not None
+    assert outcome.report_path.exists()
+    assert outcome.promotion_decision in {"promote", "keep_opt_in", "defer"}
+
+    expected_artifacts = {
+        "technical_agent_predictive_report.json",
+        "technical_agent_prediction_checks.csv",
+        "technical_agent_predictive_report.md",
+        "system_backtest_report.json",
+        "system_backtest_profile_summary.csv",
+        "system_backtest_report.md",
+        "profile_comparison_matrix.csv",
+        "promotion_gate.json",
+        "validation_manifest.json",
+    }
+    assert expected_artifacts.issubset(
+        {path.name for path in outcome.artifact_dir.iterdir()}
+    )
+
+    technical_report = json.loads(
+        (outcome.artifact_dir / "technical_agent_predictive_report.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert technical_report["status"] == "complete"
+    assert {
+        (row["profile_name"], row["horizon_days"])
+        for row in technical_report["checks"]
+    } == {
+        ("technical_rule_v1", 5),
+        ("technical_rule_v1", 21),
+        ("technical_rule_v1", 63),
+        ("technical_ohlcv_v2", 5),
+        ("technical_ohlcv_v2", 21),
+        ("technical_ohlcv_v2", 63),
+    }
+    assert any(
+        row["profile_name"] == "technical_ohlcv_v2" and row["observation_count"] > 0
+        for row in technical_report["checks"]
+    )
+
+    system_report = json.loads(
+        (outcome.artifact_dir / "system_backtest_report.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert system_report["status"] == "complete"
+    assert {
+        "turnover",
+        "win_rate",
+        "profit_factor",
+        "total_return",
+        "cagr",
+        "sharpe",
+        "sortino",
+        "max_drawdown",
+    }.issubset(system_report["profiles"][0]["metrics"])
+    assert "allocation_candidate_score_behavior" in system_report["profiles"][0]
+
+    gate = json.loads(
+        (outcome.artifact_dir / "promotion_gate.json").read_text(encoding="utf-8")
+    )
+    assert gate["decision"] in {"promote", "keep_opt_in", "defer"}
+    assert {check["name"] for check in gate["checks"]} >= {
+        "after_costs_return",
+        "max_drawdown",
+        "turnover_control",
+        "rank_monotonicity",
+        "allocation_utilization",
+    }
+
+
 def _settings_for_temp_db(tmp_path: Path) -> Settings:
     return Settings()
 
@@ -551,4 +645,5 @@ def _validation_request(
         rebalance_every_days=2,
         cost_bps=Decimal("0"),
         slippage_bps=Decimal("0"),
+        report_root=tmp_path / "reports",
     )

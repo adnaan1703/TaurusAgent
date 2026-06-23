@@ -5,10 +5,10 @@ Last updated: 2026-06-23
 ## Current Status
 
 - Current milestone: None.
-- Last completed milestone: M81 Historical Validation Command And Data
-  Readiness.
+- Last completed milestone: M82 Technical Validation Reports And Conservative
+  Gate.
 - Planning completed: M74-M86 technical layer overhaul sequence.
-- Implementation state: M74, M75, M76, M77, M78, M79, M80, and M81 are complete. The
+- Implementation state: M74, M75, M76, M77, M78, M79, M80, M81, and M82 are complete. The
   canonical/default runtime remains behavior-preserving:
   `TechnicalAnalystAgent` uses `technical_rule_v1` unless the analyst runner is
   explicitly passed `technical_ohlcv_v2`, and `GraphAwareScoreStrategy` uses the
@@ -49,9 +49,14 @@ Last updated: 2026-06-23
   comparable v1/v2 graph-aware plus technical-only backtest profiles when local
   coverage is sufficient. It reports actionable deeper Kite import guidance
   when coverage is short and does not promote v2 or change canonical paper-loop
-  defaults.
-- Next recommended milestone: M82 technical validation reports and conservative
-  gate.
+  defaults. M82 extended that command with deterministic technical-agent
+  predictive reports, full-system backtest reports, expanded comparison CSVs,
+  an operator Markdown report under `docs/reports/technical_validation/`, and a
+  conservative `promotion_gate.json` whose recommendation is `promote`,
+  `keep_opt_in`, or `defer`. The gate is report-only and does not promote v2 or
+  change canonical paper-loop defaults.
+- Next recommended milestone: M83 official index, sector, and India VIX data
+  ingestion.
 - Thread model requirement from the user: each milestone worker thread should
   use GPT 5.5 with xhigh thinking.
 - Commit policy from the user: do not commit anything unless explicitly asked.
@@ -108,7 +113,7 @@ sequence is:
 - M79: `TechnicalAnalystAgent` v2A deterministic numeric wiring. Done.
 - M80: v2A artifact, API, replay, and React visibility. Done.
 - M81: historical validation command and data readiness. Done.
-- M82: technical validation reports and conservative gate.
+- M82: technical validation reports and conservative gate. Done.
 - M83: official index, sector, and India VIX data ingestion.
 - M84: official delivery, circuit, and tradability data ingestion.
 - M85: v2B official-data technical profile.
@@ -147,3 +152,6 @@ sequence is:
   and M84 ingestion.
 - Validation must prove both technical-agent predictive quality and full-system
   historical backtest behavior before promotion.
+- M82 reports allocation behavior from the backtest layer as an explicit proxy;
+  planner allocation ledger validation remains part of live paper-run evidence,
+  not the historical backtest command.

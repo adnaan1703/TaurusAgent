@@ -361,6 +361,7 @@ taurus.db
 taurus.db-*
 backups/
 artifacts/technical_validation/
+docs/reports/technical_validation/
 
 # Flask stuff:
 instance/
