@@ -138,8 +138,19 @@ This fallback snapshot is not automatically persisted to `feature_values` by
 | Volume z-score | `volume_z_score_20` |
 
 `TechnicalFeatureService.from_strategy_parameters()` can add SMA windows from
-strategy parameters named `fast_window` and `slow_window`. This is not yet a
-full selectable indicator-suite system.
+strategy parameters named `fast_window` and `slow_window`. It also supports an
+opt-in `technical_ohlcv_v2` feature suite when strategy parameters set:
+
+```yaml
+technical_feature_version: technical_ohlcv_v2
+```
+
+The opt-in suite adds the M75 OHLCV primitives needed for later v2A work:
+MACD, ADX/+DI/-DI, Bollinger bands, 20/50/252-day breakout distances,
+52-week-high distance, ATR percent, traded value, average traded value,
+turnover z-score, and 63/126/252-day volatility-adjusted returns. The canonical
+`graph_aware_score_v1` strategy does not set this parameter, so current paper
+loop behavior remains on the v1 feature set.
 
 ## Score Calculation
 
@@ -420,7 +431,7 @@ artifacts in `paper_runs.artifacts`.
 
 | Limitation | Impact |
 |---|---|
-| No selectable technical indicator suites yet | Indicator families/windows are mostly fixed in `TechnicalFeatureService`. |
+| No runtime v2 technical scoring profile yet | `technical_ohlcv_v2` can generate richer OHLCV feature snapshots, but those features are not yet consumed by `TechnicalSignalService`, `TechnicalAnalystAgent`, or `GraphAwareScoreStrategy`. |
 | Shared analyst-rule scoring uses a fixed formula | Extra computed indicators are ignored unless a future `TechnicalSignalService` profile consumes them. |
 | Only the core wired paths use `TechnicalSignalService` | `TechnicalAnalystAgent` and `GraphAwareScoreStrategy` are migrated; `BlendedScoreStrategy` and `MovingAverageCrossoverStrategy` remain deferred. |
 | `feature_values` lookup is symbol-latest, not paper-run scoped | A persisted feature snapshot from another context can be selected if it is the latest for that symbol. |

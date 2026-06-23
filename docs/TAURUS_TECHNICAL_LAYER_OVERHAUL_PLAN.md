@@ -8,8 +8,8 @@ milestone intended to be executed in a separate Codex thread. Stop after
 completing and documenting the current milestone; do not automatically continue
 to the next milestone.
 
-Status: Planning is complete. M74 implementation is complete. M75-M86 remain
-planned. The intended execution model is one fresh Codex thread per milestone,
+Status: Planning is complete. M74 and M75 implementation are complete. M76-M86
+remain planned. The intended execution model is one fresh Codex thread per milestone,
 using GPT 5.5 with xhigh thinking, unless the user explicitly changes that
 instruction in the worker thread.
 
