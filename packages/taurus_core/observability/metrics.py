@@ -3,7 +3,14 @@ from __future__ import annotations
 from datetime import date, datetime, time, timezone
 from typing import Any
 
-from prometheus_client import CONTENT_TYPE_LATEST, REGISTRY, Counter, Gauge, Histogram, generate_latest
+from prometheus_client import (
+    CONTENT_TYPE_LATEST,
+    REGISTRY,
+    Counter,
+    Gauge,
+    Histogram,
+    generate_latest,
+)
 from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -390,14 +397,22 @@ def record_graph_import_summary(summary: Any) -> None:
     GRAPH_IMPORTS.labels(outcome="success").inc()
     for source_file, rows_seen in summary.rows_seen.items():
         rows_imported = int(summary.rows_imported.get(source_file, 0))
-        GRAPH_IMPORT_ROWS.labels(source_file=source_file, result="seen").inc(int(rows_seen))
-        GRAPH_IMPORT_ROWS.labels(source_file=source_file, result="imported").inc(rows_imported)
+        GRAPH_IMPORT_ROWS.labels(source_file=source_file, result="seen").inc(
+            int(rows_seen)
+        )
+        GRAPH_IMPORT_ROWS.labels(source_file=source_file, result="imported").inc(
+            rows_imported
+        )
         GRAPH_IMPORT_ROWS.labels(
             source_file=source_file,
             result="skipped",
         ).inc(max(0, int(rows_seen) - rows_imported))
-    GRAPH_IMPORT_UPSERTS.labels(artifact="node", status="all").inc(summary.nodes_upserted)
-    GRAPH_IMPORT_UPSERTS.labels(artifact="edge", status="all").inc(summary.edges_upserted)
+    GRAPH_IMPORT_UPSERTS.labels(artifact="node", status="all").inc(
+        summary.nodes_upserted
+    )
+    GRAPH_IMPORT_UPSERTS.labels(artifact="edge", status="all").inc(
+        summary.edges_upserted
+    )
     GRAPH_IMPORT_UPSERTS.labels(
         artifact="edge",
         status="active",
@@ -406,29 +421,35 @@ def record_graph_import_summary(summary: Any) -> None:
         artifact="edge",
         status="candidate",
     ).inc(summary.candidate_edges_upserted)
-    GRAPH_IMPORT_UPSERTS.labels(artifact="evidence", status="all").inc(summary.evidence_upserted)
+    GRAPH_IMPORT_UPSERTS.labels(artifact="evidence", status="all").inc(
+        summary.evidence_upserted
+    )
 
 
 def record_graph_projection_summary(summary: Any) -> None:
     outcome = "success" if summary.enabled else "skipped"
-    GRAPH_PROJECTIONS.labels(outcome=outcome, enabled=str(bool(summary.enabled)).lower()).inc()
+    GRAPH_PROJECTIONS.labels(
+        outcome=outcome, enabled=str(bool(summary.enabled)).lower()
+    ).inc()
     if summary.enabled:
         GRAPH_PROJECTION_ITEMS.labels(artifact="node").inc(summary.nodes_projected)
         GRAPH_PROJECTION_ITEMS.labels(artifact="edge").inc(summary.edges_projected)
 
 
 def record_graph_stats_summary(summary: Any) -> None:
-    GRAPH_STATS_RUNS.labels(outcome="success", model_version=summary.model_version).inc()
+    GRAPH_STATS_RUNS.labels(
+        outcome="success", model_version=summary.model_version
+    ).inc()
     validated = max(0, summary.stats_upserted - summary.insufficient_stats)
-    GRAPH_STATS_RESULTS.labels(result="validated", model_version=summary.model_version).inc(
-        validated
-    )
-    GRAPH_STATS_RESULTS.labels(result="insufficient", model_version=summary.model_version).inc(
-        summary.insufficient_stats
-    )
-    GRAPH_STATS_RESULTS.labels(result="promoted", model_version=summary.model_version).inc(
-        len(summary.promoted_edges)
-    )
+    GRAPH_STATS_RESULTS.labels(
+        result="validated", model_version=summary.model_version
+    ).inc(validated)
+    GRAPH_STATS_RESULTS.labels(
+        result="insufficient", model_version=summary.model_version
+    ).inc(summary.insufficient_stats)
+    GRAPH_STATS_RESULTS.labels(
+        result="promoted", model_version=summary.model_version
+    ).inc(len(summary.promoted_edges))
 
 
 def record_graph_job_failure(*, job: str, error_type: str) -> None:
@@ -693,12 +714,18 @@ def _refresh_trading_metrics(session: Session, *, now: datetime) -> None:
 
 
 def _refresh_paper_metrics(session: Session) -> None:
-    accounts = session.scalars(select(PaperAccountModel).order_by(PaperAccountModel.run_id))
+    accounts = session.scalars(
+        select(PaperAccountModel).order_by(PaperAccountModel.run_id)
+    )
     for account in accounts:
-        PAPER_ACCOUNT_EQUITY.labels(run_id=account.run_id).set(float(account.equity_inr))
+        PAPER_ACCOUNT_EQUITY.labels(run_id=account.run_id).set(
+            float(account.equity_inr)
+        )
 
     positions = session.scalars(
-        select(PaperPositionModel).order_by(PaperPositionModel.run_id, PaperPositionModel.symbol)
+        select(PaperPositionModel).order_by(
+            PaperPositionModel.run_id, PaperPositionModel.symbol
+        )
     )
     for position in positions:
         PAPER_POSITION_VALUE.labels(
@@ -760,7 +787,9 @@ def _refresh_graph_metrics(session: Session) -> None:
         )
     )
     stats_counts: dict[tuple[str, str, str], int] = {}
-    for model_version, stat_window, insufficient_reason, count in session.execute(stats_statement):
+    for model_version, stat_window, insufficient_reason, count in session.execute(
+        stats_statement
+    ):
         result = "insufficient" if insufficient_reason else "validated"
         key = (model_version, stat_window, result)
         stats_counts[key] = stats_counts.get(key, 0) + int(count)
@@ -785,7 +814,9 @@ def _refresh_graph_metrics(session: Session) -> None:
     for source_agent, symbol, horizon, score in session.execute(signal_statement):
         key = (source_agent, symbol, horizon, _score_direction(score))
         signal_counts[key] = signal_counts.get(key, 0) + 1
-    for (source_agent, symbol, horizon, direction), count in sorted(signal_counts.items()):
+    for (source_agent, symbol, horizon, direction), count in sorted(
+        signal_counts.items()
+    ):
         GRAPH_SIGNALS.labels(
             source_agent=source_agent,
             symbol=symbol,

@@ -24,16 +24,22 @@ def kite_login_callback(
             "<p>Paper trading mode. Kite login callback is ready.</p>"
         )
     if not _is_local_request(request):
-        raise HTTPException(status_code=403, detail="Kite login callback accepts only local requests.")
+        raise HTTPException(
+            status_code=403, detail="Kite login callback accepts only local requests."
+        )
     if status not in {None, "success"}:
-        raise HTTPException(status_code=400, detail="Kite login did not complete successfully.")
+        raise HTTPException(
+            status_code=400, detail="Kite login did not complete successfully."
+        )
 
     settings = request.app.state.settings
     try:
         token = exchange_request_token(request_token, settings=settings)
     except MarketDataProviderError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    request.app.state.settings = settings.model_copy(update={"kite_access_token": token})
+    request.app.state.settings = settings.model_copy(
+        update={"kite_access_token": token}
+    )
     get_settings.cache_clear()
     return HTMLResponse(
         "<!doctype html><title>Kite Connected</title><h1>Kite Connected</h1>"

@@ -18,7 +18,9 @@ def create_engine_from_url(database_url: str) -> Engine:
 
 
 def create_session_factory(engine: Engine) -> sessionmaker[Session]:
-    return sessionmaker(bind=engine, class_=Session, autoflush=False, expire_on_commit=False)
+    return sessionmaker(
+        bind=engine, class_=Session, autoflush=False, expire_on_commit=False
+    )
 
 
 def build_session_factory(settings: Settings | None = None) -> sessionmaker[Session]:

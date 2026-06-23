@@ -26,10 +26,19 @@ def test_taurus_smoke_covers_paper_mvp_release_flow(
 ) -> None:
     monkeypatch.setenv("BACKUP_DIR", str(tmp_path / "backups"))
     fake_provider = FakeLLMProvider()
-    monkeypatch.setattr("scripts.run_analysts.build_llm_provider", lambda settings: fake_provider)
-    monkeypatch.setattr("scripts.run_research_debate.build_llm_provider", lambda settings: fake_provider)
-    monkeypatch.setattr("scripts.run_trader_proposal.build_llm_provider", lambda settings: fake_provider)
-    monkeypatch.setattr("taurus_core.paper_trading.service.build_llm_provider", lambda settings: fake_provider)
+    monkeypatch.setattr(
+        "scripts.run_analysts.build_llm_provider", lambda settings: fake_provider
+    )
+    monkeypatch.setattr(
+        "scripts.run_research_debate.build_llm_provider", lambda settings: fake_provider
+    )
+    monkeypatch.setattr(
+        "scripts.run_trader_proposal.build_llm_provider", lambda settings: fake_provider
+    )
+    monkeypatch.setattr(
+        "taurus_core.paper_trading.service.build_llm_provider",
+        lambda settings: fake_provider,
+    )
     monkeypatch.setattr(
         "taurus_core.paper_trading.service.build_market_data_provider",
         lambda settings: FakeKiteMarketDataProvider(),

@@ -3,6 +3,8 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Literal
 
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
 AllocationStatus = Literal[
     "approved",
     "rejected",
@@ -15,8 +17,6 @@ AllocationStatus = Literal[
     "open_position_management",
 ]
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
-
 
 class AllocationDecision(BaseModel):
     model_config = ConfigDict(frozen=True)
@@ -27,7 +27,9 @@ class AllocationDecision(BaseModel):
     sleeve_id: str
     sleeve_name: str | None = None
     status: AllocationStatus
-    candidate_score: Decimal | None = Field(default=None, ge=Decimal("0"), le=Decimal("100"))
+    candidate_score: Decimal | None = Field(
+        default=None, ge=Decimal("0"), le=Decimal("100")
+    )
     score_band: str | None = None
     requested_position_pct_nav: Decimal = Field(
         default=Decimal("0"),
@@ -64,7 +66,9 @@ class AllocationDecision(BaseModel):
     funding_source: str | None = None
     existing_cash_used_inr: Decimal = Field(default=Decimal("0"), ge=Decimal("0"))
     same_run_proceeds_used_inr: Decimal = Field(default=Decimal("0"), ge=Decimal("0"))
-    same_run_proceeds_available_inr: Decimal = Field(default=Decimal("0"), ge=Decimal("0"))
+    same_run_proceeds_available_inr: Decimal = Field(
+        default=Decimal("0"), ge=Decimal("0")
+    )
     same_run_proceeds_haircut_pct: Decimal | None = Field(
         default=None,
         ge=Decimal("0"),

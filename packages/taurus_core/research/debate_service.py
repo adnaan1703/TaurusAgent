@@ -41,7 +41,9 @@ class ResearchDebateService:
         self.session = session
         self.settings = settings or get_settings()
         self.llm_provider = llm_provider or build_llm_provider(self.settings)
-        self.model_version = f"{self.model_version_prefix}:{self.llm_provider.model_version}"
+        self.model_version = (
+            f"{self.model_version_prefix}:{self.llm_provider.model_version}"
+        )
         self.bull_researcher = BullResearcherAgent(llm_provider=self.llm_provider)
         self.bear_researcher = BearResearcherAgent(llm_provider=self.llm_provider)
         self.research_manager = ResearchManagerAgent(llm_provider=self.llm_provider)
@@ -135,10 +137,18 @@ class ResearchDebateService:
     ) -> list[DebateRound]:
         rounds: list[DebateRound] = []
         for round_number in range(1, rounds_requested + 1):
-            bull_point = bull_thesis.key_points[(round_number - 1) % len(bull_thesis.key_points)]
-            bear_point = bear_thesis.key_points[(round_number - 1) % len(bear_thesis.key_points)]
-            condition = bull_thesis.conditions[(round_number - 1) % len(bull_thesis.conditions)]
-            risk_flag = bear_thesis.risk_flags[(round_number - 1) % len(bear_thesis.risk_flags)]
+            bull_point = bull_thesis.key_points[
+                (round_number - 1) % len(bull_thesis.key_points)
+            ]
+            bear_point = bear_thesis.key_points[
+                (round_number - 1) % len(bear_thesis.key_points)
+            ]
+            condition = bull_thesis.conditions[
+                (round_number - 1) % len(bull_thesis.conditions)
+            ]
+            risk_flag = bear_thesis.risk_flags[
+                (round_number - 1) % len(bear_thesis.risk_flags)
+            ]
             rounds.append(
                 DebateRound(
                     round_number=round_number,

@@ -57,7 +57,9 @@ class RiskEngine:
             else kill_switch_enabled
         )
         self.current_open_positions = current_open_positions
-        self.current_position_exposures_pct_nav = current_position_exposures_pct_nav or {}
+        self.current_position_exposures_pct_nav = (
+            current_position_exposures_pct_nav or {}
+        )
         self.daily_loss_pct = daily_loss_pct
 
     def evaluate(
@@ -318,7 +320,8 @@ class RiskEngine:
             )
         if action == "REDUCE":
             return (
-                has_existing_position and Decimal("0") < target_position < current_position,
+                has_existing_position
+                and Decimal("0") < target_position < current_position,
                 (
                     f"REDUCE target {target_position}% is below current {current_position}% "
                     "for an existing long position."
@@ -339,7 +342,10 @@ class RiskEngine:
                 not has_existing_position and target_position == Decimal("0.0000"),
                 "NO_TRADE requires no existing position and zero target exposure.",
             )
-        return False, f"Lifecycle action {action} is not supported in paper risk review."
+        return (
+            False,
+            f"Lifecycle action {action} is not supported in paper risk review.",
+        )
 
     def _data_is_fresh_enough(self, proposal: TraderProposal) -> bool:
         if not proposal.source_report_ids:
@@ -351,7 +357,9 @@ class RiskEngine:
         return (now - as_of).days <= STALE_DATA_MAX_AGE_DAYS
 
     def _severe_negative_event(self, *, symbol: str):
-        events = IntelligenceRepository(self.session).list_events(symbol=symbol, limit=20)
+        events = IntelligenceRepository(self.session).list_events(
+            symbol=symbol, limit=20
+        )
         severe_events = []
         for event in events:
             sentiment = EVENT_SENTIMENT.get(event.event_type, Decimal("0"))

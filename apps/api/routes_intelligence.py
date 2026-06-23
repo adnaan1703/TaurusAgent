@@ -66,7 +66,9 @@ def list_events(
     events = repo.list_events(symbol=symbol, limit=limit)
     score_by_event = {
         score.event_id: score
-        for score in repo.list_sentiment_scores(event_ids=[event.event_id for event in events])
+        for score in repo.list_sentiment_scores(
+            event_ids=[event.event_id for event in events]
+        )
     }
     return [
         EventResponse(

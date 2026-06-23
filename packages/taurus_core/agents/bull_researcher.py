@@ -66,7 +66,9 @@ class BullResearcherAgent:
         thesis = BullThesis(
             symbol=symbol,
             score=_guarded_decimal(baseline.score, draft.score, unit=False),
-            confidence=_guarded_decimal(baseline.confidence, draft.confidence, unit=True),
+            confidence=_guarded_decimal(
+                baseline.confidence, draft.confidence, unit=True
+            ),
             key_points=key_points,
             conditions=conditions,
             source_report_ids=baseline.source_report_ids,
@@ -131,15 +133,25 @@ class BullResearcherAgent:
             bearish_drag += abs(min(report.score, Decimal("0"))) * report.confidence
         if confidence_total == 0:
             return Decimal("0.0000")
-        score = (weighted_positive - (bearish_drag * Decimal("0.35"))) / confidence_total
+        score = (
+            weighted_positive - (bearish_drag * Decimal("0.35"))
+        ) / confidence_total
         return _clamp(score).quantize(SCORE_QUANT)
 
     def _confidence(self, reports: list[AnalystReport], score: Decimal) -> Decimal:
-        average = sum((report.confidence for report in reports), Decimal("0")) / Decimal(len(reports))
-        directional_support = sum(1 for report in reports if report.score >= Decimal("0.05"))
-        support_boost = Decimal(directional_support) / Decimal(len(reports)) * Decimal("0.12")
+        average = sum(
+            (report.confidence for report in reports), Decimal("0")
+        ) / Decimal(len(reports))
+        directional_support = sum(
+            1 for report in reports if report.score >= Decimal("0.05")
+        )
+        support_boost = (
+            Decimal(directional_support) / Decimal(len(reports)) * Decimal("0.12")
+        )
         conviction_boost = abs(score) * Decimal("0.20")
-        return _clamp_unit(average + support_boost + conviction_boost).quantize(SCORE_QUANT)
+        return _clamp_unit(average + support_boost + conviction_boost).quantize(
+            SCORE_QUANT
+        )
 
     def _key_points(self, symbol: str, reports: list[AnalystReport]) -> list[str]:
         ranked = sorted(
@@ -155,7 +167,9 @@ class BullResearcherAgent:
             points.append(f"{report.agent_name}: {first_point}")
             if len(points) == 3:
                 break
-        return points or [f"No positive analyst evidence was available for {symbol}; bull case is minimal."]
+        return points or [
+            f"No positive analyst evidence was available for {symbol}; bull case is minimal."
+        ]
 
 
 def _clamp(value: Decimal) -> Decimal:

@@ -129,7 +129,9 @@ def _assert_paper_only(settings: Settings) -> None:
         raise AssertionError("TAURUS_MODE must remain paper for the MVP smoke run.")
 
 
-def _api_smoke(settings: Settings, *, symbol: str, decision_id: str) -> dict[str, object]:
+def _api_smoke(
+    settings: Settings, *, symbol: str, decision_id: str
+) -> dict[str, object]:
     client = TestClient(create_app(settings))
     endpoints = {
         "health": "/health",
@@ -154,11 +156,16 @@ def _api_smoke(settings: Settings, *, symbol: str, decision_id: str) -> dict[str
         response = client.get(path)
         statuses[name] = response.status_code
         if response.status_code != 200:
-            raise AssertionError(f"API smoke endpoint {path} returned {response.status_code}.")
+            raise AssertionError(
+                f"API smoke endpoint {path} returned {response.status_code}."
+            )
 
     alert_response = client.post("/alerts/test")
     statuses["alert_test"] = alert_response.status_code
-    if alert_response.status_code != 200 or alert_response.json().get("delivered") is not True:
+    if (
+        alert_response.status_code != 200
+        or alert_response.json().get("delivered") is not True
+    ):
         raise AssertionError("Mock alert API smoke failed.")
 
     metrics_body = client.get("/metrics").text
@@ -302,34 +309,56 @@ def _assert_outputs(
         raise AssertionError(
             f"Analyst suite produced {len(reports)} report(s), expected {expected_report_count}."
         )
-    if debate["symbol"] != symbol or not debate["bull_thesis"] or not debate["bear_thesis"]:
+    if (
+        debate["symbol"] != symbol
+        or not debate["bull_thesis"]
+        or not debate["bear_thesis"]
+    ):
         raise AssertionError("Debate output is incomplete.")
-    if proposal["is_order"] is not False or proposal["requires_risk_approval"] is not True:
+    if (
+        proposal["is_order"] is not False
+        or proposal["requires_risk_approval"] is not True
+    ):
         raise AssertionError("Trader proposal must remain a proposal, not an order.")
-    if risk_review["is_order"] is not False or risk_review["can_send_to_broker"] is not False:
+    if (
+        risk_review["is_order"] is not False
+        or risk_review["can_send_to_broker"] is not False
+    ):
         raise AssertionError("Risk review must not be broker-routable.")
     if final_decision["status"] != "APPROVED_FOR_PAPER":
         raise AssertionError("Final decision was not approved for paper trading.")
-    if final_decision["is_order"] is not False or final_decision["can_send_to_broker"] is not True:
+    if (
+        final_decision["is_order"] is not False
+        or final_decision["can_send_to_broker"] is not True
+    ):
         raise AssertionError("Final decision broker flags are inconsistent.")
 
     order = paper_once["order"]
     if not isinstance(order, dict) or order["status"] != "PENDING_NEXT_OPEN":
-        raise AssertionError("Paper once did not queue a pending next-open paper order.")
+        raise AssertionError(
+            "Paper once did not queue a pending next-open paper order."
+        )
     if order["filled_quantity"] != 0:
-        raise AssertionError("Pending next-open paper order should not fill immediately.")
+        raise AssertionError(
+            "Pending next-open paper order should not fill immediately."
+        )
     if not paper_loop or paper_loop[0]["status"] != "COMPLETED":
         raise AssertionError("Paper loop did not complete.")
     if replay["decision_id"] != paper_once["final_decision"]["decision_id"]:
         raise AssertionError("Replay did not reconstruct the requested decision.")
-    if not Path(backup["artifact_path"]).exists() or not Path(backup["manifest_path"]).exists():
+    if (
+        not Path(backup["artifact_path"]).exists()
+        or not Path(backup["manifest_path"]).exists()
+    ):
         raise AssertionError("Backup artifact or manifest is missing.")
     if not api or any(status != 200 for status in api.values()):
         raise AssertionError("API smoke did not return all 200 responses.")
     for name, count in counts.items():
         if name == "paper_fills":
             if count != 0:
-                raise AssertionError("M47 smoke expected no paper fills before settlement.")
+                raise AssertionError(
+                    "M47 smoke expected no paper fills before settlement."
+                )
             continue
         if count < 1:
             raise AssertionError(f"Expected at least one persisted {name} row.")

@@ -11,7 +11,9 @@ from taurus_core.allocation_schemas import AllocationDecision
 from taurus_core.intelligence.documents import stable_id
 from taurus_core.profiles.schemas import DEFAULT_PROFILE_ID, validate_profile_id
 
-ConsensusLabel = Literal["bullish", "mild_bullish", "neutral", "mild_bearish", "bearish"]
+ConsensusLabel = Literal[
+    "bullish", "mild_bullish", "neutral", "mild_bearish", "bearish"
+]
 TraderAction = Literal["BUY", "SELL", "HOLD", "NO_TRADE", "REDUCE", "EXIT"]
 TraderOrderType = Literal["LIMIT", "MARKET", "NONE"]
 LifecycleTrigger = Literal[
@@ -138,8 +140,12 @@ class TraderProposal(BaseModel):
     horizon: ReportHorizon
     requested_position_pct_nav: Decimal = Field(ge=Decimal("0"), le=Decimal("100"))
     current_position_quantity: int = Field(default=0, ge=0)
-    current_position_pct_nav: Decimal = Field(default=Decimal("0.0000"), ge=Decimal("0"), le=Decimal("100"))
-    target_position_pct_nav: Decimal = Field(default=Decimal("0.0000"), ge=Decimal("0"), le=Decimal("100"))
+    current_position_pct_nav: Decimal = Field(
+        default=Decimal("0.0000"), ge=Decimal("0"), le=Decimal("100")
+    )
+    target_position_pct_nav: Decimal = Field(
+        default=Decimal("0.0000"), ge=Decimal("0"), le=Decimal("100")
+    )
     lifecycle_trigger: LifecycleTrigger = "new_entry"
     evaluation_mode: EvaluationMode = "after_close"
     market_session_date: str | None = None
@@ -156,7 +162,9 @@ class TraderProposal(BaseModel):
     take_profit_pct: Decimal = Field(ge=Decimal("0"), le=Decimal("100"))
     reason_summary: str = Field(min_length=1)
     invalid_if: list[str] = Field(min_length=1)
-    position_management_summary: str = "Legacy proposal before position-aware TraderAgent."
+    position_management_summary: str = (
+        "Legacy proposal before position-aware TraderAgent."
+    )
     source_report_ids: list[str] = Field(min_length=1)
     is_order: bool = False
     requires_risk_approval: bool = True

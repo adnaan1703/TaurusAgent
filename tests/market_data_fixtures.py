@@ -112,7 +112,9 @@ def build_test_candles_for_symbol(
                 close=_money(close_price),
                 volume=int(base_volume * rng.uniform(0.75, 1.45)),
                 source=source,
-                data_available_time=datetime.combine(trade_date, time(18, 0), tzinfo=timezone.utc),
+                data_available_time=datetime.combine(
+                    trade_date, time(18, 0), tzinfo=timezone.utc
+                ),
             )
         )
         previous_close = close_price

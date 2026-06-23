@@ -105,7 +105,9 @@ def table_counts(session: Session) -> dict[str, int]:
     }
 
 
-def data_freshness(session: Session, *, symbol: str | None = None) -> list[dict[str, Any]]:
+def data_freshness(
+    session: Session, *, symbol: str | None = None
+) -> list[dict[str, Any]]:
     now = datetime.now(timezone.utc)
     candle_statement = (
         select(
@@ -115,14 +117,22 @@ def data_freshness(session: Session, *, symbol: str | None = None) -> list[dict[
             func.max(DailyCandleModel.data_available_time),
             func.count(),
         )
-        .group_by(DailyCandleModel.symbol, DailyCandleModel.timeframe, DailyCandleModel.source)
-        .order_by(DailyCandleModel.symbol, DailyCandleModel.timeframe, DailyCandleModel.source)
+        .group_by(
+            DailyCandleModel.symbol, DailyCandleModel.timeframe, DailyCandleModel.source
+        )
+        .order_by(
+            DailyCandleModel.symbol, DailyCandleModel.timeframe, DailyCandleModel.source
+        )
     )
     if symbol is not None:
-        candle_statement = candle_statement.where(DailyCandleModel.symbol == symbol.upper())
+        candle_statement = candle_statement.where(
+            DailyCandleModel.symbol == symbol.upper()
+        )
 
     rows: list[dict[str, Any]] = []
-    for row_symbol, timeframe, source, latest_available_at, count in session.execute(candle_statement):
+    for row_symbol, timeframe, source, latest_available_at, count in session.execute(
+        candle_statement
+    ):
         latest_at = _as_utc_datetime(latest_available_at)
         rows.append(
             {
@@ -146,7 +156,9 @@ def data_freshness(session: Session, *, symbol: str | None = None) -> list[dict[
         .order_by(FeatureValueModel.symbol, FeatureValueModel.source)
     )
     if symbol is not None:
-        feature_statement = feature_statement.where(FeatureValueModel.symbol == symbol.upper())
+        feature_statement = feature_statement.where(
+            FeatureValueModel.symbol == symbol.upper()
+        )
 
     for row_symbol, source, latest_at, count in session.execute(feature_statement):
         latest_utc = _as_utc_datetime(latest_at)
@@ -191,7 +203,11 @@ def data_freshness(session: Session, *, symbol: str | None = None) -> list[dict[
 
 
 def list_backtest_runs(session: Session, *, limit: int = 25) -> list[dict[str, Any]]:
-    statement = select(BacktestRunModel).order_by(BacktestRunModel.created_at.desc()).limit(limit)
+    statement = (
+        select(BacktestRunModel)
+        .order_by(BacktestRunModel.created_at.desc())
+        .limit(limit)
+    )
     rows = []
     for run in session.scalars(statement):
         metrics = run.metrics or {}
@@ -214,7 +230,9 @@ def list_backtest_runs(session: Session, *, limit: int = 25) -> list[dict[str, A
 
 def latest_backtest_run_id(session: Session) -> str | None:
     return session.scalar(
-        select(BacktestRunModel.run_id).order_by(BacktestRunModel.created_at.desc()).limit(1)
+        select(BacktestRunModel.run_id)
+        .order_by(BacktestRunModel.created_at.desc())
+        .limit(1)
     )
 
 
@@ -411,14 +429,18 @@ def list_events(
         .limit(limit)
     )
     if symbol is not None:
-        event_statement = event_statement.where(CompanyEventModel.symbol == symbol.upper())
+        event_statement = event_statement.where(
+            CompanyEventModel.symbol == symbol.upper()
+        )
     events = list(session.scalars(event_statement))
     if not events:
         return []
     score_statement = select(SentimentScoreModel).where(
         SentimentScoreModel.event_id.in_([event.event_id for event in events])
     )
-    score_by_event = {score.event_id: score for score in session.scalars(score_statement)}
+    score_by_event = {
+        score.event_id: score for score in session.scalars(score_statement)
+    }
     rows = []
     for event in events:
         score = score_by_event.get(event.event_id)
@@ -429,8 +451,12 @@ def list_events(
                 "event_type": event.event_type,
                 "headline": event.headline,
                 "severity": _number(event.severity),
-                "sentiment": _number(score.sentiment_score) if score is not None else None,
-                "decayed_score": _number(score.decayed_score) if score is not None else None,
+                "sentiment": _number(score.sentiment_score)
+                if score is not None
+                else None,
+                "decayed_score": _number(score.decayed_score)
+                if score is not None
+                else None,
                 "document_id": event.document_id,
             }
         )
@@ -439,7 +465,11 @@ def list_events(
 
 def news_ingestion_summary(session: Session) -> list[dict[str, Any]]:
     statement = (
-        select(RawDocumentModel.source, func.count(), func.max(RawDocumentModel.ingested_at))
+        select(
+            RawDocumentModel.source,
+            func.count(),
+            func.max(RawDocumentModel.ingested_at),
+        )
         .group_by(RawDocumentModel.source)
         .order_by(RawDocumentModel.source)
     )
@@ -461,7 +491,10 @@ def list_fundamental_scores(
 ) -> list[dict[str, Any]]:
     statement = (
         select(FundamentalScoreModel)
-        .order_by(FundamentalScoreModel.data_available_time.desc(), FundamentalScoreModel.symbol)
+        .order_by(
+            FundamentalScoreModel.data_available_time.desc(),
+            FundamentalScoreModel.symbol,
+        )
         .limit(limit)
     )
     if symbol is not None:

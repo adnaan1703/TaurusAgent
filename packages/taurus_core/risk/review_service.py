@@ -42,7 +42,9 @@ class RiskReviewService:
         self.settings = settings or get_settings()
         self.kill_switch_enabled = kill_switch_enabled
         self.current_open_positions = current_open_positions
-        self.current_position_exposures_pct_nav = current_position_exposures_pct_nav or {}
+        self.current_position_exposures_pct_nav = (
+            current_position_exposures_pct_nav or {}
+        )
         self.daily_loss_pct = daily_loss_pct
         self.risky_agent = RiskyRiskAgent()
         self.neutral_agent = NeutralRiskAgent()
@@ -58,7 +60,9 @@ class RiskReviewService:
         symbol = symbol.upper()
         proposal = proposal or self._load_proposal(symbol=symbol, run_id=run_id)
         if proposal.symbol != symbol:
-            raise ValueError("Trader proposal symbol does not match risk review symbol.")
+            raise ValueError(
+                "Trader proposal symbol does not match risk review symbol."
+            )
 
         decision_id = decision_id_for_proposal(
             run_id=proposal.run_id,
@@ -143,7 +147,9 @@ class RiskReviewService:
             )
 
     def _load_proposal(self, *, symbol: str, run_id: str) -> TraderProposal:
-        proposals = ResearchRepository(self.session).list_trader_proposals(symbol=symbol, limit=100)
+        proposals = ResearchRepository(self.session).list_trader_proposals(
+            symbol=symbol, limit=100
+        )
         for model in proposals:
             proposal = TraderProposal.model_validate(model.payload)
             if proposal.run_id == run_id:

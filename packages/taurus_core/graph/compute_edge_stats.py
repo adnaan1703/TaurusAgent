@@ -36,7 +36,9 @@ def run_compute_edge_stats(
 
 
 def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Compute Taurus graph edge statistics.")
+    parser = argparse.ArgumentParser(
+        description="Compute Taurus graph edge statistics."
+    )
     parser.add_argument(
         "--as-of",
         dest="as_of",

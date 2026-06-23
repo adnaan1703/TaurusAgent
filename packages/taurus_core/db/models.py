@@ -32,7 +32,9 @@ class Base(DeclarativeBase):
 class TaurusProfileModel(Base):
     __tablename__ = "taurus_profiles"
     __table_args__ = (
-        CheckConstraint("status IN ('ACTIVE', 'ARCHIVED')", name="ck_taurus_profiles_status"),
+        CheckConstraint(
+            "status IN ('ACTIVE', 'ARCHIVED')", name="ck_taurus_profiles_status"
+        ),
         Index("ix_taurus_profiles_status", "status"),
     )
 
@@ -42,8 +44,12 @@ class TaurusProfileModel(Base):
     currency: Mapped[str] = mapped_column(String(8), nullable=False, default="INR")
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="ACTIVE")
     description: Mapped[str] = mapped_column(Text, nullable=False, default="")
-    profile_metadata: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    profile_metadata: Mapped[dict[str, object]] = mapped_column(
+        JSON, nullable=False, default=dict
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -67,7 +73,9 @@ class InstrumentModel(Base):
         default=Decimal("0.05"),
     )
     active: Mapped[bool] = mapped_column(nullable=False, default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -85,7 +93,12 @@ class DailyCandleModel(Base):
             "trade_date",
             name="uq_daily_candles_symbol_timeframe_date",
         ),
-        Index("ix_daily_candles_symbol_timeframe_date", "symbol", "timeframe", "trade_date"),
+        Index(
+            "ix_daily_candles_symbol_timeframe_date",
+            "symbol",
+            "timeframe",
+            "trade_date",
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
@@ -107,7 +120,9 @@ class DailyCandleModel(Base):
         nullable=False,
         default=utc_now,
     )
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -119,7 +134,9 @@ class DailyCandleModel(Base):
 class InstrumentProviderMappingModel(Base):
     __tablename__ = "instrument_provider_mappings"
     __table_args__ = (
-        UniqueConstraint("provider", "symbol", name="uq_provider_mappings_provider_symbol"),
+        UniqueConstraint(
+            "provider", "symbol", name="uq_provider_mappings_provider_symbol"
+        ),
         Index("ix_provider_mappings_provider_symbol", "provider", "symbol"),
     )
 
@@ -143,13 +160,20 @@ class InstrumentProviderMappingModel(Base):
     )
     active: Mapped[bool] = mapped_column(nullable=False, default=True)
     raw: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
-    synced_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    synced_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
 
 
 class MarketPriceSnapshotModel(Base):
     __tablename__ = "market_price_snapshots"
     __table_args__ = (
-        Index("ix_market_price_snapshots_provider_symbol_time", "provider", "symbol", "fetched_at"),
+        Index(
+            "ix_market_price_snapshots_provider_symbol_time",
+            "provider",
+            "symbol",
+            "fetched_at",
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
@@ -168,10 +192,14 @@ class MarketPriceSnapshotModel(Base):
     low: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
     close: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
     volume: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
-    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    fetched_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
     source: Mapped[str] = mapped_column(String(128), nullable=False)
     raw: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
 
 
 class PortfolioSnapshotModel(Base):
@@ -179,14 +207,20 @@ class PortfolioSnapshotModel(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     as_of_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
-    cash_inr: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False, default=Decimal("0"))
+    cash_inr: Mapped[Decimal] = mapped_column(
+        Numeric(18, 4), nullable=False, default=Decimal("0")
+    )
     holdings_value_inr: Mapped[Decimal] = mapped_column(
         Numeric(18, 4),
         nullable=False,
         default=Decimal("0"),
     )
-    total_value_inr: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False, default=Decimal("0"))
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    total_value_inr: Mapped[Decimal] = mapped_column(
+        Numeric(18, 4), nullable=False, default=Decimal("0")
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
 
 
 class FeatureValueModel(Base):
@@ -213,10 +247,18 @@ class FeatureValueModel(Base):
     feature_name: Mapped[str] = mapped_column(String(128), nullable=False)
     feature_value: Mapped[Decimal] = mapped_column(Numeric(18, 8), nullable=False)
     feature_time: Mapped[date] = mapped_column(Date, nullable=False)
-    data_available_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    source: Mapped[str] = mapped_column(String(128), nullable=False, default="daily_candles")
-    feature_version: Mapped[str] = mapped_column(String(128), nullable=False, default="technical_v1")
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    data_available_time: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    source: Mapped[str] = mapped_column(
+        String(128), nullable=False, default="daily_candles"
+    )
+    feature_version: Mapped[str] = mapped_column(
+        String(128), nullable=False, default="technical_v1"
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
 
 
 class BacktestRunModel(Base):
@@ -229,9 +271,15 @@ class BacktestRunModel(Base):
     end_date: Mapped[date] = mapped_column(Date, nullable=False)
     initial_capital_inr: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
     final_equity_inr: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
-    metrics: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
-    parameters: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    metrics: Mapped[dict[str, object]] = mapped_column(
+        JSON, nullable=False, default=dict
+    )
+    parameters: Mapped[dict[str, object]] = mapped_column(
+        JSON, nullable=False, default=dict
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
 
 
 class BacktestSignalModel(Base):
@@ -252,8 +300,12 @@ class BacktestSignalModel(Base):
     score: Mapped[Decimal] = mapped_column(Numeric(18, 8), nullable=False)
     reason: Mapped[str] = mapped_column(Text, nullable=False, default="")
     feature_snapshot_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
-    explanation: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True, default=dict)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    explanation: Mapped[dict[str, object] | None] = mapped_column(
+        JSON, nullable=True, default=dict
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
 
 
 class BacktestOrderModel(Base):
@@ -272,9 +324,13 @@ class BacktestOrderModel(Base):
     symbol: Mapped[str] = mapped_column(String(32), nullable=False)
     side: Mapped[str] = mapped_column(String(8), nullable=False)
     quantity: Mapped[int] = mapped_column(nullable=False)
-    order_type: Mapped[str] = mapped_column(String(32), nullable=False, default="MARKET")
+    order_type: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="MARKET"
+    )
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="FILLED")
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
 
 
 class BacktestFillModel(Base):
@@ -301,7 +357,9 @@ class BacktestFillModel(Base):
     gross_value_inr: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
     cost_inr: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
     slippage_bps: Mapped[Decimal] = mapped_column(Numeric(10, 4), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
 
 
 class BacktestPositionModel(Base):
@@ -322,7 +380,9 @@ class BacktestPositionModel(Base):
     market_value_inr: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
     realized_pnl_inr: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
     unrealized_pnl_inr: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
 
 
 class BacktestEquityPointModel(Base):
@@ -343,7 +403,9 @@ class BacktestEquityPointModel(Base):
     holdings_value_inr: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
     total_equity_inr: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
     drawdown_pct: Mapped[Decimal] = mapped_column(Numeric(18, 8), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
 
 
 class AuditLogModel(Base):
@@ -352,9 +414,13 @@ class AuditLogModel(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     event_type: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
     actor: Mapped[str] = mapped_column(String(128), nullable=False, default="system")
-    payload: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
+    payload: Mapped[dict[str, object]] = mapped_column(
+        JSON, nullable=False, default=dict
+    )
     note: Mapped[str] = mapped_column(Text, nullable=False, default="")
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
 
 
 class GraphNodeModel(Base):
@@ -380,7 +446,9 @@ class GraphNodeModel(Base):
         nullable=False,
         default=dict,
     )
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -412,26 +480,38 @@ class GraphEdgeModel(Base):
         nullable=False,
     )
     edge_type: Mapped[str] = mapped_column(String(64), nullable=False)
-    direction: Mapped[str] = mapped_column(String(32), nullable=False, default="directed")
-    expected_sign: Mapped[str] = mapped_column(String(16), nullable=False, default="unknown")
+    direction: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="directed"
+    )
+    expected_sign: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="unknown"
+    )
     strength: Mapped[Decimal | None] = mapped_column(Numeric(8, 4), nullable=True)
     evidence_type: Mapped[str] = mapped_column(String(64), nullable=False, default="")
-    confidence: Mapped[Decimal] = mapped_column(Numeric(8, 4), nullable=False, default=Decimal("0"))
-    provenance_type: Mapped[str] = mapped_column(String(32), nullable=False, default="deterministic")
+    confidence: Mapped[Decimal] = mapped_column(
+        Numeric(8, 4), nullable=False, default=Decimal("0")
+    )
+    provenance_type: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="deterministic"
+    )
     mechanism: Mapped[str] = mapped_column(Text, nullable=False, default="")
     tradability_relevance: Mapped[str] = mapped_column(Text, nullable=False, default="")
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="candidate")
     valid_from: Mapped[date | None] = mapped_column(Date, nullable=True)
     valid_to: Mapped[date | None] = mapped_column(Date, nullable=True)
     source_file: Mapped[str] = mapped_column(Text, nullable=False, default="")
-    source_row_hash: Mapped[str] = mapped_column(String(128), nullable=False, default="")
+    source_row_hash: Mapped[str] = mapped_column(
+        String(128), nullable=False, default=""
+    )
     edge_metadata: Mapped[dict[str, object]] = mapped_column(
         "metadata",
         JSON,
         nullable=False,
         default=dict,
     )
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -457,19 +537,29 @@ class GraphEdgeEvidenceModel(Base):
     source_title: Mapped[str] = mapped_column(Text, nullable=False, default="")
     source_type: Mapped[str] = mapped_column(String(64), nullable=False, default="")
     source_date: Mapped[date | None] = mapped_column(Date, nullable=True)
-    source_url_or_reference: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    source_url_or_reference: Mapped[str] = mapped_column(
+        Text, nullable=False, default=""
+    )
     page_or_section: Mapped[str] = mapped_column(Text, nullable=False, default="")
-    verbatim_excerpt_short: Mapped[str] = mapped_column(Text, nullable=False, default="")
-    confidence: Mapped[Decimal] = mapped_column(Numeric(8, 4), nullable=False, default=Decimal("0"))
+    verbatim_excerpt_short: Mapped[str] = mapped_column(
+        Text, nullable=False, default=""
+    )
+    confidence: Mapped[Decimal] = mapped_column(
+        Numeric(8, 4), nullable=False, default=Decimal("0")
+    )
     source_file: Mapped[str] = mapped_column(Text, nullable=False, default="")
-    source_row_hash: Mapped[str] = mapped_column(String(128), nullable=False, default="")
+    source_row_hash: Mapped[str] = mapped_column(
+        String(128), nullable=False, default=""
+    )
     evidence_metadata: Mapped[dict[str, object]] = mapped_column(
         "metadata",
         JSON,
         nullable=False,
         default=dict,
     )
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -499,20 +589,34 @@ class GraphEdgeStatsModel(Base):
     stat_window: Mapped[str] = mapped_column(String(32), nullable=False)
     as_of_date: Mapped[date] = mapped_column(Date, nullable=False)
     sample_size: Mapped[int] = mapped_column(nullable=False, default=0)
-    raw_correlation: Mapped[Decimal | None] = mapped_column(Numeric(12, 8), nullable=True)
-    residual_correlation: Mapped[Decimal | None] = mapped_column(Numeric(12, 8), nullable=True)
-    lead_lag_score: Mapped[Decimal | None] = mapped_column(Numeric(12, 8), nullable=True)
-    stability_score: Mapped[Decimal | None] = mapped_column(Numeric(12, 8), nullable=True)
+    raw_correlation: Mapped[Decimal | None] = mapped_column(
+        Numeric(12, 8), nullable=True
+    )
+    residual_correlation: Mapped[Decimal | None] = mapped_column(
+        Numeric(12, 8), nullable=True
+    )
+    lead_lag_score: Mapped[Decimal | None] = mapped_column(
+        Numeric(12, 8), nullable=True
+    )
+    stability_score: Mapped[Decimal | None] = mapped_column(
+        Numeric(12, 8), nullable=True
+    )
     p_value: Mapped[Decimal | None] = mapped_column(Numeric(12, 8), nullable=True)
-    insufficient_data_reason: Mapped[str] = mapped_column(Text, nullable=False, default="")
-    model_version: Mapped[str] = mapped_column(String(128), nullable=False, default="graph_stats_v1")
+    insufficient_data_reason: Mapped[str] = mapped_column(
+        Text, nullable=False, default=""
+    )
+    model_version: Mapped[str] = mapped_column(
+        String(128), nullable=False, default="graph_stats_v1"
+    )
     stats_metadata: Mapped[dict[str, object]] = mapped_column(
         "metadata",
         JSON,
         nullable=False,
         default=dict,
     )
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -539,14 +643,18 @@ class GraphSignalModel(Base):
     confidence: Mapped[Decimal] = mapped_column(Numeric(8, 4), nullable=False)
     horizon: Mapped[str] = mapped_column(String(32), nullable=False, default="")
     explanation: Mapped[str] = mapped_column(Text, nullable=False, default="")
-    source_agent: Mapped[str] = mapped_column(String(128), nullable=False, default="GraphAnalystAgent")
+    source_agent: Mapped[str] = mapped_column(
+        String(128), nullable=False, default="GraphAnalystAgent"
+    )
     signal_metadata: Mapped[dict[str, object]] = mapped_column(
         "metadata",
         JSON,
         nullable=False,
         default=dict,
     )
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -577,10 +685,14 @@ class GraphSignalContributionModel(Base):
         ForeignKey("graph_nodes.id", ondelete="SET NULL"),
         nullable=True,
     )
-    contribution_type: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    contribution_type: Mapped[str] = mapped_column(
+        String(64), nullable=False, default=""
+    )
     direction: Mapped[str] = mapped_column(String(16), nullable=False, default="")
     score_contribution: Mapped[Decimal] = mapped_column(Numeric(8, 4), nullable=False)
-    weight: Mapped[Decimal] = mapped_column(Numeric(8, 4), nullable=False, default=Decimal("1"))
+    weight: Mapped[Decimal] = mapped_column(
+        Numeric(8, 4), nullable=False, default=Decimal("1")
+    )
     explanation: Mapped[str] = mapped_column(Text, nullable=False, default="")
     contribution_metadata: Mapped[dict[str, object]] = mapped_column(
         "metadata",
@@ -588,7 +700,9 @@ class GraphSignalContributionModel(Base):
         nullable=False,
         default=dict,
     )
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -609,7 +723,9 @@ class RawDocumentModel(Base):
     source_url: Mapped[str] = mapped_column(Text, nullable=False, default="")
     title: Mapped[str] = mapped_column(Text, nullable=False)
     body: Mapped[str] = mapped_column(Text, nullable=False)
-    published_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    published_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
     symbols: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     entities: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     checksum: Mapped[str] = mapped_column(String(128), nullable=False)
@@ -619,13 +735,20 @@ class RawDocumentModel(Base):
         nullable=False,
         default=dict,
     )
-    ingested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    ingested_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
 
 
 class CompanyEventModel(Base):
     __tablename__ = "company_events"
     __table_args__ = (
-        UniqueConstraint("document_id", "symbol", "event_type", name="uq_company_events_doc_symbol_type"),
+        UniqueConstraint(
+            "document_id",
+            "symbol",
+            "event_type",
+            name="uq_company_events_doc_symbol_type",
+        ),
         Index("ix_company_events_symbol_time", "symbol", "event_time"),
     )
 
@@ -641,7 +764,9 @@ class CompanyEventModel(Base):
         nullable=False,
     )
     event_type: Mapped[str] = mapped_column(String(64), nullable=False)
-    event_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    event_time: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
     headline: Mapped[str] = mapped_column(Text, nullable=False)
     summary: Mapped[str] = mapped_column(Text, nullable=False)
     severity: Mapped[Decimal] = mapped_column(Numeric(8, 4), nullable=False)
@@ -653,13 +778,17 @@ class CompanyEventModel(Base):
         nullable=False,
         default=dict,
     )
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
 
 
 class SentimentScoreModel(Base):
     __tablename__ = "sentiment_scores"
     __table_args__ = (
-        UniqueConstraint("event_id", "model_version", name="uq_sentiment_scores_event_model"),
+        UniqueConstraint(
+            "event_id", "model_version", name="uq_sentiment_scores_event_model"
+        ),
         Index("ix_sentiment_scores_symbol_as_of", "symbol", "as_of"),
     )
 
@@ -682,21 +811,29 @@ class SentimentScoreModel(Base):
     severity: Mapped[Decimal] = mapped_column(Numeric(8, 4), nullable=False)
     horizon: Mapped[str] = mapped_column(String(32), nullable=False)
     rationale: Mapped[str] = mapped_column(Text, nullable=False, default="")
-    model_version: Mapped[str] = mapped_column(String(128), nullable=False, default="event_scoring_v1")
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    model_version: Mapped[str] = mapped_column(
+        String(128), nullable=False, default="event_scoring_v1"
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
 
 
 class AnalystReportModel(Base):
     __tablename__ = "analyst_reports"
     __table_args__ = (
-        UniqueConstraint("run_id", "symbol", "agent_name", name="uq_analyst_reports_run_symbol_agent"),
+        UniqueConstraint(
+            "run_id", "symbol", "agent_name", name="uq_analyst_reports_run_symbol_agent"
+        ),
         Index("ix_analyst_reports_symbol_as_of", "symbol", "as_of"),
         Index("ix_analyst_reports_portfolio_as_of", "portfolio_id", "as_of"),
     )
 
     report_id: Mapped[str] = mapped_column(String(128), primary_key=True)
     run_id: Mapped[str] = mapped_column(String(128), nullable=False)
-    portfolio_id: Mapped[str] = mapped_column(String(128), nullable=False, default="local-paper")
+    portfolio_id: Mapped[str] = mapped_column(
+        String(128), nullable=False, default="local-paper"
+    )
     decision_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
     symbol: Mapped[str] = mapped_column(
         String(32),
@@ -713,19 +850,27 @@ class AnalystReportModel(Base):
     risks: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     source_ids: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     model_version: Mapped[str] = mapped_column(Text, nullable=False)
-    payload: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    payload: Mapped[dict[str, object]] = mapped_column(
+        JSON, nullable=False, default=dict
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
 
 
 class FundamentalImportModel(Base):
     __tablename__ = "fundamental_imports"
     __table_args__ = (
-        UniqueConstraint("source_file_hash", name="uq_fundamental_imports_source_file_hash"),
+        UniqueConstraint(
+            "source_file_hash", name="uq_fundamental_imports_source_file_hash"
+        ),
         Index("ix_fundamental_imports_imported_at", "imported_at"),
     )
 
     import_id: Mapped[str] = mapped_column(String(128), primary_key=True)
-    source: Mapped[str] = mapped_column(String(64), nullable=False, default="screener_csv")
+    source: Mapped[str] = mapped_column(
+        String(64), nullable=False, default="screener_csv"
+    )
     source_filename: Mapped[str] = mapped_column(Text, nullable=False, default="")
     source_file_hash: Mapped[str] = mapped_column(String(128), nullable=False)
     rows_seen: Mapped[int] = mapped_column(nullable=False, default=0)
@@ -733,12 +878,22 @@ class FundamentalImportModel(Base):
     rows_unmapped: Mapped[int] = mapped_column(nullable=False, default=0)
     metrics_imported: Mapped[int] = mapped_column(nullable=False, default=0)
     scores_imported: Mapped[int] = mapped_column(nullable=False, default=0)
-    missing_required_columns: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
-    missing_optional_columns: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
-    imported_symbols: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    missing_required_columns: Mapped[list[str]] = mapped_column(
+        JSON, nullable=False, default=list
+    )
+    missing_optional_columns: Mapped[list[str]] = mapped_column(
+        JSON, nullable=False, default=list
+    )
+    imported_symbols: Mapped[list[str]] = mapped_column(
+        JSON, nullable=False, default=list
+    )
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="IMPORTED")
-    data_available_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    imported_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    data_available_time: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    imported_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
 
 
 class FundamentalSnapshotModel(Base):
@@ -771,15 +926,21 @@ class FundamentalSnapshotModel(Base):
     raw_value: Mapped[str] = mapped_column(Text, nullable=False, default="")
     reporting_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     import_date: Mapped[date] = mapped_column(Date, nullable=False)
-    data_available_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    data_available_time: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
     source_file_hash: Mapped[str] = mapped_column(String(128), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
 
 
 class FundamentalScoreModel(Base):
     __tablename__ = "fundamental_scores"
     __table_args__ = (
-        UniqueConstraint("import_id", "symbol", name="uq_fundamental_scores_import_symbol"),
+        UniqueConstraint(
+            "import_id", "symbol", name="uq_fundamental_scores_import_symbol"
+        ),
         Index("ix_fundamental_scores_symbol_as_of", "symbol", "as_of"),
     )
 
@@ -796,28 +957,42 @@ class FundamentalScoreModel(Base):
     )
     company_name: Mapped[str] = mapped_column(Text, nullable=False, default="")
     as_of: Mapped[date] = mapped_column(Date, nullable=False)
-    data_available_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    data_available_time: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
     quality_score: Mapped[Decimal | None] = mapped_column(Numeric(8, 4), nullable=True)
-    valuation_score: Mapped[Decimal | None] = mapped_column(Numeric(8, 4), nullable=True)
-    leverage_risk_score: Mapped[Decimal | None] = mapped_column(Numeric(8, 4), nullable=True)
-    ownership_score: Mapped[Decimal | None] = mapped_column(Numeric(8, 4), nullable=True)
+    valuation_score: Mapped[Decimal | None] = mapped_column(
+        Numeric(8, 4), nullable=True
+    )
+    leverage_risk_score: Mapped[Decimal | None] = mapped_column(
+        Numeric(8, 4), nullable=True
+    )
+    ownership_score: Mapped[Decimal | None] = mapped_column(
+        Numeric(8, 4), nullable=True
+    )
     composite_score: Mapped[Decimal] = mapped_column(Numeric(8, 4), nullable=False)
-    metrics: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
+    metrics: Mapped[dict[str, object]] = mapped_column(
+        JSON, nullable=False, default=dict
+    )
     source_file_hash: Mapped[str] = mapped_column(String(128), nullable=False)
-    model_version: Mapped[str] = mapped_column(String(128), nullable=False, default="fundamental_score_v1")
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    model_version: Mapped[str] = mapped_column(
+        String(128), nullable=False, default="fundamental_score_v1"
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
 
 
 class HalalStockImportModel(Base):
     __tablename__ = "halal_stock_imports"
-    __table_args__ = (
-        Index("ix_halal_stock_imports_fetched_at", "fetched_at"),
-    )
+    __table_args__ = (Index("ix_halal_stock_imports_fetched_at", "fetched_at"),)
 
     import_id: Mapped[str] = mapped_column(String(128), primary_key=True)
     source_url: Mapped[str] = mapped_column(Text, nullable=False)
     source_checksum: Mapped[str] = mapped_column(String(128), nullable=False)
-    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    fetched_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
     rows_seen: Mapped[int] = mapped_column(nullable=False, default=0)
     rows_imported: Mapped[int] = mapped_column(nullable=False, default=0)
     halal_count: Mapped[int] = mapped_column(nullable=False, default=0)
@@ -826,7 +1001,9 @@ class HalalStockImportModel(Base):
     duplicate_count: Mapped[int] = mapped_column(nullable=False, default=0)
     generated_yaml_path: Mapped[str] = mapped_column(Text, nullable=False, default="")
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="IMPORTED")
-    imported_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    imported_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
 
 
 class HalalStockComplianceModel(Base):
@@ -846,11 +1023,21 @@ class HalalStockComplianceModel(Base):
     details_url: Mapped[str] = mapped_column(Text, nullable=False, default="")
     source_url: Mapped[str] = mapped_column(Text, nullable=False)
     active: Mapped[bool] = mapped_column(nullable=False, default=True)
-    first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    status_changed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    raw_metadata: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    first_seen_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    last_seen_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    status_changed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    raw_metadata: Mapped[dict[str, object]] = mapped_column(
+        JSON, nullable=False, default=dict
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -869,7 +1056,9 @@ class DebateReportModel(Base):
 
     debate_id: Mapped[str] = mapped_column(String(128), primary_key=True)
     run_id: Mapped[str] = mapped_column(String(128), nullable=False)
-    portfolio_id: Mapped[str] = mapped_column(String(128), nullable=False, default="local-paper")
+    portfolio_id: Mapped[str] = mapped_column(
+        String(128), nullable=False, default="local-paper"
+    )
     symbol: Mapped[str] = mapped_column(
         String(32),
         ForeignKey("instruments.symbol", ondelete="CASCADE"),
@@ -880,14 +1069,28 @@ class DebateReportModel(Base):
     consensus_label: Mapped[str] = mapped_column(String(32), nullable=False)
     consensus_score: Mapped[Decimal] = mapped_column(Numeric(8, 4), nullable=False)
     confidence: Mapped[Decimal] = mapped_column(Numeric(8, 4), nullable=False)
-    bull_thesis: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
-    bear_thesis: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
-    rounds: Mapped[list[dict[str, object]]] = mapped_column(JSON, nullable=False, default=list)
-    manager_summary: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
-    source_report_ids: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    bull_thesis: Mapped[dict[str, object]] = mapped_column(
+        JSON, nullable=False, default=dict
+    )
+    bear_thesis: Mapped[dict[str, object]] = mapped_column(
+        JSON, nullable=False, default=dict
+    )
+    rounds: Mapped[list[dict[str, object]]] = mapped_column(
+        JSON, nullable=False, default=list
+    )
+    manager_summary: Mapped[dict[str, object]] = mapped_column(
+        JSON, nullable=False, default=dict
+    )
+    source_report_ids: Mapped[list[str]] = mapped_column(
+        JSON, nullable=False, default=list
+    )
     model_version: Mapped[str] = mapped_column(Text, nullable=False)
-    payload: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    payload: Mapped[dict[str, object]] = mapped_column(
+        JSON, nullable=False, default=dict
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
 
 
 class TraderProposalModel(Base):
@@ -899,7 +1102,9 @@ class TraderProposalModel(Base):
 
     proposal_id: Mapped[str] = mapped_column(String(128), primary_key=True)
     run_id: Mapped[str] = mapped_column(String(128), nullable=False)
-    portfolio_id: Mapped[str] = mapped_column(String(128), nullable=False, default="local-paper")
+    portfolio_id: Mapped[str] = mapped_column(
+        String(128), nullable=False, default="local-paper"
+    )
     symbol: Mapped[str] = mapped_column(
         String(32),
         ForeignKey("instruments.symbol", ondelete="CASCADE"),
@@ -914,7 +1119,9 @@ class TraderProposalModel(Base):
     action: Mapped[str] = mapped_column(String(16), nullable=False)
     confidence: Mapped[Decimal] = mapped_column(Numeric(8, 4), nullable=False)
     horizon: Mapped[str] = mapped_column(String(32), nullable=False)
-    requested_position_pct_nav: Mapped[Decimal] = mapped_column(Numeric(8, 4), nullable=False)
+    requested_position_pct_nav: Mapped[Decimal] = mapped_column(
+        Numeric(8, 4), nullable=False
+    )
     current_position_quantity: Mapped[int] = mapped_column(nullable=False, default=0)
     current_position_pct_nav: Mapped[Decimal] = mapped_column(
         Numeric(8, 4),
@@ -926,21 +1133,33 @@ class TraderProposalModel(Base):
         nullable=False,
         default=Decimal("0"),
     )
-    lifecycle_trigger: Mapped[str] = mapped_column(String(32), nullable=False, default="new_entry")
-    evaluation_mode: Mapped[str] = mapped_column(String(32), nullable=False, default="after_close")
+    lifecycle_trigger: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="new_entry"
+    )
+    evaluation_mode: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="after_close"
+    )
     order_type: Mapped[str] = mapped_column(String(16), nullable=False)
     entry_rule: Mapped[str] = mapped_column(Text, nullable=False)
     stop_loss_pct: Mapped[Decimal] = mapped_column(Numeric(8, 4), nullable=False)
     take_profit_pct: Mapped[Decimal] = mapped_column(Numeric(8, 4), nullable=False)
     reason_summary: Mapped[str] = mapped_column(Text, nullable=False)
     invalid_if: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
-    position_management_summary: Mapped[str] = mapped_column(Text, nullable=False, default="")
-    source_report_ids: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    position_management_summary: Mapped[str] = mapped_column(
+        Text, nullable=False, default=""
+    )
+    source_report_ids: Mapped[list[str]] = mapped_column(
+        JSON, nullable=False, default=list
+    )
     is_order: Mapped[bool] = mapped_column(nullable=False, default=False)
     requires_risk_approval: Mapped[bool] = mapped_column(nullable=False, default=True)
     model_version: Mapped[str] = mapped_column(Text, nullable=False)
-    payload: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    payload: Mapped[dict[str, object]] = mapped_column(
+        JSON, nullable=False, default=dict
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
 
 
 class RiskReviewModel(Base):
@@ -954,7 +1173,9 @@ class RiskReviewModel(Base):
     risk_check_id: Mapped[str] = mapped_column(String(128), primary_key=True)
     decision_id: Mapped[str] = mapped_column(String(128), nullable=False)
     run_id: Mapped[str] = mapped_column(String(128), nullable=False)
-    portfolio_id: Mapped[str] = mapped_column(String(128), nullable=False, default="local-paper")
+    portfolio_id: Mapped[str] = mapped_column(
+        String(128), nullable=False, default="local-paper"
+    )
     symbol: Mapped[str] = mapped_column(
         String(32),
         ForeignKey("instruments.symbol", ondelete="CASCADE"),
@@ -968,17 +1189,31 @@ class RiskReviewModel(Base):
     debate_id: Mapped[str] = mapped_column(String(128), nullable=False)
     as_of: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False)
-    requested_position_pct_nav: Mapped[Decimal] = mapped_column(Numeric(8, 4), nullable=False)
-    approved_position_pct_nav: Mapped[Decimal] = mapped_column(Numeric(8, 4), nullable=False)
-    hard_rule_results: Mapped[list[dict[str, object]]] = mapped_column(JSON, nullable=False, default=list)
-    persona_reviews: Mapped[list[dict[str, object]]] = mapped_column(JSON, nullable=False, default=list)
+    requested_position_pct_nav: Mapped[Decimal] = mapped_column(
+        Numeric(8, 4), nullable=False
+    )
+    approved_position_pct_nav: Mapped[Decimal] = mapped_column(
+        Numeric(8, 4), nullable=False
+    )
+    hard_rule_results: Mapped[list[dict[str, object]]] = mapped_column(
+        JSON, nullable=False, default=list
+    )
+    persona_reviews: Mapped[list[dict[str, object]]] = mapped_column(
+        JSON, nullable=False, default=list
+    )
     risk_committee_summary: Mapped[str] = mapped_column(Text, nullable=False)
-    source_report_ids: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    source_report_ids: Mapped[list[str]] = mapped_column(
+        JSON, nullable=False, default=list
+    )
     is_order: Mapped[bool] = mapped_column(nullable=False, default=False)
     can_send_to_broker: Mapped[bool] = mapped_column(nullable=False, default=False)
     model_version: Mapped[str] = mapped_column(Text, nullable=False)
-    payload: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    payload: Mapped[dict[str, object]] = mapped_column(
+        JSON, nullable=False, default=dict
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
 
 
 class FinalDecisionModel(Base):
@@ -992,7 +1227,9 @@ class FinalDecisionModel(Base):
     final_decision_id: Mapped[str] = mapped_column(String(128), primary_key=True)
     decision_id: Mapped[str] = mapped_column(String(128), nullable=False)
     run_id: Mapped[str] = mapped_column(String(128), nullable=False)
-    portfolio_id: Mapped[str] = mapped_column(String(128), nullable=False, default="local-paper")
+    portfolio_id: Mapped[str] = mapped_column(
+        String(128), nullable=False, default="local-paper"
+    )
     symbol: Mapped[str] = mapped_column(
         String(32),
         ForeignKey("instruments.symbol", ondelete="CASCADE"),
@@ -1012,13 +1249,19 @@ class FinalDecisionModel(Base):
     final_action: Mapped[str] = mapped_column(String(16), nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False)
     approved_quantity: Mapped[int] = mapped_column(nullable=False, default=0)
-    approved_position_pct_nav: Mapped[Decimal] = mapped_column(Numeric(8, 4), nullable=False)
+    approved_position_pct_nav: Mapped[Decimal] = mapped_column(
+        Numeric(8, 4), nullable=False
+    )
     reason: Mapped[str] = mapped_column(Text, nullable=False)
     is_order: Mapped[bool] = mapped_column(nullable=False, default=False)
     can_send_to_broker: Mapped[bool] = mapped_column(nullable=False, default=False)
     model_version: Mapped[str] = mapped_column(Text, nullable=False)
-    payload: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    payload: Mapped[dict[str, object]] = mapped_column(
+        JSON, nullable=False, default=dict
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
 
 
 class PaperRunModel(Base):
@@ -1031,21 +1274,45 @@ class PaperRunModel(Base):
     )
 
     run_id: Mapped[str] = mapped_column(String(128), primary_key=True)
-    portfolio_id: Mapped[str] = mapped_column(String(128), nullable=False, default="local-paper")
-    schedule_name: Mapped[str] = mapped_column(String(128), nullable=False, default="daily_after_close")
+    portfolio_id: Mapped[str] = mapped_column(
+        String(128), nullable=False, default="local-paper"
+    )
+    schedule_name: Mapped[str] = mapped_column(
+        String(128), nullable=False, default="daily_after_close"
+    )
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="RUNNING")
-    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
-    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     symbols: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
-    succeeded_symbols: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
-    failed_symbols: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
-    errors: Mapped[list[dict[str, object]]] = mapped_column(JSON, nullable=False, default=list)
-    market_data_summary: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
-    artifacts: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
-    timezone: Mapped[str] = mapped_column(String(64), nullable=False, default="Asia/Kolkata")
+    succeeded_symbols: Mapped[list[str]] = mapped_column(
+        JSON, nullable=False, default=list
+    )
+    failed_symbols: Mapped[list[str]] = mapped_column(
+        JSON, nullable=False, default=list
+    )
+    errors: Mapped[list[dict[str, object]]] = mapped_column(
+        JSON, nullable=False, default=list
+    )
+    market_data_summary: Mapped[dict[str, object]] = mapped_column(
+        JSON, nullable=False, default=dict
+    )
+    artifacts: Mapped[dict[str, object]] = mapped_column(
+        JSON, nullable=False, default=dict
+    )
+    timezone: Mapped[str] = mapped_column(
+        String(64), nullable=False, default="Asia/Kolkata"
+    )
     run_after_market_close: Mapped[bool] = mapped_column(nullable=False, default=True)
-    payload: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    payload: Mapped[dict[str, object]] = mapped_column(
+        JSON, nullable=False, default=dict
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -1059,7 +1326,12 @@ class PaperOrderModel(Base):
     __table_args__ = (
         UniqueConstraint("final_decision_id", name="uq_paper_orders_final_decision"),
         Index("ix_paper_orders_run_symbol_time", "run_id", "symbol", "submitted_at"),
-        Index("ix_paper_orders_portfolio_symbol_time", "portfolio_id", "symbol", "submitted_at"),
+        Index(
+            "ix_paper_orders_portfolio_symbol_time",
+            "portfolio_id",
+            "symbol",
+            "submitted_at",
+        ),
     )
 
     order_id: Mapped[str] = mapped_column(String(128), primary_key=True)
@@ -1070,7 +1342,9 @@ class PaperOrderModel(Base):
     )
     decision_id: Mapped[str] = mapped_column(String(128), nullable=False)
     run_id: Mapped[str] = mapped_column(String(128), nullable=False)
-    portfolio_id: Mapped[str] = mapped_column(String(128), nullable=False, default="local-paper")
+    portfolio_id: Mapped[str] = mapped_column(
+        String(128), nullable=False, default="local-paper"
+    )
     symbol: Mapped[str] = mapped_column(
         String(32),
         ForeignKey("instruments.symbol", ondelete="CASCADE"),
@@ -1078,7 +1352,9 @@ class PaperOrderModel(Base):
     )
     side: Mapped[str] = mapped_column(String(8), nullable=False)
     quantity: Mapped[int] = mapped_column(nullable=False)
-    order_type: Mapped[str] = mapped_column(String(32), nullable=False, default="MARKET")
+    order_type: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="MARKET"
+    )
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="CREATED")
     filled_quantity: Mapped[int] = mapped_column(nullable=False, default=0)
     remaining_quantity: Mapped[int] = mapped_column(nullable=False, default=0)
@@ -1087,27 +1363,48 @@ class PaperOrderModel(Base):
         nullable=False,
         default=Decimal("0"),
     )
-    gross_value_inr: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False, default=Decimal("0"))
-    total_cost_inr: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False, default=Decimal("0"))
+    gross_value_inr: Mapped[Decimal] = mapped_column(
+        Numeric(18, 4), nullable=False, default=Decimal("0")
+    )
+    total_cost_inr: Mapped[Decimal] = mapped_column(
+        Numeric(18, 4), nullable=False, default=Decimal("0")
+    )
     total_slippage_inr: Mapped[Decimal] = mapped_column(
         Numeric(18, 4),
         nullable=False,
         default=Decimal("0"),
     )
-    slippage_bps: Mapped[Decimal] = mapped_column(Numeric(10, 4), nullable=False, default=Decimal("0"))
+    slippage_bps: Mapped[Decimal] = mapped_column(
+        Numeric(10, 4), nullable=False, default=Decimal("0")
+    )
     rejection_reason: Mapped[str] = mapped_column(Text, nullable=False, default="")
-    submitted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
-    payload: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    submitted_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
+    payload: Mapped[dict[str, object]] = mapped_column(
+        JSON, nullable=False, default=dict
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
 
 
 class PaperFillModel(Base):
     __tablename__ = "paper_fills"
     __table_args__ = (
-        UniqueConstraint("order_id", "fill_sequence", name="uq_paper_fills_order_sequence"),
+        UniqueConstraint(
+            "order_id", "fill_sequence", name="uq_paper_fills_order_sequence"
+        ),
         Index("ix_paper_fills_run_symbol_time", "run_id", "symbol", "filled_at"),
-        Index("ix_paper_fills_portfolio_symbol_time", "portfolio_id", "symbol", "filled_at"),
+        Index(
+            "ix_paper_fills_portfolio_symbol_time",
+            "portfolio_id",
+            "symbol",
+            "filled_at",
+        ),
     )
 
     fill_id: Mapped[str] = mapped_column(String(128), primary_key=True)
@@ -1118,7 +1415,9 @@ class PaperFillModel(Base):
     )
     final_decision_id: Mapped[str] = mapped_column(String(128), nullable=False)
     run_id: Mapped[str] = mapped_column(String(128), nullable=False)
-    portfolio_id: Mapped[str] = mapped_column(String(128), nullable=False, default="local-paper")
+    portfolio_id: Mapped[str] = mapped_column(
+        String(128), nullable=False, default="local-paper"
+    )
     symbol: Mapped[str] = mapped_column(
         String(32),
         ForeignKey("instruments.symbol", ondelete="CASCADE"),
@@ -1131,15 +1430,21 @@ class PaperFillModel(Base):
     fill_price_inr: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
     gross_value_inr: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
     brokerage_inr: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
-    exchange_txn_charge_inr: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
+    exchange_txn_charge_inr: Mapped[Decimal] = mapped_column(
+        Numeric(18, 4), nullable=False
+    )
     tax_levy_inr: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
     cost_inr: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
     slippage_bps: Mapped[Decimal] = mapped_column(Numeric(10, 4), nullable=False)
     slippage_inr: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
     fill_sequence: Mapped[int] = mapped_column(nullable=False)
     filled_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    payload: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    payload: Mapped[dict[str, object]] = mapped_column(
+        JSON, nullable=False, default=dict
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
 
 
 class PaperPositionModel(Base):
@@ -1152,25 +1457,41 @@ class PaperPositionModel(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     run_id: Mapped[str] = mapped_column(String(128), nullable=False)
-    portfolio_id: Mapped[str] = mapped_column(String(128), nullable=False, default="local-paper")
+    portfolio_id: Mapped[str] = mapped_column(
+        String(128), nullable=False, default="local-paper"
+    )
     symbol: Mapped[str] = mapped_column(
         String(32),
         ForeignKey("instruments.symbol", ondelete="CASCADE"),
         nullable=False,
     )
     quantity: Mapped[int] = mapped_column(nullable=False, default=0)
-    average_cost_inr: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False, default=Decimal("0"))
-    last_price_inr: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False, default=Decimal("0"))
-    market_value_inr: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False, default=Decimal("0"))
-    realized_pnl_inr: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False, default=Decimal("0"))
+    average_cost_inr: Mapped[Decimal] = mapped_column(
+        Numeric(18, 4), nullable=False, default=Decimal("0")
+    )
+    last_price_inr: Mapped[Decimal] = mapped_column(
+        Numeric(18, 4), nullable=False, default=Decimal("0")
+    )
+    market_value_inr: Mapped[Decimal] = mapped_column(
+        Numeric(18, 4), nullable=False, default=Decimal("0")
+    )
+    realized_pnl_inr: Mapped[Decimal] = mapped_column(
+        Numeric(18, 4), nullable=False, default=Decimal("0")
+    )
     unrealized_pnl_inr: Mapped[Decimal] = mapped_column(
         Numeric(18, 4),
         nullable=False,
         default=Decimal("0"),
     )
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
-    payload: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
+    payload: Mapped[dict[str, object]] = mapped_column(
+        JSON, nullable=False, default=dict
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
 
 
 class PaperAccountModel(Base):
@@ -1183,15 +1504,31 @@ class PaperAccountModel(Base):
 
     account_id: Mapped[str] = mapped_column(String(128), primary_key=True)
     run_id: Mapped[str] = mapped_column(String(128), nullable=False)
-    portfolio_id: Mapped[str] = mapped_column(String(128), nullable=False, default="local-paper")
+    portfolio_id: Mapped[str] = mapped_column(
+        String(128), nullable=False, default="local-paper"
+    )
     starting_cash_inr: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
     available_cash_inr: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
-    reserved_cash_inr: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False, default=Decimal("0"))
-    realized_pnl_inr: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False, default=Decimal("0"))
-    unrealized_pnl_inr: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False, default=Decimal("0"))
-    gross_exposure_inr: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False, default=Decimal("0"))
+    reserved_cash_inr: Mapped[Decimal] = mapped_column(
+        Numeric(18, 4), nullable=False, default=Decimal("0")
+    )
+    realized_pnl_inr: Mapped[Decimal] = mapped_column(
+        Numeric(18, 4), nullable=False, default=Decimal("0")
+    )
+    unrealized_pnl_inr: Mapped[Decimal] = mapped_column(
+        Numeric(18, 4), nullable=False, default=Decimal("0")
+    )
+    gross_exposure_inr: Mapped[Decimal] = mapped_column(
+        Numeric(18, 4), nullable=False, default=Decimal("0")
+    )
     equity_inr: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
     currency: Mapped[str] = mapped_column(String(8), nullable=False, default="INR")
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
-    payload: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
+    payload: Mapped[dict[str, object]] = mapped_column(
+        JSON, nullable=False, default=dict
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )

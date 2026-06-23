@@ -51,7 +51,9 @@ class GeminiProvider:
         timeout_seconds: int = 20,
     ) -> None:
         if not api_key:
-            raise LLMProviderError("GEMINI_API_KEY is required for TAURUS_LLM_PROVIDER=gemini")
+            raise LLMProviderError(
+                "GEMINI_API_KEY is required for TAURUS_LLM_PROVIDER=gemini"
+            )
         self.api_key = api_key
         self.base_url = base_url.rstrip("/")
         self.model = model
@@ -88,7 +90,9 @@ class GeminiProvider:
         try:
             content = response_payload["candidates"][0]["content"]["parts"][0]["text"]
         except (KeyError, IndexError, TypeError) as exc:
-            raise LLMProviderError("Gemini response did not include generated JSON text") from exc
+            raise LLMProviderError(
+                "Gemini response did not include generated JSON text"
+            ) from exc
         usage_record = llm_usage_record_from_gemini_response(
             response_payload,
             model_version=self.model_version,
@@ -138,7 +142,9 @@ class GeminiProvider:
             agent_name=agent_name,
             symbol=symbol,
         )
-        output = parse_llm_output(str(content), fallback_model_version=self.model_version)
+        output = parse_llm_output(
+            str(content), fallback_model_version=self.model_version
+        )
         append_llm_usage_record(self, usage_record)
         return output
 
@@ -191,7 +197,9 @@ class GeminiProvider:
             agent_name=agent_name,
             symbol=symbol,
         )
-        output = parse_bull_thesis_output(str(content), fallback_model_version=self.model_version)
+        output = parse_bull_thesis_output(
+            str(content), fallback_model_version=self.model_version
+        )
         append_llm_usage_record(self, usage_record)
         return output
 
@@ -247,7 +255,9 @@ class GeminiProvider:
             agent_name=agent_name,
             symbol=symbol,
         )
-        output = parse_bear_thesis_output(str(content), fallback_model_version=self.model_version)
+        output = parse_bear_thesis_output(
+            str(content), fallback_model_version=self.model_version
+        )
         append_llm_usage_record(self, usage_record)
         return output
 
@@ -310,7 +320,9 @@ class GeminiProvider:
             agent_name=agent_name,
             symbol=symbol,
         )
-        output = parse_research_manager_output(str(content), fallback_model_version=self.model_version)
+        output = parse_research_manager_output(
+            str(content), fallback_model_version=self.model_version
+        )
         append_llm_usage_record(self, usage_record)
         return output
 
@@ -367,7 +379,9 @@ class GeminiProvider:
             agent_name=agent_name,
             symbol=symbol,
         )
-        output = parse_trader_output(str(content), fallback_model_version=self.model_version)
+        output = parse_trader_output(
+            str(content), fallback_model_version=self.model_version
+        )
         append_llm_usage_record(self, usage_record)
         return output
 

@@ -169,5 +169,7 @@ def paper_order_id(*, final_decision_id: str, decision_id: str, quantity: int) -
     return stable_id("po", final_decision_id, decision_id, quantity, "paper_broker_v1")
 
 
-def paper_fill_id(*, order_id: str, fill_sequence: int, quantity: int, reference_price: Decimal) -> str:
+def paper_fill_id(
+    *, order_id: str, fill_sequence: int, quantity: int, reference_price: Decimal
+) -> str:
     return stable_id("pf", order_id, fill_sequence, quantity, reference_price)

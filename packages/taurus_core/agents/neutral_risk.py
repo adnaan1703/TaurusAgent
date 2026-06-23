@@ -25,7 +25,9 @@ class NeutralRiskAgent:
         elif proposal.action != "BUY" or proposal.requested_position_pct_nav == 0:
             recommendation = "reject"
             score = Decimal("-0.2000")
-            key_points = [f"No new paper exposure is needed for action {proposal.action}."]
+            key_points = [
+                f"No new paper exposure is needed for action {proposal.action}."
+            ]
         elif proposal.requested_position_pct_nav > max_position:
             recommendation = "reduce"
             score = Decimal("0.1500")

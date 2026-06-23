@@ -36,7 +36,11 @@ def test_migrations_create_graph_tables_on_postgres(tmp_path: Path) -> None:
 
 def test_graph_tables_compile_with_postgres_dialect() -> None:
     ddl = "\n".join(
-        str(CreateTable(Base.metadata.tables[table_name]).compile(dialect=postgresql.dialect()))
+        str(
+            CreateTable(Base.metadata.tables[table_name]).compile(
+                dialect=postgresql.dialect()
+            )
+        )
         for table_name in (
             "graph_nodes",
             "graph_edges",
@@ -60,7 +64,9 @@ def test_graph_node_and_edge_upserts_are_idempotent(tmp_path: Path) -> None:
     with session_factory() as session:
         instrument_repo = InstrumentRepository(session)
         instrument_repo.upsert(Instrument(symbol="INFY", name="Infosys Limited"))
-        instrument_repo.upsert(Instrument(symbol="TCS", name="Tata Consultancy Services"))
+        instrument_repo.upsert(
+            Instrument(symbol="TCS", name="Tata Consultancy Services")
+        )
 
         graph_repo = GraphRepository(session)
         source = graph_repo.upsert_node(
@@ -220,7 +226,9 @@ def test_graph_repository_lists_counted_node_neighborhood_with_multi_status(
     with session_factory() as session:
         instrument_repo = InstrumentRepository(session)
         instrument_repo.upsert(Instrument(symbol="INFY", name="Infosys Limited"))
-        instrument_repo.upsert(Instrument(symbol="TCS", name="Tata Consultancy Services"))
+        instrument_repo.upsert(
+            Instrument(symbol="TCS", name="Tata Consultancy Services")
+        )
 
         graph_repo = GraphRepository(session)
         graph_repo.upsert_node(

@@ -5,10 +5,18 @@ from decimal import Decimal
 from pathlib import Path
 
 from scripts.migrate import run_migrations
-from taurus_core.backtesting import BacktestConfig, BacktestEngine, GraphBacktestSignalLoader
+from taurus_core.backtesting import (
+    BacktestConfig,
+    BacktestEngine,
+    GraphBacktestSignalLoader,
+)
 from taurus_core.backtesting.graph import GraphBacktestSignal
 from taurus_core.config import Settings
-from taurus_core.db.repositories import CandleRepository, GraphRepository, InstrumentRepository
+from taurus_core.db.repositories import (
+    CandleRepository,
+    GraphRepository,
+    InstrumentRepository,
+)
 from taurus_core.db.session import build_session_factory
 from taurus_core.domain.instruments import Instrument
 from taurus_core.domain.market_data import DailyCandle
@@ -16,7 +24,9 @@ from taurus_core.features.store import FeatureSnapshot
 from taurus_core.strategies.graph_aware import GraphAwareScoreStrategy
 
 
-def test_graph_signal_loader_uses_only_stats_available_by_as_of_date(tmp_path: Path) -> None:
+def test_graph_signal_loader_uses_only_stats_available_by_as_of_date(
+    tmp_path: Path,
+) -> None:
     settings = _settings_for_temp_db(tmp_path)
     run_migrations(settings)
     _seed_graph_fixture(settings)
@@ -152,7 +162,10 @@ def test_graph_aware_strategy_combines_technical_and_graph_scores() -> None:
         target_limit=1,
     )
 
-    assert [ranking.symbol for ranking in rankings if ranking.is_eligible] == ["AAA", "BBB"]
+    assert [ranking.symbol for ranking in rankings if ranking.is_eligible] == [
+        "AAA",
+        "BBB",
+    ]
     assert targets == {"AAA"}
     assert len(signals) == 1
     assert signals[0].score == Decimal("0.50000000")
@@ -225,7 +238,9 @@ def test_graph_aware_strategy_preserves_weighted_sma_and_graph_combined_score() 
     assert signals[0].explanation.metadata["technical_score"] == "0.10000000"
 
 
-def test_graph_aware_backtest_summarizes_performance_by_edge_type(tmp_path: Path) -> None:
+def test_graph_aware_backtest_summarizes_performance_by_edge_type(
+    tmp_path: Path,
+) -> None:
     settings = _settings_for_temp_db(tmp_path)
     run_migrations(settings)
     _seed_backtest_fixture(settings)
@@ -267,7 +282,9 @@ def _settings_for_temp_db(tmp_path: Path) -> Settings:
     return Settings()
 
 
-def _load_graph_signal(settings: Settings, *, as_of_date: date) -> GraphBacktestSignal | None:
+def _load_graph_signal(
+    settings: Settings, *, as_of_date: date
+) -> GraphBacktestSignal | None:
     session_factory = build_session_factory(settings)
     with session_factory() as session:
         loader = GraphBacktestSignalLoader(session)
@@ -339,8 +356,12 @@ def _seed_backtest_fixture(settings: Settings) -> None:
     session_factory = build_session_factory(settings)
     with session_factory() as session:
         _seed_instruments(session, ("AAA", "BBB"))
-        CandleRepository(session).upsert(_candles("AAA", [100, 101, 102, 100, 106, 110, 109, 108]))
-        CandleRepository(session).upsert(_candles("BBB", [100, 101, 102, 103, 104, 105, 106, 107]))
+        CandleRepository(session).upsert(
+            _candles("AAA", [100, 101, 102, 100, 106, 110, 109, 108])
+        )
+        CandleRepository(session).upsert(
+            _candles("BBB", [100, 101, 102, 103, 104, 105, 106, 107])
+        )
 
         graph_repo = GraphRepository(session)
         _seed_company_nodes(graph_repo, ("AAA", "BBB"))
@@ -412,7 +433,9 @@ def _candles(symbol: str, prices: list[int]) -> list[DailyCandle]:
     ]
 
 
-def _feature_snapshot(symbol: str, *, sma_1: Decimal, sma_2: Decimal) -> FeatureSnapshot:
+def _feature_snapshot(
+    symbol: str, *, sma_1: Decimal, sma_2: Decimal
+) -> FeatureSnapshot:
     return FeatureSnapshot(
         snapshot_id=f"fs-{symbol}",
         symbol=symbol,

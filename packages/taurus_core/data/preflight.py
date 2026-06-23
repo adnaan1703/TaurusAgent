@@ -30,12 +30,16 @@ def assert_no_legacy_mock_candles(session: Session) -> None:
 def assert_no_legacy_mock_paper_runs(session: Session) -> None:
     legacy_run_ids = [
         run.run_id
-        for run in session.scalars(select(PaperRunModel).order_by(PaperRunModel.started_at.desc()))
+        for run in session.scalars(
+            select(PaperRunModel).order_by(PaperRunModel.started_at.desc())
+        )
         if _is_legacy_mock_market_summary(run.market_data_summary)
     ]
     if legacy_run_ids:
         preview = ", ".join(legacy_run_ids[:3])
-        suffix = "" if len(legacy_run_ids) <= 3 else f" and {len(legacy_run_ids) - 3} more"
+        suffix = (
+            "" if len(legacy_run_ids) <= 3 else f" and {len(legacy_run_ids) - 3} more"
+        )
         raise MarketDataProviderError(
             "Kite paper run refused to start because this database contains old "
             f"mock-backed paper-run summaries ({preview}{suffix}). Use a clean "
@@ -43,7 +47,9 @@ def assert_no_legacy_mock_paper_runs(session: Session) -> None:
         )
 
 
-def assert_kite_runtime_preflight(session: Session, *, include_paper_runs: bool = False) -> None:
+def assert_kite_runtime_preflight(
+    session: Session, *, include_paper_runs: bool = False
+) -> None:
     assert_no_legacy_mock_candles(session)
     if include_paper_runs:
         assert_no_legacy_mock_paper_runs(session)
@@ -65,10 +71,14 @@ def assert_active_instruments_available(session: Session) -> None:
         )
 
 
-def assert_daily_candles_available(session: Session, *, symbols: list[str] | None = None) -> None:
+def assert_daily_candles_available(
+    session: Session, *, symbols: list[str] | None = None
+) -> None:
     statement = select(func.count()).select_from(DailyCandleModel)
     if symbols:
-        statement = statement.where(DailyCandleModel.symbol.in_([symbol.upper() for symbol in symbols]))
+        statement = statement.where(
+            DailyCandleModel.symbol.in_([symbol.upper() for symbol in symbols])
+        )
     count = int(session.scalar(statement) or 0)
     if not count:
         target = f" for {', '.join(symbols)}" if symbols else ""
@@ -79,6 +89,8 @@ def assert_daily_candles_available(session: Session, *, symbols: list[str] | Non
 
 
 def _is_legacy_mock_market_summary(summary: dict[str, object]) -> bool:
-    provider = str(summary.get("provider_name") or summary.get("provider") or "").lower()
+    provider = str(
+        summary.get("provider_name") or summary.get("provider") or ""
+    ).lower()
     source = str(summary.get("source") or "").lower()
     return provider in LEGACY_MOCK_PROVIDERS or source == LEGACY_MOCK_CANDLE_SOURCE

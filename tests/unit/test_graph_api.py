@@ -76,9 +76,10 @@ def test_graph_api_vertical_slice_returns_postgres_backed_graph_data(
     signal_payload = graph_signals.json()
     assert signal_payload["total_returned"] == 1
     assert signal_payload["signals"][0]["signal_id"] == "signal:INFY:2026-05-27"
-    assert signal_payload["signals"][0]["contributions"][0]["edge_key"] == keys[
-        "candidate_edge"
-    ]
+    assert (
+        signal_payload["signals"][0]["contributions"][0]["edge_key"]
+        == keys["candidate_edge"]
+    )
 
     assert bullish_candidates.status_code == 200
     bullish_payload = bullish_candidates.json()
@@ -104,8 +105,7 @@ def test_graph_neighborhood_defaults_to_active_candidate_and_supports_rejected_o
         "/graph/neighborhood?node_key=company%3AINFY&status=rejected"
     )
     mixed_neighborhood = client.get(
-        "/graph/neighborhood?node_key=company%3AINFY"
-        "&status=active&status=rejected"
+        "/graph/neighborhood?node_key=company%3AINFY&status=active&status=rejected"
     )
     missing_neighborhood = client.get("/graph/neighborhood?node_key=company%3AMISSING")
 
@@ -151,7 +151,9 @@ def test_graph_neighborhood_defaults_to_active_candidate_and_supports_rejected_o
     }
 
     assert missing_neighborhood.status_code == 404
-    assert missing_neighborhood.json()["detail"] == "Graph node company:MISSING not found"
+    assert (
+        missing_neighborhood.json()["detail"] == "Graph node company:MISSING not found"
+    )
 
 
 def test_graph_edge_review_endpoints_update_status_and_allow_local_post_cors(
@@ -192,7 +194,10 @@ def test_graph_edge_review_endpoints_update_status_and_allow_local_post_cors(
     assert Decimal(str(promote_payload["edge"]["confidence"])) == Decimal("0.10")
     assert promote_payload["edge"]["provenance_type"] == "inferred"
     assert promote_payload["stats"] == []
-    assert promote_payload["edge"]["metadata"]["latest_review"]["reviewed_by"] == "dashboard"
+    assert (
+        promote_payload["edge"]["metadata"]["latest_review"]["reviewed_by"]
+        == "dashboard"
+    )
     assert promote_payload["edge"]["metadata"]["latest_review"]["note"] == (
         "Evidence is strong enough."
     )
@@ -238,7 +243,9 @@ def _seed_graph(
     with session_factory() as session:
         instrument_repo = InstrumentRepository(session)
         instrument_repo.upsert(Instrument(symbol="INFY", name="Infosys Limited"))
-        instrument_repo.upsert(Instrument(symbol="TCS", name="Tata Consultancy Services"))
+        instrument_repo.upsert(
+            Instrument(symbol="TCS", name="Tata Consultancy Services")
+        )
 
         graph_repo = GraphRepository(session)
         graph_repo.upsert_node(

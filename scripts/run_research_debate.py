@@ -7,12 +7,18 @@ from scripts.import_mock_news import import_mock_news
 from scripts.migrate import run_migrations
 from taurus_core.agents.runner import DEFAULT_ANALYST_RUN_ID, run_analyst_suite
 from taurus_core.config import Settings, get_settings
-from taurus_core.data.preflight import assert_active_instruments_available, assert_daily_candles_available
+from taurus_core.data.preflight import (
+    assert_active_instruments_available,
+    assert_daily_candles_available,
+)
 from taurus_core.db.session import build_session_factory
 from taurus_core.intelligence.mock_news_provider import MockNewsProvider
 from taurus_core.llm import build_llm_provider
 from taurus_core.logging import configure_logging
-from taurus_core.research.debate_service import DEFAULT_DEBATE_ROUNDS, ResearchDebateService
+from taurus_core.research.debate_service import (
+    DEFAULT_DEBATE_ROUNDS,
+    ResearchDebateService,
+)
 
 
 def run_mock_research_debate(

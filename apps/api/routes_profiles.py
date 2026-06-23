@@ -26,7 +26,9 @@ def list_profiles(
     include_archived: bool = Query(default=False),
     session: Session = Depends(get_db_session),
 ) -> list[TaurusProfileResponse]:
-    profiles = TaurusProfileRepository(session).list_profiles(include_archived=include_archived)
+    profiles = TaurusProfileRepository(session).list_profiles(
+        include_archived=include_archived
+    )
     return [TaurusProfileResponse.model_validate(profile) for profile in profiles]
 
 

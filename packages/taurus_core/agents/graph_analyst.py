@@ -139,7 +139,9 @@ class GraphAnalystAgent(BaseAnalystAgent):
             ),
         )
 
-    def _company_node(self, graph_repo: GraphRepository, symbol: str) -> GraphNodeModel | None:
+    def _company_node(
+        self, graph_repo: GraphRepository, symbol: str
+    ) -> GraphNodeModel | None:
         node = graph_repo.get_node_by_key(f"company:{symbol}")
         if node is not None:
             return node
@@ -245,7 +247,9 @@ class GraphAnalystAgent(BaseAnalystAgent):
             return None
         return Decimal(end / start) - ONE
 
-    def _relation_sign(self, edge: GraphEdgeModel, stat: GraphEdgeStatsModel) -> Decimal:
+    def _relation_sign(
+        self, edge: GraphEdgeModel, stat: GraphEdgeStatsModel
+    ) -> Decimal:
         if edge.expected_sign == "positive":
             return ONE
         if edge.expected_sign == "negative":
@@ -277,7 +281,9 @@ class GraphAnalystAgent(BaseAnalystAgent):
             ONE,
         )
         weight = _report_decimal(strength * stats_weight)
-        score_contribution = _bounded_report_decimal(relation_sign * momentum_signal * weight)
+        score_contribution = _bounded_report_decimal(
+            relation_sign * momentum_signal * weight
+        )
         direction = _direction_from_score(score_contribution)
         explanation = (
             f"{edge.edge_type} edge {edge.edge_key} links to {related_node.symbol}; "
@@ -322,11 +328,17 @@ class GraphAnalystAgent(BaseAnalystAgent):
 
     def _stats_weight(self, stat: GraphEdgeStatsModel) -> Decimal:
         correlation = stat.residual_correlation or stat.raw_correlation or ZERO
-        stability = stat.stability_score if stat.stability_score is not None else Decimal("0.50")
+        stability = (
+            stat.stability_score
+            if stat.stability_score is not None
+            else Decimal("0.50")
+        )
         lead_lag = abs(stat.lead_lag_score or ZERO)
         validation = max(abs(correlation), lead_lag)
         return _clamp_decimal(
-            Decimal("0.35") + (validation * Decimal("0.45")) + (stability * Decimal("0.20")),
+            Decimal("0.35")
+            + (validation * Decimal("0.45"))
+            + (stability * Decimal("0.20")),
             Decimal("0.20"),
             ONE,
         )
@@ -336,7 +348,9 @@ class GraphAnalystAgent(BaseAnalystAgent):
             return Decimal("0.2500")
         total_weight = sum((item.weight for item in contributions), ZERO)
         average_weight = total_weight / Decimal(len(contributions))
-        count_bonus = min(Decimal("0.15"), Decimal(len(contributions)) * Decimal("0.025"))
+        count_bonus = min(
+            Decimal("0.15"), Decimal(len(contributions)) * Decimal("0.025")
+        )
         return _report_decimal(
             _clamp_decimal(
                 Decimal("0.35") + average_weight + count_bonus,
@@ -349,9 +363,13 @@ class GraphAnalystAgent(BaseAnalystAgent):
         if contributions:
             as_of_date = max(item.stat.as_of_date for item in contributions)
             return datetime.combine(as_of_date, time.min, tzinfo=timezone.utc)
-        candles = CandleRepository(self.session).get_by_symbol_and_date_range(symbol=symbol)
+        candles = CandleRepository(self.session).get_by_symbol_and_date_range(
+            symbol=symbol
+        )
         if candles:
-            return datetime.combine(candles[-1].trade_date, time.min, tzinfo=timezone.utc)
+            return datetime.combine(
+                candles[-1].trade_date, time.min, tzinfo=timezone.utc
+            )
         return datetime.now(timezone.utc)
 
     def _signal_id(
@@ -402,7 +420,9 @@ class GraphAnalystAgent(BaseAnalystAgent):
             )
             for item in contributions[:3]
         ]
-        points.append(f"Stored {len(contributions)} graph signal contribution(s) for audit review.")
+        points.append(
+            f"Stored {len(contributions)} graph signal contribution(s) for audit review."
+        )
         return points
 
     def _risks(self, contributions: list[_GraphContribution]) -> list[str]:

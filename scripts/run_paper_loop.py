@@ -72,7 +72,9 @@ def _symbols_from_env(settings: Settings) -> list[str]:
 def _resolve_symbols_from_env(settings: Settings) -> ResolvedPaperLoopSymbols:
     raw = _non_empty_env("SYMBOLS") or _non_empty_env("SYMBOL")
     if raw is not None:
-        symbols = [symbol.strip().upper() for symbol in raw.split(",") if symbol.strip()]
+        symbols = [
+            symbol.strip().upper() for symbol in raw.split(",") if symbol.strip()
+        ]
         if not symbols:
             symbols = ["INFY"]
         return ResolvedPaperLoopSymbols(
@@ -128,7 +130,9 @@ def _paper_loop_json_enabled(value: str | None = None) -> bool:
     return raw.strip().lower() not in {"0", "false", "no", "off", "none", "disabled"}
 
 
-def llm_usage_summary_from_runs(runs: Iterable[Mapping[str, object]]) -> dict[str, object]:
+def llm_usage_summary_from_runs(
+    runs: Iterable[Mapping[str, object]],
+) -> dict[str, object]:
     summaries: list[Mapping[str, object]] = []
     profile_ids: set[str] = set()
     for run in runs:
@@ -147,7 +151,9 @@ def llm_usage_summary_from_runs(runs: Iterable[Mapping[str, object]]) -> dict[st
     sorted_profile_ids = sorted(profile_ids)
     if sorted_profile_ids:
         summary["profile_ids"] = sorted_profile_ids
-        summary["profile_id"] = sorted_profile_ids[0] if len(sorted_profile_ids) == 1 else "mixed"
+        summary["profile_id"] = (
+            sorted_profile_ids[0] if len(sorted_profile_ids) == 1 else "mixed"
+        )
     return summary
 
 
@@ -194,7 +200,9 @@ def format_llm_usage_summary(summary: Mapping[str, object]) -> str:
         ]
     )
 
-    by_agent = [row for row in _list_value(summary.get("by_agent")) if isinstance(row, Mapping)]
+    by_agent = [
+        row for row in _list_value(summary.get("by_agent")) if isinstance(row, Mapping)
+    ]
     if by_agent:
         lines.extend(["", "By agent:"])
         agent_width = max(

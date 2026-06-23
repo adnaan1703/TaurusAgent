@@ -18,12 +18,17 @@ def test_run_rules_preserves_current_deterministic_baseline() -> None:
     assert thesis.score == Decimal("-0.1069")
     assert thesis.confidence == Decimal("0.6964")
     assert thesis.source_report_ids == ["ar-bear", "ar-tech"]
-    assert thesis.key_points[0] == "NewsAnalystAgent: Guidance risk could pressure the setup."
+    assert (
+        thesis.key_points[0]
+        == "NewsAnalystAgent: Guidance risk could pressure the setup."
+    )
     assert thesis.risk_flags[0] == "NewsAnalystAgent has bearish score -0.20."
 
 
 def test_llm_bear_output_is_guarded_and_preserves_taurus_owned_fields() -> None:
-    thesis = BearResearcherAgent(llm_provider=_BearProvider(score="-0.9000", confidence="0.9900")).run(
+    thesis = BearResearcherAgent(
+        llm_provider=_BearProvider(score="-0.9000", confidence="0.9900")
+    ).run(
         symbol="infy",
         reports=_reports(),
     )
@@ -77,7 +82,9 @@ def test_missing_provider_records_metric_and_raises() -> None:
 def test_provider_failure_records_metric_and_raises() -> None:
     before = current_llm_failure_count()
 
-    with pytest.raises(LLMProviderError, match="BearResearcherAgent LLM provider failed"):
+    with pytest.raises(
+        LLMProviderError, match="BearResearcherAgent LLM provider failed"
+    ):
         BearResearcherAgent(llm_provider=_FailingBearProvider()).run(
             symbol="INFY",
             reports=_reports(),
@@ -89,7 +96,9 @@ def test_provider_failure_records_metric_and_raises() -> None:
 def test_invalid_provider_schema_records_metric_and_raises() -> None:
     before = current_llm_failure_count()
 
-    with pytest.raises(LLMProviderError, match="BearResearcherAgent LLM provider failed"):
+    with pytest.raises(
+        LLMProviderError, match="BearResearcherAgent LLM provider failed"
+    ):
         BearResearcherAgent(llm_provider=_InvalidBearProvider()).run(
             symbol="INFY",
             reports=_reports(),

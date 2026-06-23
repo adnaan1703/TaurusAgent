@@ -8,13 +8,19 @@ from scripts.migrate import run_migrations
 from taurus_core.agents.runner import DEFAULT_ANALYST_RUN_ID, run_analyst_suite
 from taurus_core.agents.trader_agent import TraderAgent
 from taurus_core.config import Settings, get_settings
-from taurus_core.data.preflight import assert_active_instruments_available, assert_daily_candles_available
+from taurus_core.data.preflight import (
+    assert_active_instruments_available,
+    assert_daily_candles_available,
+)
 from taurus_core.db.repositories import AnalystReportRepository, ResearchRepository
 from taurus_core.db.session import build_session_factory
 from taurus_core.intelligence.mock_news_provider import MockNewsProvider
 from taurus_core.llm import build_llm_provider
 from taurus_core.logging import configure_logging
-from taurus_core.research.debate_service import DEFAULT_DEBATE_ROUNDS, ResearchDebateService
+from taurus_core.research.debate_service import (
+    DEFAULT_DEBATE_ROUNDS,
+    ResearchDebateService,
+)
 from taurus_core.research.schemas import DebateReport
 
 
@@ -46,7 +52,9 @@ def run_mock_trader_proposal(
             run_id=run_id,
         )
         source_report_ids = sorted(report.report_id for report in reports)
-        debate_model = ResearchRepository(session).latest_debate(symbol=symbol, run_id=run_id)
+        debate_model = ResearchRepository(session).latest_debate(
+            symbol=symbol, run_id=run_id
+        )
         debate = None
         if debate_model is not None:
             candidate = DebateReport.model_validate(debate_model.payload)

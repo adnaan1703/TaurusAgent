@@ -235,7 +235,9 @@ def test_score_ohlcv_v2_uses_full_ohlcv_suite_and_universe_context() -> None:
     assert result.metadata["missing_context_features"] == []
 
 
-def test_score_ohlcv_v2_degrades_confidence_when_features_and_context_are_missing() -> None:
+def test_score_ohlcv_v2_degrades_confidence_when_features_and_context_are_missing() -> (
+    None
+):
     service = TechnicalSignalService()
     snapshot = _feature_snapshot(
         "AAA",
@@ -302,7 +304,6 @@ def test_signal_results_are_immutable() -> None:
         v2_result.components["raw"] = Decimal("1")  # type: ignore[index]
     with pytest.raises(TypeError):
         v2_result.top_contributors[0]["feature"] = "BBB"  # type: ignore[index]
-
 
 
 def test_universe_technical_context_ranks_ties_and_missing_features() -> None:
@@ -388,7 +389,10 @@ def test_universe_technical_context_ranks_ties_and_missing_features() -> None:
         "volatility_20": 3,
         "turnover_z_score_20": 3,
     }
-    assert context.metadata["rank_direction_by_feature"]["volatility_20"] == LOWER_IS_BETTER
+    assert (
+        context.metadata["rank_direction_by_feature"]["volatility_20"]
+        == LOWER_IS_BETTER
+    )
 
 
 def test_universe_technical_context_small_universe_is_neutral() -> None:

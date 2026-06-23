@@ -62,11 +62,15 @@ class GraphBacktestSignal:
 
     @property
     def edge_types(self) -> tuple[str, ...]:
-        return tuple(sorted({item.edge_type for item in self.contributions if item.edge_type}))
+        return tuple(
+            sorted({item.edge_type for item in self.contributions if item.edge_type})
+        )
 
     @property
     def edge_keys(self) -> tuple[str, ...]:
-        return tuple(sorted({item.edge_key for item in self.contributions if item.edge_key}))
+        return tuple(
+            sorted({item.edge_key for item in self.contributions if item.edge_key})
+        )
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -118,13 +122,17 @@ class GraphBacktestSignalLoader:
                 signals[symbol] = signal
         return signals
 
-    def load_symbol(self, *, as_of_date: date, symbol: str) -> GraphBacktestSignal | None:
+    def load_symbol(
+        self, *, as_of_date: date, symbol: str
+    ) -> GraphBacktestSignal | None:
         normalized_symbol = symbol.upper()
         center_node = _company_node(self.graph_repo, normalized_symbol)
         if center_node is None:
             return None
 
-        contributions = self._contributions(center_node=center_node, as_of_date=as_of_date)
+        contributions = self._contributions(
+            center_node=center_node, as_of_date=as_of_date
+        )
         if not contributions:
             return None
 
@@ -151,7 +159,9 @@ class GraphBacktestSignalLoader:
         as_of_date: date,
     ) -> list[GraphBacktestContribution]:
         contributions: list[GraphBacktestContribution] = []
-        edges = self.graph_repo.list_edges_for_node(node_key=center_node.node_key, limit=None)
+        edges = self.graph_repo.list_edges_for_node(
+            node_key=center_node.node_key, limit=None
+        )
         for edge in edges:
             if not self._edge_available(edge=edge, as_of_date=as_of_date):
                 continue
@@ -190,7 +200,9 @@ class GraphBacktestSignalLoader:
         edge: GraphEdgeModel,
         as_of_date: date,
     ) -> tuple[GraphEdgeEvidenceModel, ...] | None:
-        evidence_rows = self.graph_repo.list_edge_evidence(edge_key=edge.edge_key, limit=None)
+        evidence_rows = self.graph_repo.list_edge_evidence(
+            edge_key=edge.edge_key, limit=None
+        )
         if not evidence_rows:
             return ()
         available = tuple(
@@ -227,7 +239,9 @@ class GraphBacktestSignalLoader:
         )[0]
 
 
-def summarize_graph_performance(trades: Iterable[GraphBacktestTrade]) -> dict[str, object]:
+def summarize_graph_performance(
+    trades: Iterable[GraphBacktestTrade],
+) -> dict[str, object]:
     rows = list(trades)
     grouped: dict[str, list[GraphBacktestTrade]] = defaultdict(list)
     for trade in rows:
@@ -327,7 +341,9 @@ def _score_contribution(
 
 def _directional_score(edge: GraphEdgeModel, stat: GraphEdgeStatsModel) -> Decimal:
     relation_sign = _relation_sign(edge=edge, stat=stat)
-    stat_sign = _sign(stat.lead_lag_score or stat.residual_correlation or stat.raw_correlation)
+    stat_sign = _sign(
+        stat.lead_lag_score or stat.residual_correlation or stat.raw_correlation
+    )
     if relation_sign == ZERO or stat_sign == ZERO:
         return ZERO
     return relation_sign * stat_sign
@@ -343,11 +359,15 @@ def _relation_sign(edge: GraphEdgeModel, stat: GraphEdgeStatsModel) -> Decimal:
 
 def _stats_weight(stat: GraphEdgeStatsModel) -> Decimal:
     correlation = stat.residual_correlation or stat.raw_correlation or ZERO
-    stability = stat.stability_score if stat.stability_score is not None else Decimal("0.50")
+    stability = (
+        stat.stability_score if stat.stability_score is not None else Decimal("0.50")
+    )
     lead_lag = abs(stat.lead_lag_score or ZERO)
     validation = max(abs(correlation), lead_lag)
     return _clamp_decimal(
-        Decimal("0.35") + (validation * Decimal("0.45")) + (stability * Decimal("0.20")),
+        Decimal("0.35")
+        + (validation * Decimal("0.45"))
+        + (stability * Decimal("0.20")),
         Decimal("0.20"),
         ONE,
     )
@@ -357,7 +377,9 @@ def _evidence_weight(evidence: tuple[GraphEdgeEvidenceModel, ...]) -> Decimal:
     if not evidence:
         return Decimal("0.85")
     average_confidence = _average_decimal(Decimal(row.confidence) for row in evidence)
-    return _clamp_decimal(Decimal("0.70") + (average_confidence * Decimal("0.30")), ZERO, ONE)
+    return _clamp_decimal(
+        Decimal("0.70") + (average_confidence * Decimal("0.30")), ZERO, ONE
+    )
 
 
 def _hit_rate(trades: list[GraphBacktestTrade]) -> float:
@@ -370,11 +392,15 @@ def _hit_rate(trades: list[GraphBacktestTrade]) -> float:
 def _average_return(trades: list[GraphBacktestTrade]) -> float:
     if not trades:
         return 0.0
-    return _decimal_float(sum((trade.return_pct for trade in trades), ZERO) / Decimal(len(trades)))
+    return _decimal_float(
+        sum((trade.return_pct for trade in trades), ZERO) / Decimal(len(trades))
+    )
 
 
 def _trade_drawdown(trades: list[GraphBacktestTrade]) -> float:
-    ordered = sorted(trades, key=lambda item: (item.exit_date, item.symbol, item.entry_date))
+    ordered = sorted(
+        trades, key=lambda item: (item.exit_date, item.symbol, item.entry_date)
+    )
     if not ordered:
         return 0.0
     equity = ONE

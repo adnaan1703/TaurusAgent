@@ -131,7 +131,9 @@ def test_sqlite_database_url_is_rejected(monkeypatch: pytest.MonkeyPatch) -> Non
         Settings()
 
 
-def test_unknown_market_data_provider_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_unknown_market_data_provider_is_rejected(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setenv("TAURUS_MARKET_DATA_PROVIDER", "scraper")
 
     with pytest.raises(ValidationError, match="market data provider"):
@@ -180,7 +182,9 @@ def test_graph_flags_can_be_enabled_explicitly(monkeypatch: pytest.MonkeyPatch) 
     assert settings.taurus_neo4j_enabled is True
 
 
-def test_graph_analyst_key_can_be_enabled_explicitly(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_graph_analyst_key_can_be_enabled_explicitly(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setenv("TAURUS_ENABLED_ANALYSTS", "technical,graph")
 
     assert Settings().enabled_analyst_keys == ("technical", "graph")
@@ -225,7 +229,9 @@ def test_unknown_enabled_analyst_is_rejected(monkeypatch: pytest.MonkeyPatch) ->
         Settings()
 
 
-def test_empty_enabled_analyst_roster_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_empty_enabled_analyst_roster_is_rejected(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setenv("TAURUS_ENABLED_ANALYSTS", "")
 
     with pytest.raises(ValidationError, match="at least one analyst"):
@@ -250,7 +256,9 @@ def test_secret_values_are_redacted(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_database_url_password_is_redacted() -> None:
-    settings = Settings(database_url="postgresql+psycopg://taurus:secret@localhost:5432/taurus")
+    settings = Settings(
+        database_url="postgresql+psycopg://taurus:secret@localhost:5432/taurus"
+    )
 
     assert (
         settings.safe_dict()["database_url"]
@@ -263,7 +271,9 @@ def test_money_management_policy_loads_default_config() -> None:
 
     assert policy.policy_version == "money_management_v1"
     assert policy.cash_buffer_target_pct == Decimal("5.0")
-    assert sum(sleeve.target_weight_pct for sleeve in policy.sleeves) == Decimal("100.0")
+    assert sum(sleeve.target_weight_pct for sleeve in policy.sleeves) == Decimal(
+        "100.0"
+    )
     metadata = policy.to_metadata()
     assert "cash_buffer_target_pct" not in metadata
     assert "core_symbols" not in metadata
@@ -414,7 +424,9 @@ def _write_money_management_policy(
         lines = base.splitlines()
         filtered = [line for line in lines if not line.startswith(f"{key}:")]
         if key in {"sleeves", "limits", "drawdown_governors", "rebalance"}:
-            start = next(index for index, line in enumerate(lines) if line.startswith(f"{key}:"))
+            start = next(
+                index for index, line in enumerate(lines) if line.startswith(f"{key}:")
+            )
             end = next(
                 (
                     index

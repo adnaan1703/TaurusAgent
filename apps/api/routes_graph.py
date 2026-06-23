@@ -198,7 +198,9 @@ def get_db_session(request: Request) -> Iterator[Session]:
 
 
 @router.get("/overview", response_model=GraphOverviewResponse)
-def graph_overview(request: Request, session: Session = Depends(get_db_session)) -> GraphOverviewResponse:
+def graph_overview(
+    request: Request, session: Session = Depends(get_db_session)
+) -> GraphOverviewResponse:
     settings = request.app.state.settings
     return GraphOverviewResponse(
         graph_enabled=settings.taurus_graph_enabled,
@@ -231,7 +233,9 @@ def company_subgraph(
         status=_status_filter(status),
         limit=limit,
     )
-    nodes, edges, counts = _subgraph_response_parts(graph_repo, center_node, edge_models)
+    nodes, edges, counts = _subgraph_response_parts(
+        graph_repo, center_node, edge_models
+    )
     return GraphCompanySubgraphResponse(
         symbol=normalized_symbol,
         center_node=_node_response(center_node),
@@ -250,7 +254,9 @@ def graph_neighborhood(
 ) -> GraphNeighborhoodResponse:
     graph_repo = GraphRepository(session)
     statuses: list[GraphNeighborhoodStatusFilter] = (
-        list(status) if status is not None else list(DEFAULT_GRAPH_NEIGHBORHOOD_STATUSES)
+        list(status)
+        if status is not None
+        else list(DEFAULT_GRAPH_NEIGHBORHOOD_STATUSES)
     )
     center_node, edge_models, total_edges = graph_repo.list_node_neighborhood(
         node_key=node_key,
@@ -260,7 +266,9 @@ def graph_neighborhood(
     if center_node is None:
         raise HTTPException(status_code=404, detail=f"Graph node {node_key} not found")
 
-    nodes, edges, counts = _subgraph_response_parts(graph_repo, center_node, edge_models)
+    nodes, edges, counts = _subgraph_response_parts(
+        graph_repo, center_node, edge_models
+    )
     counts["rejected_edges"] = sum(1 for edge in edges if edge.status == "rejected")
     return GraphNeighborhoodResponse(
         center_node=_node_response(center_node),
@@ -305,7 +313,9 @@ def graph_signals(
         limit=limit,
     )
     responses = [
-        _signal_response(graph_repo, signal, include_contributions=include_contributions)
+        _signal_response(
+            graph_repo, signal, include_contributions=include_contributions
+        )
         for signal in signals
     ]
     return GraphSignalListResponse(total_returned=len(responses), signals=responses)
@@ -326,7 +336,9 @@ def bullish_candidates(
         limit=limit,
     )
     candidates = [
-        _signal_response(graph_repo, signal, include_contributions=include_contributions)
+        _signal_response(
+            graph_repo, signal, include_contributions=include_contributions
+        )
         for signal in signals
     ]
     return GraphBullishCandidateListResponse(
@@ -345,7 +357,9 @@ def edge_detail(
     return _edge_detail_response(graph_repo, edge)
 
 
-@router.get("/edges/{edge_key}/evidence", response_model=list[GraphEdgeEvidenceResponse])
+@router.get(
+    "/edges/{edge_key}/evidence", response_model=list[GraphEdgeEvidenceResponse]
+)
 def edge_evidence(
     edge_key: str,
     limit: int = Query(default=100, ge=1, le=500),
@@ -632,8 +646,16 @@ def _contribution_response(
     graph_repo: GraphRepository,
     contribution: GraphSignalContributionModel,
 ) -> GraphSignalContributionResponse:
-    edge = graph_repo.get_edge_by_id(contribution.edge_id) if contribution.edge_id else None
-    node = graph_repo.get_node_by_id(contribution.node_id) if contribution.node_id else None
+    edge = (
+        graph_repo.get_edge_by_id(contribution.edge_id)
+        if contribution.edge_id
+        else None
+    )
+    node = (
+        graph_repo.get_node_by_id(contribution.node_id)
+        if contribution.node_id
+        else None
+    )
     return GraphSignalContributionResponse(
         contribution_id=contribution.contribution_id,
         signal_id=contribution.signal_id,

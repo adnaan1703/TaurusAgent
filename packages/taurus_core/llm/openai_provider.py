@@ -38,7 +38,9 @@ class OpenAIProvider:
         timeout_seconds: int = 20,
     ) -> None:
         if not api_key:
-            raise LLMProviderError("OPENAI_API_KEY is required for TAURUS_LLM_PROVIDER=openai")
+            raise LLMProviderError(
+                "OPENAI_API_KEY is required for TAURUS_LLM_PROVIDER=openai"
+            )
         self.api_key = api_key
         self.base_url = base_url.rstrip("/")
         self.model = model

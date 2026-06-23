@@ -16,9 +16,7 @@ class CostBreakdown:
     @property
     def total_inr(self) -> Decimal:
         return _money(
-            self.brokerage_inr
-            + self.exchange_txn_charge_inr
-            + self.tax_levy_inr
+            self.brokerage_inr + self.exchange_txn_charge_inr + self.tax_levy_inr
         )
 
 
@@ -34,7 +32,9 @@ class IndiaPaperCostModel:
         if gross_value_inr < 0:
             raise ValueError("gross_value_inr cannot be negative")
         return CostBreakdown(
-            brokerage_inr=_money(gross_value_inr * self.brokerage_bps / RATE_DENOMINATOR),
+            brokerage_inr=_money(
+                gross_value_inr * self.brokerage_bps / RATE_DENOMINATOR
+            ),
             exchange_txn_charge_inr=_money(
                 gross_value_inr * self.exchange_txn_charge_bps / RATE_DENOMINATOR
             ),

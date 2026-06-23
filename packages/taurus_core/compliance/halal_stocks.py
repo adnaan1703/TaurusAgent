@@ -7,7 +7,7 @@ import tempfile
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Literal
+from typing import Literal
 from urllib.error import HTTPError, URLError
 from urllib.parse import urljoin, urlsplit
 from urllib.request import Request, urlopen
@@ -223,12 +223,22 @@ def parse_halal_stock_rows(
         status_counts[status] += 1
 
         name = _clean_text(_cell(cells, column_map["name"]).get_text(" ", strip=True))
-        bse_code = _clean_symbol(_cell(cells, column_map["bse_code"]).get_text(" ", strip=True))
-        nse_code = _clean_symbol(_cell(cells, column_map["nse_code"]).get_text(" ", strip=True))
-        industry = _clean_text(_cell(cells, column_map["industry"]).get_text(" ", strip=True))
-        details_url = _details_url(_cell(cells, column_map["more"]), source_url=source_url)
+        bse_code = _clean_symbol(
+            _cell(cells, column_map["bse_code"]).get_text(" ", strip=True)
+        )
+        nse_code = _clean_symbol(
+            _cell(cells, column_map["nse_code"]).get_text(" ", strip=True)
+        )
+        industry = _clean_text(
+            _cell(cells, column_map["industry"]).get_text(" ", strip=True)
+        )
+        details_url = _details_url(
+            _cell(cells, column_map["more"]), source_url=source_url
+        )
         if not name:
-            raise HalalStockComplianceError(f"HalalStock row {row_number} is missing NAME.")
+            raise HalalStockComplianceError(
+                f"HalalStock row {row_number} is missing NAME."
+            )
 
         source_key = _source_key(
             name=name,
@@ -266,7 +276,9 @@ def parse_halal_stock_rows(
             f"row {row_number}: {icon_url or '<missing>'}"
             for row_number, icon_url in unknown_icons[:20]
         )
-        extra = "" if len(unknown_icons) <= 20 else f" and {len(unknown_icons) - 20} more"
+        extra = (
+            "" if len(unknown_icons) <= 20 else f" and {len(unknown_icons) - 20} more"
+        )
         raise HalalStockComplianceError(
             "Unknown HalalStock status icon(s); refusing to write DB rows: "
             f"{details}{extra}"
@@ -309,7 +321,9 @@ def import_halal_stock_compliance(
         generated_yaml_path=generated_yaml_path,
         status="IMPORTED",
     )
-    active_count, inactive_count = HalalStockComplianceRepository(session).replace_import(
+    active_count, inactive_count = HalalStockComplianceRepository(
+        session
+    ).replace_import(
         import_row=import_row,
         rows=list(parse_result.rows),
         seen_at=seen_at,
@@ -322,7 +336,9 @@ def export_halal_nse_universe(
     output_path: str | Path,
 ) -> HalalUniverseExportSummary:
     path = Path(output_path).expanduser()
-    rows = HalalStockComplianceRepository(session).list_active(compliance_status="halal")
+    rows = HalalStockComplianceRepository(session).list_active(
+        compliance_status="halal"
+    )
     entries: list[dict[str, object]] = []
     seen_symbols: dict[str, str] = {}
     duplicate_symbols: list[str] = []
@@ -376,7 +392,9 @@ def sync_halal_stocks(
     fetch_result: HalalStockFetchResult | None = None,
 ) -> HalalStockSyncSummary:
     settings = settings or get_settings()
-    fetch = fetch_result or fetch_halal_stock_page(settings.taurus_halal_stock_source_url)
+    fetch = fetch_result or fetch_halal_stock_page(
+        settings.taurus_halal_stock_source_url
+    )
     parse_result = parse_halal_stock_rows(
         fetch.html,
         source_url=settings.taurus_halal_stock_source_url,
@@ -425,15 +443,11 @@ def sync_halal_stocks(
 
 def _column_map(table: Tag) -> dict[str, int]:
     normalized_required_headers = {
-        canonical: _header_key(label)
-        for canonical, label in REQUIRED_HEADERS.items()
+        canonical: _header_key(label) for canonical, label in REQUIRED_HEADERS.items()
     }
     headers = table.find_all("th")
     available = [_clean_text(header.get_text(" ", strip=True)) for header in headers]
-    by_key = {
-        _header_key(label): index
-        for index, label in enumerate(available)
-    }
+    by_key = {_header_key(label): index for index, label in enumerate(available)}
     missing = [
         REQUIRED_HEADERS[canonical]
         for canonical, key in normalized_required_headers.items()
@@ -445,8 +459,7 @@ def _column_map(table: Tag) -> dict[str, int]:
             f"{', '.join(missing)}. Available columns: {', '.join(available) or 'none'}."
         )
     return {
-        canonical: by_key[key]
-        for canonical, key in normalized_required_headers.items()
+        canonical: by_key[key] for canonical, key in normalized_required_headers.items()
     }
 
 

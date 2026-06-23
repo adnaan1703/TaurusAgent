@@ -42,7 +42,9 @@ REQUESTED_COLUMNS: dict[str, str] = {
 }
 
 METRIC_COLUMNS = tuple(
-    canonical for canonical in REQUESTED_COLUMNS if canonical not in {"symbol", "company_name"}
+    canonical
+    for canonical in REQUESTED_COLUMNS
+    if canonical not in {"symbol", "company_name"}
 )
 
 COLUMN_ALIASES: dict[str, tuple[str, ...]] = {
@@ -167,8 +169,12 @@ def import_screener_csv(
                 rows_unmapped += 1
                 continue
 
-            company_name = _row_value(row, column_map.get("company_name")) or resolver.name_for(symbol)
-            reporting_date = _parse_date(_row_value(row, column_map.get("reporting_date")))
+            company_name = _row_value(
+                row, column_map.get("company_name")
+            ) or resolver.name_for(symbol)
+            reporting_date = _parse_date(
+                _row_value(row, column_map.get("reporting_date"))
+            )
             metrics = _row_metrics(row, column_map)
             if not metrics:
                 continue
@@ -206,7 +212,9 @@ def import_screener_csv(
                     leverage_risk_score=components.leverage_risk_score,
                     ownership_score=components.ownership_score,
                     composite_score=components.composite_score,
-                    metrics={name: str(value) for name, value in sorted(metrics.items())},
+                    metrics={
+                        name: str(value) for name, value in sorted(metrics.items())
+                    },
                     source_file_hash=source_file_hash,
                     model_version="fundamental_score_v1",
                 )
@@ -250,7 +258,9 @@ def import_screener_csv(
 
 class _InstrumentResolver:
     def __init__(self, instruments: Iterable[InstrumentModel]) -> None:
-        self._by_symbol = {instrument.symbol.upper(): instrument for instrument in instruments}
+        self._by_symbol = {
+            instrument.symbol.upper(): instrument for instrument in instruments
+        }
         self._by_name: dict[str, InstrumentModel] = {}
         for instrument in instruments:
             key = _normalize_company_key(instrument.name)
@@ -267,7 +277,9 @@ class _InstrumentResolver:
             return self._by_name[company_key].symbol
 
         for instrument_key, instrument in self._by_name.items():
-            if company_key and (company_key in instrument_key or instrument_key in company_key):
+            if company_key and (
+                company_key in instrument_key or instrument_key in company_key
+            ):
                 return instrument.symbol
         return None
 

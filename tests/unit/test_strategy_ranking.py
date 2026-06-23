@@ -11,12 +11,17 @@ from taurus_core.features.store import (
     TechnicalFeatureService,
 )
 from taurus_core.features.technical_context import build_universe_technical_context
-from taurus_core.features.technical_signal import OHLCV_V2_PROFILE, TechnicalSignalService
+from taurus_core.features.technical_signal import (
+    OHLCV_V2_PROFILE,
+    TechnicalSignalService,
+)
 from taurus_core.strategies.blended_score import BlendedScoreStrategy
 from taurus_core.strategies.config import load_strategy_config
 from taurus_core.strategies.graph_aware import GraphAwareScoreStrategy
 from taurus_core.strategies.mock_momentum import MockMomentumStrategy
-from taurus_core.strategies.moving_average_crossover import MovingAverageCrossoverStrategy
+from taurus_core.strategies.moving_average_crossover import (
+    MovingAverageCrossoverStrategy,
+)
 
 
 def test_missing_target_positions_stays_unset(tmp_path: Path) -> None:
@@ -37,7 +42,9 @@ def test_missing_target_positions_stays_unset(tmp_path: Path) -> None:
     assert config.target_positions is None
 
 
-def test_moving_average_ranks_all_eligible_symbols_and_caps_only_when_requested() -> None:
+def test_moving_average_ranks_all_eligible_symbols_and_caps_only_when_requested() -> (
+    None
+):
     strategy = MovingAverageCrossoverStrategy(
         name="ma_test",
         parameters={"fast_window": 1, "slow_window": 2, "min_return_20d": -1},
@@ -86,8 +93,13 @@ def test_moving_average_ranks_all_eligible_symbols_and_caps_only_when_requested(
         target_limit=1,
     )
 
-    assert [ranking.symbol for ranking in rankings if ranking.is_eligible] == ["AAA", "BBB"]
-    assert {ranking.symbol for ranking in rankings if not ranking.is_eligible} == {"CCC"}
+    assert [ranking.symbol for ranking in rankings if ranking.is_eligible] == [
+        "AAA",
+        "BBB",
+    ]
+    assert {ranking.symbol for ranking in rankings if not ranking.is_eligible} == {
+        "CCC"
+    }
     assert uncapped_targets == {"AAA", "BBB"}
     assert capped_targets == {"AAA"}
     assert [signal.symbol for signal in capped_signals] == ["AAA"]
@@ -110,8 +122,13 @@ def test_blended_score_ranks_all_eligible_symbols() -> None:
         current_positions=set(),
     )
 
-    assert [ranking.symbol for ranking in rankings if ranking.is_eligible] == ["AAA", "BBB"]
-    assert {ranking.symbol for ranking in rankings if not ranking.is_eligible} == {"CCC"}
+    assert [ranking.symbol for ranking in rankings if ranking.is_eligible] == [
+        "AAA",
+        "BBB",
+    ]
+    assert {ranking.symbol for ranking in rankings if not ranking.is_eligible} == {
+        "CCC"
+    }
 
 
 def test_graph_aware_technical_score_requires_fast_and_slow_sma() -> None:
@@ -163,7 +180,9 @@ def test_graph_aware_technical_score_quantizes_sma_spread() -> None:
 
 def test_graph_aware_v2_config_selects_ohlcv_profile_and_feature_version() -> None:
     config = load_strategy_config("configs/strategies/graph_aware_score_v2.yaml")
-    feature_service = TechnicalFeatureService.from_strategy_parameters(config.parameters)
+    feature_service = TechnicalFeatureService.from_strategy_parameters(
+        config.parameters
+    )
     strategy = GraphAwareScoreStrategy(
         name=config.strategy_name,
         parameters=config.parameters,
@@ -174,7 +193,10 @@ def test_graph_aware_v2_config_selects_ohlcv_profile_and_feature_version() -> No
     assert config.lookback_days == 756
     assert config.parameters["technical_analyst_profile"] == OHLCV_V2_PROFILE
     assert config.parameters["technical_profile"] == OHLCV_V2_PROFILE
-    assert config.parameters["technical_feature_version"] == TECHNICAL_OHLCV_V2_FEATURE_VERSION
+    assert (
+        config.parameters["technical_feature_version"]
+        == TECHNICAL_OHLCV_V2_FEATURE_VERSION
+    )
     assert feature_service.feature_version == TECHNICAL_OHLCV_V2_FEATURE_VERSION
     assert strategy.technical_profile == OHLCV_V2_PROFILE
 
@@ -213,7 +235,10 @@ def test_graph_aware_v2_ranking_uses_ohlcv_signal_and_nested_metadata() -> None:
         target_limit=1,
     )
 
-    assert [ranking.symbol for ranking in rankings if ranking.is_eligible] == ["AAA", "BBB"]
+    assert [ranking.symbol for ranking in rankings if ranking.is_eligible] == [
+        "AAA",
+        "BBB",
+    ]
     assert rankings[0].raw_strategy_score == expected_aaa.score
     assert rankings[0].metadata["technical_score"] == str(expected_aaa.composite_score)
     technical_v2 = rankings[0].metadata["technical_v2"]
@@ -227,7 +252,10 @@ def test_graph_aware_v2_ranking_uses_ohlcv_signal_and_nested_metadata() -> None:
     assert technical_v2["missing_features"] == []
     assert technical_v2["top_contributors"]
     assert targets == {"AAA"}
-    assert signals[0].explanation.metadata["technical_v2"]["profile_name"] == OHLCV_V2_PROFILE
+    assert (
+        signals[0].explanation.metadata["technical_v2"]["profile_name"]
+        == OHLCV_V2_PROFILE
+    )
 
 
 def test_graph_aware_v1_ranking_stays_sma_spread_driven_with_universe_context() -> None:
@@ -264,8 +292,13 @@ def test_graph_aware_v1_ranking_stays_sma_spread_driven_with_universe_context() 
     )
 
     assert context.feature_for_symbol("BBB", "return_63d").rank == 1
-    assert [ranking.symbol for ranking in rankings if ranking.is_eligible] == ["AAA", "BBB"]
-    assert [ranking.raw_strategy_score for ranking in rankings if ranking.is_eligible] == [
+    assert [ranking.symbol for ranking in rankings if ranking.is_eligible] == [
+        "AAA",
+        "BBB",
+    ]
+    assert [
+        ranking.raw_strategy_score for ranking in rankings if ranking.is_eligible
+    ] == [
         Decimal("0.15000000"),
         Decimal("0.10000000"),
     ]
@@ -297,7 +330,10 @@ def test_mock_momentum_legacy_selection_uses_explicit_cap_only() -> None:
         target_limit=1,
     )
 
-    assert [ranking.symbol for ranking in rankings if ranking.is_eligible] == ["AAA", "BBB"]
+    assert [ranking.symbol for ranking in rankings if ranking.is_eligible] == [
+        "AAA",
+        "BBB",
+    ]
     assert uncapped_targets == {"AAA", "BBB"}
     assert capped_targets == {"AAA"}
 

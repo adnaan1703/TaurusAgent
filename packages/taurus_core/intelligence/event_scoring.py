@@ -5,7 +5,12 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Iterable
 
-from taurus_core.intelligence.documents import NewsEvent, RawDocument, SentimentScore, stable_id
+from taurus_core.intelligence.documents import (
+    NewsEvent,
+    RawDocument,
+    SentimentScore,
+    stable_id,
+)
 
 SCORE_QUANT = Decimal("0.0001")
 
@@ -86,10 +91,13 @@ def score_event(event: NewsEvent, *, as_of: datetime | None = None) -> Sentiment
     base_sentiment = EVENT_SENTIMENT.get(event.event_type, Decimal("0"))
     severity_weight = Decimal("0.50") + (event.severity * Decimal("0.50"))
     raw_event_score = base_sentiment * severity_weight * event.source_confidence
-    event_score = _clamp(raw_event_score, Decimal("-1"), Decimal("1")).quantize(SCORE_QUANT)
+    event_score = _clamp(raw_event_score, Decimal("-1"), Decimal("1")).quantize(
+        SCORE_QUANT
+    )
     decayed_score = (event_score * _decay_factor(event, as_of)).quantize(SCORE_QUANT)
     confidence = _clamp(
-        (event.source_confidence * Decimal("0.70")) + (event.severity * Decimal("0.30")),
+        (event.source_confidence * Decimal("0.70"))
+        + (event.severity * Decimal("0.30")),
         Decimal("0"),
         Decimal("1"),
     ).quantize(SCORE_QUANT)

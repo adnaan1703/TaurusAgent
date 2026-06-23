@@ -8,7 +8,12 @@ from sqlalchemy.orm import Session, sessionmaker
 from apps.api.profile_context import active_profile
 from taurus_core.config import Settings
 from taurus_core.db.repositories import ExecutionRepository
-from taurus_core.execution.schemas import PaperAccount, PaperFill, PaperOrder, PaperPosition
+from taurus_core.execution.schemas import (
+    PaperAccount,
+    PaperFill,
+    PaperOrder,
+    PaperPosition,
+)
 
 router = APIRouter(prefix="/paper", tags=["paper"])
 

@@ -65,7 +65,9 @@ class PortfolioManagerAgent:
         risk_review: RiskReview | None = None,
     ) -> FinalDecision:
         symbol = symbol.upper()
-        risk_review = risk_review or self._load_risk_review(symbol=symbol, run_id=run_id)
+        risk_review = risk_review or self._load_risk_review(
+            symbol=symbol, run_id=run_id
+        )
         if risk_review.symbol != symbol:
             raise ValueError("Risk review symbol does not match final approval symbol.")
 
@@ -128,7 +130,8 @@ class PortfolioManagerAgent:
             reason=fields.reason,
             is_order=False,
             can_send_to_broker=fields.can_send_to_broker,
-            allocation_decision=risk_review.allocation_decision or proposal.allocation_decision,
+            allocation_decision=risk_review.allocation_decision
+            or proposal.allocation_decision,
             model_version=self.model_version,
         )
 
@@ -153,7 +156,9 @@ class PortfolioManagerAgent:
             reason = "Blocked by hard risk rules; no paper decision may proceed."
         elif risk_review.status in {"APPROVED", "APPROVED_WITH_REDUCTION"}:
             final_action = proposal.action
-            approved_position = risk_review.approved_position_pct_nav.quantize(SCORE_QUANT)
+            approved_position = risk_review.approved_position_pct_nav.quantize(
+                SCORE_QUANT
+            )
             approved_quantity = self._approved_quantity(
                 proposal=proposal,
                 approved_position_pct_nav=approved_position,
@@ -201,7 +206,9 @@ class PortfolioManagerAgent:
         if not self.enable_llm_explanation:
             return decision
         if self.llm_provider is None:
-            self._record_llm_failure(symbol=decision.symbol, error_type="MissingLLMProvider")
+            self._record_llm_failure(
+                symbol=decision.symbol, error_type="MissingLLMProvider"
+            )
             return decision
         try:
             output = self.llm_provider.complete_final_decision_explanation(
@@ -263,7 +270,9 @@ class PortfolioManagerAgent:
                 "reason_summary": proposal.reason_summary,
                 "invalid_if": list(proposal.invalid_if),
                 "position_management_summary": proposal.position_management_summary,
-                "allocation_decision": proposal.allocation_decision.model_dump(mode="json")
+                "allocation_decision": proposal.allocation_decision.model_dump(
+                    mode="json"
+                )
                 if proposal.allocation_decision is not None
                 else None,
             },
@@ -271,7 +280,9 @@ class PortfolioManagerAgent:
                 "status": risk_review.status,
                 "approved_position_pct_nav": str(risk_review.approved_position_pct_nav),
                 "risk_committee_summary": risk_review.risk_committee_summary,
-                "allocation_decision": risk_review.allocation_decision.model_dump(mode="json")
+                "allocation_decision": risk_review.allocation_decision.model_dump(
+                    mode="json"
+                )
                 if risk_review.allocation_decision is not None
                 else None,
             },
@@ -326,7 +337,9 @@ class PortfolioManagerAgent:
         )
 
     def _load_risk_review(self, *, symbol: str, run_id: str) -> RiskReview:
-        model = RiskRepository(self.session).latest_risk_review(symbol=symbol, run_id=run_id)
+        model = RiskRepository(self.session).latest_risk_review(
+            symbol=symbol, run_id=run_id
+        )
         if model is None:
             raise ValueError(
                 f"No risk review found for {symbol} run_id={run_id}. "
@@ -337,7 +350,9 @@ class PortfolioManagerAgent:
     def _load_proposal(self, proposal_id: str) -> TraderProposal:
         model = ResearchRepository(self.session).get_trader_proposal(proposal_id)
         if model is None:
-            raise ValueError(f"Trader proposal {proposal_id} not found for final approval.")
+            raise ValueError(
+                f"Trader proposal {proposal_id} not found for final approval."
+            )
         return TraderProposal.model_validate(model.payload)
 
     def _approved_quantity(
@@ -362,10 +377,14 @@ class PortfolioManagerAgent:
             return max(0, current_quantity - target_quantity)
         return 0
 
-    def _target_quantity(self, *, symbol: str, approved_position_pct_nav: Decimal) -> int:
+    def _target_quantity(
+        self, *, symbol: str, approved_position_pct_nav: Decimal
+    ) -> int:
         if approved_position_pct_nav <= 0:
             return 0
-        candles = CandleRepository(self.session).get_by_symbol_and_date_range(symbol=symbol)
+        candles = CandleRepository(self.session).get_by_symbol_and_date_range(
+            symbol=symbol
+        )
         if not candles:
             return 0
         latest_close = candles[-1].close
@@ -377,7 +396,9 @@ class PortfolioManagerAgent:
         equity = (
             account.equity_inr
             if account is not None
-            else resolve_runtime_profile(self.session, self.settings).starting_corpus_inr
+            else resolve_runtime_profile(
+                self.session, self.settings
+            ).starting_corpus_inr
         )
         notional = equity * approved_position_pct_nav / Decimal("100")
         return int(notional // latest_close)

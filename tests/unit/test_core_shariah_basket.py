@@ -17,7 +17,9 @@ from taurus_core.portfolio.core_shariah_basket import (
 )
 
 
-def test_core_basket_selection_respects_shariah_universe_membership(tmp_path: Path) -> None:
+def test_core_basket_selection_respects_shariah_universe_membership(
+    tmp_path: Path,
+) -> None:
     policy = load_money_management_policy(
         _write_policy(tmp_path, symbols=["INFY", "TCS"])
     )
@@ -37,8 +39,7 @@ def test_core_basket_selection_respects_shariah_universe_membership(tmp_path: Pa
 
     assert set(artifact["selected_symbols"]).issubset({"INFY", "TCS"})
     rejected = {
-        row["symbol"]: row["reasons"]
-        for row in artifact["rejected_candidates"]
+        row["symbol"]: row["reasons"] for row in artifact["rejected_candidates"]
     }
     assert rejected["RELIANCE"] == ["shariah_universe_mismatch"]
 
@@ -61,7 +62,9 @@ def test_inverse_volatility_weights_respect_normal_and_hard_caps() -> None:
 
 
 def test_core_rebalance_gate_obeys_monthly_and_drift_thresholds(tmp_path: Path) -> None:
-    policy = load_money_management_policy(_write_policy(tmp_path, symbols=["INFY", "TCS"]))
+    policy = load_money_management_policy(
+        _write_policy(tmp_path, symbols=["INFY", "TCS"])
+    )
     strategy = CoreShariahBasketStrategy(policy, max_stale_calendar_days=100)
     first = strategy.review(
         CoreBasketReviewInput(
@@ -140,7 +143,9 @@ def _candles(symbol: str, *, seed: int) -> list[DailyCandle]:
     base = Decimal("100") + Decimal(seed)
     candles: list[DailyCandle] = []
     for offset in range(140):
-        close = base + Decimal(offset) * Decimal("0.20") + Decimal(seed) * Decimal("0.01")
+        close = (
+            base + Decimal(offset) * Decimal("0.20") + Decimal(seed) * Decimal("0.01")
+        )
         candles.append(
             DailyCandle(
                 symbol=symbol,

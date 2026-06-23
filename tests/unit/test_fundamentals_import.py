@@ -8,7 +8,11 @@ from fastapi.testclient import TestClient
 from sqlalchemy import func, select
 
 from apps.api.main import create_app
-from apps.dashboard.data import data_freshness, list_fundamental_scores, list_fundamental_snapshots
+from apps.dashboard.data import (
+    data_freshness,
+    list_fundamental_scores,
+    list_fundamental_snapshots,
+)
 from scripts.migrate import run_migrations
 from taurus_core.agents.fundamentals_analyst import FundamentalsAnalystAgent
 from taurus_core.config import Settings
@@ -28,11 +32,17 @@ def test_screener_import_maps_metrics_and_scores(tmp_path: Path) -> None:
     session_factory = _prepare_db(settings)
 
     with session_factory() as session:
-        summary = import_screener_csv(session, FIXTURE, data_available_time=AVAILABLE_AT)
+        summary = import_screener_csv(
+            session, FIXTURE, data_available_time=AVAILABLE_AT
+        )
 
     with session_factory() as session:
-        score_count = session.scalar(select(func.count()).select_from(FundamentalScoreModel))
-        snapshot_count = session.scalar(select(func.count()).select_from(FundamentalSnapshotModel))
+        score_count = session.scalar(
+            select(func.count()).select_from(FundamentalScoreModel)
+        )
+        snapshot_count = session.scalar(
+            select(func.count()).select_from(FundamentalSnapshotModel)
+        )
         latest = FundamentalsRepository(session).latest_score(symbol="INFY")
 
     assert summary.rows_seen == 4
@@ -59,11 +69,15 @@ def test_screener_import_reports_missing_required_columns(tmp_path: Path) -> Non
         with pytest.raises(ScreenerImportError) as exc:
             import_screener_csv(session, bad_csv, data_available_time=AVAILABLE_AT)
 
-    assert "Missing required Screener column(s): Symbol or Company Name" in str(exc.value)
+    assert "Missing required Screener column(s): Symbol or Company Name" in str(
+        exc.value
+    )
     assert "Market Cap, Current Price" in str(exc.value)
 
 
-def test_fundamentals_api_and_dashboard_queries_return_imported_scores(tmp_path: Path) -> None:
+def test_fundamentals_api_and_dashboard_queries_return_imported_scores(
+    tmp_path: Path,
+) -> None:
     settings = _settings_for_temp_db(tmp_path)
     session_factory = _prepare_db(settings)
     with session_factory() as session:
@@ -102,7 +116,9 @@ def test_fundamentals_analyst_uses_imported_screener_data(tmp_path: Path) -> Non
 
     assert report.agent_name == "FundamentalsAnalystAgent"
     assert report.score > 0
-    assert any(source_id.startswith("fundamental_score:") for source_id in report.source_ids)
+    assert any(
+        source_id.startswith("fundamental_score:") for source_id in report.source_ids
+    )
     assert "Screener fundamentals composite score" in report.key_points[0]
 
 

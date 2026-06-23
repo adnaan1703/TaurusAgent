@@ -17,7 +17,8 @@ class RiskyRiskAgent:
             recommendation = "allow"
             score = min(
                 Decimal("1"),
-                proposal.confidence + (proposal.requested_position_pct_nav / Decimal("100")),
+                proposal.confidence
+                + (proposal.requested_position_pct_nav / Decimal("100")),
             )
             key_points = [
                 f"Reward-seeking view allows {proposal.action} if hard rules approve.",
@@ -29,7 +30,11 @@ class RiskyRiskAgent:
             ]
         elif proposal.action in {"HOLD", "NO_TRADE", "REDUCE", "EXIT"}:
             recommendation = "allow"
-            score = Decimal("0.1000") if proposal.action in {"REDUCE", "EXIT"} else Decimal("0")
+            score = (
+                Decimal("0.1000")
+                if proposal.action in {"REDUCE", "EXIT"}
+                else Decimal("0")
+            )
             key_points = [
                 f"Lifecycle action {proposal.action} does not require new risk budget."
             ]
@@ -39,8 +44,12 @@ class RiskyRiskAgent:
         else:
             recommendation = "reject"
             score = Decimal("-0.2500")
-            key_points = [f"Trader action {proposal.action} does not justify a new risk budget."]
-            conditions = ["Wait for a fresh trader proposal before considering exposure."]
+            key_points = [
+                f"Trader action {proposal.action} does not justify a new risk budget."
+            ]
+            conditions = [
+                "Wait for a fresh trader proposal before considering exposure."
+            ]
 
         return RiskPersonaReview(
             agent_name=self.agent_name,

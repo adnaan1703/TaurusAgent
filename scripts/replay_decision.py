@@ -39,7 +39,9 @@ def _latest_decision_id(session_factory) -> str | None:
     with session_factory() as session:
         row = session.scalar(
             select(FinalDecisionModel)
-            .order_by(FinalDecisionModel.as_of.desc(), FinalDecisionModel.final_decision_id)
+            .order_by(
+                FinalDecisionModel.as_of.desc(), FinalDecisionModel.final_decision_id
+            )
             .limit(1)
         )
         return row.decision_id if row is not None else None

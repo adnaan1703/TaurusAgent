@@ -15,11 +15,20 @@ from taurus_core.agents.portfolio_manager import PortfolioManagerAgent
 from taurus_core.agents.runner import DEFAULT_ANALYST_RUN_ID, run_analyst_suite
 from taurus_core.agents.trader_agent import TraderAgent
 from taurus_core.config import Settings
-from taurus_core.db.models import BacktestOrderModel, FinalDecisionModel, RiskReviewModel
+from taurus_core.db.models import (
+    BacktestOrderModel,
+    FinalDecisionModel,
+    RiskReviewModel,
+)
 from taurus_core.db.repositories import IntelligenceRepository, ResearchRepository
 from taurus_core.llm.base import LLMProviderError
 from taurus_core.db.session import build_session_factory
-from taurus_core.intelligence.documents import NewsEvent, RawDocument, document_checksum, stable_id
+from taurus_core.intelligence.documents import (
+    NewsEvent,
+    RawDocument,
+    document_checksum,
+    stable_id,
+)
 from taurus_core.intelligence.mock_news_provider import MockNewsProvider
 from tests.llm_fakes import FakeLLMProvider
 from taurus_core.research.debate_service import ResearchDebateService
@@ -38,13 +47,19 @@ def test_risk_review_is_deterministic_stores_rules_and_does_not_create_orders(
     proposal = _build_trader_proposal(session_factory)
 
     with session_factory() as session:
-        first = RiskReviewService(session, settings).run(symbol="INFY", proposal=proposal)
+        first = RiskReviewService(session, settings).run(
+            symbol="INFY", proposal=proposal
+        )
     with session_factory() as session:
-        second = RiskReviewService(session, settings).run(symbol="INFY", proposal=proposal)
+        second = RiskReviewService(session, settings).run(
+            symbol="INFY", proposal=proposal
+        )
 
     with session_factory() as session:
         review_count = session.scalar(select(func.count()).select_from(RiskReviewModel))
-        order_count = session.scalar(select(func.count()).select_from(BacktestOrderModel))
+        order_count = session.scalar(
+            select(func.count()).select_from(BacktestOrderModel)
+        )
 
     rule_names = {result.rule for result in first.hard_rule_results}
     persona_names = {review.agent_name for review in first.persona_reviews}
@@ -199,7 +214,9 @@ def test_portfolio_manager_stores_final_paper_decision_and_api_returns_m6_artifa
     session_factory = _prepare_approval_db(settings)
     proposal = _build_trader_proposal(session_factory)
     with session_factory() as session:
-        review = RiskReviewService(session, settings).run(symbol="INFY", proposal=proposal)
+        review = RiskReviewService(session, settings).run(
+            symbol="INFY", proposal=proposal
+        )
     with session_factory() as session:
         decision = PortfolioManagerAgent(
             session,
@@ -211,8 +228,12 @@ def test_portfolio_manager_stores_final_paper_decision_and_api_returns_m6_artifa
         )
 
     with session_factory() as session:
-        decision_count = session.scalar(select(func.count()).select_from(FinalDecisionModel))
-        order_count = session.scalar(select(func.count()).select_from(BacktestOrderModel))
+        decision_count = session.scalar(
+            select(func.count()).select_from(FinalDecisionModel)
+        )
+        order_count = session.scalar(
+            select(func.count()).select_from(BacktestOrderModel)
+        )
 
     client = TestClient(create_app(settings))
     risk_response = client.get("/risk-checks?symbol=INFY")
@@ -224,14 +245,19 @@ def test_portfolio_manager_stores_final_paper_decision_and_api_returns_m6_artifa
     assert decision.is_order is False
     assert decision.can_send_to_broker is True
     assert "Test-only explanation confirms APPROVED_FOR_PAPER" in decision.reason
-    assert decision.model_version == "portfolio_manager_lifecycle_rules_v1+llm_explainer"
+    assert (
+        decision.model_version == "portfolio_manager_lifecycle_rules_v1+llm_explainer"
+    )
     assert decision_count == 1
     assert order_count == 0
     assert risk_response.status_code == 200
     assert final_response.status_code == 200
     assert risk_response.json()[0]["risk_check_id"] == review.risk_check_id
     assert final_response.json()[0]["final_decision_id"] == decision.final_decision_id
-    assert "Test-only explanation confirms APPROVED_FOR_PAPER" in final_response.json()[0]["reason"]
+    assert (
+        "Test-only explanation confirms APPROVED_FOR_PAPER"
+        in final_response.json()[0]["reason"]
+    )
 
 
 def test_hold_proposal_becomes_no_action_final_decision(tmp_path: Path) -> None:
@@ -252,7 +278,9 @@ def test_hold_proposal_becomes_no_action_final_decision(tmp_path: Path) -> None:
         session.commit()
 
     with session_factory() as session:
-        review = RiskReviewService(session, settings).run(symbol="INFY", proposal=proposal)
+        review = RiskReviewService(session, settings).run(
+            symbol="INFY", proposal=proposal
+        )
     with session_factory() as session:
         decision = PortfolioManagerAgent(
             session,
@@ -305,7 +333,9 @@ def test_allocation_rejected_buy_final_decision_keeps_binding_reason(
         ResearchRepository(session).replace_trader_proposal_for_run_symbol(proposal)
         session.commit()
     with session_factory() as session:
-        review = RiskReviewService(session, settings).run(symbol="INFY", proposal=proposal)
+        review = RiskReviewService(session, settings).run(
+            symbol="INFY", proposal=proposal
+        )
     with session_factory() as session:
         decision = PortfolioManagerAgent(
             session,
@@ -328,7 +358,9 @@ def test_portfolio_manager_falls_back_to_deterministic_reason_on_llm_failure(
     session_factory = _prepare_approval_db(settings)
     proposal = _build_trader_proposal(session_factory)
     with session_factory() as session:
-        review = RiskReviewService(session, settings).run(symbol="INFY", proposal=proposal)
+        review = RiskReviewService(session, settings).run(
+            symbol="INFY", proposal=proposal
+        )
     with session_factory() as session:
         decision = PortfolioManagerAgent(
             session,
@@ -355,7 +387,9 @@ def test_portfolio_manager_disabled_explanation_does_not_call_provider(
     session_factory = _prepare_approval_db(settings)
     proposal = _build_trader_proposal(session_factory)
     with session_factory() as session:
-        review = RiskReviewService(session, settings).run(symbol="INFY", proposal=proposal)
+        review = RiskReviewService(session, settings).run(
+            symbol="INFY", proposal=proposal
+        )
     provider = _ExplodingFinalDecisionLLMProvider()
 
     with session_factory() as session:
@@ -380,7 +414,9 @@ def test_portfolio_manager_llm_explains_blocked_without_changing_status(
 
     with session_factory() as session:
         _insert_severe_negative_event(session, proposal)
-        review = RiskReviewService(session, settings).run(symbol="INFY", proposal=proposal)
+        review = RiskReviewService(session, settings).run(
+            symbol="INFY", proposal=proposal
+        )
     with session_factory() as session:
         decision = PortfolioManagerAgent(
             session,
@@ -414,7 +450,9 @@ def test_portfolio_manager_llm_explains_rejected_without_changing_status(
         ResearchRepository(session).replace_trader_proposal_for_run_symbol(proposal)
         session.commit()
     with session_factory() as session:
-        review = RiskReviewService(session, settings).run(symbol="INFY", proposal=proposal)
+        review = RiskReviewService(session, settings).run(
+            symbol="INFY", proposal=proposal
+        )
     with session_factory() as session:
         decision = PortfolioManagerAgent(
             session,
@@ -507,7 +545,9 @@ def _insert_severe_negative_event(session, proposal: TraderProposal) -> None:
         metadata={"provider": "risk_test"},
     )
     event = NewsEvent(
-        event_id=stable_id("evt", document.document_id, proposal.symbol, "regulatory_probe"),
+        event_id=stable_id(
+            "evt", document.document_id, proposal.symbol, "regulatory_probe"
+        ),
         document_id=document.document_id,
         symbol=proposal.symbol,
         event_type="regulatory_probe",

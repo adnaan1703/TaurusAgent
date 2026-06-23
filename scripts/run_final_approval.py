@@ -26,7 +26,9 @@ def run_mock_final_approval(
     llm_provider = build_llm_provider(settings) if enable_llm_explanation else None
     session_factory = build_session_factory(settings)
     with session_factory() as session:
-        review_model = RiskRepository(session).latest_risk_review(symbol=symbol, run_id=run_id)
+        review_model = RiskRepository(session).latest_risk_review(
+            symbol=symbol, run_id=run_id
+        )
         if review_model is None:
             raise ValueError(f"No risk review found for {symbol} run_id={run_id}.")
         decision = PortfolioManagerAgent(

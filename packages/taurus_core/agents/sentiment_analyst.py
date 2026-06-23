@@ -66,7 +66,8 @@ class SentimentAnalystAgent(BaseAnalystAgent):
             return Decimal("0.30")
         return min(
             Decimal("0.90"),
-            sum((score.confidence for score in scores), Decimal("0")) / Decimal(len(scores)),
+            sum((score.confidence for score in scores), Decimal("0"))
+            / Decimal(len(scores)),
         )
 
     def _key_points(

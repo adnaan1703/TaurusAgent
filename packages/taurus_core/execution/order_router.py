@@ -8,7 +8,11 @@ from sqlalchemy.orm import Session
 from taurus_core.agents.runner import DEFAULT_ANALYST_RUN_ID
 from taurus_core.brokers.paper_broker import PaperBroker
 from taurus_core.config import Settings, get_settings
-from taurus_core.db.repositories import PaperRunRepository, ResearchRepository, RiskRepository
+from taurus_core.db.repositories import (
+    PaperRunRepository,
+    ResearchRepository,
+    RiskRepository,
+)
 from taurus_core.execution.schemas import ExecutionPolicy, PaperOrder
 from taurus_core.risk.schemas import FinalDecision
 
@@ -70,8 +74,12 @@ class ExecutionRouter:
             and decision.final_action in {"BUY", "REDUCE", "EXIT"}
         )
 
-    def _execution_policy_for_decision(self, decision: FinalDecision) -> ExecutionPolicy:
-        proposal = ResearchRepository(self.session).get_trader_proposal(decision.proposal_id)
+    def _execution_policy_for_decision(
+        self, decision: FinalDecision
+    ) -> ExecutionPolicy:
+        proposal = ResearchRepository(self.session).get_trader_proposal(
+            decision.proposal_id
+        )
         if proposal is not None:
             if proposal.evaluation_mode == "market_hours":
                 return "immediate"

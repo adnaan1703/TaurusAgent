@@ -39,7 +39,9 @@ class AnalystScoreMetadata(BaseModel):
 
     bounded_report_score: Decimal = Field(ge=Decimal("-1"), le=Decimal("1"))
     raw_signal_score: Decimal | None = None
-    calibrated_score: Decimal | None = Field(default=None, ge=Decimal("0"), le=Decimal("100"))
+    calibrated_score: Decimal | None = Field(
+        default=None, ge=Decimal("0"), le=Decimal("100")
+    )
     score_source: str = Field(min_length=1)
     notes: tuple[str, ...] = Field(default_factory=tuple)
     technical_v2: dict[str, Any] = Field(default_factory=dict)
@@ -79,6 +81,8 @@ class AnalystReport(BaseModel):
     @classmethod
     def clean_lists(cls, value: list[str]) -> list[str]:
         return [item.strip() for item in value if item.strip()]
+
+
 def stance_from_score(score: Decimal) -> AgentStance:
     if score >= Decimal("0.10"):
         return "bullish"

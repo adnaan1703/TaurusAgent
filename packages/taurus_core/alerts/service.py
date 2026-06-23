@@ -2,7 +2,11 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
-from taurus_core.alerts.adapters import DisabledAlertAdapter, MockAlertAdapter, TelegramAlertAdapter
+from taurus_core.alerts.adapters import (
+    DisabledAlertAdapter,
+    MockAlertAdapter,
+    TelegramAlertAdapter,
+)
 from taurus_core.alerts.base import AlertAdapter
 from taurus_core.alerts.schemas import AlertDeliveryResult, AlertEvent
 from taurus_core.config import Settings, get_settings
@@ -10,7 +14,9 @@ from taurus_core.db.models import AuditLogModel
 from taurus_core.logging import get_logger
 
 
-def build_alert_adapter(settings: Settings | None = None, *, force_mock: bool = False) -> AlertAdapter:
+def build_alert_adapter(
+    settings: Settings | None = None, *, force_mock: bool = False
+) -> AlertAdapter:
     settings = settings or get_settings()
     if force_mock:
         return MockAlertAdapter()

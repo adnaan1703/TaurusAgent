@@ -39,8 +39,10 @@ def postgres_test_settings(
     base_url = os.environ.get("TAURUS_TEST_DATABASE_URL", DEFAULT_DATABASE_URL)
     admin_url = make_url(base_url).set(database="postgres")
     test_database = _test_database_name(request.node.name)
-    test_url = make_url(base_url).set(database=test_database).render_as_string(
-        hide_password=False
+    test_url = (
+        make_url(base_url)
+        .set(database=test_database)
+        .render_as_string(hide_password=False)
     )
 
     admin_engine = create_engine(admin_url, isolation_level="AUTOCOMMIT", future=True)
@@ -55,7 +57,9 @@ def postgres_test_settings(
     try:
         yield settings
     finally:
-        admin_engine = create_engine(admin_url, isolation_level="AUTOCOMMIT", future=True)
+        admin_engine = create_engine(
+            admin_url, isolation_level="AUTOCOMMIT", future=True
+        )
         with admin_engine.connect() as connection:
             connection.execute(
                 text(

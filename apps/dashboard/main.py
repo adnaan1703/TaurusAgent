@@ -63,7 +63,9 @@ def main() -> None:
     )
 
     st.subheader("Scheduled Runs")
-    paper_runs = load_data(settings, lambda session: list_paper_runs(session, limit=limit), [])
+    paper_runs = load_data(
+        settings, lambda session: list_paper_runs(session, limit=limit), []
+    )
     render_table(paper_runs)
 
     st.subheader("Portfolio")
@@ -90,7 +92,9 @@ def main() -> None:
         ),
         ([], [], [], [], []),
     )
-    tabs = st.tabs(["Analysts", "Debate", "Proposal", "Fundamental Scores", "Fundamental Metrics"])
+    tabs = st.tabs(
+        ["Analysts", "Debate", "Proposal", "Fundamental Scores", "Fundamental Metrics"]
+    )
     with tabs[0]:
         render_table(reports)
     with tabs[1]:
@@ -124,7 +128,9 @@ def main() -> None:
         render_table(fills)
 
     st.subheader("News And Freshness")
-    events = load_data(settings, lambda session: list_events(session, symbol=symbol, limit=limit), [])
+    events = load_data(
+        settings, lambda session: list_events(session, symbol=symbol, limit=limit), []
+    )
     tabs = st.tabs(["Events", "Freshness"])
     with tabs[0]:
         render_table(events)

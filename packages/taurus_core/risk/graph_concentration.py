@@ -54,7 +54,8 @@ def evaluate_graph_concentration(
     settings: Settings,
     symbol: str,
     approved_position_pct_nav: Decimal,
-    current_position_exposures_pct_nav: Mapping[str, Decimal | int | float | str] | None,
+    current_position_exposures_pct_nav: Mapping[str, Decimal | int | float | str]
+    | None,
 ) -> tuple[Decimal, list[HardRuleResult]]:
     """Evaluate optional graph-aware concentration checks for a proposed long entry."""
 
@@ -125,37 +126,49 @@ def _policies(settings: Settings) -> tuple[_GraphExposurePolicy, ...]:
             category="basic_industry",
             rule="graph_basic_industry_concentration",
             label="basic industry",
-            limit_pct_nav=_risk_decimal(settings.taurus_graph_max_basic_industry_exposure_pct),
+            limit_pct_nav=_risk_decimal(
+                settings.taurus_graph_max_basic_industry_exposure_pct
+            ),
         ),
         _GraphExposurePolicy(
             category="product_group",
             rule="graph_product_group_concentration",
             label="product group",
-            limit_pct_nav=_risk_decimal(settings.taurus_graph_max_product_group_exposure_pct),
+            limit_pct_nav=_risk_decimal(
+                settings.taurus_graph_max_product_group_exposure_pct
+            ),
         ),
         _GraphExposurePolicy(
             category="customer_industry",
             rule="graph_customer_industry_concentration",
             label="customer industry",
-            limit_pct_nav=_risk_decimal(settings.taurus_graph_max_customer_industry_exposure_pct),
+            limit_pct_nav=_risk_decimal(
+                settings.taurus_graph_max_customer_industry_exposure_pct
+            ),
         ),
         _GraphExposurePolicy(
             category="dependency",
             rule="graph_dependency_concentration",
             label="raw material/dependency",
-            limit_pct_nav=_risk_decimal(settings.taurus_graph_max_dependency_exposure_pct),
+            limit_pct_nav=_risk_decimal(
+                settings.taurus_graph_max_dependency_exposure_pct
+            ),
         ),
         _GraphExposurePolicy(
             category="risk_category",
             rule="graph_risk_category_concentration",
             label="risk category",
-            limit_pct_nav=_risk_decimal(settings.taurus_graph_max_risk_category_exposure_pct),
+            limit_pct_nav=_risk_decimal(
+                settings.taurus_graph_max_risk_category_exposure_pct
+            ),
         ),
         _GraphExposurePolicy(
             category="correlated_cluster",
             rule="graph_correlated_cluster_concentration",
             label="correlated graph cluster",
-            limit_pct_nav=_risk_decimal(settings.taurus_graph_max_correlated_cluster_exposure_pct),
+            limit_pct_nav=_risk_decimal(
+                settings.taurus_graph_max_correlated_cluster_exposure_pct
+            ),
         ),
     )
 
@@ -221,14 +234,20 @@ def _values_for_symbol(
     if cached is not None:
         return cached
 
-    node = center_node if center_node is not None and center_node.symbol == symbol.upper() else None
+    node = (
+        center_node
+        if center_node is not None and center_node.symbol == symbol.upper()
+        else None
+    )
     node = node or _company_node(graph_repo, symbol)
     if node is None:
         value_cache[cache_key] = ()
         return ()
 
     values: list[_ExposureValue] = []
-    for edge in graph_repo.list_edges_for_node(node_key=node.node_key, status="active", limit=None):
+    for edge in graph_repo.list_edges_for_node(
+        node_key=node.node_key, status="active", limit=None
+    ):
         source_node = graph_repo.get_node_by_id(edge.source_node_id)
         target_node = graph_repo.get_node_by_id(edge.target_node_id)
         related_node = target_node if edge.source_node_id == node.id else source_node
@@ -255,26 +274,45 @@ def _value_from_edge(
     edge: GraphEdgeModel,
 ) -> _ExposureValue | None:
     if category == "basic_industry":
-        if edge.source_node_id == center_node.id and related_node.node_type == "basic_industry":
-            return _ExposureValue(key=related_node.node_key, label=related_node.display_name)
+        if (
+            edge.source_node_id == center_node.id
+            and related_node.node_type == "basic_industry"
+        ):
+            return _ExposureValue(
+                key=related_node.node_key, label=related_node.display_name
+            )
         return None
 
     if category == "product_group":
-        if edge.source_node_id == center_node.id and related_node.node_type == "product_group":
-            return _ExposureValue(key=related_node.node_key, label=related_node.display_name)
+        if (
+            edge.source_node_id == center_node.id
+            and related_node.node_type == "product_group"
+        ):
+            return _ExposureValue(
+                key=related_node.node_key, label=related_node.display_name
+            )
         return None
 
     if category in {"customer_industry", "dependency"}:
         if related_node.node_type != "dependency":
             return None
-        dependency_type = str(
-            related_node.node_metadata.get("dependency_type") or edge.edge_type
-        ).strip().lower()
-        is_customer = dependency_type == "customer_industry" or edge.edge_type == "customer_industry"
+        dependency_type = (
+            str(related_node.node_metadata.get("dependency_type") or edge.edge_type)
+            .strip()
+            .lower()
+        )
+        is_customer = (
+            dependency_type == "customer_industry"
+            or edge.edge_type == "customer_industry"
+        )
         if category == "customer_industry" and is_customer:
-            return _ExposureValue(key=related_node.node_key, label=related_node.display_name)
+            return _ExposureValue(
+                key=related_node.node_key, label=related_node.display_name
+            )
         if category == "dependency" and not is_customer:
-            return _ExposureValue(key=related_node.node_key, label=related_node.display_name)
+            return _ExposureValue(
+                key=related_node.node_key, label=related_node.display_name
+            )
         return None
 
     if category == "risk_category":
@@ -319,7 +357,11 @@ def _correlated_cluster_groups(
             else edge.source_node_id
         )
         related_node = graph_repo.get_node_by_id(related_node_id)
-        if related_node is None or related_node.node_type != "company" or not related_node.symbol:
+        if (
+            related_node is None
+            or related_node.node_type != "company"
+            or not related_node.symbol
+        ):
             continue
         stat = _latest_correlated_stat(graph_repo, edge=edge, settings=settings)
         if stat is None:
@@ -387,7 +429,8 @@ def _stat_is_correlated(stat: GraphEdgeStatsModel, settings: Settings) -> bool:
         if value is not None
     ]
     correlation_passes = bool(
-        correlation_values and max(correlation_values) >= settings.taurus_graph_min_residual_corr
+        correlation_values
+        and max(correlation_values) >= settings.taurus_graph_min_residual_corr
     )
     lead_lag_passes = (
         stat.lead_lag_score is not None
@@ -399,7 +442,11 @@ def _stat_is_correlated(stat: GraphEdgeStatsModel, settings: Settings) -> bool:
 def _validation_score(stat: GraphEdgeStatsModel) -> Decimal:
     values = [
         abs(value)
-        for value in (stat.residual_correlation, stat.raw_correlation, stat.lead_lag_score)
+        for value in (
+            stat.residual_correlation,
+            stat.raw_correlation,
+            stat.lead_lag_score,
+        )
         if value is not None
     ]
     return max(values) if values else ZERO
@@ -443,7 +490,9 @@ def _decision_for_group(
     proposed_position_pct_nav: Decimal,
     warning_fraction: Decimal,
 ) -> _ExposureDecision:
-    existing = _risk_decimal(sum((exposures[symbol] for symbol in group.matched_symbols), ZERO))
+    existing = _risk_decimal(
+        sum((exposures[symbol] for symbol in group.matched_symbols), ZERO)
+    )
     projected = _risk_decimal(existing + proposed_position_pct_nav)
     limit = policy.limit_pct_nav
     warning_threshold = _risk_decimal(limit * warning_fraction)
@@ -526,7 +575,9 @@ def _company_node(graph_repo: GraphRepository, symbol: str) -> GraphNodeModel | 
     node = graph_repo.get_node_by_key(f"company:{normalized_symbol}")
     if node is not None:
         return node
-    nodes = graph_repo.list_nodes(node_type="company", symbol=normalized_symbol, limit=1)
+    nodes = graph_repo.list_nodes(
+        node_type="company", symbol=normalized_symbol, limit=1
+    )
     return nodes[0] if nodes else None
 
 

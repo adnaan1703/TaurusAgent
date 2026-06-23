@@ -13,7 +13,11 @@ from taurus_core.db.session import build_session_factory
 from taurus_core.domain.instruments import Instrument
 from taurus_core.research.schemas import TraderProposal
 from taurus_core.risk.engine import RiskEngine, RiskEngineResult
-from taurus_core.risk.schemas import HardRuleResult, decision_id_for_proposal, risk_review_id
+from taurus_core.risk.schemas import (
+    HardRuleResult,
+    decision_id_for_proposal,
+    risk_review_id,
+)
 
 
 @pytest.mark.parametrize(
@@ -69,7 +73,9 @@ def test_graph_risk_reduces_each_static_exposure_category(
     assert "BBB" in rule.details
 
 
-def test_graph_risk_rejects_when_existing_exposure_has_no_capacity(tmp_path: Path) -> None:
+def test_graph_risk_rejects_when_existing_exposure_has_no_capacity(
+    tmp_path: Path,
+) -> None:
     settings = _settings_for_temp_db(
         tmp_path,
         taurus_graph_max_basic_industry_exposure_pct=Decimal("4.0000"),
@@ -105,7 +111,9 @@ def test_graph_risk_warns_near_limit_without_reducing(tmp_path: Path) -> None:
     assert "near limit" in rule.details
 
 
-def test_graph_risk_reduces_correlated_cluster_only_when_stats_exist(tmp_path: Path) -> None:
+def test_graph_risk_reduces_correlated_cluster_only_when_stats_exist(
+    tmp_path: Path,
+) -> None:
     settings = _settings_for_temp_db(
         tmp_path,
         taurus_graph_max_correlated_cluster_exposure_pct=Decimal("7.0000"),
@@ -342,7 +350,9 @@ def _seed_product_group_fixture(settings: Settings, *, status: str) -> None:
         session.commit()
 
 
-def _seed_correlated_cluster_fixture(settings: Settings, *, include_stats: bool) -> None:
+def _seed_correlated_cluster_fixture(
+    settings: Settings, *, include_stats: bool
+) -> None:
     session_factory = build_session_factory(settings)
     with session_factory() as session:
         _seed_instruments(session)

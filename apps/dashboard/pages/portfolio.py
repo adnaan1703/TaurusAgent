@@ -2,7 +2,11 @@ from __future__ import annotations
 
 import streamlit as st
 
-from apps.dashboard.data import latest_paper_account, list_backtest_equity, list_paper_positions
+from apps.dashboard.data import (
+    latest_paper_account,
+    list_backtest_equity,
+    list_paper_positions,
+)
 from apps.dashboard.ui import (
     configure_page,
     format_inr,

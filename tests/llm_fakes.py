@@ -70,9 +70,15 @@ class FakeLLMProvider:
         first_report = evidence_pack[0] if evidence_pack else {}
         agent = str(first_report.get("agent_name") or agent_name)
         source_ids = first_report.get("source_ids")
-        source_id = source_ids[0] if isinstance(source_ids, list) and source_ids else "test-source"
+        source_id = (
+            source_ids[0]
+            if isinstance(source_ids, list) and source_ids
+            else "test-source"
+        )
         return LLMBullThesisOutput(
-            score=max(Decimal("-1"), min(Decimal("1"), baseline_score + Decimal("0.0500"))),
+            score=max(
+                Decimal("-1"), min(Decimal("1"), baseline_score + Decimal("0.0500"))
+            ),
             confidence=max(
                 Decimal("0"),
                 min(Decimal("1"), baseline_confidence + Decimal("0.0500")),
@@ -100,9 +106,15 @@ class FakeLLMProvider:
         first_report = evidence_pack[0] if evidence_pack else {}
         agent = str(first_report.get("agent_name") or agent_name)
         source_ids = first_report.get("source_ids")
-        source_id = source_ids[0] if isinstance(source_ids, list) and source_ids else "test-source"
+        source_id = (
+            source_ids[0]
+            if isinstance(source_ids, list) and source_ids
+            else "test-source"
+        )
         return LLMBearThesisOutput(
-            score=min(Decimal("0"), max(Decimal("-1"), baseline_score - Decimal("0.0500"))),
+            score=min(
+                Decimal("0"), max(Decimal("-1"), baseline_score - Decimal("0.0500"))
+            ),
             confidence=max(
                 Decimal("0"),
                 min(Decimal("1"), baseline_confidence + Decimal("0.0500")),
@@ -135,10 +147,16 @@ class FakeLLMProvider:
             first_report = {}
         agent = str(first_report.get("agent_name") or agent_name)
         source_ids = first_report.get("source_ids")
-        source_id = source_ids[0] if isinstance(source_ids, list) and source_ids else "test-source"
+        source_id = (
+            source_ids[0]
+            if isinstance(source_ids, list) and source_ids
+            else "test-source"
+        )
         return LLMResearchManagerOutput(
             consensus_label=str(baseline.get("consensus_label") or "neutral"),
-            consensus_score=max(Decimal("-1"), min(Decimal("1"), baseline_score + Decimal("0.0500"))),
+            consensus_score=max(
+                Decimal("-1"), min(Decimal("1"), baseline_score + Decimal("0.0500"))
+            ),
             confidence=max(
                 Decimal("0"),
                 min(Decimal("1"), baseline_confidence + Decimal("0.0500")),
@@ -169,8 +187,12 @@ class FakeLLMProvider:
                 "target_position_pct_nav",
                 Decimal("0.0000"),
             ),
-            stop_loss_pct=_decimal_context(fallback, "stop_loss_pct", Decimal("6.0000")),
-            take_profit_pct=_decimal_context(fallback, "take_profit_pct", Decimal("12.0000")),
+            stop_loss_pct=_decimal_context(
+                fallback, "stop_loss_pct", Decimal("6.0000")
+            ),
+            take_profit_pct=_decimal_context(
+                fallback, "take_profit_pct", Decimal("12.0000")
+            ),
             reason_summary=str(
                 fallback.get("reason_summary")
                 or f"{agent_name}: fake trader proposal for {symbol.upper()}."

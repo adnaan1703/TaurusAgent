@@ -13,7 +13,9 @@ from taurus_core.logging import configure_logging
 from taurus_core.profiles.schemas import TaurusProfileCreate, TaurusProfileResponse
 
 
-def run_profile_command(args: argparse.Namespace, settings: Settings | None = None) -> int:
+def run_profile_command(
+    args: argparse.Namespace, settings: Settings | None = None
+) -> int:
     settings = settings or get_settings()
     run_migrations(settings)
     session_factory = build_session_factory(settings)
@@ -43,7 +45,9 @@ def run_profile_command(args: argparse.Namespace, settings: Settings | None = No
             _print_profiles([model], as_json=args.json)
             return 0
         if args.command == "update-corpus":
-            model = repo.update_profile_corpus(args.profile_id, Decimal(args.corpus_inr))
+            model = repo.update_profile_corpus(
+                args.profile_id, Decimal(args.corpus_inr)
+            )
             session.commit()
             _print_profiles([model], as_json=args.json)
             return 0
@@ -51,7 +55,9 @@ def run_profile_command(args: argparse.Namespace, settings: Settings | None = No
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Manage Taurus paper-trading profiles.")
+    parser = argparse.ArgumentParser(
+        description="Manage Taurus paper-trading profiles."
+    )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     list_parser = subparsers.add_parser("list", help="List active Taurus profiles.")
@@ -130,4 +136,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

@@ -61,7 +61,9 @@ def test_returns_and_rolling_volatility_use_past_windows() -> None:
         Decimal("0.21"),
         Decimal("0.21"),
     ]
-    assert rolling_volatility([None, Decimal("0.1"), Decimal("0.2"), Decimal("0.3")], 2) == [
+    assert rolling_volatility(
+        [None, Decimal("0.1"), Decimal("0.2"), Decimal("0.3")], 2
+    ) == [
         None,
         None,
         Decimal("0.05"),
@@ -79,7 +81,12 @@ def test_rsi_atr_and_volume_z_score_on_fixed_data() -> None:
         ]
     )
 
-    assert relative_strength_index(closes, window=3) == [None, None, None, Decimal("100")]
+    assert relative_strength_index(closes, window=3) == [
+        None,
+        None,
+        None,
+        Decimal("100"),
+    ]
     assert average_true_range(candles, window=2) == [
         None,
         Decimal("3"),
@@ -229,9 +236,7 @@ def test_feature_service_v1_defaults_remain_unchanged_with_strategy_windows() ->
 
     assert snapshot is not None
     assert snapshot.rows[0].feature_version == TECHNICAL_FEATURE_VERSION
-    assert {"sma_5", "sma_7", "sma_9", "sma_10", "return_20d"}.issubset(
-        snapshot.values
-    )
+    assert {"sma_5", "sma_7", "sma_9", "sma_10", "return_20d"}.issubset(snapshot.values)
     assert "macd_line_12_26_9" not in snapshot.values
     assert "breakout_high_distance_252d" not in snapshot.values
     assert "vol_adjusted_return_252d" not in snapshot.values

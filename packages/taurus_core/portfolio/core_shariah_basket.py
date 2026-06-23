@@ -58,7 +58,9 @@ class CoreShariahBasketStrategy:
         self.min_history_days = min_history_days
         self.max_stale_calendar_days = max_stale_calendar_days
         self.universe = load_market_data_universe(policy.shariah_universe_path)
-        self.universe_by_symbol = {entry.symbol.upper(): entry for entry in self.universe.symbols}
+        self.universe_by_symbol = {
+            entry.symbol.upper(): entry for entry in self.universe.symbols
+        }
         self.core_sleeve = next(
             (sleeve for sleeve in policy.sleeves if sleeve.sleeve_id == CORE_SLEEVE_ID),
             None,
@@ -70,7 +72,9 @@ class CoreShariahBasketStrategy:
         as_of_date = review_input.as_of_date or _latest_history_date(
             review_input.histories_by_symbol
         )
-        candidates, rejected = self._score_candidates(review_input, as_of_date=as_of_date)
+        candidates, rejected = self._score_candidates(
+            review_input, as_of_date=as_of_date
+        )
         selected = _select_diversified(candidates, preferred_max=20, preferred_min=12)
         weights = _inverse_vol_nav_weights(
             selected,
@@ -94,7 +98,9 @@ class CoreShariahBasketStrategy:
             min_notional_inr=self.policy.rebalance.min_rebalance_notional_inr,
         )
         for symbol in too_small:
-            rejected[symbol] = rejected.get(symbol, []) + ["target_below_min_rebalance_notional"]
+            rejected[symbol] = rejected.get(symbol, []) + [
+                "target_below_min_rebalance_notional"
+            ]
         selected = [candidate for candidate in selected if candidate.symbol in weights]
 
         current_weights = _current_weights(
@@ -105,10 +111,12 @@ class CoreShariahBasketStrategy:
             (current_weights.get(symbol, Decimal("0")) for symbol in weights),
             Decimal("0"),
         ).quantize(WEIGHT_QUANT)
-        sleeve_target_pct_nav = sum(weights.values(), Decimal("0")).quantize(WEIGHT_QUANT)
-        sleeve_drift_pct_nav = (sleeve_target_pct_nav - sleeve_current_pct_nav).quantize(
+        sleeve_target_pct_nav = sum(weights.values(), Decimal("0")).quantize(
             WEIGHT_QUANT
         )
+        sleeve_drift_pct_nav = (
+            sleeve_target_pct_nav - sleeve_current_pct_nav
+        ).quantize(WEIGHT_QUANT)
         sleeve_drift_notional = _pct_to_notional(
             abs(sleeve_drift_pct_nav),
             review_input.nav_inr,
@@ -151,7 +159,9 @@ class CoreShariahBasketStrategy:
                 for symbol, weight in sorted(weights.items())
             },
             "current_weights": {
-                symbol: str(current_weights.get(symbol, Decimal("0")).quantize(WEIGHT_QUANT))
+                symbol: str(
+                    current_weights.get(symbol, Decimal("0")).quantize(WEIGHT_QUANT)
+                )
                 for symbol in sorted(set(weights) | set(current_weights))
             },
             "drift": {
@@ -183,7 +193,9 @@ class CoreShariahBasketStrategy:
     ) -> tuple[list[_CandidateScore], dict[str, list[str]]]:
         rejected: dict[str, list[str]] = {}
         scores: list[_CandidateScore] = []
-        supplied_symbols = {symbol.upper() for symbol in review_input.histories_by_symbol}
+        supplied_symbols = {
+            symbol.upper() for symbol in review_input.histories_by_symbol
+        }
         for symbol in sorted(supplied_symbols - set(self.universe_by_symbol)):
             rejected[symbol] = ["shariah_universe_mismatch"]
 
@@ -197,7 +209,9 @@ class CoreShariahBasketStrategy:
             )
             if len(history) < self.min_history_days:
                 reasons.append("insufficient_daily_candle_history")
-            elif (as_of_date - history[-1].trade_date).days > self.max_stale_calendar_days:
+            elif (
+                as_of_date - history[-1].trade_date
+            ).days > self.max_stale_calendar_days:
                 reasons.append("stale_daily_candle_data")
             if reasons:
                 rejected[symbol] = reasons
@@ -235,7 +249,10 @@ def severe_negative_symbols(events_by_symbol: dict[str, list[Any]]) -> frozenset
     for symbol, events in events_by_symbol.items():
         for event in events:
             sentiment = EVENT_SENTIMENT.get(str(event.event_type), Decimal("0"))
-            if sentiment < 0 and Decimal(str(event.severity)) >= SEVERE_NEGATIVE_EVENT_THRESHOLD:
+            if (
+                sentiment < 0
+                and Decimal(str(event.severity)) >= SEVERE_NEGATIVE_EVENT_THRESHOLD
+            ):
                 blocked.add(symbol.upper())
                 break
     return frozenset(blocked)
@@ -257,7 +274,11 @@ def _candidate_score(
         _as_float(candle.close) * float(candle.volume)
         for candle in history[-LIQUIDITY_WINDOW:]
     )
-    trend = (closes[-1] / closes[-TREND_WINDOW] - 1.0) if len(closes) >= TREND_WINDOW else 0.0
+    trend = (
+        (closes[-1] / closes[-TREND_WINDOW] - 1.0)
+        if len(closes) >= TREND_WINDOW
+        else 0.0
+    )
     trend_quality = max(min(trend, 0.35), -0.35)
     diversification_score = _diversification_score(
         symbol=symbol,
@@ -305,7 +326,8 @@ def _inverse_vol_nav_weights(
         return {}
     cap = min(normal_cap_pct_nav, hard_cap_pct_nav)
     inverse_vol = {
-        candidate.symbol: Decimal("1") / max(candidate.realized_volatility, Decimal("0.0001"))
+        candidate.symbol: Decimal("1")
+        / max(candidate.realized_volatility, Decimal("0.0001"))
         for candidate in candidates
     }
     weights = {symbol: Decimal("0") for symbol in inverse_vol}
@@ -318,7 +340,9 @@ def _inverse_vol_nav_weights(
         allocated_this_round = Decimal("0")
         capped_this_round: set[str] = set()
         for symbol in sorted(uncapped):
-            proposed = (remaining * inverse_vol[symbol] / total_inverse).quantize(WEIGHT_QUANT)
+            proposed = (remaining * inverse_vol[symbol] / total_inverse).quantize(
+                WEIGHT_QUANT
+            )
             room = cap - weights[symbol]
             allocation = min(proposed, room).quantize(WEIGHT_QUANT)
             weights[symbol] = (weights[symbol] + allocation).quantize(WEIGHT_QUANT)
@@ -331,7 +355,10 @@ def _inverse_vol_nav_weights(
         uncapped -= capped_this_round
         if allocated_this_round <= 0:
             break
-    return {symbol: min(weight, hard_cap_pct_nav).quantize(WEIGHT_QUANT) for symbol, weight in weights.items()}
+    return {
+        symbol: min(weight, hard_cap_pct_nav).quantize(WEIGHT_QUANT)
+        for symbol, weight in weights.items()
+    }
 
 
 def _apply_group_caps(
@@ -381,14 +408,13 @@ def _rebalance_decision(
     drift_threshold_pct: Decimal,
     min_rebalance_notional_inr: Decimal,
 ) -> dict[str, Any]:
-    drift_threshold_nav = (sleeve_target_pct_nav * drift_threshold_pct / Decimal("100")).quantize(
-        WEIGHT_QUANT
-    )
-    monthly_due = (
-        last_core_rebalance_date is None
-        or (last_core_rebalance_date.year, last_core_rebalance_date.month)
-        != (as_of_date.year, as_of_date.month)
-    )
+    drift_threshold_nav = (
+        sleeve_target_pct_nav * drift_threshold_pct / Decimal("100")
+    ).quantize(WEIGHT_QUANT)
+    monthly_due = last_core_rebalance_date is None or (
+        last_core_rebalance_date.year,
+        last_core_rebalance_date.month,
+    ) != (as_of_date.year, as_of_date.month)
     drift_due = (
         abs(sleeve_drift_pct_nav) > drift_threshold_nav
         or sleeve_drift_notional_inr > min_rebalance_notional_inr
@@ -411,7 +437,9 @@ def _rebalance_decision(
         if last_core_rebalance_date is not None
         else None,
         "drift_threshold_pct_nav": str(drift_threshold_nav),
-        "min_rebalance_notional_inr": str(min_rebalance_notional_inr.quantize(MONEY_QUANT)),
+        "min_rebalance_notional_inr": str(
+            min_rebalance_notional_inr.quantize(MONEY_QUANT)
+        ),
         "rationale": rationale,
     }
 
@@ -466,9 +494,9 @@ def _current_weights(
     if nav_inr <= 0:
         return {}
     return {
-        position.symbol.upper(): ((position.market_value_inr / nav_inr) * Decimal("100")).quantize(
-            WEIGHT_QUANT
-        )
+        position.symbol.upper(): (
+            (position.market_value_inr / nav_inr) * Decimal("100")
+        ).quantize(WEIGHT_QUANT)
         for position in positions
         if position.market_value_inr > 0
     }
@@ -496,7 +524,9 @@ def _diversification_score(
         score += Decimal("1") / Decimal(max(sector_count, 1))
     cluster = graph_cluster_by_symbol.get(symbol)
     if cluster:
-        cluster_count = sum(1 for value in graph_cluster_by_symbol.values() if value == cluster)
+        cluster_count = sum(
+            1 for value in graph_cluster_by_symbol.values() if value == cluster
+        )
         score += Decimal("1") / Decimal(max(cluster_count, 1))
     return score
 
@@ -508,7 +538,9 @@ def _latest_history_date(histories_by_symbol: dict[str, list[DailyCandle]]) -> d
         for candle in history
     ]
     if not dates:
-        raise ValueError("Core basket review requires at least one daily candle history.")
+        raise ValueError(
+            "Core basket review requires at least one daily candle history."
+        )
     return max(dates)
 
 

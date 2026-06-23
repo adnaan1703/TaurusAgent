@@ -38,7 +38,9 @@ class EntityResolver:
         if symbol is None:
             return None
         entity = self._by_symbol[symbol]
-        return ResolvedEntity(symbol=entity.symbol, name=entity.name, matched_text=value)
+        return ResolvedEntity(
+            symbol=entity.symbol, name=entity.name, matched_text=value
+        )
 
     def resolve_text(self, text: str) -> list[ResolvedEntity]:
         normalized_text = _normalize(text)

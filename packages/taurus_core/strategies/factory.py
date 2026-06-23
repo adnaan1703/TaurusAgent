@@ -4,7 +4,9 @@ from taurus_core.strategies.base import Strategy
 from taurus_core.strategies.blended_score import BlendedScoreStrategy
 from taurus_core.strategies.config import StrategyConfig
 from taurus_core.strategies.graph_aware import GraphAwareScoreStrategy
-from taurus_core.strategies.moving_average_crossover import MovingAverageCrossoverStrategy
+from taurus_core.strategies.moving_average_crossover import (
+    MovingAverageCrossoverStrategy,
+)
 
 
 def build_strategy(config: StrategyConfig) -> Strategy:

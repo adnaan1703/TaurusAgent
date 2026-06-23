@@ -6,7 +6,12 @@ import pytest
 
 from taurus_core.agents.schemas import LLMAnalystOutput
 from taurus_core.config import Settings
-from taurus_core.llm import GeminiProvider, LMStudioProvider, OpenAIProvider, build_llm_provider
+from taurus_core.llm import (
+    GeminiProvider,
+    LMStudioProvider,
+    OpenAIProvider,
+    build_llm_provider,
+)
 from taurus_core.llm.base import (
     LLMBearThesisOutput,
     LLMBullThesisOutput,
@@ -49,7 +54,9 @@ def test_build_llm_provider_defaults_to_lmstudio() -> None:
 
 
 def test_build_llm_provider_uses_provider_specific_openai_defaults() -> None:
-    provider = build_llm_provider(Settings(taurus_llm_provider="openai", openai_api_key="sk-test"))
+    provider = build_llm_provider(
+        Settings(taurus_llm_provider="openai", openai_api_key="sk-test")
+    )
 
     assert isinstance(provider, OpenAIProvider)
     assert provider.base_url == "https://api.openai.com/v1"
@@ -57,7 +64,9 @@ def test_build_llm_provider_uses_provider_specific_openai_defaults() -> None:
 
 
 def test_build_llm_provider_uses_provider_specific_gemini_defaults() -> None:
-    provider = build_llm_provider(Settings(taurus_llm_provider="gemini", gemini_api_key="gemini-test"))
+    provider = build_llm_provider(
+        Settings(taurus_llm_provider="gemini", gemini_api_key="gemini-test")
+    )
 
     assert isinstance(provider, GeminiProvider)
     assert provider.base_url == "https://generativelanguage.googleapis.com/v1beta"
@@ -75,7 +84,9 @@ def test_build_llm_provider_rejects_missing_hosted_provider_credentials() -> Non
 def test_build_llm_provider_rejects_runtime_mock_provider() -> None:
     settings = Settings.model_construct(taurus_llm_provider="mock")
 
-    with pytest.raises(LLMProviderError, match="Supported providers: lmstudio, openai, gemini"):
+    with pytest.raises(
+        LLMProviderError, match="Supported providers: lmstudio, openai, gemini"
+    ):
         build_llm_provider(settings)
 
 
@@ -110,7 +121,9 @@ def test_lmstudio_request_shape_and_response(monkeypatch: pytest.MonkeyPatch) ->
     assert output.model_version == "lmstudio:local-model"
 
 
-def test_lmstudio_records_openai_compatible_usage(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_lmstudio_records_openai_compatible_usage(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     def fake_urlopen(request, timeout: int):
         return _Response(
             _chat_response(
@@ -225,7 +238,9 @@ def test_lmstudio_does_not_use_reasoning_content_when_content_is_non_empty(
         )
 
 
-def test_lmstudio_bull_thesis_request_uses_dedicated_prompt(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_lmstudio_bull_thesis_request_uses_dedicated_prompt(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     seen: dict[str, object] = {}
 
     def fake_urlopen(request, timeout: int):
@@ -254,7 +269,9 @@ def test_lmstudio_bull_thesis_request_uses_dedicated_prompt(monkeypatch: pytest.
     assert output.model_version == "lmstudio:local-model"
 
 
-def test_lmstudio_bear_thesis_request_uses_dedicated_prompt(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_lmstudio_bear_thesis_request_uses_dedicated_prompt(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     seen: dict[str, object] = {}
 
     def fake_urlopen(request, timeout: int):
@@ -458,7 +475,9 @@ def test_openai_research_manager_request_uses_strict_json_schema(
 
     payload = seen["payload"]
     assert payload["response_format"]["type"] == "json_schema"
-    assert payload["response_format"]["json_schema"]["name"] == "LLMResearchManagerOutput"
+    assert (
+        payload["response_format"]["json_schema"]["name"] == "LLMResearchManagerOutput"
+    )
     assert output.model_version == "openai:gpt-5-mini"
 
 
@@ -509,7 +528,13 @@ def test_gemini_request_shape_uses_api_key_header_and_schema(
                 "candidates": [
                     {
                         "content": {
-                            "parts": [{"text": json.dumps(_analyst_payload("gemini:gemini-2.5-flash"))}]
+                            "parts": [
+                                {
+                                    "text": json.dumps(
+                                        _analyst_payload("gemini:gemini-2.5-flash")
+                                    )
+                                }
+                            ]
                         }
                     }
                 ]
@@ -534,7 +559,10 @@ def test_gemini_request_shape_uses_api_key_header_and_schema(
     assert seen["headers"]["X-goog-api-key"] == "gemini-test"
     assert payload["generationConfig"]["temperature"] == 0
     assert payload["generationConfig"]["responseMimeType"] == "application/json"
-    assert payload["generationConfig"]["responseJsonSchema"]["required"][-1] == "model_version"
+    assert (
+        payload["generationConfig"]["responseJsonSchema"]["required"][-1]
+        == "model_version"
+    )
     assert '"symbol": "INFY"' in payload["contents"][0]["parts"][0]["text"]
     assert output.model_version == "gemini:gemini-2.5-flash"
 
@@ -546,7 +574,13 @@ def test_gemini_records_usage_metadata(monkeypatch: pytest.MonkeyPatch) -> None:
                 "candidates": [
                     {
                         "content": {
-                            "parts": [{"text": json.dumps(_analyst_payload("gemini:gemini-2.5-flash"))}]
+                            "parts": [
+                                {
+                                    "text": json.dumps(
+                                        _analyst_payload("gemini:gemini-2.5-flash")
+                                    )
+                                }
+                            ]
                         }
                     }
                 ],
@@ -595,7 +629,11 @@ def test_gemini_bull_thesis_request_uses_dedicated_schema(
                     {
                         "content": {
                             "parts": [
-                                {"text": json.dumps(_bull_payload("gemini:gemini-2.5-flash"))}
+                                {
+                                    "text": json.dumps(
+                                        _bull_payload("gemini:gemini-2.5-flash")
+                                    )
+                                }
                             ]
                         }
                     }
@@ -614,8 +652,13 @@ def test_gemini_bull_thesis_request_uses_dedicated_schema(
     )
 
     payload = seen["payload"]
-    assert "Taurus BullResearcherAgent" in payload["systemInstruction"]["parts"][0]["text"]
-    assert payload["generationConfig"]["responseJsonSchema"]["required"][-1] == "model_version"
+    assert (
+        "Taurus BullResearcherAgent" in payload["systemInstruction"]["parts"][0]["text"]
+    )
+    assert (
+        payload["generationConfig"]["responseJsonSchema"]["required"][-1]
+        == "model_version"
+    )
     assert '"symbol": "INFY"' in payload["contents"][0]["parts"][0]["text"]
     assert output.model_version == "gemini:gemini-2.5-flash"
 
@@ -633,7 +676,11 @@ def test_gemini_bear_thesis_request_uses_dedicated_schema(
                     {
                         "content": {
                             "parts": [
-                                {"text": json.dumps(_bear_payload("gemini:gemini-2.5-flash"))}
+                                {
+                                    "text": json.dumps(
+                                        _bear_payload("gemini:gemini-2.5-flash")
+                                    )
+                                }
                             ]
                         }
                     }
@@ -652,8 +699,13 @@ def test_gemini_bear_thesis_request_uses_dedicated_schema(
     )
 
     payload = seen["payload"]
-    assert "Taurus BearResearcherAgent" in payload["systemInstruction"]["parts"][0]["text"]
-    assert payload["generationConfig"]["responseJsonSchema"]["required"][-1] == "model_version"
+    assert (
+        "Taurus BearResearcherAgent" in payload["systemInstruction"]["parts"][0]["text"]
+    )
+    assert (
+        payload["generationConfig"]["responseJsonSchema"]["required"][-1]
+        == "model_version"
+    )
     assert '"symbol": "INFY"' in payload["contents"][0]["parts"][0]["text"]
     assert output.model_version == "gemini:gemini-2.5-flash"
 
@@ -671,7 +723,11 @@ def test_gemini_research_manager_request_uses_dedicated_schema(
                     {
                         "content": {
                             "parts": [
-                                {"text": json.dumps(_manager_payload("gemini:gemini-2.5-flash"))}
+                                {
+                                    "text": json.dumps(
+                                        _manager_payload("gemini:gemini-2.5-flash")
+                                    )
+                                }
                             ]
                         }
                     }
@@ -689,8 +745,14 @@ def test_gemini_research_manager_request_uses_dedicated_schema(
     )
 
     payload = seen["payload"]
-    assert "Taurus ResearchManagerAgent" in payload["systemInstruction"]["parts"][0]["text"]
-    assert payload["generationConfig"]["responseJsonSchema"]["required"][-1] == "model_version"
+    assert (
+        "Taurus ResearchManagerAgent"
+        in payload["systemInstruction"]["parts"][0]["text"]
+    )
+    assert (
+        payload["generationConfig"]["responseJsonSchema"]["required"][-1]
+        == "model_version"
+    )
     assert '"symbol": "INFY"' in payload["contents"][0]["parts"][0]["text"]
     assert output.model_version == "gemini:gemini-2.5-flash"
 
@@ -732,7 +794,10 @@ def test_gemini_final_decision_explanation_uses_dedicated_schema(
     )
 
     payload = seen["payload"]
-    assert "Taurus PortfolioManagerAgent" in payload["systemInstruction"]["parts"][0]["text"]
+    assert (
+        "Taurus PortfolioManagerAgent"
+        in payload["systemInstruction"]["parts"][0]["text"]
+    )
     assert payload["generationConfig"]["responseJsonSchema"]["required"] == [
         "reason",
         "model_version",
@@ -783,7 +848,9 @@ def test_final_decision_explanation_parser_rejects_invalid_schema() -> None:
         )
 
 
-def test_trader_parser_replaces_verbose_model_version_with_provider_identifier() -> None:
+def test_trader_parser_replaces_verbose_model_version_with_provider_identifier() -> (
+    None
+):
     payload = _trader_payload(
         "research_consensus_v1: TraderAgent processed GraphAnalyst inputs with debate synthesis."
     )
@@ -878,7 +945,9 @@ def _manager_payload(model_version: str) -> dict[str, object]:
         consensus_score="0.20",
         confidence="0.75",
         summary="TechnicalAnalystAgent: src-1 keeps the manager consensus evidence-bound.",
-        unresolved_uncertainties=["NewsAnalystAgent: src-1 remains an unresolved uncertainty."],
+        unresolved_uncertainties=[
+            "NewsAnalystAgent: src-1 remains an unresolved uncertainty."
+        ],
         model_version=model_version,
     ).model_dump(mode="json")
 

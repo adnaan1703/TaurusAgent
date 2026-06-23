@@ -76,7 +76,10 @@ def test_ui_aggregate_endpoints_return_completed_run_trail(tmp_path: Path) -> No
     assert overview.json()["safety"]["llm_model_version"] == "lmstudio:local-model"
     assert overview.json()["allocation"]["enabled"] is False
     assert overview.json()["allocation"]["portfolio_plan"]["available"] is True
-    assert overview.json()["allocation"]["portfolio_plan"]["planned_trades"][0]["symbol"] == "INFY"
+    assert (
+        overview.json()["allocation"]["portfolio_plan"]["planned_trades"][0]["symbol"]
+        == "INFY"
+    )
     assert overview.json()["latest_run"]["run_id"] == run.run_id
     assert overview.json()["latest_trader_proposal"]["evaluation_mode"] == "after_close"
     assert overview.json()["latest_trader_proposal"]["lifecycle_trigger"] == "new_entry"
@@ -95,8 +98,12 @@ def test_ui_aggregate_endpoints_return_completed_run_trail(tmp_path: Path) -> No
     assert selection_preview[0]["final_status"] == "APPROVED_FOR_PAPER"
     assert selection_preview[0]["execution_status"] == "PENDING_NEXT_OPEN"
     assert selection_preview[0]["reason"] == "paper_order_status:pending_next_open"
-    assert overview.json()["latest_run"]["final_status_counts"] == {"APPROVED_FOR_PAPER": 1}
-    assert overview.json()["latest_run"]["order_status_counts"] == {"PENDING_NEXT_OPEN": 1}
+    assert overview.json()["latest_run"]["final_status_counts"] == {
+        "APPROVED_FOR_PAPER": 1
+    }
+    assert overview.json()["latest_run"]["order_status_counts"] == {
+        "PENDING_NEXT_OPEN": 1
+    }
     assert overview.json()["latest_run"]["settlement_summary"] == {
         "settled": 0,
         "rejected": 0,
@@ -116,11 +123,17 @@ def test_ui_aggregate_endpoints_return_completed_run_trail(tmp_path: Path) -> No
     detail_payload = detail.json()
     assert detail_payload["run"]["status"] == "COMPLETED"
     assert detail_payload["artifacts"]["portfolio_plan"]["run_id"] == run.run_id
-    assert detail_payload["artifacts"]["portfolio_plan"]["planned_trades"][0]["symbol"] == "INFY"
+    assert (
+        detail_payload["artifacts"]["portfolio_plan"]["planned_trades"][0]["symbol"]
+        == "INFY"
+    )
     assert detail_payload["artifacts"]["settlement"]["settled"] == 0
     assert detail_payload["artifacts"]["settlement"]["details"] == []
     assert detail_payload["selection_ledger"][0]["symbol"] == "INFY"
-    assert detail_payload["selection_ledger"][0]["reason"] == "paper_order_status:pending_next_open"
+    assert (
+        detail_payload["selection_ledger"][0]["reason"]
+        == "paper_order_status:pending_next_open"
+    )
     assert detail_payload["symbols"][0]["symbol"] == "INFY"
     assert detail_payload["symbols"][0]["pipeline_status"] == "running"
     assert detail_payload["symbols"][0]["order_status"] == "PENDING_NEXT_OPEN"
@@ -141,7 +154,10 @@ def test_ui_aggregate_endpoints_return_completed_run_trail(tmp_path: Path) -> No
     proposal_stage = _stage_artifacts(trail_payload, "trader_proposal")[0]
     assert proposal_stage["evaluation_mode"] == "after_close"
     assert proposal_stage["lifecycle_trigger"] == "new_entry"
-    assert trail_payload["analyst_roster"] == detail_payload["symbols"][0]["analyst_roster"]
+    assert (
+        trail_payload["analyst_roster"]
+        == detail_payload["symbols"][0]["analyst_roster"]
+    )
     assert _stage_status(trail_payload, "paper_order") == "running"
     assert _stage_status(trail_payload, "paper_fills") == "running"
     assert trail_payload["decision_id"]
@@ -151,14 +167,20 @@ def test_ui_aggregate_endpoints_return_completed_run_trail(tmp_path: Path) -> No
     replay_payload = replay.json()
     assert replay_payload["decision_id"] == trail_payload["decision_id"]
     assert _stage_status(replay_payload, "portfolio_plan") == "complete"
-    assert _stage_artifacts(replay_payload, "portfolio_plan")[0]["candidate"]["symbol"] == "INFY"
+    assert (
+        _stage_artifacts(replay_payload, "portfolio_plan")[0]["candidate"]["symbol"]
+        == "INFY"
+    )
     assert _stage_artifact_count(replay_payload, "final_decision") == 1
     assert _stage_status(replay_payload, "paper_order") == "running"
     assert _stage_status(replay_payload, "paper_fills") == "running"
     replay_order = _stage_artifacts(replay_payload, "paper_order")[0]
     assert replay_order["status"] == "PENDING_NEXT_OPEN"
     assert replay_order["signal_trade_date"]
-    assert _find_stage(replay_payload, "paper_fills")["metrics"]["status"] == "PENDING_NEXT_OPEN"
+    assert (
+        _find_stage(replay_payload, "paper_fills")["metrics"]["status"]
+        == "PENDING_NEXT_OPEN"
+    )
     assert replay_payload["stages"][0]["raw"] is not None
 
     assert risk.status_code == 200
@@ -178,7 +200,9 @@ def test_ui_aggregate_endpoints_return_completed_run_trail(tmp_path: Path) -> No
     assert portfolio.json()["fills"] == []
 
 
-def test_profile_api_creates_updates_lists_and_archives_profiles(tmp_path: Path) -> None:
+def test_profile_api_creates_updates_lists_and_archives_profiles(
+    tmp_path: Path,
+) -> None:
     settings = _settings_for_temp_db(tmp_path)
     run_migrations(settings)
     client = TestClient(create_app(settings))
@@ -241,7 +265,9 @@ def test_profile_scoped_api_and_dashboard_endpoints_do_not_mix_profiles(
     client_settings = _settings_for_temp_db(tmp_path, profile_id="client-a")
     run_migrations(local_settings)
     session_factory = build_session_factory(local_settings)
-    _create_profile(session_factory, profile_id="client-a", corpus_inr=Decimal("250000"))
+    _create_profile(
+        session_factory, profile_id="client-a", corpus_inr=Decimal("250000")
+    )
 
     local_run = PaperRunService(local_settings, schedule_name="ui_local").run_once(
         symbols=["INFY"]
@@ -262,12 +288,16 @@ def test_profile_scoped_api_and_dashboard_endpoints_do_not_mix_profiles(
     assert client_overview.status_code == 200
     overview_payload = client_overview.json()
     assert overview_payload["active_profile"]["profile_id"] == "client-a"
-    assert {profile["profile_id"] for profile in overview_payload["available_profiles"]} == {
+    assert {
+        profile["profile_id"] for profile in overview_payload["available_profiles"]
+    } == {
         "client-a",
         "local-paper",
     }
     assert overview_payload["latest_run"]["run_id"] == client_run.run_id
-    assert {run["profile_id"] for run in overview_payload["recent_runs"]} == {"client-a"}
+    assert {run["profile_id"] for run in overview_payload["recent_runs"]} == {
+        "client-a"
+    }
     assert overview_payload["latest_account"]["portfolio_id"] == "client-a"
     assert overview_payload["latest_trader_proposal"]["portfolio_id"] == "client-a"
     assert overview_payload["latest_final_decision"]["portfolio_id"] == "client-a"
@@ -286,9 +316,9 @@ def test_profile_scoped_api_and_dashboard_endpoints_do_not_mix_profiles(
 
     assert client_risk.status_code == 200
     assert client_risk.json()["active_profile"]["profile_id"] == "client-a"
-    assert {row["portfolio_id"] for row in client_risk.json()["latest_risk_reviews"]} == {
-        "client-a"
-    }
+    assert {
+        row["portfolio_id"] for row in client_risk.json()["latest_risk_reviews"]
+    } == {"client-a"}
 
     assert client_runs.status_code == 200
     assert [run["run_id"] for run in client_runs.json()] == [client_run.run_id]
@@ -328,13 +358,19 @@ def test_ui_aggregate_endpoints_stage_pending_next_open_orders_as_running(
     assert latest_run["executed_count"] == 1
     assert latest_run["order_status_counts"] == {"PENDING_NEXT_OPEN": 1}
     assert latest_run["selection_preview"][0]["execution_status"] == "PENDING_NEXT_OPEN"
-    assert latest_run["selection_preview"][0]["reason"] == "paper_order_status:pending_next_open"
+    assert (
+        latest_run["selection_preview"][0]["reason"]
+        == "paper_order_status:pending_next_open"
+    )
 
     assert detail.status_code == 200
     detail_payload = detail.json()
     assert detail_payload["symbols"][0]["pipeline_status"] == "running"
     assert detail_payload["symbols"][0]["order_status"] == "PENDING_NEXT_OPEN"
-    assert detail_payload["selection_ledger"][0]["reason"] == "paper_order_status:pending_next_open"
+    assert (
+        detail_payload["selection_ledger"][0]["reason"]
+        == "paper_order_status:pending_next_open"
+    )
 
     assert trail.status_code == 200
     trail_payload = trail.json()
@@ -373,7 +409,9 @@ def test_ui_aggregate_endpoints_treat_terminal_partial_fills_as_complete(
 
     assert trail.status_code == 200
     trail_payload = trail.json()
-    assert trail_payload["decision_reason"] == "executed_by_paper_order:partially_filled"
+    assert (
+        trail_payload["decision_reason"] == "executed_by_paper_order:partially_filled"
+    )
     assert _stage_status(trail_payload, "paper_order") == "complete"
     assert _stage_status(trail_payload, "paper_fills") == "complete"
     trail_order = _stage_artifacts(trail_payload, "paper_order")[0]
@@ -384,7 +422,10 @@ def test_ui_aggregate_endpoints_treat_terminal_partial_fills_as_complete(
     replay_payload = replay.json()
     assert _stage_status(replay_payload, "paper_order") == "complete"
     assert _stage_status(replay_payload, "paper_fills") == "complete"
-    assert _stage_artifacts(replay_payload, "paper_order")[0]["status"] == "PARTIALLY_FILLED"
+    assert (
+        _stage_artifacts(replay_payload, "paper_order")[0]["status"]
+        == "PARTIALLY_FILLED"
+    )
 
 
 def test_disabled_money_management_uses_settings_fallback_allocation(
@@ -420,7 +461,10 @@ def test_disabled_money_management_uses_settings_fallback_allocation(
     assert run.artifacts["allocation"]["policy_source"] == "settings"
     assert run.artifacts["portfolio_plan"]["policy_version"] == "settings"
     assert run.artifacts["portfolio_plan"]["candidates"][0]["symbol"] == "INFY"
-    assert run.artifacts["portfolio_plan"]["planned_trades"][0]["source"] == "trader_proposal"
+    assert (
+        run.artifacts["portfolio_plan"]["planned_trades"][0]["source"]
+        == "trader_proposal"
+    )
     assert run.artifacts["allocation"]["ledger_count"] == 1
     assert run.artifacts["allocation"]["ledger_counts"] == {"selected": 1}
     assert run.artifacts["allocation"]["summary"]["proposal_count"] == 1
@@ -452,12 +496,12 @@ def test_disabled_money_management_uses_settings_fallback_allocation(
         "final_action",
         "no_paper_order_expected",
         "order_id",
-            "order_status",
-            "order_reason",
-            "account_id",
-            "execution_funding",
-            "allocation_decision",
-        }
+        "order_status",
+        "order_reason",
+        "account_id",
+        "execution_funding",
+        "allocation_decision",
+    }
     assert (
         run.artifacts["symbols"]["INFY"]["allocation_decision"]["sleeve_id"]
         == "settings_fallback"
@@ -605,9 +649,9 @@ def test_ui_portfolio_labels_core_positions_from_latest_runtime_basket(
     assert payload["positions"][0]["sleeve_id"] == "core_shariah"
     assert payload["positions"][0]["allocation_status"] == "core_position"
     assert payload["allocation"]["core_basket"]["symbols"] == ["INFY"]
-    assert [row["symbol"] for row in payload["allocation"]["core_basket"]["composition"]] == [
-        "INFY"
-    ]
+    assert [
+        row["symbol"] for row in payload["allocation"]["core_basket"]["composition"]
+    ] == ["INFY"]
 
 
 def test_ui_decision_trail_includes_allocation_decision_when_enabled(
@@ -636,7 +680,9 @@ def test_ui_decision_trail_includes_allocation_decision_when_enabled(
     assert latest_run["selected_count"] == 0
     assert latest_run["allocation_rejected_count"] == 1
     assert latest_run["executed_count"] == 0
-    assert latest_run["selection_preview"][0]["allocation_status"] == "allocation_rejected"
+    assert (
+        latest_run["selection_preview"][0]["allocation_status"] == "allocation_rejected"
+    )
     assert (
         latest_run["selection_preview"][0]["reason"]
         == "allocation_rejected_by_run_allocation:strategy_unmapped"
@@ -652,7 +698,9 @@ def test_ui_decision_trail_includes_allocation_decision_when_enabled(
     assert allocation_decision["sleeve_id"] == "unmapped"
     assert allocation_decision["status"] == "allocation_rejected"
     assert allocation_decision["binding_constraint"] == "strategy_unmapped"
-    assert trail.json()["selection_decision"]["allocation_status"] == "allocation_rejected"
+    assert (
+        trail.json()["selection_decision"]["allocation_status"] == "allocation_rejected"
+    )
     assert (
         trail.json()["decision_reason"]
         == "allocation_rejected_by_run_allocation:strategy_unmapped"
@@ -676,7 +724,9 @@ def test_ui_aggregate_endpoints_show_partial_failure_and_404s(tmp_path: Path) ->
     assert detail.status_code == 200
     detail_payload = detail.json()
     assert detail_payload["run"]["status"] == "PARTIAL_FAILED"
-    assert {row["symbol"]: row["pipeline_status"] for row in detail_payload["symbols"]} == {
+    assert {
+        row["symbol"]: row["pipeline_status"] for row in detail_payload["symbols"]
+    } == {
         "INFY": "running",
         "MISSING": "failed",
     }
@@ -695,8 +745,12 @@ def test_ui_aggregate_endpoints_show_partial_failure_and_404s(tmp_path: Path) ->
 
 def test_ui_decision_trail_is_run_scoped_for_repeated_symbol(tmp_path: Path) -> None:
     settings = _settings_for_temp_db(tmp_path)
-    first = PaperRunService(settings, schedule_name="ui_scope_a").run_once(symbols=["INFY"])
-    second = PaperRunService(settings, schedule_name="ui_scope_b").run_once(symbols=["INFY"])
+    first = PaperRunService(settings, schedule_name="ui_scope_a").run_once(
+        symbols=["INFY"]
+    )
+    second = PaperRunService(settings, schedule_name="ui_scope_b").run_once(
+        symbols=["INFY"]
+    )
     client = TestClient(create_app(settings))
 
     first_trail = client.get(f"/ui/runs/{first.run_id}/symbols/INFY/decision-trail")
@@ -784,9 +838,15 @@ def test_ui_shariah_returns_active_rows_search_filters_and_pagination(
     parse_result = parse_halal_stock_rows(
         _shariah_table(
             [
-                _shariah_row("yes", "Alpha Foods Ltd", "543210", "ALPHA", "Food", "/alpha"),
-                _shariah_row("no", "Beta Finance Ltd", "654321", "BETA", "Finance", "/beta"),
-                _shariah_row("yes", "Gamma Tools Ltd", "765432", "GAMMA", "Engineering", "/gamma"),
+                _shariah_row(
+                    "yes", "Alpha Foods Ltd", "543210", "ALPHA", "Food", "/alpha"
+                ),
+                _shariah_row(
+                    "no", "Beta Finance Ltd", "654321", "BETA", "Finance", "/beta"
+                ),
+                _shariah_row(
+                    "yes", "Gamma Tools Ltd", "765432", "GAMMA", "Engineering", "/gamma"
+                ),
             ]
         ),
         source_url="https://example.test/halal-list/",
@@ -861,7 +921,9 @@ def test_ui_cors_allows_local_vite_origin(tmp_path: Path) -> None:
     assert response.headers["access-control-allow-origin"] == "http://localhost:5173"
 
 
-def _settings_for_temp_db(tmp_path: Path, *, profile_id: str = "local-paper") -> Settings:
+def _settings_for_temp_db(
+    tmp_path: Path, *, profile_id: str = "local-paper"
+) -> Settings:
     return Settings(
         taurus_alert_provider="mock",
         taurus_graph_enabled=False,
@@ -1122,7 +1184,9 @@ def _stage_artifact_count(payload: dict[str, object], stage_id: str) -> int:
     return len(_stage_artifacts(payload, stage_id))
 
 
-def _stage_artifacts(payload: dict[str, object], stage_id: str) -> list[dict[str, object]]:
+def _stage_artifacts(
+    payload: dict[str, object], stage_id: str
+) -> list[dict[str, object]]:
     stage = _find_stage(payload, stage_id)
     artifacts = stage["artifacts"]
     assert isinstance(artifacts, list)

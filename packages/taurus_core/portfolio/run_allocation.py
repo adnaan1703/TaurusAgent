@@ -15,7 +15,7 @@ from taurus_core.portfolio.active_allocation import (
     PortfolioAllocationService,
     SleeveAllocationSnapshot,
 )
-from taurus_core.portfolio.core_shariah_basket import CORE_SLEEVE_ID, CORE_STRATEGY_NAME
+from taurus_core.portfolio.core_shariah_basket import CORE_STRATEGY_NAME
 from taurus_core.portfolio.money_management import MoneyManagementPolicy
 from taurus_core.portfolio.rebalance_plan import (
     PortfolioPlanCandidate,
@@ -72,7 +72,9 @@ class RunAllocationInput:
     portfolio_starting_nav_estimate_inr: Decimal | None = None
     current_positions: tuple[ActiveAllocationPosition, ...] = ()
     sleeve_snapshots: tuple[SleeveAllocationSnapshot, ...] = ()
-    histories_by_symbol: Mapping[str, tuple[DailyCandle, ...]] = field(default_factory=dict)
+    histories_by_symbol: Mapping[str, tuple[DailyCandle, ...]] = field(
+        default_factory=dict
+    )
     core_basket_symbols: tuple[str, ...] = ()
     strategy_rank_by_symbol: Mapping[str, int] = field(default_factory=dict)
     strategy_score_by_symbol: Mapping[str, Decimal] = field(default_factory=dict)
@@ -225,7 +227,9 @@ class RunLevelAllocationService:
         available_cash = allocation_input.available_cash_inr
         proposals: list[TraderProposal] = []
         ledger: list[AllocationLedgerEntry] = []
-        candidates: list[tuple[tuple[Decimal, int, Decimal, str, str], TraderProposal]] = []
+        candidates: list[
+            tuple[tuple[Decimal, int, Decimal, str, str], TraderProposal]
+        ] = []
 
         for proposal in sorted(allocation_input.proposals, key=_proposal_sort_key):
             if proposal.action == "BUY":
@@ -322,7 +326,9 @@ class RunLevelAllocationService:
         available_cash = allocation_input.available_cash_inr
         proposals: list[TraderProposal] = []
         ledger: list[AllocationLedgerEntry] = []
-        candidates: list[tuple[tuple[Decimal, int, Decimal, str, str], TraderProposal]] = []
+        candidates: list[
+            tuple[tuple[Decimal, int, Decimal, str, str], TraderProposal]
+        ] = []
 
         for proposal in sorted(allocation_input.proposals, key=_proposal_sort_key):
             if proposal.action != "BUY":
@@ -437,7 +443,10 @@ class PortfolioPlanAllocationService:
             processed_proposal_ids.add(updated.proposal_id)
 
         for proposal in sorted(allocation_input.proposals, key=_proposal_sort_key):
-            if proposal.action == "BUY" or proposal.proposal_id in processed_proposal_ids:
+            if (
+                proposal.action == "BUY"
+                or proposal.proposal_id in processed_proposal_ids
+            ):
                 continue
             allocated = service.allocate(
                 _active_input_for(
@@ -462,7 +471,9 @@ class PortfolioPlanAllocationService:
             allocation_input,
             portfolio_plan=portfolio_plan,
         )
-        sortable: list[tuple[tuple[Decimal, int, int, Decimal, str, str], _PlannerBuyCandidate]] = []
+        sortable: list[
+            tuple[tuple[Decimal, int, int, Decimal, str, str], _PlannerBuyCandidate]
+        ] = []
         for item in buy_candidates:
             score_input = _active_input_for_plan_candidate(
                 allocation_input,
@@ -616,8 +627,7 @@ def _planner_buy_candidates(
     portfolio_plan: PortfolioRebalancePlan,
 ) -> tuple[_PlannerBuyCandidate, ...]:
     proposals_by_symbol = {
-        proposal.symbol.upper(): proposal
-        for proposal in allocation_input.proposals
+        proposal.symbol.upper(): proposal for proposal in allocation_input.proposals
     }
     candidates_by_proposal_id = {
         candidate.proposal_id: candidate
@@ -694,8 +704,7 @@ def _planner_sell_candidates(
     portfolio_plan: PortfolioRebalancePlan,
 ) -> tuple[_PlannerSellCandidate, ...]:
     proposals_by_symbol = {
-        proposal.symbol.upper(): proposal
-        for proposal in allocation_input.proposals
+        proposal.symbol.upper(): proposal for proposal in allocation_input.proposals
     }
     candidates_by_proposal_id = {
         candidate.proposal_id: candidate
@@ -1239,7 +1248,9 @@ def _capacity_metadata_for_trade(
     return "borrowed_sleeve_capacity", borrowed_from
 
 
-def _current_position_quantity(allocation_input: RunAllocationInput, symbol: str) -> int:
+def _current_position_quantity(
+    allocation_input: RunAllocationInput, symbol: str
+) -> int:
     normalized = symbol.upper()
     for position in allocation_input.current_positions:
         if position.symbol.upper() == normalized:
@@ -1301,7 +1312,9 @@ def _with_run_status(
     if decision.action == "BUY" and status not in SELECTED_LEDGER_STATUSES:
         updates.update(
             {
-                "action": "HOLD" if proposal.current_position_quantity > 0 else "NO_TRADE",
+                "action": "HOLD"
+                if proposal.current_position_quantity > 0
+                else "NO_TRADE",
                 "target_position_pct_nav": proposal.current_position_pct_nav,
                 "order_type": "NONE",
                 "entry_rule": (
@@ -1333,7 +1346,9 @@ def _fallback_updated_proposal(
     elif proposal.action == "BUY":
         updates.update(
             {
-                "action": "HOLD" if proposal.current_position_quantity > 0 else "NO_TRADE",
+                "action": "HOLD"
+                if proposal.current_position_quantity > 0
+                else "NO_TRADE",
                 "target_position_pct_nav": proposal.current_position_pct_nav,
                 "order_type": "NONE",
                 "entry_rule": (
@@ -1392,16 +1407,21 @@ def _fallback_buy_decision(
                 max_open_positions=policy.max_open_positions,
             ),
         }
-        binding_constraint, allowed_notional = min(caps.items(), key=lambda item: (item[1], item[0]))
+        binding_constraint, allowed_notional = min(
+            caps.items(), key=lambda item: (item[1], item[0])
+        )
 
     quantity = (
         int((allowed_notional / latest_price).to_integral_value(rounding=ROUND_DOWN))
         if latest_price > 0
         else 0
     )
-    approved_notional = _money(latest_price * Decimal(quantity)) if quantity > 0 else Decimal("0")
+    approved_notional = (
+        _money(latest_price * Decimal(quantity)) if quantity > 0 else Decimal("0")
+    )
     approved_position = (
-        ((current_notional + approved_notional) / allocation_input.nav_inr) * Decimal("100")
+        ((current_notional + approved_notional) / allocation_input.nav_inr)
+        * Decimal("100")
         if allocation_input.nav_inr > 0
         else Decimal("0")
     ).quantize(SCORE_QUANT)
@@ -1492,7 +1512,9 @@ def _strategy_score_component(
     *,
     strategy_rank: int | None = None,
 ) -> Decimal:
-    return calibrate_strategy_score(score, strategy_rank=strategy_rank).allocation_score_component
+    return calibrate_strategy_score(
+        score, strategy_rank=strategy_rank
+    ).allocation_score_component
 
 
 def _fallback_open_position_room(
@@ -1528,7 +1550,9 @@ def _positions_with_pending_allocation(
             ActiveAllocationPosition(
                 symbol=position.symbol,
                 quantity=position.quantity + quantity,
-                market_value_inr=(position.market_value_inr + notional).quantize(MONEY_QUANT),
+                market_value_inr=(position.market_value_inr + notional).quantize(
+                    MONEY_QUANT
+                ),
             )
         )
     if not matched:
@@ -1665,7 +1689,9 @@ def _strategy_rank(allocation_input: RunAllocationInput, symbol: str) -> int | N
     return int(rank) if rank is not None else None
 
 
-def _strategy_score(allocation_input: RunAllocationInput, symbol: str) -> Decimal | None:
+def _strategy_score(
+    allocation_input: RunAllocationInput, symbol: str
+) -> Decimal | None:
     score = allocation_input.strategy_score_by_symbol.get(symbol.upper())
     return Decimal(str(score)) if score is not None else None
 
@@ -1678,7 +1704,9 @@ def _latest_close(history: tuple[DailyCandle, ...]) -> Decimal:
     )
 
 
-def _requested_increase_notional(*, proposal: TraderProposal, nav_inr: Decimal) -> Decimal:
+def _requested_increase_notional(
+    *, proposal: TraderProposal, nav_inr: Decimal
+) -> Decimal:
     requested_pct = max(
         Decimal("0"),
         proposal.target_position_pct_nav - proposal.current_position_pct_nav,
@@ -1702,9 +1730,7 @@ def _clamp(value: Decimal, lower: Decimal, upper: Decimal) -> Decimal:
 
 def _summary_suffix_for_status(status: str, decision: AllocationDecision) -> str:
     if status == "selected":
-        return (
-            "Run-level allocation selected this proposal before paper finalization."
-        )
+        return "Run-level allocation selected this proposal before paper finalization."
     if status == "allocation_reduced":
         return (
             "Run-level allocation selected and reduced this proposal because "
@@ -1762,7 +1788,9 @@ def _append_sentence(base: str, sentence: str) -> str:
 
 def _require_decision(proposal: TraderProposal) -> AllocationDecision:
     if proposal.allocation_decision is None:
-        raise ValueError(f"Allocation proposal {proposal.symbol} is missing a decision.")
+        raise ValueError(
+            f"Allocation proposal {proposal.symbol} is missing a decision."
+        )
     return proposal.allocation_decision
 
 

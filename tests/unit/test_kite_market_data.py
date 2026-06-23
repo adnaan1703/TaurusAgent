@@ -94,7 +94,11 @@ class FakeKiteClient:
 
     def ohlc(self, *instruments: object) -> dict[str, dict[str, object]]:
         self.ohlc_calls += 1
-        keys = instruments[0] if instruments and isinstance(instruments[0], list) else list(instruments)
+        keys = (
+            instruments[0]
+            if instruments and isinstance(instruments[0], list)
+            else list(instruments)
+        )
         assert keys == ["NSE:INFY"]
         return {
             "NSE:INFY": {
@@ -136,11 +140,18 @@ def test_kite_universe_loader_validates_and_normalizes(tmp_path: Path) -> None:
 
     assert universe.universe_name == "custom"
     assert universe.enabled_symbols() == ["INFY", "TCS"]
-    assert universe.symbols[0].provider_value("kite", "exchange", universe.default_exchange) == "NSE"
+    assert (
+        universe.symbols[0].provider_value(
+            "kite", "exchange", universe.default_exchange
+        )
+        == "NSE"
+    )
     assert universe.symbols[1].providers == {}
 
 
-def test_kite_universe_loader_rejects_empty_and_duplicate_symbols(tmp_path: Path) -> None:
+def test_kite_universe_loader_rejects_empty_and_duplicate_symbols(
+    tmp_path: Path,
+) -> None:
     empty_path = _write_universe(tmp_path, "symbols: []")
     duplicate_path = _write_universe(
         tmp_path,
@@ -158,14 +169,20 @@ def test_kite_universe_loader_rejects_empty_and_duplicate_symbols(tmp_path: Path
         load_market_data_universe(duplicate_path)
 
 
-def test_kite_provider_requires_credentials_when_real_client_is_built(tmp_path: Path) -> None:
+def test_kite_provider_requires_credentials_when_real_client_is_built(
+    tmp_path: Path,
+) -> None:
     settings = _settings(tmp_path, kite_api_key="", kite_access_token="")
 
-    with pytest.raises(MarketDataProviderError, match="KITE_API_KEY and KITE_ACCESS_TOKEN"):
+    with pytest.raises(
+        MarketDataProviderError, match="KITE_API_KEY and KITE_ACCESS_TOKEN"
+    ):
         build_market_data_provider(settings)
 
 
-def test_fake_kite_client_maps_instruments_and_historical_candles(tmp_path: Path) -> None:
+def test_fake_kite_client_maps_instruments_and_historical_candles(
+    tmp_path: Path,
+) -> None:
     provider = KiteMarketDataProvider(
         _settings(tmp_path),
         client=FakeKiteClient(),
@@ -173,17 +190,23 @@ def test_fake_kite_client_maps_instruments_and_historical_candles(tmp_path: Path
     )
 
     instruments = provider.list_instruments()
-    candles = provider.get_historical_candles("infy", start_date=date(2026, 5, 1), end_date=date(2026, 5, 22))
+    candles = provider.get_historical_candles(
+        "infy", start_date=date(2026, 5, 1), end_date=date(2026, 5, 22)
+    )
 
     assert [instrument.symbol for instrument in instruments] == ["INFY", "TCS"]
     assert instruments[0].exchange == "NSE"
     assert candles[0].symbol == "INFY"
     assert candles[0].open == Decimal("1500.1")
     assert candles[0].source == "kite:historical:NSE"
-    assert candles[0].data_available_time == datetime(2026, 5, 21, 18, tzinfo=timezone.utc)
+    assert candles[0].data_available_time == datetime(
+        2026, 5, 21, 18, tzinfo=timezone.utc
+    )
 
 
-def test_kite_provider_paces_historical_requests_with_injected_sleeper(tmp_path: Path) -> None:
+def test_kite_provider_paces_historical_requests_with_injected_sleeper(
+    tmp_path: Path,
+) -> None:
     client = FakeKiteClient()
     sleeps: list[float] = []
     provider = KiteMarketDataProvider(
@@ -193,7 +216,9 @@ def test_kite_provider_paces_historical_requests_with_injected_sleeper(tmp_path:
         sleep_func=sleeps.append,
     )
 
-    provider.get_historical_candles("INFY", start_date=date(2026, 5, 1), end_date=date(2026, 5, 22))
+    provider.get_historical_candles(
+        "INFY", start_date=date(2026, 5, 1), end_date=date(2026, 5, 22)
+    )
 
     assert client.instrument_calls == 1
     assert client.historical_calls == 1
@@ -214,7 +239,9 @@ def test_kite_sync_persists_provider_mappings(tmp_path: Path) -> None:
         summary = provider.sync_instruments(session)
 
     with session_factory() as session:
-        mapping = InstrumentProviderMappingRepository(session).get(provider="kite", symbol="infy")
+        mapping = InstrumentProviderMappingRepository(session).get(
+            provider="kite", symbol="infy"
+        )
 
     assert summary.instrument_count == 2
     assert mapping is not None
@@ -222,7 +249,9 @@ def test_kite_sync_persists_provider_mappings(tmp_path: Path) -> None:
     assert mapping.instrument_token == "408065"
 
 
-def test_fake_kite_client_maps_ohlc_snapshots_and_repository_latest(tmp_path: Path) -> None:
+def test_fake_kite_client_maps_ohlc_snapshots_and_repository_latest(
+    tmp_path: Path,
+) -> None:
     settings = _settings(tmp_path)
     run_migrations(settings)
     provider = KiteMarketDataProvider(
@@ -261,7 +290,9 @@ def test_data_api_returns_latest_persisted_quote_snapshot(tmp_path: Path) -> Non
     with session_factory() as session:
         for instrument in provider.list_instruments():
             InstrumentRepository(session).upsert(instrument)
-        MarketPriceSnapshotRepository(session).insert_many(provider.get_latest_snapshots(["INFY"]))
+        MarketPriceSnapshotRepository(session).insert_many(
+            provider.get_latest_snapshots(["INFY"])
+        )
         session.commit()
 
     client = TestClient(create_app(settings))
@@ -284,7 +315,9 @@ def test_kite_auth_failure_becomes_clear_provider_error(tmp_path: Path) -> None:
         request_interval_seconds=0,
     )
 
-    with pytest.raises(MarketDataProviderError, match="access token is invalid or expired"):
+    with pytest.raises(
+        MarketDataProviderError, match="access token is invalid or expired"
+    ):
         provider.get_historical_candles("INFY")
 
 

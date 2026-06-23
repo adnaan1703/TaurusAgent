@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from scripts.migrate import run_migrations
 from taurus_core.config import Settings, get_settings
-from taurus_core.data.providers.kite_market_data import KiteMarketDataProvider, KiteInstrumentSyncSummary
+from taurus_core.data.providers.kite_market_data import (
+    KiteMarketDataProvider,
+    KiteInstrumentSyncSummary,
+)
 from taurus_core.db.session import build_session_factory
 
 

@@ -28,7 +28,9 @@ from taurus_core.research.debate_service import ResearchDebateService
 from tests.market_data_fixtures import seed_test_market_data
 
 
-def test_trader_proposal_is_structured_deterministic_and_not_an_order(tmp_path: Path) -> None:
+def test_trader_proposal_is_structured_deterministic_and_not_an_order(
+    tmp_path: Path,
+) -> None:
     settings = _settings_for_temp_db(tmp_path)
     session_factory = _prepare_trader_db(settings)
     with session_factory() as session:
@@ -58,8 +60,12 @@ def test_trader_proposal_is_structured_deterministic_and_not_an_order(tmp_path: 
         ).run(symbol="INFY", debate=debate)
 
     with session_factory() as session:
-        proposal_count = session.scalar(select(func.count()).select_from(TraderProposalModel))
-        order_count = session.scalar(select(func.count()).select_from(BacktestOrderModel))
+        proposal_count = session.scalar(
+            select(func.count()).select_from(TraderProposalModel)
+        )
+        order_count = session.scalar(
+            select(func.count()).select_from(BacktestOrderModel)
+        )
 
     assert first.model_dump(mode="json") == second.model_dump(mode="json")
     assert first.debate_id == debate.debate_id
@@ -83,7 +89,9 @@ def test_trader_proposal_is_structured_deterministic_and_not_an_order(tmp_path: 
     assert order_count == 0
 
 
-def test_trader_new_entry_target_metadata_keeps_raw_and_capped_values(tmp_path: Path) -> None:
+def test_trader_new_entry_target_metadata_keeps_raw_and_capped_values(
+    tmp_path: Path,
+) -> None:
     settings = _settings_for_temp_db(tmp_path)
     session_factory = _prepare_trader_db(settings)
     with session_factory() as session:
@@ -121,7 +129,9 @@ def test_trader_new_entry_target_metadata_keeps_raw_and_capped_values(tmp_path: 
     assert proposal.action == "BUY"
     assert proposal.requested_position_pct_nav == Decimal("5.0000")
     assert proposal.target_sizing_metadata["raw_new_entry_target_pct_nav"] == "9.0000"
-    assert proposal.target_sizing_metadata["capped_new_entry_target_pct_nav"] == "5.0000"
+    assert (
+        proposal.target_sizing_metadata["capped_new_entry_target_pct_nav"] == "5.0000"
+    )
     assert proposal.target_sizing_metadata["capped"] is True
 
 
@@ -163,7 +173,9 @@ def test_research_api_returns_trader_proposals(tmp_path: Path) -> None:
 def test_trader_agent_holds_existing_stable_position(tmp_path: Path) -> None:
     settings = _settings_for_temp_db(tmp_path)
     session_factory = _prepare_trader_db(settings)
-    _seed_open_position(session_factory, settings, average_cost_multiplier=Decimal("1.0"))
+    _seed_open_position(
+        session_factory, settings, average_cost_multiplier=Decimal("1.0")
+    )
     with session_factory() as session:
         run_analyst_suite(
             session,
@@ -202,7 +214,9 @@ def test_trader_agent_holds_existing_stable_position(tmp_path: Path) -> None:
 def test_trader_agent_forces_exit_on_stop_loss(tmp_path: Path) -> None:
     settings = _settings_for_temp_db(tmp_path)
     session_factory = _prepare_trader_db(settings)
-    _seed_open_position(session_factory, settings, average_cost_multiplier=Decimal("1.12"))
+    _seed_open_position(
+        session_factory, settings, average_cost_multiplier=Decimal("1.12")
+    )
     with session_factory() as session:
         run_analyst_suite(
             session,
@@ -288,7 +302,9 @@ def test_trader_agent_normalizes_verbose_llm_model_version(tmp_path: Path) -> No
             debate=debate,
         )
 
-    assert proposal.model_version == "trader_position_lifecycle_v1:test-trader-provider-v1"
+    assert (
+        proposal.model_version == "trader_position_lifecycle_v1:test-trader-provider-v1"
+    )
     assert "GraphAnalyst inputs with debate synthesis" not in proposal.model_version
 
 
@@ -301,11 +317,19 @@ def _prepare_trader_db(settings: Settings):
     return session_factory
 
 
-def _seed_open_position(session_factory, settings: Settings, *, average_cost_multiplier: Decimal) -> None:
+def _seed_open_position(
+    session_factory, settings: Settings, *, average_cost_multiplier: Decimal
+) -> None:
     timestamp = datetime.now(timezone.utc)
     with session_factory() as session:
-        latest_close = CandleRepository(session).get_by_symbol_and_date_range(symbol="INFY")[-1].close
-        average_cost = (latest_close * average_cost_multiplier).quantize(Decimal("0.0001"))
+        latest_close = (
+            CandleRepository(session)
+            .get_by_symbol_and_date_range(symbol="INFY")[-1]
+            .close
+        )
+        average_cost = (latest_close * average_cost_multiplier).quantize(
+            Decimal("0.0001")
+        )
         quantity = 10
         market_value = (latest_close * Decimal(quantity)).quantize(Decimal("0.0001"))
         account = PaperAccount(

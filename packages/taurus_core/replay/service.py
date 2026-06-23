@@ -202,7 +202,9 @@ class DecisionReplayService:
 
         normalized_symbol = symbol.upper()
         candidates = _matching_symbol_rows(plan.get("candidates"), normalized_symbol)
-        planned_trades = _matching_symbol_rows(plan.get("planned_trades"), normalized_symbol)
+        planned_trades = _matching_symbol_rows(
+            plan.get("planned_trades"), normalized_symbol
+        )
         positions = _matching_symbol_rows(plan.get("positions"), normalized_symbol)
         artifact = {
             "symbol": normalized_symbol,
@@ -284,7 +286,13 @@ class DecisionReplayService:
             )
         return _stage(
             "allocation_ledger",
-            [{**summary, "ledger_entry": None, "reason": "symbol_not_in_allocation_ledger"}],
+            [
+                {
+                    **summary,
+                    "ledger_entry": None,
+                    "reason": "symbol_not_in_allocation_ledger",
+                }
+            ],
         )
 
     def _risk_stage(self, *, decision_id: str) -> ReplayStage:
@@ -357,7 +365,9 @@ class DecisionReplayService:
     def _paper_fill_stage(self, *, decision_id: str) -> ReplayStage:
         order_ids = list(
             self.session.scalars(
-                select(PaperOrderModel.order_id).where(PaperOrderModel.decision_id == decision_id)
+                select(PaperOrderModel.order_id).where(
+                    PaperOrderModel.decision_id == decision_id
+                )
             )
         )
         if not order_ids:
@@ -371,14 +381,14 @@ class DecisionReplayService:
         )
         return _stage("paper_fills", [_payload(row) for row in rows])
 
-    def _audit_stage(self, *, decision_id: str, run_id: str, symbol: str) -> ReplayStage:
+    def _audit_stage(
+        self, *, decision_id: str, run_id: str, symbol: str
+    ) -> ReplayStage:
         rows = list(
             self.session.scalars(
                 select(AuditLogModel)
                 .where(
-                    (
-                        AuditLogModel.payload["decision_id"].as_string() == decision_id
-                    )
+                    (AuditLogModel.payload["decision_id"].as_string() == decision_id)
                     | (AuditLogModel.payload["run_id"].as_string() == run_id)
                     | (AuditLogModel.payload["symbol"].as_string() == symbol.upper())
                 )
@@ -427,8 +437,7 @@ def _matching_symbol_rows(value: object, symbol: str) -> list[dict[str, object]]
     return [
         dict(item)
         for item in value
-        if isinstance(item, dict)
-        and str(item.get("symbol") or "").upper() == symbol
+        if isinstance(item, dict) and str(item.get("symbol") or "").upper() == symbol
     ]
 
 

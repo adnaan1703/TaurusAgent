@@ -27,7 +27,11 @@ class StrategyScoreCalibration:
     def rationale(self) -> str:
         if self.raw_strategy_score is None:
             return "Strategy score calibration used the neutral missing-score component 50.0000."
-        rank_text = f", strategy_rank={self.strategy_rank}" if self.strategy_rank is not None else ""
+        rank_text = (
+            f", strategy_rank={self.strategy_rank}"
+            if self.strategy_rank is not None
+            else ""
+        )
         return (
             "Strategy score calibration "
             f"raw_strategy_score={self.raw_strategy_score.quantize(SCORE_QUANT)}, "

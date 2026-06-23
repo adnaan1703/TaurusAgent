@@ -66,7 +66,9 @@ class BlendedScoreStrategy:
                     self._ranking(
                         trade_date=trade_date,
                         symbol=symbol,
-                        action_intent="SELL" if symbol in current_positions else "NO_TRADE",
+                        action_intent="SELL"
+                        if symbol in current_positions
+                        else "NO_TRADE",
                         score=score,
                         rank=None,
                         eligibility_status="ineligible",
@@ -97,7 +99,9 @@ class BlendedScoreStrategy:
                     self._ranking(
                         trade_date=trade_date,
                         symbol=symbol,
-                        action_intent="SELL" if symbol in current_positions else "NO_TRADE",
+                        action_intent="SELL"
+                        if symbol in current_positions
+                        else "NO_TRADE",
                         score=score,
                         rank=None,
                         eligibility_status="ineligible",
@@ -188,7 +192,9 @@ class BlendedScoreStrategy:
 
         ema_trend = (ema_12 / ema_26) - Decimal("1")
         rsi_component = (rsi - Decimal("50")) / Decimal("50")
-        volume_component = max(min(volume_z, Decimal("3")), Decimal("-3")) / Decimal("10")
+        volume_component = max(min(volume_z, Decimal("3")), Decimal("-3")) / Decimal(
+            "10"
+        )
         score = (
             (return_20d * self.weights["return_20d"])
             + (return_5d * self.weights["return_5d"])
@@ -266,7 +272,9 @@ class BlendedScoreStrategy:
             feature_snapshot_id=snapshot_id,
             metadata={
                 "strategy_type": "blended_score",
-                "weights": {key: str(value) for key, value in sorted(self.weights.items())},
+                "weights": {
+                    key: str(value) for key, value in sorted(self.weights.items())
+                },
             },
         )
 

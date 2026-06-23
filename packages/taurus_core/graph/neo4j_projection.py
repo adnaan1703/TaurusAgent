@@ -20,19 +20,16 @@ from taurus_core.observability.metrics import (
 
 
 class Neo4jDriver(Protocol):
-    def verify_connectivity(self) -> None:
-        ...
+    def verify_connectivity(self) -> None: ...
 
     def execute_query(
         self,
         query_: str,
         parameters_: dict[str, Any] | None = None,
         **kwargs: Any,
-    ) -> Any:
-        ...
+    ) -> Any: ...
 
-    def close(self) -> None:
-        ...
+    def close(self) -> None: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -143,7 +140,9 @@ class Neo4jProjectionRebuilder:
             source = node_lookup.get(edge.source_node_id)
             target = node_lookup.get(edge.target_node_id)
             if source is None or target is None:
-                raise ValueError(f"Graph edge {edge.edge_key} references missing graph nodes.")
+                raise ValueError(
+                    f"Graph edge {edge.edge_key} references missing graph nodes."
+                )
             self._project_edge(edge=edge, source=source, target=target)
 
         return Neo4jProjectionSummary(

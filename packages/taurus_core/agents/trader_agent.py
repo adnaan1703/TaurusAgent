@@ -149,7 +149,9 @@ class TraderAgent:
             ),
             model_version=decision.model_version,
         )
-        ResearchRepository(self.session).replace_trader_proposal_for_run_symbol(proposal)
+        ResearchRepository(self.session).replace_trader_proposal_for_run_symbol(
+            proposal
+        )
         self.session.commit()
         with bound_trace_context(
             run_id=run_id,
@@ -186,15 +188,23 @@ class TraderAgent:
     ) -> TraderProposal:
         symbol = symbol.upper()
         if trigger not in {"stop_loss", "take_profit"}:
-            raise ValueError("Market-hours monitor supports only stop_loss or take_profit triggers.")
+            raise ValueError(
+                "Market-hours monitor supports only stop_loss or take_profit triggers."
+            )
         if base_proposal.symbol != symbol:
-            raise ValueError("Base proposal symbol does not match market-hours trigger symbol.")
+            raise ValueError(
+                "Base proposal symbol does not match market-hours trigger symbol."
+            )
 
         reports = self._load_reports(symbol=symbol, run_id=base_proposal.run_id)
         debate = self._load_debate_by_id(base_proposal.debate_id)
-        portfolio = self._portfolio_context(symbol=symbol, latest_price_inr=latest_price_inr)
+        portfolio = self._portfolio_context(
+            symbol=symbol, latest_price_inr=latest_price_inr
+        )
         action = "EXIT" if trigger == "stop_loss" else "REDUCE"
-        target = self._target_for_action(action=action, debate=debate, portfolio=portfolio)
+        target = self._target_for_action(
+            action=action, debate=debate, portfolio=portfolio
+        )
         fallback = _ProposalDecision(
             action=action,
             confidence=base_proposal.confidence,
@@ -293,7 +303,9 @@ class TraderAgent:
             ),
             model_version=decision.model_version,
         )
-        ResearchRepository(self.session).replace_trader_proposal_for_run_symbol(proposal)
+        ResearchRepository(self.session).replace_trader_proposal_for_run_symbol(
+            proposal
+        )
         self.session.commit()
         with bound_trace_context(
             run_id=run_id,
@@ -324,7 +336,9 @@ class TraderAgent:
         return [AnalystReport.model_validate(row.payload) for row in rows]
 
     def _load_debate(self, *, symbol: str, run_id: str) -> DebateReport:
-        model = ResearchRepository(self.session).latest_debate(symbol=symbol, run_id=run_id)
+        model = ResearchRepository(self.session).latest_debate(
+            symbol=symbol, run_id=run_id
+        )
         if model is None:
             raise ValueError(
                 f"No debate found for {symbol} run_id={run_id}. Run debate before trader proposal."
@@ -345,13 +359,23 @@ class TraderAgent:
     ) -> _PortfolioContext:
         portfolio_id = self.settings.taurus_paper_portfolio_id
         execution_repo = ExecutionRepository(self.session)
-        account_model = execution_repo.latest_account_by_portfolio(portfolio_id=portfolio_id)
-        account = PaperAccount.model_validate(account_model.payload) if account_model else None
+        account_model = execution_repo.latest_account_by_portfolio(
+            portfolio_id=portfolio_id
+        )
+        account = (
+            PaperAccount.model_validate(account_model.payload)
+            if account_model
+            else None
+        )
         position_model = execution_repo.latest_open_position_by_portfolio_symbol(
             portfolio_id=portfolio_id,
             symbol=symbol,
         )
-        position = PaperPosition.model_validate(position_model.payload) if position_model else None
+        position = (
+            PaperPosition.model_validate(position_model.payload)
+            if position_model
+            else None
+        )
         latest_close = (
             latest_price_inr.quantize(SCORE_QUANT)
             if latest_price_inr is not None
@@ -366,8 +390,12 @@ class TraderAgent:
         current_pct = Decimal("0.0000")
         equity = account.equity_inr if account is not None else Decimal("0")
         if equity > 0 and market_value > 0:
-            current_pct = ((market_value / equity) * Decimal("100")).quantize(SCORE_QUANT)
-        average_cost = position.average_cost_inr if position is not None else Decimal("0.0000")
+            current_pct = ((market_value / equity) * Decimal("100")).quantize(
+                SCORE_QUANT
+            )
+        average_cost = (
+            position.average_cost_inr if position is not None else Decimal("0.0000")
+        )
         unrealized = (
             _quantize_money((latest_close - average_cost) * Decimal(quantity))
             if quantity > 0 and latest_close > 0 and average_cost > 0
@@ -386,7 +414,9 @@ class TraderAgent:
         )
 
     def _latest_close(self, *, symbol: str) -> Decimal:
-        candles = CandleRepository(self.session).get_by_symbol_and_date_range(symbol=symbol)
+        candles = CandleRepository(self.session).get_by_symbol_and_date_range(
+            symbol=symbol
+        )
         if not candles:
             return Decimal("0.0000")
         return candles[-1].close.quantize(SCORE_QUANT)
@@ -399,10 +429,16 @@ class TraderAgent:
         portfolio: _PortfolioContext,
     ) -> _ProposalDecision:
         trigger = self._lifecycle_trigger(debate=debate, portfolio=portfolio)
-        action = self._deterministic_action(trigger=trigger, debate=debate, portfolio=portfolio)
-        target = self._target_for_action(action=action, debate=debate, portfolio=portfolio)
+        action = self._deterministic_action(
+            trigger=trigger, debate=debate, portfolio=portfolio
+        )
+        target = self._target_for_action(
+            action=action, debate=debate, portfolio=portfolio
+        )
         confidence = self._confidence(reports, debate)
-        reason_summary = self._reason_summary(debate=debate, action=action, trigger=trigger)
+        reason_summary = self._reason_summary(
+            debate=debate, action=action, trigger=trigger
+        )
         invalid_if = self._invalid_if(debate)
         return _ProposalDecision(
             action=action,
@@ -486,7 +522,9 @@ class TraderAgent:
         portfolio: _PortfolioContext,
     ) -> Decimal:
         if action == "BUY":
-            return max(portfolio.current_position_pct_nav, self._new_entry_target(debate))
+            return max(
+                portfolio.current_position_pct_nav, self._new_entry_target(debate)
+            )
         if action == "HOLD":
             return portfolio.current_position_pct_nav.quantize(SCORE_QUANT)
         if action == "REDUCE":
@@ -495,7 +533,9 @@ class TraderAgent:
 
     def _new_entry_target(self, debate: DebateReport) -> Decimal:
         raw_position = self._raw_new_entry_target(debate)
-        return min(self.max_requested_position_pct_nav, raw_position).quantize(SCORE_QUANT)
+        return min(self.max_requested_position_pct_nav, raw_position).quantize(
+            SCORE_QUANT
+        )
 
     def _raw_new_entry_target(self, debate: DebateReport) -> Decimal:
         return max(
@@ -627,8 +667,12 @@ class TraderAgent:
             confidence=output.confidence.quantize(SCORE_QUANT),
             target_position_pct_nav=target,
             lifecycle_trigger=fallback.lifecycle_trigger,
-            reason_summary=_bounded_text(output.reason_summary, fallback.reason_summary),
-            invalid_if=self._validated_invalid_if(output.invalid_if, fallback.invalid_if),
+            reason_summary=_bounded_text(
+                output.reason_summary, fallback.reason_summary
+            ),
+            invalid_if=self._validated_invalid_if(
+                output.invalid_if, fallback.invalid_if
+            ),
             position_management_summary=(
                 "LLM advisory accepted within deterministic lifecycle envelope. "
                 + _bounded_text(
@@ -667,18 +711,22 @@ class TraderAgent:
         portfolio: _PortfolioContext,
     ) -> Decimal:
         if action == "BUY":
-            return min(self.max_requested_position_pct_nav, target).quantize(SCORE_QUANT)
+            return min(self.max_requested_position_pct_nav, target).quantize(
+                SCORE_QUANT
+            )
         if action == "HOLD":
             return portfolio.current_position_pct_nav.quantize(SCORE_QUANT)
         if action == "EXIT":
             return Decimal("0.0000")
         if action == "NO_TRADE":
             return Decimal("0.0000")
-        return min(target, _reduced_target(portfolio.current_position_pct_nav)).quantize(
-            SCORE_QUANT
-        )
+        return min(
+            target, _reduced_target(portfolio.current_position_pct_nav)
+        ).quantize(SCORE_QUANT)
 
-    def _fallback_decision(self, fallback: _ProposalDecision, reason: str) -> _ProposalDecision:
+    def _fallback_decision(
+        self, fallback: _ProposalDecision, reason: str
+    ) -> _ProposalDecision:
         return _ProposalDecision(
             action=fallback.action,
             confidence=fallback.confidence,
@@ -750,7 +798,9 @@ class TraderAgent:
             return "LIMIT"
         return "NONE"
 
-    def _confidence(self, reports: list[AnalystReport], debate: DebateReport) -> Decimal:
+    def _confidence(
+        self, reports: list[AnalystReport], debate: DebateReport
+    ) -> Decimal:
         report_confidence = sum(
             (report.confidence for report in reports),
             Decimal("0"),
@@ -802,7 +852,9 @@ class TraderAgent:
         invalidation.extend(debate.manager_summary.unresolved_uncertainties[:2])
         return invalidation[:5]
 
-    def _validated_invalid_if(self, llm_items: list[str], fallback_items: list[str]) -> list[str]:
+    def _validated_invalid_if(
+        self, llm_items: list[str], fallback_items: list[str]
+    ) -> list[str]:
         cleaned = [item.strip() for item in llm_items if item.strip()]
         merged = [*cleaned[:3], *fallback_items]
         deduped: list[str] = []

@@ -18,11 +18,16 @@ def test_run_rules_preserves_current_deterministic_baseline() -> None:
     assert thesis.score == Decimal("0.1577")
     assert thesis.confidence == Decimal("0.7415")
     assert thesis.source_report_ids == ["ar-bear", "ar-tech"]
-    assert thesis.key_points[0] == "TechnicalAnalystAgent: Momentum improved above the 20 day average."
+    assert (
+        thesis.key_points[0]
+        == "TechnicalAnalystAgent: Momentum improved above the 20 day average."
+    )
 
 
 def test_llm_bull_output_is_guarded_and_preserves_taurus_owned_fields() -> None:
-    thesis = BullResearcherAgent(llm_provider=_BullProvider(score="0.9000", confidence="0.9900")).run(
+    thesis = BullResearcherAgent(
+        llm_provider=_BullProvider(score="0.9000", confidence="0.9900")
+    ).run(
         symbol="infy",
         reports=_reports(),
     )
@@ -66,7 +71,9 @@ def test_missing_provider_records_metric_and_raises() -> None:
 def test_provider_failure_records_metric_and_raises() -> None:
     before = current_llm_failure_count()
 
-    with pytest.raises(LLMProviderError, match="BullResearcherAgent LLM provider failed"):
+    with pytest.raises(
+        LLMProviderError, match="BullResearcherAgent LLM provider failed"
+    ):
         BullResearcherAgent(llm_provider=_FailingBullProvider()).run(
             symbol="INFY",
             reports=_reports(),
@@ -78,7 +85,9 @@ def test_provider_failure_records_metric_and_raises() -> None:
 def test_invalid_provider_schema_records_metric_and_raises() -> None:
     before = current_llm_failure_count()
 
-    with pytest.raises(LLMProviderError, match="BullResearcherAgent LLM provider failed"):
+    with pytest.raises(
+        LLMProviderError, match="BullResearcherAgent LLM provider failed"
+    ):
         BullResearcherAgent(llm_provider=_InvalidBullProvider()).run(
             symbol="INFY",
             reports=_reports(),

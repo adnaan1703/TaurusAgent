@@ -22,14 +22,11 @@ class ProgressSnapshot:
 
 
 class ProgressReporter(Protocol):
-    def __call__(self, event: str, payload: Mapping[str, object]) -> None:
-        ...
+    def __call__(self, event: str, payload: Mapping[str, object]) -> None: ...
 
-    def close(self) -> None:
-        ...
+    def close(self) -> None: ...
 
-    def fail(self, exc: BaseException) -> None:
-        ...
+    def fail(self, exc: BaseException) -> None: ...
 
 
 def emit_progress(
@@ -102,7 +99,9 @@ def format_plain_progress_line(
         parts.append(f"progress={snapshot.completed}/{snapshot.total}")
         parts.append(f"percent={percent:.1f}")
     parts.append(f"elapsed={_format_duration(elapsed_seconds)}")
-    parts.append(f"eta={_format_duration(eta_seconds) if eta_seconds is not None else 'unknown'}")
+    parts.append(
+        f"eta={_format_duration(eta_seconds) if eta_seconds is not None else 'unknown'}"
+    )
     return " ".join(part for part in parts if part)
 
 
@@ -261,18 +260,24 @@ def _resolve_progress_mode(
     if normalized in _PLAIN_VALUES:
         return "plain"
     if normalized == "auto" or normalized in _RICH_VALUES:
-        is_interactive = force_interactive if force_interactive is not None else stream.isatty()
+        is_interactive = (
+            force_interactive if force_interactive is not None else stream.isatty()
+        )
         return "rich" if is_interactive else "plain"
     return "rich" if stream.isatty() else "plain"
 
 
-def _import_snapshot(event: str, payload: Mapping[str, object]) -> ProgressSnapshot | None:
+def _import_snapshot(
+    event: str, payload: Mapping[str, object]
+) -> ProgressSnapshot | None:
     if event == "import.setup_started":
         stage = _string(payload, "stage", "setup")
         return ProgressSnapshot("import-kite-candles", f"stage={stage}", 0, 1)
     if event == "import.started":
         total = _int(payload, "total", 0)
-        return ProgressSnapshot("import-kite-candles", f"symbols={total} cumulative=0", 0, total)
+        return ProgressSnapshot(
+            "import-kite-candles", f"symbols={total} cumulative=0", 0, total
+        )
     if event in {"import.symbol_started", "import.symbol_completed"}:
         current = _int(payload, "current", 0)
         total = _int(payload, "total", 0)
@@ -352,7 +357,9 @@ def _taurus_graph_import_snapshot(
     return None
 
 
-def _graph_snapshot(event: str, payload: Mapping[str, object]) -> ProgressSnapshot | None:
+def _graph_snapshot(
+    event: str, payload: Mapping[str, object]
+) -> ProgressSnapshot | None:
     if event == "graph.stats.started":
         edge_count = _int(payload, "edge_count", 0)
         window_count = _int(payload, "window_count", 0)
@@ -411,7 +418,11 @@ def _paper_loop_snapshot(
             completed,
             total,
         )
-    if event in {"paper.run.started", "paper.run.setup_started", "paper.run.setup_completed"}:
+    if event in {
+        "paper.run.started",
+        "paper.run.setup_started",
+        "paper.run.setup_completed",
+    }:
         iteration = _int(payload, "iteration", 1)
         iterations = _int(payload, "iterations", 1)
         total = iterations * symbol_count
@@ -442,14 +453,20 @@ def _paper_loop_snapshot(
             completed,
             total,
         )
-    if event in {"paper.symbol.stage_started", "paper.symbol.completed", "paper.symbol.failed"}:
+    if event in {
+        "paper.symbol.stage_started",
+        "paper.symbol.completed",
+        "paper.symbol.failed",
+    }:
         iteration = _int(payload, "iteration", 1)
         iterations = _int(payload, "iterations", 1)
         symbol_index = _int(payload, "symbol_index", 1)
         total = iterations * symbol_count
         base = max(iteration - 1, 0) * symbol_count
         completed = base + (
-            symbol_index if event in {"paper.symbol.completed", "paper.symbol.failed"} else symbol_index - 1
+            symbol_index
+            if event in {"paper.symbol.completed", "paper.symbol.failed"}
+            else symbol_index - 1
         )
         run_id = _string(payload, "run_id", "pending")
         symbol = _string(payload, "symbol", "-")
@@ -484,7 +501,9 @@ def _paper_loop_snapshot(
     if event == "paper.loop.completed":
         iterations = _int(payload, "iterations", 1)
         total = iterations * symbol_count
-        return ProgressSnapshot(command, f"iterations={iterations} completed=true", total, total)
+        return ProgressSnapshot(
+            command, f"iterations={iterations} completed=true", total, total
+        )
     return None
 
 
@@ -503,7 +522,11 @@ def _estimate_eta(
     total: int | None,
 ) -> float | None:
     if completed is None or total is None or completed <= 0 or total <= completed:
-        return 0.0 if completed is not None and total is not None and total <= completed else None
+        return (
+            0.0
+            if completed is not None and total is not None and total <= completed
+            else None
+        )
     return (elapsed_seconds / completed) * (total - completed)
 
 

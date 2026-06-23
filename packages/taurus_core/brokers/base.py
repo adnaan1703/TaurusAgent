@@ -20,7 +20,9 @@ class BrokerAdapter(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def list_orders(self, *, symbol: str | None = None, limit: int | None = 100) -> list[PaperOrder]:
+    def list_orders(
+        self, *, symbol: str | None = None, limit: int | None = 100
+    ) -> list[PaperOrder]:
         raise NotImplementedError
 
     @abstractmethod

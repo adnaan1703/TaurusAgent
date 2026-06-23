@@ -20,7 +20,9 @@ def run_mock_paper_once(
     run_id: str = DEFAULT_ANALYST_RUN_ID,
 ) -> dict[str, object]:
     settings = settings or get_settings()
-    final_decision = run_mock_final_approval(symbol=symbol, settings=settings, run_id=run_id)
+    final_decision = run_mock_final_approval(
+        symbol=symbol, settings=settings, run_id=run_id
+    )
     session_factory = build_session_factory(settings)
     with session_factory() as session:
         order = ExecutionRouter(session, settings).route_latest_for_symbol(
@@ -36,7 +38,9 @@ def run_mock_paper_once(
             "final_decision": final_decision,
             "order": order.model_dump(mode="json") if order is not None else None,
             "account": (
-                PaperAccount.model_validate(account_model.payload).model_dump(mode="json")
+                PaperAccount.model_validate(account_model.payload).model_dump(
+                    mode="json"
+                )
                 if account_model is not None
                 else None
             ),

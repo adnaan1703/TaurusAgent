@@ -15,7 +15,9 @@ from taurus_core.portfolio import (
 from taurus_core.research.schemas import TraderProposal
 
 
-def test_portfolio_rebalance_plan_serializes_deterministically_and_preserves_inputs() -> None:
+def test_portfolio_rebalance_plan_serializes_deterministically_and_preserves_inputs() -> (
+    None
+):
     policy = _policy()
     buy = _proposal(
         symbol="INFY",
@@ -31,7 +33,10 @@ def test_portfolio_rebalance_plan_serializes_deterministically_and_preserves_inp
         current_pct=Decimal("4.0000"),
         current_quantity=10,
     )
-    original_payloads = [buy.model_dump(mode="json"), exit_position.model_dump(mode="json")]
+    original_payloads = [
+        buy.model_dump(mode="json"),
+        exit_position.model_dump(mode="json"),
+    ]
 
     plan = PortfolioRebalancePlanService().build(
         PortfolioRebalancePlanInput(
@@ -123,12 +128,16 @@ def test_portfolio_rebalance_plan_serializes_deterministically_and_preserves_inp
     assert artifact["hard_cash_reserve_inr"] == "5000.00"
     assert artifact["spendable_cash_after_reserve_inr"] == "55000.00"
     assert artifact["positions"][0]["sleeve_id"] == "core_shariah"
-    assert artifact["positions"][0]["sleeve_label_source"] == "core_basket_target_weights"
+    assert (
+        artifact["positions"][0]["sleeve_label_source"] == "core_basket_target_weights"
+    )
     assert artifact["candidates"][0]["raw_strategy_score"] == "0.2500"
     assert artifact["candidates"][0]["calibrated_strategy_score"] == "85.0000"
     assert artifact["candidates"][0]["allocation_score_component"] == "85.0000"
     core_candidate = next(
-        row for row in artifact["candidates"] if row["candidate_id"] == "candidate-core-infy"
+        row
+        for row in artifact["candidates"]
+        if row["candidate_id"] == "candidate-core-infy"
     )
     assert core_candidate["source"] == "core_shariah_basket_v1"
     assert core_candidate["action"] == "BUY"
@@ -156,7 +165,10 @@ def test_portfolio_rebalance_plan_serializes_deterministically_and_preserves_inp
     assert sleeve_budgets["core_shariah"]["projected_exposure_inr"] == "3000.00"
     assert sleeve_budgets["cash_buffer"]["protected_capacity_inr"] == "5000.00"
     assert sleeve_budgets["cash_buffer"]["borrowable_capacity_inr"] == "0.00"
-    assert [buy.model_dump(mode="json"), exit_position.model_dump(mode="json")] == original_payloads
+    assert [
+        buy.model_dump(mode="json"),
+        exit_position.model_dump(mode="json"),
+    ] == original_payloads
     assert buy.allocation_decision is None
     assert exit_position.allocation_decision is None
 
@@ -221,7 +233,9 @@ def test_soft_sleeve_capacity_lets_active_see_idle_non_cash_room() -> None:
 
     assert budgets["active_strategy"].borrowed_capacity_inr == Decimal("20000.00")
     assert budgets["active_strategy"].projected_exposure_inr == Decimal("55000.00")
-    assert budgets["diversifying_strategy"].borrowable_capacity_inr == Decimal("15000.00")
+    assert budgets["diversifying_strategy"].borrowable_capacity_inr == Decimal(
+        "15000.00"
+    )
     assert budgets["diversifying_strategy"].borrowed_by_sleeve_id == "active_strategy"
     assert budgets["experimental_models"].borrowable_capacity_inr == Decimal("5000.00")
     assert budgets["experimental_models"].borrowed_by_sleeve_id == "active_strategy"
@@ -235,7 +249,9 @@ def test_frozen_idle_sleeve_capacity_is_protected_not_lent() -> None:
     frozen_policy = policy.model_copy(
         update={
             "sleeves": tuple(
-                sleeve.model_copy(update={"drawdown_freeze_threshold_pct": Decimal("1.0")})
+                sleeve.model_copy(
+                    update={"drawdown_freeze_threshold_pct": Decimal("1.0")}
+                )
                 if sleeve.sleeve_id == "diversifying_strategy"
                 else sleeve
                 for sleeve in policy.sleeves
@@ -295,8 +311,13 @@ def test_frozen_idle_sleeve_capacity_is_protected_not_lent() -> None:
 
     budgets = {row.sleeve_id: row for row in plan.sleeve_budgets}
 
-    assert budgets["diversifying_strategy"].idle_reason == "sleeve_drawdown_freeze_protected"
-    assert budgets["diversifying_strategy"].protected_capacity_inr == Decimal("15000.00")
+    assert (
+        budgets["diversifying_strategy"].idle_reason
+        == "sleeve_drawdown_freeze_protected"
+    )
+    assert budgets["diversifying_strategy"].protected_capacity_inr == Decimal(
+        "15000.00"
+    )
     assert budgets["diversifying_strategy"].borrowable_capacity_inr == Decimal("0.00")
     assert budgets["diversifying_strategy"].borrowed_by_sleeve_id is None
     assert budgets["experimental_models"].borrowed_by_sleeve_id == "active_strategy"
@@ -332,7 +353,11 @@ def test_core_basket_decisions_become_deterministic_plan_candidates() -> None:
                 "WIPRO": tuple(_candles("WIPRO", Decimal("200.00"))),
             },
             core_basket_artifact={
-                "target_weights": {"INFY": "3.0000", "TCS": "2.0000", "WIPRO": "0.0000"},
+                "target_weights": {
+                    "INFY": "3.0000",
+                    "TCS": "2.0000",
+                    "WIPRO": "0.0000",
+                },
                 "decisions": [
                     {
                         "symbol": "INFY",

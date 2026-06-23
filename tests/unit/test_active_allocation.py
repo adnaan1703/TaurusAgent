@@ -36,7 +36,9 @@ def test_trade_risk_cap_limits_active_buy(tmp_path: Path) -> None:
 def test_strategy_score_calibration_preserves_precision_above_old_saturation(
     tmp_path: Path,
 ) -> None:
-    policy = load_money_management_policy(_write_policy(tmp_path, max_stock_pct=Decimal("50.0")))
+    policy = load_money_management_policy(
+        _write_policy(tmp_path, max_stock_pct=Decimal("50.0"))
+    )
     service = PortfolioAllocationService(policy)
 
     old_saturation = service.candidate_score(
@@ -56,7 +58,9 @@ def test_strategy_score_calibration_preserves_precision_above_old_saturation(
 def test_ranked_strategy_score_propagates_to_allocation_score_parts(
     tmp_path: Path,
 ) -> None:
-    policy = load_money_management_policy(_write_policy(tmp_path, max_stock_pct=Decimal("50.0")))
+    policy = load_money_management_policy(
+        _write_policy(tmp_path, max_stock_pct=Decimal("50.0"))
+    )
     service = PortfolioAllocationService(policy)
 
     candidate_score, parts = service.candidate_score(
@@ -142,11 +146,15 @@ def test_active_capacity_excludes_runtime_core_basket_holdings(tmp_path: Path) -
     assert without_runtime_core.allocation_decision is not None
     assert with_runtime_core.allocation_decision is not None
     assert without_runtime_core.action == "NO_TRADE"
-    assert without_runtime_core.allocation_decision.binding_constraint == "sleeve_capacity"
+    assert (
+        without_runtime_core.allocation_decision.binding_constraint == "sleeve_capacity"
+    )
     assert with_runtime_core.action == "BUY"
     assert with_runtime_core.allocation_decision.binding_constraint == "sleeve_capacity"
     assert Decimal("0") < with_runtime_core.allocation_decision.approved_notional_inr
-    assert with_runtime_core.allocation_decision.approved_notional_inr <= Decimal("100000.00")
+    assert with_runtime_core.allocation_decision.approved_notional_inr <= Decimal(
+        "100000.00"
+    )
 
 
 def test_cash_buffer_cap_limits_active_buy(tmp_path: Path) -> None:
@@ -255,11 +263,15 @@ def test_sector_and_graph_caps_limit_active_buy(tmp_path: Path) -> None:
 
     assert sector_limited.allocation_decision is not None
     assert graph_limited.allocation_decision is not None
-    assert sector_limited.allocation_decision.binding_constraint == "sector_concentration"
+    assert (
+        sector_limited.allocation_decision.binding_constraint == "sector_concentration"
+    )
     assert graph_limited.allocation_decision.binding_constraint == "graph_concentration"
 
 
-def test_invalid_stop_loss_rejects_new_buy_but_not_reduce_or_exit(tmp_path: Path) -> None:
+def test_invalid_stop_loss_rejects_new_buy_but_not_reduce_or_exit(
+    tmp_path: Path,
+) -> None:
     policy_path = _write_policy(tmp_path, max_stock_pct=Decimal("50.0"))
     rejected = _allocate(
         policy_path,
@@ -297,7 +309,9 @@ def test_invalid_stop_loss_rejects_new_buy_but_not_reduce_or_exit(tmp_path: Path
 
     assert rejected.action == "NO_TRADE"
     assert rejected.allocation_decision is not None
-    assert rejected.allocation_decision.binding_constraint == "invalid_stop_loss_or_price"
+    assert (
+        rejected.allocation_decision.binding_constraint == "invalid_stop_loss_or_price"
+    )
     assert reduced.action == "REDUCE"
     assert reduced.allocation_decision is not None
     assert reduced.allocation_decision.status == "unchanged"
@@ -327,8 +341,14 @@ def test_volatile_stock_receives_smaller_quantity_than_lower_vol_stock(
 
     assert low_vol.allocation_decision is not None
     assert high_vol.allocation_decision is not None
-    assert high_vol.allocation_decision.volatility_used > low_vol.allocation_decision.volatility_used
-    assert high_vol.allocation_decision.approved_quantity < low_vol.allocation_decision.approved_quantity
+    assert (
+        high_vol.allocation_decision.volatility_used
+        > low_vol.allocation_decision.volatility_used
+    )
+    assert (
+        high_vol.allocation_decision.approved_quantity
+        < low_vol.allocation_decision.approved_quantity
+    )
 
 
 def test_strategy_to_sleeve_mapping_is_config_driven(tmp_path: Path) -> None:
@@ -344,7 +364,9 @@ def test_strategy_to_sleeve_mapping_is_config_driven(tmp_path: Path) -> None:
 
     assert service.sleeve_id_for_strategy("graph_aware_score_v1") == "active_strategy"
     assert service.sleeve_id_for_strategy("blended_score_v1") == "diversifying_strategy"
-    assert service.sleeve_id_for_strategy("experimental_score_v1") == "experimental_models"
+    assert (
+        service.sleeve_id_for_strategy("experimental_score_v1") == "experimental_models"
+    )
 
     allocated = service.allocate(
         _input(
@@ -364,7 +386,9 @@ def test_strategy_to_sleeve_mapping_is_config_driven(tmp_path: Path) -> None:
     assert allocated.action == "BUY"
 
 
-def test_portfolio_drawdown_governors_reduce_and_freeze_new_buys(tmp_path: Path) -> None:
+def test_portfolio_drawdown_governors_reduce_and_freeze_new_buys(
+    tmp_path: Path,
+) -> None:
     policy_path = _write_policy(
         tmp_path,
         active_target_pct=Decimal("80.0"),
@@ -400,7 +424,10 @@ def test_portfolio_drawdown_governors_reduce_and_freeze_new_buys(tmp_path: Path)
     assert frozen.allocation_decision is not None
     assert caution.allocation_decision.governor_scale_factor == Decimal("0.7500")
     assert defensive.allocation_decision.governor_scale_factor == Decimal("0.5000")
-    assert defensive.allocation_decision.approved_quantity < caution.allocation_decision.approved_quantity
+    assert (
+        defensive.allocation_decision.approved_quantity
+        < caution.allocation_decision.approved_quantity
+    )
     assert frozen.action == "NO_TRADE"
     assert frozen.allocation_decision.binding_constraint == "portfolio_drawdown_freeze"
     assert frozen.allocation_decision.governor_reasons
@@ -492,10 +519,14 @@ def test_exits_remain_routable_during_portfolio_freeze(tmp_path: Path) -> None:
     assert exited.action == "EXIT"
     assert exited.allocation_decision is not None
     assert exited.allocation_decision.status == "unchanged"
-    assert exited.allocation_decision.binding_constraint == "lifecycle_action_not_new_risk"
+    assert (
+        exited.allocation_decision.binding_constraint == "lifecycle_action_not_new_risk"
+    )
 
 
-def _allocate(policy_path: Path, allocation_input: ActiveAllocationInput) -> TraderProposal:
+def _allocate(
+    policy_path: Path, allocation_input: ActiveAllocationInput
+) -> TraderProposal:
     policy = load_money_management_policy(policy_path)
     return PortfolioAllocationService(policy).allocate(allocation_input)
 

@@ -41,7 +41,11 @@ from taurus_core.db.session import build_session_factory
 from taurus_core.domain.market_data import DailyCandle
 from taurus_core.execution.costs import IndiaPaperCostModel
 from taurus_core.execution.order_router import ExecutionRouter
-from taurus_core.execution.schemas import NextOpenSettlementSummary, PaperAccount, PaperOrder
+from taurus_core.execution.schemas import (
+    NextOpenSettlementSummary,
+    PaperAccount,
+    PaperOrder,
+)
 from taurus_core.features.store import FeatureSnapshot, TechnicalFeatureService
 from taurus_core.features.technical_context import (
     UniverseTechnicalContext,
@@ -83,7 +87,10 @@ from taurus_core.portfolio import (
 )
 from taurus_core.portfolio.run_allocation import SELECTED_LEDGER_STATUSES
 from taurus_core.profiles.runtime import RuntimeProfile, resolve_runtime_profile
-from taurus_core.research.debate_service import DEFAULT_DEBATE_ROUNDS, ResearchDebateService
+from taurus_core.research.debate_service import (
+    DEFAULT_DEBATE_ROUNDS,
+    ResearchDebateService,
+)
 from taurus_core.research.schemas import (
     BearThesis,
     BullThesis,
@@ -166,7 +173,9 @@ class PaperRunSymbolScope:
             "strategy_ranked_symbols": list(self.strategy_ranked_symbols),
             "graph_selected_symbols": list(self.graph_selected_symbols),
             "open_position_symbols": list(self.open_position_symbols),
-            "pending_next_open_order_symbols": list(self.pending_next_open_order_symbols),
+            "pending_next_open_order_symbols": list(
+                self.pending_next_open_order_symbols
+            ),
         }
 
 
@@ -296,7 +305,9 @@ class PaperRunService:
             stage="pending_next_open_orders",
             symbols=requested_symbols,
         )
-        pending_next_open_order_symbols = sorted(self._pending_next_open_order_symbols())
+        pending_next_open_order_symbols = sorted(
+            self._pending_next_open_order_symbols()
+        )
         input_symbols = _normalize_symbols(
             [
                 *requested_symbols,
@@ -328,7 +339,8 @@ class PaperRunService:
             symbols=input_symbols,
             timezone=self.timezone_name,
             run_after_market_close=self.run_after_market_close,
-            universe=universe or _manual_universe(
+            universe=universe
+            or _manual_universe(
                 provider=self.settings.taurus_market_data_provider,
                 symbols=requested_symbols,
             ),
@@ -363,9 +375,13 @@ class PaperRunService:
                 stage="settlement",
                 symbols=input_symbols,
             )
-            settlement_summary = self._settle_pending_next_open_orders(run_id=run.run_id)
+            settlement_summary = self._settle_pending_next_open_orders(
+                run_id=run.run_id
+            )
             post_settlement_account = self._latest_paper_account()
-            post_settlement_open_position_symbols = sorted(self._open_position_symbols())
+            post_settlement_open_position_symbols = sorted(
+                self._open_position_symbols()
+            )
             post_settlement_pending_order_symbols = sorted(
                 self._pending_next_open_order_symbols()
             )
@@ -428,7 +444,9 @@ class PaperRunService:
                 stage="money_management",
                 symbols=strategy_scope_symbols,
             )
-            core_basket_symbols = _core_basket_symbols_from_summary(money_management_summary)
+            core_basket_symbols = _core_basket_symbols_from_summary(
+                money_management_summary
+            )
             self._emit_progress(
                 "paper.run.setup_started",
                 run_id=run.run_id,
@@ -531,10 +549,14 @@ class PaperRunService:
                 artifacts["analysis"][symbol] = _analysis_artifact_from_result(
                     analysis,
                     finalization_required=finalization_required,
-                    finalization_status="pending" if finalization_required else "not_selected",
+                    finalization_status="pending"
+                    if finalization_required
+                    else "not_selected",
                 )
                 if symbol in settlement_by_symbol:
-                    artifacts["analysis"][symbol]["settlement"] = settlement_by_symbol[symbol]
+                    artifacts["analysis"][symbol]["settlement"] = settlement_by_symbol[
+                        symbol
+                    ]
                 if finalization_required:
                     pending_finalization_symbols.append(symbol)
                 else:
@@ -566,7 +588,9 @@ class PaperRunService:
                     analysis_artifact["finalization_status"] = "failed"
                 error = PaperRunError(
                     symbol=symbol,
-                    stage="symbol_pipeline" if finalization_required else "symbol_analysis",
+                    stage="symbol_pipeline"
+                    if finalization_required
+                    else "symbol_analysis",
                     message=str(exc),
                     error_type=exc.__class__.__name__,
                 )
@@ -598,9 +622,13 @@ class PaperRunService:
                     )
             finally:
                 self._refresh_llm_usage_artifact(artifacts, llm_provider)
-                partial_status = "FAILED" if abort_run else _status_for(
-                    succeeded_symbols,
-                    failed_symbols,
+                partial_status = (
+                    "FAILED"
+                    if abort_run
+                    else _status_for(
+                        succeeded_symbols,
+                        failed_symbols,
+                    )
                 )
                 run = run.model_copy(
                     update={
@@ -665,7 +693,9 @@ class PaperRunService:
                         analysis.proposal for analysis in analysis_by_symbol.values()
                     ),
                 )
-                artifacts["allocation"] = _allocation_artifact_from_result(allocation_result)
+                artifacts["allocation"] = _allocation_artifact_from_result(
+                    allocation_result
+                )
                 allocation_status_by_symbol = {
                     entry.symbol: entry.status for entry in allocation_result.ledger
                 }
@@ -718,7 +748,9 @@ class PaperRunService:
                         run,
                         analysis_symbols,
                     )
-                    run = self._store_run(run.model_copy(update={"artifacts": artifacts}))
+                    run = self._store_run(
+                        run.model_copy(update={"artifacts": artifacts})
+                    )
             except Exception as exc:
                 error = PaperRunError(
                     symbol="*",
@@ -766,7 +798,9 @@ class PaperRunService:
                     return self._store_run(failed, audit_event="paper_run.failed")
 
         allocated_proposals = (
-            allocation_result.proposal_by_symbol() if allocation_result is not None else {}
+            allocation_result.proposal_by_symbol()
+            if allocation_result is not None
+            else {}
         )
         finalizations_by_symbol: dict[str, PaperSymbolFinalization] = {}
         for symbol in pending_finalization_symbols:
@@ -858,9 +892,13 @@ class PaperRunService:
                     )
             finally:
                 self._refresh_llm_usage_artifact(artifacts, llm_provider)
-                partial_status = "FAILED" if abort_run else _status_for(
-                    succeeded_symbols,
-                    failed_symbols,
+                partial_status = (
+                    "FAILED"
+                    if abort_run
+                    else _status_for(
+                        succeeded_symbols,
+                        failed_symbols,
+                    )
                 )
                 artifacts["final_decisions"] = _final_decision_artifact(
                     finalizations_by_symbol
@@ -917,7 +955,9 @@ class PaperRunService:
                 "artifacts": artifacts,
             }
         )
-        return self._store_run(completed, audit_event=f"paper_run.{completed.status.lower()}")
+        return self._store_run(
+            completed, audit_event=f"paper_run.{completed.status.lower()}"
+        )
 
     def _run_symbol(
         self,
@@ -957,7 +997,9 @@ class PaperRunService:
             proposal_id=finalization.proposal.proposal_id,
             risk_check_id=finalization.risk_review.risk_check_id,
             final_decision_id=finalization.final_decision.final_decision_id,
-            order_id=finalization.order.order_id if finalization.order is not None else None,
+            order_id=finalization.order.order_id
+            if finalization.order is not None
+            else None,
         ):
             self.logger.info("paper_run.symbol.completed", **result)
         return result
@@ -1341,7 +1383,9 @@ class PaperRunService:
             failed_count=failed_count,
         )
         with self.session_factory() as session:
-            execution_policy = "next_open" if self.run_after_market_close else "immediate"
+            execution_policy = (
+                "next_open" if self.run_after_market_close else "immediate"
+            )
             order = ExecutionRouter(session, self.settings).route_decision(
                 decision,
                 execution_policy=execution_policy,
@@ -1441,12 +1485,16 @@ class PaperRunService:
                                 settings=self.settings,
                             ),
                         )
-                symbol_artifact = artifacts.get("symbols", {}).get(symbol) or artifacts.get(
-                    "symbols", {}
-                ).get(normalized_symbol)
+                symbol_artifact = artifacts.get("symbols", {}).get(
+                    symbol
+                ) or artifacts.get("symbols", {}).get(normalized_symbol)
                 if isinstance(symbol_artifact, dict):
-                    symbol_artifact["order_id"] = order.order_id if order is not None else None
-                    symbol_artifact["order_status"] = order.status if order is not None else None
+                    symbol_artifact["order_id"] = (
+                        order.order_id if order is not None else None
+                    )
+                    symbol_artifact["order_status"] = (
+                        order.status if order is not None else None
+                    )
                     symbol_artifact["order_reason"] = _order_artifact_reason(order)
                     symbol_artifact["account_id"] = (
                         account.account_id if account is not None else None
@@ -1541,9 +1589,13 @@ class PaperRunService:
         proposal: TraderProposal,
     ) -> None:
         if proposal.symbol != symbol.upper():
-            raise ValueError("Trader proposal symbol does not match finalization symbol.")
+            raise ValueError(
+                "Trader proposal symbol does not match finalization symbol."
+            )
         if proposal.run_id != run_id:
-            raise ValueError("Trader proposal run_id does not match finalization run_id.")
+            raise ValueError(
+                "Trader proposal run_id does not match finalization run_id."
+            )
 
     def _emit_symbol_stage_started(
         self,
@@ -1591,15 +1643,9 @@ class PaperRunService:
                 portfolio_id=self.settings.taurus_paper_portfolio_id,
             )
             starting_corpus = self._starting_corpus_inr(session)
-            nav_inr = (
-                account.equity_inr
-                if account is not None
-                else starting_corpus
-            )
+            nav_inr = account.equity_inr if account is not None else starting_corpus
             available_cash = (
-                account.available_cash_inr
-                if account is not None
-                else starting_corpus
+                account.available_cash_inr if account is not None else starting_corpus
             )
             open_positions = tuple(
                 ActiveAllocationPosition(
@@ -1619,7 +1665,9 @@ class PaperRunService:
                 session,
                 symbols=concentration_symbols,
             )
-            sleeve_by_symbol = _latest_allocation_sleeves_by_symbol(session, settings=self.settings)
+            sleeve_by_symbol = _latest_allocation_sleeves_by_symbol(
+                session, settings=self.settings
+            )
 
             allocated = PortfolioAllocationService(policy).allocate(
                 ActiveAllocationInput(
@@ -1643,7 +1691,9 @@ class PaperRunService:
                     graph_cluster_by_symbol=graph_cluster_by_symbol,
                 )
             )
-            ResearchRepository(session).replace_trader_proposal_for_run_symbol(allocated)
+            ResearchRepository(session).replace_trader_proposal_for_run_symbol(
+                allocated
+            )
             session.commit()
             return allocated
 
@@ -1666,7 +1716,9 @@ class PaperRunService:
             else None
         )
         fallback_policy = (
-            None if policy is not None else FallbackAllocationPolicy.from_settings(self.settings)
+            None
+            if policy is not None
+            else FallbackAllocationPolicy.from_settings(self.settings)
         )
         with self.session_factory() as session:
             execution_repo = ExecutionRepository(session)
@@ -1674,15 +1726,9 @@ class PaperRunService:
                 portfolio_id=self.settings.taurus_paper_portfolio_id,
             )
             starting_corpus = self._starting_corpus_inr(session)
-            nav_inr = (
-                account.equity_inr
-                if account is not None
-                else starting_corpus
-            )
+            nav_inr = account.equity_inr if account is not None else starting_corpus
             available_cash = (
-                account.available_cash_inr
-                if account is not None
-                else starting_corpus
+                account.available_cash_inr if account is not None else starting_corpus
             )
             open_positions = tuple(
                 ActiveAllocationPosition(
@@ -1696,9 +1742,11 @@ class PaperRunService:
             )
             plan_trade_symbols = _portfolio_plan_trade_symbols(portfolio_plan)
             proposal_symbols = {proposal.symbol.upper() for proposal in proposals}
-            concentration_symbols = proposal_symbols | {
-                position.symbol.upper() for position in open_positions
-            } | plan_trade_symbols
+            concentration_symbols = (
+                proposal_symbols
+                | {position.symbol.upper() for position in open_positions}
+                | plan_trade_symbols
+            )
             histories_by_symbol = {
                 symbol: tuple(_daily_candle_history(session, symbol))
                 for symbol in sorted(proposal_symbols | plan_trade_symbols)
@@ -1798,15 +1846,9 @@ class PaperRunService:
                 portfolio_id=self.settings.taurus_paper_portfolio_id,
             )
             starting_corpus = self._starting_corpus_inr(session)
-            nav_inr = (
-                account.equity_inr
-                if account is not None
-                else starting_corpus
-            )
+            nav_inr = account.equity_inr if account is not None else starting_corpus
             available_cash = (
-                account.available_cash_inr
-                if account is not None
-                else starting_corpus
+                account.available_cash_inr if account is not None else starting_corpus
             )
             open_positions = tuple(
                 ActiveAllocationPosition(
@@ -1819,18 +1861,20 @@ class PaperRunService:
                 )
             )
             proposal_symbols = {proposal.symbol.upper() for proposal in proposals}
-            history_symbols = proposal_symbols | {
-                str(symbol).strip().upper()
-                for symbol in core_basket_symbols
-                if str(symbol).strip()
-            } | {
-                str(symbol).strip().upper()
-                for symbol in core_target_weights
-                if str(symbol).strip()
-            } | {
-                position.symbol.upper()
-                for position in open_positions
-            }
+            history_symbols = (
+                proposal_symbols
+                | {
+                    str(symbol).strip().upper()
+                    for symbol in core_basket_symbols
+                    if str(symbol).strip()
+                }
+                | {
+                    str(symbol).strip().upper()
+                    for symbol in core_target_weights
+                    if str(symbol).strip()
+                }
+                | {position.symbol.upper() for position in open_positions}
+            )
             histories_by_symbol = {
                 symbol: tuple(_daily_candle_history(session, symbol))
                 for symbol in sorted(history_symbols)
@@ -1881,7 +1925,9 @@ class PaperRunService:
         with self.session_factory() as session:
             assert_kite_runtime_preflight(session, include_paper_runs=True)
         with self.session_factory() as session:
-            market_summary = import_market_data(session, provider, progress=self.progress)
+            market_summary = import_market_data(
+                session, provider, progress=self.progress
+            )
         with self.session_factory() as session:
             import_mock_news(session, MockNewsProvider())
         return _market_summary_dict(market_summary)
@@ -1899,14 +1945,18 @@ class PaperRunService:
         path = strategy_config_path or DEFAULT_STRATEGY_CONFIG_PATH
         strategy_config = load_strategy_config(path)
         strategy = build_strategy(strategy_config)
-        technical_analyst_profile = _technical_analyst_profile(strategy_config.parameters)
+        technical_analyst_profile = _technical_analyst_profile(
+            strategy_config.parameters
+        )
         current_positions = self._open_position_symbols()
         run_scope_symbols = _normalize_symbols(symbols)
         requested_for_metadata = _normalize_symbols(requested_symbols or symbols)
         pre_settlement_pending_symbols = _normalize_symbols(
             pre_settlement_pending_order_symbols or []
         )
-        pending_next_open_symbols = _normalize_symbols(pending_next_open_order_symbols or [])
+        pending_next_open_symbols = _normalize_symbols(
+            pending_next_open_order_symbols or []
+        )
         strategy_input_symbols = _normalize_symbols([*symbols, *current_positions])
         graph_profile_enabled = _graph_profile_enabled(
             settings=self.settings,
@@ -1955,47 +2005,50 @@ class PaperRunService:
         if not trade_dates:
             return StrategySummaryResult(
                 summary={
-                "strategy_name": strategy_config.strategy_name,
-                "strategy_config_path": str(strategy_config.source_path),
-                "strategy_type": strategy_config.strategy_type,
-                "technical_analyst_profile": technical_analyst_profile,
-                "legacy_target_limit": strategy_config.target_positions
-                or self.settings.taurus_max_open_positions,
-                "targets": [],
-                "signals": [],
-                "ranked_candidates": [],
-                "eligible_symbol_count": 0,
-                "ranked_symbol_count": 0,
-                "strategy_ranked_symbols": [],
-                "strategy_score_by_symbol": {},
-                "feature_snapshot_count": 0,
-                "graph_enabled_profile": graph_profile_enabled,
-                "graph_risk_enabled": self.settings.taurus_graph_risk_enabled,
-                "graph_readiness": graph_readiness,
-                "graph_signal_count": 0,
-                "symbols_with_graph_signals": [],
-                "graph_signals": {},
-                "graph_selected_symbols": [],
-                "graph_strategy_config_path": str(strategy_config.source_path)
-                if graph_profile_enabled
-                else None,
-                "select_targets_with_graph_called": False,
-                "run_scope_symbols": run_scope_symbols,
-                "requested_symbols": requested_for_metadata,
-                "pre_settlement_pending_next_open_order_symbols": pre_settlement_pending_symbols,
-                "pending_next_open_order_symbols": pending_next_open_symbols,
-                "open_position_symbols": sorted(current_positions),
-                "symbol_selection": _symbol_selection_metadata(
-                    requested_symbols=requested_for_metadata,
-                    selected_symbols=[],
-                    current_positions=current_positions,
-                    pending_next_open_order_symbols=set(
-                        [*pre_settlement_pending_symbols, *pending_next_open_symbols]
+                    "strategy_name": strategy_config.strategy_name,
+                    "strategy_config_path": str(strategy_config.source_path),
+                    "strategy_type": strategy_config.strategy_type,
+                    "technical_analyst_profile": technical_analyst_profile,
+                    "legacy_target_limit": strategy_config.target_positions
+                    or self.settings.taurus_max_open_positions,
+                    "targets": [],
+                    "signals": [],
+                    "ranked_candidates": [],
+                    "eligible_symbol_count": 0,
+                    "ranked_symbol_count": 0,
+                    "strategy_ranked_symbols": [],
+                    "strategy_score_by_symbol": {},
+                    "feature_snapshot_count": 0,
+                    "graph_enabled_profile": graph_profile_enabled,
+                    "graph_risk_enabled": self.settings.taurus_graph_risk_enabled,
+                    "graph_readiness": graph_readiness,
+                    "graph_signal_count": 0,
+                    "symbols_with_graph_signals": [],
+                    "graph_signals": {},
+                    "graph_selected_symbols": [],
+                    "graph_strategy_config_path": str(strategy_config.source_path)
+                    if graph_profile_enabled
+                    else None,
+                    "select_targets_with_graph_called": False,
+                    "run_scope_symbols": run_scope_symbols,
+                    "requested_symbols": requested_for_metadata,
+                    "pre_settlement_pending_next_open_order_symbols": pre_settlement_pending_symbols,
+                    "pending_next_open_order_symbols": pending_next_open_symbols,
+                    "open_position_symbols": sorted(current_positions),
+                    "symbol_selection": _symbol_selection_metadata(
+                        requested_symbols=requested_for_metadata,
+                        selected_symbols=[],
+                        current_positions=current_positions,
+                        pending_next_open_order_symbols=set(
+                            [
+                                *pre_settlement_pending_symbols,
+                                *pending_next_open_symbols,
+                            ]
+                        ),
+                        graph_signals_by_symbol={},
+                        universe=universe,
+                        select_targets_with_graph_called=False,
                     ),
-                    graph_signals_by_symbol={},
-                    universe=universe,
-                    select_targets_with_graph_called=False,
-                ),
                 },
                 technical_analyst_profile=technical_analyst_profile,
                 technical_feature_snapshots=technical_feature_snapshots,
@@ -2061,60 +2114,66 @@ class PaperRunService:
         }
         return StrategySummaryResult(
             summary={
-            "strategy_name": strategy_config.strategy_name,
-            "strategy_config_path": str(strategy_config.source_path),
-            "strategy_type": strategy_config.strategy_type,
-            "technical_analyst_profile": technical_analyst_profile,
-            "legacy_target_limit": legacy_target_limit,
-            "targets": selected_symbols,
-            "signals": [
-                {
-                    "trade_date": signal.trade_date.isoformat(),
-                    "symbol": signal.symbol,
-                    "action": signal.action,
-                    "score": str(signal.score),
-                    "reason": signal.reason,
-                    "explanation": signal.explanation.to_dict(),
-                }
-                for signal in signals
-                if signal.symbol in requested or signal.symbol in targets
-            ],
-            "ranked_candidates": ranked_candidates,
-            "eligible_symbol_count": sum(1 for ranking in rankings if ranking.is_eligible),
-            "ranked_symbol_count": sum(1 for ranking in rankings if ranking.rank is not None),
-            "strategy_ranked_symbols": strategy_ranked_symbols,
-            "strategy_score_by_symbol": strategy_score_by_symbol,
-            "feature_snapshot_count": len(snapshots),
-            "graph_enabled_profile": graph_profile_enabled,
-            "graph_risk_enabled": self.settings.taurus_graph_risk_enabled,
-            "graph_readiness": graph_readiness,
-            "graph_signal_count": len(graph_signals_by_symbol),
-            "symbols_with_graph_signals": sorted(graph_signals_by_symbol),
-            "graph_signals": {
-                symbol: signal.to_dict()
-                for symbol, signal in sorted(graph_signals_by_symbol.items())
-            },
-            "graph_selected_symbols": selected_symbols if select_targets_with_graph_called else [],
-            "graph_strategy_config_path": str(strategy_config.source_path)
-            if graph_profile_enabled
-            else None,
-            "select_targets_with_graph_called": select_targets_with_graph_called,
-            "run_scope_symbols": run_scope_symbols,
-            "requested_symbols": requested_for_metadata,
-            "pre_settlement_pending_next_open_order_symbols": pre_settlement_pending_symbols,
-            "pending_next_open_order_symbols": pending_next_open_symbols,
-            "open_position_symbols": sorted(current_positions),
-            "symbol_selection": _symbol_selection_metadata(
-                requested_symbols=requested_for_metadata,
-                selected_symbols=selected_symbols,
-                current_positions=current_positions,
-                pending_next_open_order_symbols=set(
-                    [*pre_settlement_pending_symbols, *pending_next_open_symbols]
+                "strategy_name": strategy_config.strategy_name,
+                "strategy_config_path": str(strategy_config.source_path),
+                "strategy_type": strategy_config.strategy_type,
+                "technical_analyst_profile": technical_analyst_profile,
+                "legacy_target_limit": legacy_target_limit,
+                "targets": selected_symbols,
+                "signals": [
+                    {
+                        "trade_date": signal.trade_date.isoformat(),
+                        "symbol": signal.symbol,
+                        "action": signal.action,
+                        "score": str(signal.score),
+                        "reason": signal.reason,
+                        "explanation": signal.explanation.to_dict(),
+                    }
+                    for signal in signals
+                    if signal.symbol in requested or signal.symbol in targets
+                ],
+                "ranked_candidates": ranked_candidates,
+                "eligible_symbol_count": sum(
+                    1 for ranking in rankings if ranking.is_eligible
                 ),
-                graph_signals_by_symbol=graph_signals_by_symbol,
-                universe=universe,
-                select_targets_with_graph_called=select_targets_with_graph_called,
-            ),
+                "ranked_symbol_count": sum(
+                    1 for ranking in rankings if ranking.rank is not None
+                ),
+                "strategy_ranked_symbols": strategy_ranked_symbols,
+                "strategy_score_by_symbol": strategy_score_by_symbol,
+                "feature_snapshot_count": len(snapshots),
+                "graph_enabled_profile": graph_profile_enabled,
+                "graph_risk_enabled": self.settings.taurus_graph_risk_enabled,
+                "graph_readiness": graph_readiness,
+                "graph_signal_count": len(graph_signals_by_symbol),
+                "symbols_with_graph_signals": sorted(graph_signals_by_symbol),
+                "graph_signals": {
+                    symbol: signal.to_dict()
+                    for symbol, signal in sorted(graph_signals_by_symbol.items())
+                },
+                "graph_selected_symbols": selected_symbols
+                if select_targets_with_graph_called
+                else [],
+                "graph_strategy_config_path": str(strategy_config.source_path)
+                if graph_profile_enabled
+                else None,
+                "select_targets_with_graph_called": select_targets_with_graph_called,
+                "run_scope_symbols": run_scope_symbols,
+                "requested_symbols": requested_for_metadata,
+                "pre_settlement_pending_next_open_order_symbols": pre_settlement_pending_symbols,
+                "pending_next_open_order_symbols": pending_next_open_symbols,
+                "open_position_symbols": sorted(current_positions),
+                "symbol_selection": _symbol_selection_metadata(
+                    requested_symbols=requested_for_metadata,
+                    selected_symbols=selected_symbols,
+                    current_positions=current_positions,
+                    pending_next_open_order_symbols=set(
+                        [*pre_settlement_pending_symbols, *pending_next_open_symbols]
+                    ),
+                    graph_signals_by_symbol=graph_signals_by_symbol,
+                    universe=universe,
+                    select_targets_with_graph_called=select_targets_with_graph_called,
+                ),
             },
             technical_analyst_profile=technical_analyst_profile,
             technical_feature_snapshots=technical_feature_snapshots,
@@ -2163,11 +2222,7 @@ class PaperRunService:
             )
             starting_corpus = self._starting_corpus_inr(session)
 
-        nav_inr = (
-            account.equity_inr
-            if account is not None
-            else starting_corpus
-        )
+        nav_inr = account.equity_inr if account is not None else starting_corpus
         return {
             "policy": policy.to_metadata(),
             "core_shariah_basket": strategy.review(
@@ -2188,7 +2243,9 @@ class PaperRunService:
             positions = ExecutionRepository(session).latest_open_positions_by_portfolio(
                 portfolio_id=self.settings.taurus_paper_portfolio_id,
             )
-        return {position.symbol.upper() for position in positions if position.quantity > 0}
+        return {
+            position.symbol.upper() for position in positions if position.quantity > 0
+        }
 
     def _pending_next_open_order_symbols(self) -> set[str]:
         with self.session_factory() as session:
@@ -2198,7 +2255,9 @@ class PaperRunService:
             )
         return {row.symbol.upper() for row in rows}
 
-    def _settle_pending_next_open_orders(self, *, run_id: str) -> NextOpenSettlementSummary:
+    def _settle_pending_next_open_orders(
+        self, *, run_id: str
+    ) -> NextOpenSettlementSummary:
         with self.session_factory() as session:
             return PaperBroker(session, self.settings).settle_pending_next_open_orders(
                 portfolio_id=self.settings.taurus_paper_portfolio_id,
@@ -2263,7 +2322,9 @@ class PaperRunService:
                             "symbols": list(run.symbols),
                             "succeeded_symbols": list(run.succeeded_symbols),
                             "failed_symbols": list(run.failed_symbols),
-                            "errors": [error.model_dump(mode="json") for error in run.errors],
+                            "errors": [
+                                error.model_dump(mode="json") for error in run.errors
+                            ],
                         },
                         note=f"Paper run {run.run_id} status {run.status}.",
                     )
@@ -2469,7 +2530,10 @@ def _proposal_source(proposal: TraderProposal) -> str:
     raw = proposal.target_sizing_metadata.get("proposal_source")
     if raw:
         return str(raw)
-    if proposal.allocation_decision is not None and proposal.allocation_decision.proposal_source:
+    if (
+        proposal.allocation_decision is not None
+        and proposal.allocation_decision.proposal_source
+    ):
         return proposal.allocation_decision.proposal_source
     return "trader_proposal"
 
@@ -2585,7 +2649,9 @@ def _symbol_artifact_from_results(
         "account_id": account.account_id if account is not None else None,
     }
     if proposal.allocation_decision is not None:
-        result["allocation_decision"] = proposal.allocation_decision.model_dump(mode="json")
+        result["allocation_decision"] = proposal.allocation_decision.model_dump(
+            mode="json"
+        )
     return result
 
 
@@ -2671,28 +2737,39 @@ def _settlement_artifact_from_summary(
 def _final_decision_artifact(
     finalizations_by_symbol: dict[str, PaperSymbolFinalization],
 ) -> dict[str, object]:
-    decisions = [finalization.final_decision for finalization in finalizations_by_symbol.values()]
+    decisions = [
+        finalization.final_decision for finalization in finalizations_by_symbol.values()
+    ]
     return {
         "total_count": len(decisions),
         "symbols": sorted(finalizations_by_symbol),
-        "by_status": dict(sorted(Counter(decision.status for decision in decisions).items())),
+        "by_status": dict(
+            sorted(Counter(decision.status for decision in decisions).items())
+        ),
         "by_action": dict(
             sorted(Counter(decision.final_action for decision in decisions).items())
         ),
     }
 
 
-def _allocation_ledger_by_symbol(allocation_result: RunAllocationResult) -> dict[str, Any]:
+def _allocation_ledger_by_symbol(
+    allocation_result: RunAllocationResult,
+) -> dict[str, Any]:
     return {entry.symbol.upper(): entry for entry in allocation_result.ledger}
 
 
-def _allocation_execution_entries(allocation_result: RunAllocationResult) -> dict[str, Any]:
+def _allocation_execution_entries(
+    allocation_result: RunAllocationResult,
+) -> dict[str, Any]:
     execution_entries: dict[str, Any] = {}
     for entry in allocation_result.ledger:
         symbol = entry.symbol.upper()
         if entry.status in SELECTED_LEDGER_STATUSES and entry.approved_quantity > 0:
             execution_entries[symbol] = entry
-        elif entry.status == "open_position_management" and entry.action in {"REDUCE", "EXIT"}:
+        elif entry.status == "open_position_management" and entry.action in {
+            "REDUCE",
+            "EXIT",
+        }:
             execution_entries[symbol] = entry
     return execution_entries
 
@@ -2731,12 +2808,18 @@ def _execution_side_group(final_action: str) -> int:
 
 def _execution_funding_artifact(entry: Any | None) -> dict[str, object]:
     return {
-        "funding_source": getattr(entry, "funding_source", None) if entry is not None else None,
+        "funding_source": getattr(entry, "funding_source", None)
+        if entry is not None
+        else None,
         "existing_cash_used_inr": _decimal_artifact(
-            getattr(entry, "existing_cash_used_inr", None) if entry is not None else None
+            getattr(entry, "existing_cash_used_inr", None)
+            if entry is not None
+            else None
         ),
         "same_run_proceeds_used_inr": _decimal_artifact(
-            getattr(entry, "same_run_proceeds_used_inr", None) if entry is not None else None
+            getattr(entry, "same_run_proceeds_used_inr", None)
+            if entry is not None
+            else None
         ),
         "same_run_proceeds_available_inr": _decimal_artifact(
             getattr(entry, "same_run_proceeds_available_inr", None)
@@ -2809,7 +2892,9 @@ def _accepted_order_notional_and_costs(
 
     approved_quantity = Decimal(str(max(0, getattr(entry, "approved_quantity", 0))))
     accepted_quantity = Decimal(str(max(0, order.quantity)))
-    approved_notional = Decimal(str(getattr(entry, "approved_notional_inr", Decimal("0"))))
+    approved_notional = Decimal(
+        str(getattr(entry, "approved_notional_inr", Decimal("0")))
+    )
     if approved_quantity <= 0 or accepted_quantity <= 0 or approved_notional <= 0:
         return Decimal("0.00"), Decimal("0.00")
 
@@ -2839,7 +2924,9 @@ def _add_optional_decimal(value: Decimal | None, increment: Decimal) -> Decimal 
     return _money((value or Decimal("0.00")) + increment)
 
 
-def _subtract_optional_decimal(value: Decimal | None, decrement: Decimal) -> Decimal | None:
+def _subtract_optional_decimal(
+    value: Decimal | None, decrement: Decimal
+) -> Decimal | None:
     if value is None:
         return None
     if decrement <= 0:
@@ -2857,7 +2944,9 @@ def _money(value: Decimal) -> Decimal:
     return value.quantize(MONEY_QUANT)
 
 
-def _execution_set_artifact(*, entry: Any, decision: FinalDecision) -> dict[str, object]:
+def _execution_set_artifact(
+    *, entry: Any, decision: FinalDecision
+) -> dict[str, object]:
     reason = (
         "open_position_lifecycle"
         if entry.status == "open_position_management"
@@ -2900,10 +2989,18 @@ def _execution_skip_artifact(
         "portfolio_plan_trade_id": getattr(entry, "portfolio_plan_trade_id", None)
         if entry is not None
         else None,
-        "planner_source": getattr(entry, "planner_source", None) if entry is not None else None,
-        "planner_rank": getattr(entry, "planner_rank", None) if entry is not None else None,
-        "capacity_source": getattr(entry, "capacity_source", None) if entry is not None else None,
-        "proposal_source": getattr(entry, "proposal_source", None) if entry is not None else None,
+        "planner_source": getattr(entry, "planner_source", None)
+        if entry is not None
+        else None,
+        "planner_rank": getattr(entry, "planner_rank", None)
+        if entry is not None
+        else None,
+        "capacity_source": getattr(entry, "capacity_source", None)
+        if entry is not None
+        else None,
+        "proposal_source": getattr(entry, "proposal_source", None)
+        if entry is not None
+        else None,
         **_execution_funding_artifact(entry),
         "final_status": decision.status,
         "final_action": decision.final_action,
@@ -3057,7 +3154,9 @@ def _symbol_scope_for_run(
             ],
             *[
                 str(symbol)
-                for symbol in strategy_summary.get("pending_next_open_order_symbols", [])
+                for symbol in strategy_summary.get(
+                    "pending_next_open_order_symbols", []
+                )
             ],
         ]
     )
@@ -3071,15 +3170,21 @@ def _symbol_scope_for_run(
         [str(symbol) for symbol in strategy_summary.get("strategy_ranked_symbols", [])]
     )
     universe_mode = universe.source if universe is not None else "manual_symbols"
-    requested_universe_symbols = requested if universe_mode == "market_data_universe" else []
+    requested_universe_symbols = (
+        requested if universe_mode == "market_data_universe" else []
+    )
     manual_symbols = requested if universe_mode == "manual_symbols" else []
 
     if settings.taurus_paper_analysis_scope == "full_universe":
         if universe_mode == "market_data_universe":
-            analyzed = _normalize_symbols([*requested, *open_positions, *pending_next_open])
+            analyzed = _normalize_symbols(
+                [*requested, *open_positions, *pending_next_open]
+            )
             finalization = list(analyzed)
         else:
-            analyzed = _normalize_symbols([*requested, *open_positions, *pending_next_open])
+            analyzed = _normalize_symbols(
+                [*requested, *open_positions, *pending_next_open]
+            )
             finalization = list(analyzed)
     else:
         finalization = _symbols_for_pipeline(
@@ -3141,9 +3246,11 @@ def _symbols_for_pipeline(
     strategy_summary: dict[str, object],
 ) -> list[str]:
     if universe is not None and universe.source == "market_data_universe":
-        strategy_key = "graph_selected_symbols" if (
-            strategy_summary.get("select_targets_with_graph_called") is True
-        ) else "targets"
+        strategy_key = (
+            "graph_selected_symbols"
+            if (strategy_summary.get("select_targets_with_graph_called") is True)
+            else "targets"
+        )
         pending_next_open = [
             *[
                 str(symbol)
@@ -3154,12 +3261,17 @@ def _symbols_for_pipeline(
             ],
             *[
                 str(symbol)
-                for symbol in strategy_summary.get("pending_next_open_order_symbols", [])
+                for symbol in strategy_summary.get(
+                    "pending_next_open_order_symbols", []
+                )
             ],
         ]
         selected = [
             *[str(symbol) for symbol in strategy_summary.get(strategy_key, [])],
-            *[str(symbol) for symbol in strategy_summary.get("open_position_symbols", [])],
+            *[
+                str(symbol)
+                for symbol in strategy_summary.get("open_position_symbols", [])
+            ],
             *pending_next_open,
         ]
         normalized = _normalize_symbols(selected)
@@ -3172,7 +3284,10 @@ def _symbols_for_pipeline(
     return _normalize_symbols(
         [
             *requested_symbols,
-            *[str(symbol) for symbol in strategy_summary.get("open_position_symbols", [])],
+            *[
+                str(symbol)
+                for symbol in strategy_summary.get("open_position_symbols", [])
+            ],
             *[
                 str(symbol)
                 for symbol in strategy_summary.get(
@@ -3182,7 +3297,9 @@ def _symbols_for_pipeline(
             ],
             *[
                 str(symbol)
-                for symbol in strategy_summary.get("pending_next_open_order_symbols", [])
+                for symbol in strategy_summary.get(
+                    "pending_next_open_order_symbols", []
+                )
             ],
         ]
     )
@@ -3279,9 +3396,7 @@ def _core_basket_symbols_from_summary(
     if not isinstance(target_weights, dict):
         return set()
     return {
-        str(symbol).strip().upper()
-        for symbol in target_weights
-        if str(symbol).strip()
+        str(symbol).strip().upper() for symbol in target_weights if str(symbol).strip()
     }
 
 
@@ -3299,7 +3414,9 @@ def _latest_allocation_sleeves_by_symbol(
         allocation_decision = payload.get("allocation_decision")
         if not isinstance(allocation_decision, dict):
             continue
-        symbol = str(allocation_decision.get("symbol") or proposal.symbol).strip().upper()
+        symbol = (
+            str(allocation_decision.get("symbol") or proposal.symbol).strip().upper()
+        )
         sleeve_id = str(allocation_decision.get("sleeve_id") or "").strip().lower()
         if not symbol or sleeve_id not in ALLOCATABLE_SLEEVE_IDS:
             continue
@@ -3335,7 +3452,11 @@ def _symbol_selection_metadata(
     graph_signal_symbols = set(graph_signals_by_symbol)
     universe_mode = universe.source if universe is not None else "manual_symbols"
     output_symbols = sorted(
-        requested | selected | current_positions | pending_next_open | graph_signal_symbols
+        requested
+        | selected
+        | current_positions
+        | pending_next_open
+        | graph_signal_symbols
     )
     return {
         symbol: {
@@ -3348,7 +3469,8 @@ def _symbol_selection_metadata(
                 universe_mode=universe_mode,
                 select_targets_with_graph_called=select_targets_with_graph_called,
             ),
-            "requested_explicitly": symbol in requested and universe_mode == "manual_symbols",
+            "requested_explicitly": symbol in requested
+            and universe_mode == "manual_symbols",
             "selected_by_graph_strategy": (
                 select_targets_with_graph_called and symbol in selected
             ),
@@ -3375,7 +3497,10 @@ def _last_core_rebalance_date(run_rows) -> date | None:
         if not isinstance(core, dict):
             continue
         rebalance = core.get("rebalance")
-        if not isinstance(rebalance, dict) or rebalance.get("should_rebalance") is not True:
+        if (
+            not isinstance(rebalance, dict)
+            or rebalance.get("should_rebalance") is not True
+        ):
             continue
         as_of_date = core.get("as_of_date")
         if not isinstance(as_of_date, str):
@@ -3406,13 +3531,21 @@ def _core_concentration_groups(
             status="active",
             limit=None,
         ):
-            if edge.edge_type not in {"classified_as_sector", "classified_as_basic_industry"}:
+            if edge.edge_type not in {
+                "classified_as_sector",
+                "classified_as_basic_industry",
+            }:
                 continue
             related_node_id = (
-                edge.target_node_id if edge.source_node_id == node.id else edge.source_node_id
+                edge.target_node_id
+                if edge.source_node_id == node.id
+                else edge.source_node_id
             )
             related = graph_repo.get_node_by_id(related_node_id)
-            if related is not None and related.node_type in {"industry_sector", "basic_industry"}:
+            if related is not None and related.node_type in {
+                "industry_sector",
+                "basic_industry",
+            }:
                 sector_by_symbol[symbol] = related.display_name
                 break
 
@@ -3509,8 +3642,9 @@ def _position_exposures_pct_nav(
     if equity_inr is None or equity_inr <= 0:
         return {}
     return {
-        position.symbol.upper(): ((position.market_value_inr / equity_inr) * Decimal("100"))
-        .quantize(Decimal("0.0001"))
+        position.symbol.upper(): (
+            (position.market_value_inr / equity_inr) * Decimal("100")
+        ).quantize(Decimal("0.0001"))
         for position in positions
         if position.market_value_inr > 0
     }
@@ -3587,7 +3721,9 @@ def _daily_candle_history(session: Session, symbol: str) -> list[DailyCandle]:
             source=candle.source,
             data_available_time=candle.data_available_time,
         )
-        for candle in CandleRepository(session).get_by_symbol_and_date_range(symbol=symbol)
+        for candle in CandleRepository(session).get_by_symbol_and_date_range(
+            symbol=symbol
+        )
     ]
 
 
@@ -3598,8 +3734,12 @@ def _market_summary_dict(summary: MarketDataImportSummary) -> dict[str, object]:
         "instrument_count": summary.instrument_count,
         "candle_count": summary.candle_count,
         "candles_per_symbol": dict(summary.candles_per_symbol),
-        "start_date": summary.start_date.isoformat() if summary.start_date is not None else None,
-        "end_date": summary.end_date.isoformat() if summary.end_date is not None else None,
+        "start_date": summary.start_date.isoformat()
+        if summary.start_date is not None
+        else None,
+        "end_date": summary.end_date.isoformat()
+        if summary.end_date is not None
+        else None,
     }
 
 

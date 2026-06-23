@@ -97,7 +97,9 @@ def test_stop_loss_trigger_creates_exit_flow(postgres_test_settings: Settings) -
             symbol="INFY",
             run_id=result.run_id or "",
         )
-        order = ExecutionRepository(session).list_orders(run_id=result.run_id, symbol="INFY")[0]
+        order = ExecutionRepository(session).list_orders(
+            run_id=result.run_id, symbol="INFY"
+        )[0]
 
     assert monitor_proposal.evaluation_mode == "market_hours"
     assert monitor_proposal.lifecycle_trigger == "stop_loss"
@@ -223,12 +225,12 @@ def test_position_monitor_only_watches_selected_profile(
             .order_by(AuditLogModel.created_at.desc())
             .first()
         )
-        client_positions = ExecutionRepository(session).latest_open_positions_by_portfolio(
-            portfolio_id="client-a"
-        )
-        local_positions = ExecutionRepository(session).latest_open_positions_by_portfolio(
-            portfolio_id="local-paper"
-        )
+        client_positions = ExecutionRepository(
+            session
+        ).latest_open_positions_by_portfolio(portfolio_id="client-a")
+        local_positions = ExecutionRepository(
+            session
+        ).latest_open_positions_by_portfolio(portfolio_id="local-paper")
 
     assert result.status == "COMPLETED"
     assert result.symbols_seen == ["TCS"]
@@ -241,7 +243,9 @@ def test_position_monitor_only_watches_selected_profile(
     assert [position.symbol for position in local_positions] == ["INFY"]
 
 
-def test_take_profit_trigger_creates_reduce_flow(postgres_test_settings: Settings) -> None:
+def test_take_profit_trigger_creates_reduce_flow(
+    postgres_test_settings: Settings,
+) -> None:
     settings = _settings()
     _seed_monitor_fixture(settings)
 
@@ -257,7 +261,9 @@ def test_take_profit_trigger_creates_reduce_flow(postgres_test_settings: Setting
             symbol="INFY",
             run_id=result.run_id or "",
         )
-        order = ExecutionRepository(session).list_orders(run_id=result.run_id, symbol="INFY")[0]
+        order = ExecutionRepository(session).list_orders(
+            run_id=result.run_id, symbol="INFY"
+        )[0]
 
     assert proposal is not None
     payload = TraderProposal.model_validate(proposal.payload)
@@ -271,7 +277,9 @@ def test_take_profit_trigger_creates_reduce_flow(postgres_test_settings: Setting
     risk = client.get("/ui/risk")
     assert portfolio.status_code == 200
     assert risk.status_code == 200
-    assert portfolio.json()["monitor_status"]["latest_event_type"].startswith("position_monitor.")
+    assert portfolio.json()["monitor_status"]["latest_event_type"].startswith(
+        "position_monitor."
+    )
     assert portfolio.json()["positions"][0]["latest_quote_ltp_inr"] == 1130.0
     assert portfolio.json()["positions"][0]["stop_loss_price_inr"] is not None
     assert risk.json()["latest_risk_reviews"][0]["evaluation_mode"] == "market_hours"
@@ -312,9 +320,11 @@ def test_quote_fetch_failure_audits_and_skips_symbol(
 
     with build_session_factory(settings)() as session:
         snapshots = MarketPriceSnapshotRepository(session).latest(symbol="INFY")
-        audit_count = session.query(AuditLogModel).filter(
-            AuditLogModel.event_type == "position_monitor.quote_fetch_failed"
-        ).count()
+        audit_count = (
+            session.query(AuditLogModel)
+            .filter(AuditLogModel.event_type == "position_monitor.quote_fetch_failed")
+            .count()
+        )
 
     assert result.quote_failures == 1
     assert snapshots is None
@@ -408,7 +418,9 @@ def _seed_monitor_fixture(settings: Settings) -> None:
         )
         assert proposal.take_profit_pct == TAKE_PROFIT_PCT
     with session_factory() as session:
-        review = RiskReviewService(session, settings).run(symbol="INFY", proposal=proposal)
+        review = RiskReviewService(session, settings).run(
+            symbol="INFY", proposal=proposal
+        )
     with session_factory() as session:
         decision = PortfolioManagerAgent(
             session,

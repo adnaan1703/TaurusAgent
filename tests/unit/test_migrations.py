@@ -26,8 +26,7 @@ def test_migration_widens_agent_model_version_columns(
 
     inspector = inspect(engine)
     columns = {
-        column["name"]: column
-        for column in inspector.get_columns("trader_proposals")
+        column["name"]: column for column in inspector.get_columns("trader_proposals")
     }
     assert str(columns["model_version"]["type"]).lower() == "text"
 
@@ -99,10 +98,14 @@ def test_migration_replaces_legacy_graph_edge_inferred_column(
 
     with engine.begin() as connection:
         connection.execute(
-            text("ALTER TABLE graph_edges DROP CONSTRAINT ck_graph_edges_provenance_type")
+            text(
+                "ALTER TABLE graph_edges DROP CONSTRAINT ck_graph_edges_provenance_type"
+            )
         )
         connection.execute(
-            text("ALTER TABLE graph_edges ADD COLUMN inferred BOOLEAN NOT NULL DEFAULT false")
+            text(
+                "ALTER TABLE graph_edges ADD COLUMN inferred BOOLEAN NOT NULL DEFAULT false"
+            )
         )
         connection.execute(text("UPDATE graph_edges SET inferred = true"))
         connection.execute(text("ALTER TABLE graph_edges DROP COLUMN provenance_type"))
@@ -117,7 +120,9 @@ def test_migration_replaces_legacy_graph_edge_inferred_column(
     }
     with engine.begin() as connection:
         row = connection.execute(
-            text("SELECT provenance_type FROM graph_edges WHERE edge_key = 'peer:INFY:TCS'")
+            text(
+                "SELECT provenance_type FROM graph_edges WHERE edge_key = 'peer:INFY:TCS'"
+            )
         ).one()
 
     assert "provenance_type" in columns

@@ -66,7 +66,9 @@ class BearResearcherAgent:
         thesis = BearThesis(
             symbol=symbol,
             score=_guarded_bear_score(baseline.score, draft.score),
-            confidence=_guarded_decimal(baseline.confidence, draft.confidence, unit=True),
+            confidence=_guarded_decimal(
+                baseline.confidence, draft.confidence, unit=True
+            ),
             key_points=key_points,
             risk_flags=risk_flags or self._risk_flags(reports),
             source_report_ids=baseline.source_report_ids,
@@ -123,7 +125,9 @@ class BearResearcherAgent:
         low_confidence_penalty = Decimal("0")
         for report in reports:
             confidence_total += report.confidence
-            weighted_negative += abs(min(report.score, Decimal("0"))) * report.confidence
+            weighted_negative += (
+                abs(min(report.score, Decimal("0"))) * report.confidence
+            )
             if report.confidence < Decimal("0.50"):
                 low_confidence_penalty += Decimal("0.05")
         if confidence_total == 0:
@@ -137,11 +141,17 @@ class BearResearcherAgent:
         return _clamp(score).quantize(SCORE_QUANT)
 
     def _confidence(self, reports: list[AnalystReport], score: Decimal) -> Decimal:
-        average = sum((report.confidence for report in reports), Decimal("0")) / Decimal(len(reports))
-        risk_density = sum(len(report.risks) for report in reports) / max(len(reports), 1)
+        average = sum(
+            (report.confidence for report in reports), Decimal("0")
+        ) / Decimal(len(reports))
+        risk_density = sum(len(report.risks) for report in reports) / max(
+            len(reports), 1
+        )
         risk_boost = min(Decimal("0.15"), Decimal(str(risk_density)) * Decimal("0.025"))
         conviction_boost = abs(score) * Decimal("0.20")
-        return _clamp_unit(average + risk_boost + conviction_boost).quantize(SCORE_QUANT)
+        return _clamp_unit(average + risk_boost + conviction_boost).quantize(
+            SCORE_QUANT
+        )
 
     def _key_points(self, symbol: str, reports: list[AnalystReport]) -> list[str]:
         ranked = sorted(
@@ -154,7 +164,9 @@ class BearResearcherAgent:
             points.append(f"{report.agent_name}: {first_risk}")
             if len(points) == 3:
                 break
-        return points or [f"No bearish evidence was available for {symbol}; no-trade case is minimal."]
+        return points or [
+            f"No bearish evidence was available for {symbol}; no-trade case is minimal."
+        ]
 
     def _risk_flags(self, reports: list[AnalystReport]) -> list[str]:
         flags: list[str] = []
@@ -162,12 +174,16 @@ class BearResearcherAgent:
             if report.score <= Decimal("-0.10"):
                 flags.append(f"{report.agent_name} has bearish score {report.score}.")
             if report.confidence < Decimal("0.50"):
-                flags.append(f"{report.agent_name} confidence is only {report.confidence}.")
+                flags.append(
+                    f"{report.agent_name} confidence is only {report.confidence}."
+                )
         for report in sorted(reports, key=lambda item: item.agent_name):
             flags.extend(report.risks[:1])
             if len(flags) >= 4:
                 break
-        return flags[:4] or ["No explicit bearish risk flags were produced by analyst reports."]
+        return flags[:4] or [
+            "No explicit bearish risk flags were produced by analyst reports."
+        ]
 
 
 def _clamp(value: Decimal) -> Decimal:
@@ -203,9 +219,9 @@ def _guarded_decimal(rule_value: Decimal, llm_value: Decimal, *, unit: bool) -> 
 
 
 def _guarded_bear_score(rule_value: Decimal, llm_value: Decimal) -> Decimal:
-    return min(Decimal("0"), _guarded_decimal(rule_value, llm_value, unit=False)).quantize(
-        SCORE_QUANT
-    )
+    return min(
+        Decimal("0"), _guarded_decimal(rule_value, llm_value, unit=False)
+    ).quantize(SCORE_QUANT)
 
 
 def _valid_llm_text(

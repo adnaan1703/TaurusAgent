@@ -6,7 +6,10 @@ from decimal import Decimal
 from types import MappingProxyType
 from typing import Mapping
 
-from taurus_core.features.store import FeatureSnapshot, TECHNICAL_OHLCV_V2_FEATURE_VERSION
+from taurus_core.features.store import (
+    FeatureSnapshot,
+    TECHNICAL_OHLCV_V2_FEATURE_VERSION,
+)
 from taurus_core.features.technical_context import (
     DEFAULT_TECHNICAL_CONTEXT_FEATURES,
     TechnicalFeatureContext,
@@ -143,7 +146,10 @@ class TechnicalOhlcvSignalResult:
         object.__setattr__(
             self,
             "top_contributors",
-            tuple(MappingProxyType(dict(contributor)) for contributor in self.top_contributors),
+            tuple(
+                MappingProxyType(dict(contributor))
+                for contributor in self.top_contributors
+            ),
         )
         object.__setattr__(self, "missing_features", tuple(self.missing_features))
         object.__setattr__(self, "source_ids", tuple(self.source_ids))
@@ -178,7 +184,9 @@ class TechnicalSignalService:
         )
         confidence = Decimal("0.6800") if values else Decimal("0.3500")
         components = _analyst_components(values, latest_signal)
-        missing_features = tuple(name for name in ANALYST_FEATURE_NAMES if name not in values)
+        missing_features = tuple(
+            name for name in ANALYST_FEATURE_NAMES if name not in values
+        )
         return TechnicalSignalResult(
             profile_name=ANALYST_RULE_PROFILE,
             available=True,
@@ -196,9 +204,15 @@ class TechnicalSignalService:
                 "feature_time": snapshot.feature_time.isoformat()
                 if snapshot is not None
                 else None,
-                "as_of_date": snapshot.as_of_date.isoformat() if snapshot is not None else None,
-                "signal_id": latest_signal.signal_id if latest_signal is not None else None,
-                "signal_action": latest_signal.action if latest_signal is not None else None,
+                "as_of_date": snapshot.as_of_date.isoformat()
+                if snapshot is not None
+                else None,
+                "signal_id": latest_signal.signal_id
+                if latest_signal is not None
+                else None,
+                "signal_action": latest_signal.action
+                if latest_signal is not None
+                else None,
                 "score_precision": ANALYST_SCORE_VALUE,
             },
         )
@@ -328,7 +342,9 @@ class TechnicalSignalService:
             (alpha_score, risk_score, tradability_score),
             composite_raw,
         )
-        tradability_quality = _feature_group_quality(values, OHLCV_V2_TRADABILITY_FEATURES)
+        tradability_quality = _feature_group_quality(
+            values, OHLCV_V2_TRADABILITY_FEATURES
+        )
         confidence = _ohlcv_confidence(
             coverage=coverage,
             lookback_quality=lookback_quality,
@@ -389,7 +405,8 @@ class TechnicalSignalService:
                 "available_feature_count": len(OHLCV_V2_REQUIRED_FEATURES)
                 - len(missing_features),
                 "family_weights": {
-                    family: str(weight) for family, weight in OHLCV_V2_FAMILY_WEIGHTS.items()
+                    family: str(weight)
+                    for family, weight in OHLCV_V2_FAMILY_WEIGHTS.items()
                 },
                 "universe_context_available": universe_context is not None,
                 "symbol_context_available": symbol_context is not None,
@@ -653,7 +670,9 @@ def _alpha_contributors(
             family="alpha",
             label="RSI-14 momentum balance",
             weight=Decimal("0.05"),
-            raw_transform=lambda value: _bounded((value - Decimal("50")) / Decimal("25")),
+            raw_transform=lambda value: _bounded(
+                (value - Decimal("50")) / Decimal("25")
+            ),
         ),
     ]
     return [contributor for contributor in contributors if contributor is not None]
@@ -741,7 +760,9 @@ def _risk_contributors(
             label="20-day return instability",
             value=values.get("return_20d"),
             weight=Decimal("0.08"),
-            raw_transform=lambda value: _bounded(ONE - ((abs(value) / Decimal("0.18")) * 2)),
+            raw_transform=lambda value: _bounded(
+                ONE - ((abs(value) / Decimal("0.18")) * 2)
+            ),
         ),
     ]
     return [contributor for contributor in contributors if contributor is not None]
@@ -814,7 +835,9 @@ def _context_feature(
     value = values.get(feature_name)
     if value is None:
         return None
-    context_feature = symbol_context.get(feature_name) if symbol_context is not None else None
+    context_feature = (
+        symbol_context.get(feature_name) if symbol_context is not None else None
+    )
     if context_feature is not None:
         score = _context_feature_score(context_feature)
         source = "universe_context"
@@ -857,7 +880,9 @@ def _derived_feature(
 def _context_feature_score(context_feature: TechnicalFeatureContext) -> Decimal:
     z_component = _bounded(context_feature.directional_z_score / Decimal("2"))
     percentile_component = (context_feature.percentile - Decimal("0.5")) * Decimal("2")
-    return _bounded((z_component * Decimal("0.60")) + (percentile_component * Decimal("0.40")))
+    return _bounded(
+        (z_component * Decimal("0.60")) + (percentile_component * Decimal("0.40"))
+    )
 
 
 def _family_score(
@@ -867,10 +892,13 @@ def _family_score(
     if not contributors:
         return ZERO.quantize(OHLCV_V2_SCORE_VALUE), {}
     total_weight = sum((contributor.weight for contributor in contributors), ZERO)
-    score = sum(
-        (contributor.score * contributor.weight for contributor in contributors),
-        ZERO,
-    ) / total_weight
+    score = (
+        sum(
+            (contributor.score * contributor.weight for contributor in contributors),
+            ZERO,
+        )
+        / total_weight
+    )
     components: dict[str, Decimal] = {}
     for contributor in contributors:
         components[f"{family}.{contributor.feature_name}.score"] = (
@@ -940,16 +968,24 @@ def _contributor_direction(family: str, contribution: Decimal) -> str:
 def _coverage_ratio(*, available_count: int, total_count: int) -> Decimal:
     if total_count <= 0:
         return ZERO.quantize(OHLCV_V2_SCORE_VALUE)
-    return (Decimal(available_count) / Decimal(total_count)).quantize(OHLCV_V2_SCORE_VALUE)
+    return (Decimal(available_count) / Decimal(total_count)).quantize(
+        OHLCV_V2_SCORE_VALUE
+    )
 
 
 def _lookback_quality(values: Mapping[str, Decimal]) -> Decimal:
     if all(
         feature in values
-        for feature in ("return_252d", "vol_adjusted_return_252d", "distance_from_52w_high")
+        for feature in (
+            "return_252d",
+            "vol_adjusted_return_252d",
+            "distance_from_52w_high",
+        )
     ):
         return Decimal("1.0000")
-    if all(feature in values for feature in ("return_126d", "vol_adjusted_return_126d")):
+    if all(
+        feature in values for feature in ("return_126d", "vol_adjusted_return_126d")
+    ):
         return Decimal("0.8000")
     if all(feature in values for feature in ("return_63d", "vol_adjusted_return_63d")):
         return Decimal("0.6500")
@@ -977,7 +1013,9 @@ def _context_coverage(symbol_context: TechnicalSymbolContext | None) -> Decimal:
     if symbol_context is None:
         return ZERO.quantize(OHLCV_V2_SCORE_VALUE)
     available_count = sum(
-        1 for feature in DEFAULT_TECHNICAL_CONTEXT_FEATURES if symbol_context.get(feature)
+        1
+        for feature in DEFAULT_TECHNICAL_CONTEXT_FEATURES
+        if symbol_context.get(feature)
     )
     return _coverage_ratio(
         available_count=available_count,
@@ -990,8 +1028,12 @@ def _family_agreement(scores: tuple[Decimal, ...], composite_raw: Decimal) -> De
     if not non_zero_scores or composite_raw == ZERO:
         return Decimal("0.5000")
     composite_sign = ONE if composite_raw > ZERO else Decimal("-1")
-    aligned = sum(1 for score in non_zero_scores if _score_sign(score) == composite_sign)
-    return (Decimal(aligned) / Decimal(len(non_zero_scores))).quantize(OHLCV_V2_SCORE_VALUE)
+    aligned = sum(
+        1 for score in non_zero_scores if _score_sign(score) == composite_sign
+    )
+    return (Decimal(aligned) / Decimal(len(non_zero_scores))).quantize(
+        OHLCV_V2_SCORE_VALUE
+    )
 
 
 def _score_sign(score: Decimal) -> Decimal:
@@ -1003,7 +1045,9 @@ def _feature_group_quality(
     feature_names: tuple[str, ...],
 ) -> Decimal:
     available_count = sum(1 for feature in feature_names if feature in values)
-    return _coverage_ratio(available_count=available_count, total_count=len(feature_names))
+    return _coverage_ratio(
+        available_count=available_count, total_count=len(feature_names)
+    )
 
 
 def _ohlcv_confidence(
@@ -1023,10 +1067,14 @@ def _ohlcv_confidence(
         + (family_agreement * Decimal("0.15"))
         + (tradability_quality * Decimal("0.10"))
     )
-    return _clamp(raw, Decimal("0.0500"), Decimal("0.9500")).quantize(OHLCV_V2_SCORE_VALUE)
+    return _clamp(raw, Decimal("0.0500"), Decimal("0.9500")).quantize(
+        OHLCV_V2_SCORE_VALUE
+    )
 
 
-def _missing_context_features(symbol_context: TechnicalSymbolContext | None) -> list[str]:
+def _missing_context_features(
+    symbol_context: TechnicalSymbolContext | None,
+) -> list[str]:
     if symbol_context is None:
         return list(DEFAULT_TECHNICAL_CONTEXT_FEATURES)
     return [
@@ -1066,7 +1114,9 @@ def _lower_is_better_score(value: Decimal, scale: Decimal) -> Decimal:
 
 
 def _bollinger_extension_score(value: Decimal) -> Decimal:
-    return _bounded(ONE - ((abs(value - Decimal("0.5")) / Decimal("0.25")) * Decimal("2")))
+    return _bounded(
+        ONE - ((abs(value - Decimal("0.5")) / Decimal("0.25")) * Decimal("2"))
+    )
 
 
 def _bounded_score(value: Decimal) -> Decimal:

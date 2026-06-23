@@ -117,7 +117,9 @@ class PortfolioAllocationService:
         self,
         allocation_input: ActiveAllocationInput,
     ) -> tuple[Decimal, dict[str, Decimal]]:
-        return _candidate_score(allocation_input, weights=self.policy.allocation_scoring.weights)
+        return _candidate_score(
+            allocation_input, weights=self.policy.allocation_scoring.weights
+        )
 
     def score_band_for(self, score: Decimal) -> tuple[str, Decimal]:
         return _score_band(
@@ -156,7 +158,9 @@ class PortfolioAllocationService:
                         if mapped_sleeve is None
                         else "strategy_not_allocatable_sleeve"
                     ),
-                    rationale=("Strategy is outside M34 strategy-sleeve allocation scope.",),
+                    rationale=(
+                        "Strategy is outside M34 strategy-sleeve allocation scope.",
+                    ),
                 ),
             )
 
@@ -185,7 +189,9 @@ class PortfolioAllocationService:
                 ),
             )
 
-        governor = _evaluate_governors(allocation_input, sleeve=sleeve, policy=self.policy)
+        governor = _evaluate_governors(
+            allocation_input, sleeve=sleeve, policy=self.policy
+        )
         if governor.frozen:
             return self._rejected_buy(
                 allocation_input,
@@ -318,11 +324,14 @@ class PortfolioAllocationService:
             caps.items(),
             key=lambda item: (item[1], item[0]),
         )
-        approved_quantity = int((approved_notional / sizing_price).to_integral_value(rounding=ROUND_DOWN))
+        approved_quantity = int(
+            (approved_notional / sizing_price).to_integral_value(rounding=ROUND_DOWN)
+        )
         approved_notional = _money(latest_price * Decimal(approved_quantity))
         estimated_risk = _money(risk_per_share * Decimal(approved_quantity))
         target_position = (
-            ((current_notional + approved_notional) / allocation_input.nav_inr) * Decimal("100")
+            ((current_notional + approved_notional) / allocation_input.nav_inr)
+            * Decimal("100")
             if allocation_input.nav_inr > 0
             else Decimal("0")
         ).quantize(SCORE_QUANT)
@@ -432,7 +441,9 @@ class PortfolioAllocationService:
             updated = proposal.model_copy(
                 update={
                     "action": "HOLD",
-                    "target_position_pct_nav": current_position_pct_nav.quantize(SCORE_QUANT),
+                    "target_position_pct_nav": current_position_pct_nav.quantize(
+                        SCORE_QUANT
+                    ),
                     "order_type": "NONE",
                     "entry_rule": "Strategy-sleeve allocation produced no incremental paper BUY quantity.",
                     "model_version": f"{proposal.model_version}+{self.model_version}",
@@ -475,14 +486,18 @@ def _evaluate_governors(
     portfolio_drawdown = _portfolio_drawdown_pct(allocation_input)
     sleeve_snapshot = _sleeve_snapshot_for(allocation_input, sleeve.sleeve_id)
     sleeve_drawdown = (
-        sleeve_snapshot.drawdown_pct if sleeve_snapshot is not None else Decimal("0.0000")
+        sleeve_snapshot.drawdown_pct
+        if sleeve_snapshot is not None
+        else Decimal("0.0000")
     )
     scale_factor = Decimal("1.0000")
     frozen = False
     binding_constraint: str | None = None
     reasons: list[str] = []
 
-    for governor in sorted(policy.drawdown_governors, key=lambda item: item.drawdown_pct):
+    for governor in sorted(
+        policy.drawdown_governors, key=lambda item: item.drawdown_pct
+    ):
         if portfolio_drawdown <= governor.drawdown_pct:
             continue
         action = governor.action.strip().lower()
@@ -494,7 +509,10 @@ def _evaluate_governors(
             scale_factor = min(scale_factor, Decimal("0.7500"))
         elif action == "reduce_new_position_sizes_50_pct":
             scale_factor = min(scale_factor, Decimal("0.5000"))
-        elif action == "stop_experimental_new_entries" and sleeve.sleeve_id == EXPERIMENTAL_SLEEVE_ID:
+        elif (
+            action == "stop_experimental_new_entries"
+            and sleeve.sleeve_id == EXPERIMENTAL_SLEEVE_ID
+        ):
             frozen = True
             binding_constraint = "experimental_portfolio_drawdown_freeze"
         elif action == "freeze_new_buys_allow_exits":
@@ -547,11 +565,7 @@ def _portfolio_drawdown_pct(allocation_input: ActiveAllocationInput) -> Decimal:
         )
     if starting_nav <= 0:
         return Decimal("0.0000")
-    drawdown = (
-        (starting_nav - allocation_input.nav_inr)
-        / starting_nav
-        * Decimal("100")
-    )
+    drawdown = (starting_nav - allocation_input.nav_inr) / starting_nav * Decimal("100")
     return max(Decimal("0"), drawdown).quantize(SCORE_QUANT)
 
 
@@ -570,7 +584,9 @@ def _sleeve_snapshot_for(
     )
 
 
-def _requested_increase_notional(*, proposal: TraderProposal, nav_inr: Decimal) -> Decimal:
+def _requested_increase_notional(
+    *, proposal: TraderProposal, nav_inr: Decimal
+) -> Decimal:
     requested_pct = max(
         Decimal("0"),
         proposal.target_position_pct_nav - proposal.current_position_pct_nav,
@@ -587,15 +603,17 @@ def _pct_to_notional(percent: Decimal, nav_inr: Decimal) -> Decimal:
 def _latest_close(history: tuple[DailyCandle, ...]) -> Decimal:
     if not history:
         return Decimal("0")
-    return sorted(history, key=lambda candle: candle.trade_date)[-1].close.quantize(MONEY_QUANT)
+    return sorted(history, key=lambda candle: candle.trade_date)[-1].close.quantize(
+        MONEY_QUANT
+    )
 
 
 def _buffered_price(*, latest_price: Decimal, buy_price_buffer_pct: Decimal) -> Decimal:
     if latest_price <= 0 or buy_price_buffer_pct <= 0:
         return latest_price
-    return (latest_price * (Decimal("1") + (buy_price_buffer_pct / Decimal("100")))).quantize(
-        MONEY_QUANT
-    )
+    return (
+        latest_price * (Decimal("1") + (buy_price_buffer_pct / Decimal("100")))
+    ).quantize(MONEY_QUANT)
 
 
 def _risk_per_share(*, latest_price: Decimal, stop_loss_pct: Decimal) -> Decimal:
@@ -631,21 +649,25 @@ def _candidate_score(
         )
         strategy_component = strategy_calibration.allocation_score_component
         strategy_parts = strategy_calibration.score_parts()
-    confidence_component = (allocation_input.proposal.confidence * Decimal("100")).quantize(
-        SCORE_QUANT
-    )
+    confidence_component = (
+        allocation_input.proposal.confidence * Decimal("100")
+    ).quantize(SCORE_QUANT)
     liquidity_component = _liquidity_score(history)
     volatility = _realized_volatility(history)
     volatility_component = _volatility_score(volatility)
     diversification_component = _diversification_score(allocation_input)
-    performance_component = allocation_input.recent_sleeve_performance_score or Decimal("75")
+    performance_component = allocation_input.recent_sleeve_performance_score or Decimal(
+        "75"
+    )
     parts = {
         **strategy_parts,
         "trader_confidence": confidence_component,
         "liquidity": liquidity_component,
         "volatility": volatility_component,
         "diversification": diversification_component,
-        "recent_sleeve_performance": _clamp(performance_component, Decimal("0"), Decimal("100")),
+        "recent_sleeve_performance": _clamp(
+            performance_component, Decimal("0"), Decimal("100")
+        ),
     }
     score = (
         (parts["strategy_score"] * weights.strategy_score)
@@ -653,10 +675,7 @@ def _candidate_score(
         + (parts["liquidity"] * weights.liquidity)
         + (parts["volatility"] * weights.volatility)
         + (parts["diversification"] * weights.diversification)
-        + (
-            parts["recent_sleeve_performance"]
-            * weights.recent_sleeve_performance
-        )
+        + (parts["recent_sleeve_performance"] * weights.recent_sleeve_performance)
     ).quantize(SCORE_QUANT)
     return _clamp(score, Decimal("0"), Decimal("100")), parts
 
@@ -674,7 +693,9 @@ def _liquidity_score(history: tuple[DailyCandle, ...]) -> Decimal:
         return Decimal("100")
     if liquidity <= 1_000_000:
         return Decimal("20")
-    return Decimal(str(20 + ((liquidity - 1_000_000) / 49_000_000 * 80))).quantize(SCORE_QUANT)
+    return Decimal(str(20 + ((liquidity - 1_000_000) / 49_000_000 * 80))).quantize(
+        SCORE_QUANT
+    )
 
 
 def _realized_volatility(history: tuple[DailyCandle, ...]) -> Decimal:
@@ -698,7 +719,9 @@ def _volatility_score(volatility: Decimal) -> Decimal:
         return Decimal("100")
     if volatility >= Decimal("0.6000"):
         return Decimal("25")
-    score = Decimal("100") - ((volatility - Decimal("0.1200")) / Decimal("0.4800") * Decimal("75"))
+    score = Decimal("100") - (
+        (volatility - Decimal("0.1200")) / Decimal("0.4800") * Decimal("75")
+    )
     return _clamp(score, Decimal("25"), Decimal("100")).quantize(SCORE_QUANT)
 
 
@@ -757,7 +780,9 @@ def _risk_to_notional(
 ) -> Decimal:
     if allowed_risk_inr <= 0 or latest_price <= 0 or risk_per_share <= 0:
         return Decimal("0")
-    quantity = int((allowed_risk_inr / risk_per_share).to_integral_value(rounding=ROUND_DOWN))
+    quantity = int(
+        (allowed_risk_inr / risk_per_share).to_integral_value(rounding=ROUND_DOWN)
+    )
     return _money(latest_price * Decimal(quantity))
 
 
@@ -789,9 +814,9 @@ def _sleeve_capacity_room(
             if sleeve_capacity_override_inr is not None
             else _pct_to_notional(sleeve_target_pct, nav_inr)
         )
-        return max(Decimal("0"), capacity - sleeve_snapshot.current_exposure_inr).quantize(
-            MONEY_QUANT
-        )
+        return max(
+            Decimal("0"), capacity - sleeve_snapshot.current_exposure_inr
+        ).quantize(MONEY_QUANT)
 
     core_symbols = {symbol.upper() for symbol in core_basket_symbols}
     current_active_notional = sum(
@@ -834,10 +859,12 @@ def _cash_buffer_room(
     allocation_input: ActiveAllocationInput,
     policy: MoneyManagementPolicy,
 ) -> Decimal:
-    protected_cash = _pct_to_notional(policy.cash_buffer_target_pct, allocation_input.nav_inr)
-    return max(Decimal("0"), allocation_input.available_cash_inr - protected_cash).quantize(
-        MONEY_QUANT
+    protected_cash = _pct_to_notional(
+        policy.cash_buffer_target_pct, allocation_input.nav_inr
     )
+    return max(
+        Decimal("0"), allocation_input.available_cash_inr - protected_cash
+    ).quantize(MONEY_QUANT)
 
 
 def _total_trade_risk_room(
@@ -878,7 +905,9 @@ def _open_position_room(
     proposal = allocation_input.proposal
     if proposal.current_position_quantity > 0:
         return Decimal("999999999999.99")
-    open_count = sum(1 for position in allocation_input.current_positions if position.quantity > 0)
+    open_count = sum(
+        1 for position in allocation_input.current_positions if position.quantity > 0
+    )
     if open_count >= policy.limits.max_open_positions:
         return Decimal("0")
     return Decimal("999999999999.99")

@@ -125,7 +125,9 @@ def test_missing_provider_records_metric_and_raises() -> None:
 def test_provider_failure_records_metric_and_raises() -> None:
     before = current_llm_failure_count()
 
-    with pytest.raises(LLMProviderError, match="ResearchManagerAgent LLM provider failed"):
+    with pytest.raises(
+        LLMProviderError, match="ResearchManagerAgent LLM provider failed"
+    ):
         ResearchManagerAgent(llm_provider=_FailingManagerProvider()).run(
             symbol="INFY",
             reports=_reports(),
@@ -140,7 +142,9 @@ def test_provider_failure_records_metric_and_raises() -> None:
 def test_invalid_provider_schema_records_metric_and_raises() -> None:
     before = current_llm_failure_count()
 
-    with pytest.raises(LLMProviderError, match="ResearchManagerAgent LLM provider failed"):
+    with pytest.raises(
+        LLMProviderError, match="ResearchManagerAgent LLM provider failed"
+    ):
         ResearchManagerAgent(llm_provider=_InvalidManagerProvider()).run(
             symbol="INFY",
             reports=_reports(),
@@ -222,8 +226,12 @@ def _bull_thesis() -> BullThesis:
         symbol="INFY",
         score=Decimal("0.2000"),
         confidence=Decimal("0.7000"),
-        key_points=["TechnicalAnalystAgent: src-tech momentum supports the bull thesis."],
-        conditions=["TechnicalAnalystAgent: bull thesis fails if src-tech momentum deteriorates."],
+        key_points=[
+            "TechnicalAnalystAgent: src-tech momentum supports the bull thesis."
+        ],
+        conditions=[
+            "TechnicalAnalystAgent: bull thesis fails if src-tech momentum deteriorates."
+        ],
         source_report_ids=["ar-bear", "ar-tech"],
     )
 
@@ -233,7 +241,9 @@ def _bear_thesis() -> BearThesis:
         symbol="INFY",
         score=Decimal("-0.1000"),
         confidence=Decimal("0.6000"),
-        key_points=["NewsAnalystAgent: src-news guidance risk challenges the bull thesis."],
+        key_points=[
+            "NewsAnalystAgent: src-news guidance risk challenges the bull thesis."
+        ],
         risk_flags=["Guidance risk remains active while src-news evidence persists."],
         source_report_ids=["ar-bear", "ar-tech"],
     )

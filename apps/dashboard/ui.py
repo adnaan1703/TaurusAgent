@@ -40,7 +40,9 @@ def load_data(settings: Settings, reader: Callable[[Any], T], fallback: T) -> T:
         return fallback
 
 
-def render_table(rows: list[dict[str, Any]], *, empty_label: str = "No records yet.") -> None:
+def render_table(
+    rows: list[dict[str, Any]], *, empty_label: str = "No records yet."
+) -> None:
     if not rows:
         st.info(empty_label)
         return

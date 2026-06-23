@@ -32,7 +32,11 @@ from taurus_core.db.repositories import (
     InstrumentRepository,
     TaurusProfileRepository,
 )
-from taurus_core.db.repositories import PaperRunRepository, ResearchRepository, RiskRepository
+from taurus_core.db.repositories import (
+    PaperRunRepository,
+    ResearchRepository,
+    RiskRepository,
+)
 from taurus_core.db.session import build_session_factory
 from taurus_core.domain.instruments import Instrument
 from taurus_core.execution.order_router import ExecutionRouter
@@ -104,7 +108,9 @@ def test_execution_symbol_order_queues_sell_side_before_buys() -> None:
     allocation_result = RunAllocationResult(
         proposals=tuple(),
         ledger=(
-            _ledger_entry(symbol="AAA", action="BUY", status="selected", planner_rank=1),
+            _ledger_entry(
+                symbol="AAA", action="BUY", status="selected", planner_rank=1
+            ),
             _ledger_entry(
                 symbol="TCS",
                 action="EXIT",
@@ -117,17 +123,25 @@ def test_execution_symbol_order_queues_sell_side_before_buys() -> None:
         policy_source="portfolio_plan",
     )
     finalizations = {
-        "AAA": SimpleNamespace(final_decision=_final_decision(symbol="AAA", action="BUY")),
-        "TCS": SimpleNamespace(final_decision=_final_decision(symbol="TCS", action="EXIT")),
+        "AAA": SimpleNamespace(
+            final_decision=_final_decision(symbol="AAA", action="BUY")
+        ),
+        "TCS": SimpleNamespace(
+            final_decision=_final_decision(symbol="TCS", action="EXIT")
+        ),
     }
 
-    assert _execution_symbol_order(finalizations, allocation_result=allocation_result) == [
+    assert _execution_symbol_order(
+        finalizations, allocation_result=allocation_result
+    ) == [
         "TCS",
         "AAA",
     ]
 
 
-def test_paper_run_service_executes_full_chain_and_api_returns_runs(tmp_path: Path) -> None:
+def test_paper_run_service_executes_full_chain_and_api_returns_runs(
+    tmp_path: Path,
+) -> None:
     settings = _settings_for_temp_db(tmp_path)
     run = PaperRunService(settings).run_once(symbols=["INFY"])
 
@@ -141,11 +155,17 @@ def test_paper_run_service_executes_full_chain_and_api_returns_runs(tmp_path: Pa
     assert run.artifacts["strategy"]["strategy_name"]
     assert run.artifacts["portfolio_plan"]["run_id"] == run.run_id
     assert run.artifacts["portfolio_plan"]["portfolio_id"] == "local-paper"
-    assert run.artifacts["portfolio_plan"]["model_version"] == "portfolio_rebalance_plan_v3"
+    assert (
+        run.artifacts["portfolio_plan"]["model_version"]
+        == "portfolio_rebalance_plan_v3"
+    )
     assert run.artifacts["portfolio_plan"]["planned_trades"][0]["symbol"] == "INFY"
     assert run.artifacts["symbols"]["INFY"]["final_status"] == "APPROVED_FOR_PAPER"
     assert run.artifacts["symbols"]["INFY"]["order_status"] == "PENDING_NEXT_OPEN"
-    assert run.artifacts["symbols"]["INFY"]["order_reason"] == "queued_for_next_open_settlement"
+    assert (
+        run.artifacts["symbols"]["INFY"]["order_reason"]
+        == "queued_for_next_open_settlement"
+    )
     assert run.artifacts["symbols"]["INFY"]["analyst_roster"] == {
         "enabled": ["technical"],
         "skipped": ["news", "sentiment", "fundamentals", "graph"],
@@ -194,7 +214,9 @@ def test_paper_run_profile_lineage_and_repository_filters(tmp_path: Path) -> Non
     client_settings = _settings_for_temp_db(tmp_path, profile_id="client-a")
     local_settings = _settings_for_temp_db(tmp_path, profile_id="local-paper")
     session_factory = build_session_factory(client_settings)
-    _create_profile(session_factory, profile_id="client-a", corpus_inr=Decimal("250000"))
+    _create_profile(
+        session_factory, profile_id="client-a", corpus_inr=Decimal("250000")
+    )
     client_run = PaperRunService(client_settings).run_once(symbols=["INFY"])
     local_run = PaperRunService(local_settings).run_once(symbols=["INFY"])
 
@@ -228,18 +250,24 @@ def test_paper_run_profile_lineage_and_repository_filters(tmp_path: Path) -> Non
             for row in session.scalars(
                 select(AuditLogModel)
                 .where(AuditLogModel.payload["run_id"].as_string() == client_run.run_id)
-                .where(AuditLogModel.event_type.in_(["paper_run.started", "paper_run.completed"]))
+                .where(
+                    AuditLogModel.event_type.in_(
+                        ["paper_run.started", "paper_run.completed"]
+                    )
+                )
             )
         ]
         assert audit_payloads
         assert {payload["portfolio_id"] for payload in audit_payloads} == {"client-a"}
 
-        assert {run.run_id for run in PaperRunRepository(session).list(profile_id="client-a")} == {
-            client_run.run_id
-        }
-        assert {run.run_id for run in PaperRunRepository(session).list(profile_id="local-paper")} == {
-            local_run.run_id
-        }
+        assert {
+            run.run_id
+            for run in PaperRunRepository(session).list(profile_id="client-a")
+        } == {client_run.run_id}
+        assert {
+            run.run_id
+            for run in PaperRunRepository(session).list(profile_id="local-paper")
+        } == {local_run.run_id}
 
         research_repo = ResearchRepository(session)
         risk_repo = RiskRepository(session)
@@ -249,7 +277,9 @@ def test_paper_run_profile_lineage_and_repository_filters(tmp_path: Path) -> Non
         } == {client_run.run_id}
         assert {
             proposal.run_id
-            for proposal in research_repo.list_trader_proposals(profile_id="client-a", limit=None)
+            for proposal in research_repo.list_trader_proposals(
+                profile_id="client-a", limit=None
+            )
         } == {client_run.run_id}
         assert {
             review.run_id
@@ -257,19 +287,43 @@ def test_paper_run_profile_lineage_and_repository_filters(tmp_path: Path) -> Non
         } == {client_run.run_id}
         assert {
             decision.run_id
-            for decision in risk_repo.list_final_decisions(profile_id="client-a", limit=None)
+            for decision in risk_repo.list_final_decisions(
+                profile_id="client-a", limit=None
+            )
         } == {client_run.run_id}
         assert {
             decision.run_id
-            for decision in risk_repo.list_final_decisions(profile_id="local-paper", limit=None)
+            for decision in risk_repo.list_final_decisions(
+                profile_id="local-paper", limit=None
+            )
         } == {local_run.run_id}
 
         for model in (
-            session.scalars(select(AnalystReportModel).where(AnalystReportModel.run_id == client_run.run_id)).all(),
-            session.scalars(select(DebateReportModel).where(DebateReportModel.run_id == client_run.run_id)).all(),
-            session.scalars(select(TraderProposalModel).where(TraderProposalModel.run_id == client_run.run_id)).all(),
-            session.scalars(select(RiskReviewModel).where(RiskReviewModel.run_id == client_run.run_id)).all(),
-            session.scalars(select(FinalDecisionModel).where(FinalDecisionModel.run_id == client_run.run_id)).all(),
+            session.scalars(
+                select(AnalystReportModel).where(
+                    AnalystReportModel.run_id == client_run.run_id
+                )
+            ).all(),
+            session.scalars(
+                select(DebateReportModel).where(
+                    DebateReportModel.run_id == client_run.run_id
+                )
+            ).all(),
+            session.scalars(
+                select(TraderProposalModel).where(
+                    TraderProposalModel.run_id == client_run.run_id
+                )
+            ).all(),
+            session.scalars(
+                select(RiskReviewModel).where(
+                    RiskReviewModel.run_id == client_run.run_id
+                )
+            ).all(),
+            session.scalars(
+                select(FinalDecisionModel).where(
+                    FinalDecisionModel.run_id == client_run.run_id
+                )
+            ).all(),
         ):
             assert model
             assert {row.portfolio_id for row in model} == {"client-a"}
@@ -297,7 +351,9 @@ def test_paper_run_rejects_missing_runtime_profile(tmp_path: Path) -> None:
 def test_paper_run_rejects_archived_runtime_profile(tmp_path: Path) -> None:
     settings = _settings_for_temp_db(tmp_path, profile_id="client-a")
     session_factory = build_session_factory(settings)
-    _create_profile(session_factory, profile_id="client-a", corpus_inr=Decimal("250000"))
+    _create_profile(
+        session_factory, profile_id="client-a", corpus_inr=Decimal("250000")
+    )
     with session_factory() as session:
         TaurusProfileRepository(session).archive_profile("client-a")
         session.commit()
@@ -461,8 +517,7 @@ def test_paper_run_succeeds_without_fundamentals(tmp_path: Path) -> None:
     session_factory = build_session_factory(settings)
     with session_factory() as session:
         agent_names = {
-            row.agent_name
-            for row in session.scalars(select(AnalystReportModel))
+            row.agent_name for row in session.scalars(select(AnalystReportModel))
         }
 
     assert agent_names == {
@@ -503,10 +558,16 @@ def test_paper_run_includes_open_position_symbols_across_runs(tmp_path: Path) ->
     assert first.status == "COMPLETED"
     assert "INFY" in second.symbols
     assert "TCS" in second.symbols
-    assert second.artifacts["strategy"]["symbol_selection"]["INFY"][
-        "included_from_open_position"
-    ] is True
-    assert second.artifacts["strategy"]["symbol_selection"]["TCS"]["requested_explicitly"] is True
+    assert (
+        second.artifacts["strategy"]["symbol_selection"]["INFY"][
+            "included_from_open_position"
+        ]
+        is True
+    )
+    assert (
+        second.artifacts["strategy"]["symbol_selection"]["TCS"]["requested_explicitly"]
+        is True
+    )
 
 
 def test_eod_paper_run_settles_prior_pending_orders_before_new_decisions(
@@ -532,7 +593,9 @@ def test_eod_paper_run_settles_prior_pending_orders_before_new_decisions(
         lambda settings: AdvancingFakeKiteMarketDataProvider(),
     )
 
-    first = PaperRunService(settings, schedule_name="m48_buy_queue").run_once(symbols=["INFY"])
+    first = PaperRunService(settings, schedule_name="m48_buy_queue").run_once(
+        symbols=["INFY"]
+    )
     assert first.status == "COMPLETED"
     assert first.artifacts["settlement"]["settled"] == 0
     assert first.artifacts["symbols"]["INFY"]["order_status"] == "PENDING_NEXT_OPEN"
@@ -540,9 +603,9 @@ def test_eod_paper_run_settles_prior_pending_orders_before_new_decisions(
     candle_count["value"] = 253
     forced_actions = {"INFY": "EXIT"}
     _force_trader_actions(monkeypatch, forced_actions)
-    second = PaperRunService(settings, schedule_name="m48_buy_settle_exit_queue").run_once(
-        symbols=["INFY"]
-    )
+    second = PaperRunService(
+        settings, schedule_name="m48_buy_settle_exit_queue"
+    ).run_once(symbols=["INFY"])
     second_settlement = second.artifacts["settlement"]
     second_symbol = second.artifacts["symbols"]["INFY"]
 
@@ -564,12 +627,16 @@ def test_eod_paper_run_settles_prior_pending_orders_before_new_decisions(
             portfolio_id=settings.taurus_paper_portfolio_id,
             symbol="INFY",
         )
-        second_positions = ExecutionRepository(session).latest_open_positions_by_portfolio(
+        second_positions = ExecutionRepository(
+            session
+        ).latest_open_positions_by_portfolio(
             portfolio_id=settings.taurus_paper_portfolio_id,
         )
 
     assert [fill.side for fill in second_fills] == ["BUY"]
-    assert {position.symbol: position.quantity for position in second_positions}["INFY"] > 0
+    assert {position.symbol: position.quantity for position in second_positions}[
+        "INFY"
+    ] > 0
 
     candle_count["value"] = 254
     forced_actions["INFY"] = "NO_TRADE"
@@ -586,7 +653,9 @@ def test_eod_paper_run_settles_prior_pending_orders_before_new_decisions(
         latest_account = ExecutionRepository(session).latest_account_by_portfolio(
             portfolio_id=settings.taurus_paper_portfolio_id,
         )
-        latest_positions = ExecutionRepository(session).latest_open_positions_by_portfolio(
+        latest_positions = ExecutionRepository(
+            session
+        ).latest_open_positions_by_portfolio(
             portfolio_id=settings.taurus_paper_portfolio_id,
         )
 
@@ -646,10 +715,15 @@ def test_eod_paper_run_settles_prior_pending_orders_before_new_decisions(
     assert Decimal(str(api_account["realized_pnl_inr"])) != Decimal("0")
     assert api_overview["latest_run"]["run_id"] == third.run_id
     assert api_overview["latest_run"]["settlement_summary"]["settled"] == 1
-    assert api_overview["latest_run"]["settlement_summary"]["status_counts"] == {"FILLED": 1}
+    assert api_overview["latest_run"]["settlement_summary"]["status_counts"] == {
+        "FILLED": 1
+    }
     assert second_detail["symbols"][0]["order_status"] == "FILLED"
     assert second_detail["artifacts"]["symbols"]["INFY"]["proposal_action"] == "EXIT"
-    assert second_detail["artifacts"]["symbols"]["INFY"]["order_status"] == "PENDING_NEXT_OPEN"
+    assert (
+        second_detail["artifacts"]["symbols"]["INFY"]["order_status"]
+        == "PENDING_NEXT_OPEN"
+    )
     assert third_detail["artifacts"]["settlement"]["settled"] == 1
     assert third_detail["artifacts"]["settlement"]["details"][0]["side"] == "SELL"
     assert third_detail["artifacts"]["settlement"]["details"][0]["status"] == "FILLED"
@@ -688,7 +762,9 @@ def test_m55_multi_profile_regression_keeps_settled_dashboard_state_isolated(
     )
 
     session_factory = build_session_factory(local_settings)
-    _create_profile(session_factory, profile_id="client-a", corpus_inr=Decimal("250000"))
+    _create_profile(
+        session_factory, profile_id="client-a", corpus_inr=Decimal("250000")
+    )
     with session_factory() as session:
         TaurusProfileRepository(session).update_profile_corpus(
             "local-paper",
@@ -853,7 +929,9 @@ def test_m55_multi_profile_regression_keeps_settled_dashboard_state_isolated(
     assert {order["portfolio_id"] for order in local_portfolio["orders"]} == {
         "local-paper"
     }
-    assert {order["portfolio_id"] for order in client_portfolio["orders"]} == {"client-a"}
+    assert {order["portfolio_id"] for order in client_portfolio["orders"]} == {
+        "client-a"
+    }
     assert {fill["portfolio_id"] for fill in local_portfolio["fills"]} == {
         "local-paper"
     }
@@ -864,7 +942,9 @@ def test_m55_multi_profile_regression_keeps_settled_dashboard_state_isolated(
         == 404
     )
     assert (
-        client.get(f"/paper/account?profile_id=client-a&run_id={local_third.run_id}").status_code
+        client.get(
+            f"/paper/account?profile_id=client-a&run_id={local_third.run_id}"
+        ).status_code
         == 404
     )
     assert client.get("/ui/overview?profile_id=missing-profile").status_code == 404
@@ -875,7 +955,9 @@ def test_eod_paper_run_records_pending_orders_waiting_for_newer_candle(
     tmp_path: Path,
 ) -> None:
     settings = _settings_for_temp_db(tmp_path, enabled_analysts="technical")
-    first = PaperRunService(settings, schedule_name="m48_waiting_seed").run_once(symbols=["INFY"])
+    first = PaperRunService(settings, schedule_name="m48_waiting_seed").run_once(
+        symbols=["INFY"]
+    )
     second = PaperRunService(settings, schedule_name="m48_waiting_review").run_once(
         symbols=["TCS"]
     )
@@ -889,12 +971,18 @@ def test_eod_paper_run_records_pending_orders_waiting_for_newer_candle(
     assert settlement["still_pending"] == 1
     assert settlement["still_pending_order_count"] == 1
     assert settlement["still_pending_orders"][0]["symbol"] == "INFY"
-    assert settlement["still_pending_orders"][0]["outcome_reason"] == "waiting_for_next_candle"
+    assert (
+        settlement["still_pending_orders"][0]["outcome_reason"]
+        == "waiting_for_next_candle"
+    )
     assert "INFY" in scope["pending_next_open_order_symbols"]
     assert "INFY" in scope["analyzed_symbols"]
-    assert second.artifacts["strategy"]["symbol_selection"]["INFY"][
-        "included_from_pending_next_open_order"
-    ] is True
+    assert (
+        second.artifacts["strategy"]["symbol_selection"]["INFY"][
+            "included_from_pending_next_open_order"
+        ]
+        is True
+    )
 
 
 def test_money_management_paper_run_creates_shariah_equity_core_decisions(
@@ -939,8 +1027,12 @@ def test_money_management_paper_run_creates_shariah_equity_core_decisions(
     )
 
 
-def test_sleeve_snapshots_attribute_runtime_core_basket_holdings(tmp_path: Path) -> None:
-    policy_path = _write_active_allocation_policy(tmp_path, max_stock_pct=Decimal("5.0"))
+def test_sleeve_snapshots_attribute_runtime_core_basket_holdings(
+    tmp_path: Path,
+) -> None:
+    policy_path = _write_active_allocation_policy(
+        tmp_path, max_stock_pct=Decimal("5.0")
+    )
     policy = load_money_management_policy(policy_path)
 
     snapshots = _sleeve_snapshots_for_allocation(
@@ -967,7 +1059,9 @@ def test_sleeve_snapshots_attribute_runtime_core_basket_holdings(tmp_path: Path)
     assert by_sleeve["core_shariah"].open_position_count == 1
     assert by_sleeve["active_strategy"].current_exposure_inr == Decimal("0.00")
     assert by_sleeve["active_strategy"].open_position_count == 0
-    assert by_sleeve["diversifying_strategy"].current_exposure_inr == Decimal("50000.00")
+    assert by_sleeve["diversifying_strategy"].current_exposure_inr == Decimal(
+        "50000.00"
+    )
     assert by_sleeve["diversifying_strategy"].open_position_count == 1
 
 
@@ -994,7 +1088,10 @@ def test_graph_enabled_kite_paper_run_uses_graph_roster_strategy_and_risk(
     assert strategy["graph_risk_enabled"] is True
     assert strategy["graph_signal_count"] >= 1
     assert "INFY" in strategy["symbols_with_graph_signals"]
-    assert strategy["graph_strategy_config_path"] == "configs/strategies/graph_aware_score_v1.yaml"
+    assert (
+        strategy["graph_strategy_config_path"]
+        == "configs/strategies/graph_aware_score_v1.yaml"
+    )
     assert strategy["select_targets_with_graph_called"] is True
     assert strategy["eligible_symbol_count"] >= 1
     assert strategy["ranked_symbol_count"] >= 1
@@ -1007,8 +1104,7 @@ def test_graph_enabled_kite_paper_run_uses_graph_roster_strategy_and_risk(
     session_factory = build_session_factory(settings)
     with session_factory() as session:
         agent_names = {
-            row.agent_name
-            for row in session.scalars(select(AnalystReportModel))
+            row.agent_name for row in session.scalars(select(AnalystReportModel))
         }
         risk_review = session.scalars(select(RiskReviewModel)).first()
 
@@ -1046,9 +1142,9 @@ def test_graph_aware_v2_paper_run_passes_universe_context_to_technical_analyst(
         "taurus_core.paper_trading.service.build_market_data_provider",
         lambda settings: LongHistoryFakeKiteMarketDataProvider(),
     )
-    latest_candle_date = LongHistoryFakeKiteMarketDataProvider().get_daily_candles("INFY")[
-        -1
-    ].trade_date
+    latest_candle_date = (
+        LongHistoryFakeKiteMarketDataProvider().get_daily_candles("INFY")[-1].trade_date
+    )
     with build_session_factory(settings)() as session:
         GraphRepository(session).upsert_edge_stats(
             edge_key="peer:INFY:RELIANCE",
@@ -1089,8 +1185,12 @@ def test_graph_aware_v2_paper_run_passes_universe_context_to_technical_analyst(
         score_metadata = payload["score_metadata"]
         technical_v2 = score_metadata["technical_v2"]
         assert payload["model_version"] == OHLCV_V2_PROFILE
-        assert Decimal(str(payload["score"])) == Decimal(technical_v2["composite_score"])
-        assert Decimal(str(payload["confidence"])) == Decimal(technical_v2["confidence"])
+        assert Decimal(str(payload["score"])) == Decimal(
+            technical_v2["composite_score"]
+        )
+        assert Decimal(str(payload["confidence"])) == Decimal(
+            technical_v2["confidence"]
+        )
         assert technical_v2["metadata"]["universe_context_available"] is True
         assert technical_v2["metadata"]["symbol_context_available"] is True
         assert technical_v2["metadata"]["universe_size"] >= 2
@@ -1100,7 +1200,9 @@ def test_graph_aware_v2_paper_run_passes_universe_context_to_technical_analyst(
 def test_graph_enabled_money_management_run_adds_active_allocation_metadata(
     tmp_path: Path,
 ) -> None:
-    policy_path = _write_active_allocation_policy(tmp_path, max_stock_pct=Decimal("1.0"))
+    policy_path = _write_active_allocation_policy(
+        tmp_path, max_stock_pct=Decimal("1.0")
+    )
     settings = _settings_for_temp_db(
         tmp_path,
         enabled_analysts="technical,graph",
@@ -1141,9 +1243,18 @@ def test_graph_enabled_money_management_run_adds_active_allocation_metadata(
         risk_review = session.scalars(select(RiskReviewModel)).one()
         final_decision = session.scalars(select(FinalDecisionModel)).one()
 
-    assert proposal.payload["allocation_decision"]["binding_constraint"] == "stock_exposure"
-    assert risk_review.payload["allocation_decision"]["binding_constraint"] == "stock_exposure"
-    assert final_decision.payload["allocation_decision"]["binding_constraint"] == "stock_exposure"
+    assert (
+        proposal.payload["allocation_decision"]["binding_constraint"]
+        == "stock_exposure"
+    )
+    assert (
+        risk_review.payload["allocation_decision"]["binding_constraint"]
+        == "stock_exposure"
+    )
+    assert (
+        final_decision.payload["allocation_decision"]["binding_constraint"]
+        == "stock_exposure"
+    )
 
 
 def test_graph_enabled_kite_paper_run_fails_fast_without_graph_nodes(
@@ -1244,7 +1355,9 @@ def test_full_universe_analysis_records_proposals_for_requested_market_universe(
         proposal_symbols = {
             row.symbol
             for row in session.scalars(
-                select(TraderProposalModel).where(TraderProposalModel.run_id == run.run_id)
+                select(TraderProposalModel).where(
+                    TraderProposalModel.run_id == run.run_id
+                )
             )
         }
         final_decision_count = session.scalar(
@@ -1266,7 +1379,9 @@ def test_full_universe_analysis_records_proposals_for_requested_market_universe(
 def test_full_universe_money_management_run_completes_allocation_pipeline(
     tmp_path: Path,
 ) -> None:
-    policy_path = _write_active_allocation_policy(tmp_path, max_stock_pct=Decimal("5.0"))
+    policy_path = _write_active_allocation_policy(
+        tmp_path, max_stock_pct=Decimal("5.0")
+    )
     settings = _settings_for_temp_db(
         tmp_path,
         money_management_enabled=True,
@@ -1293,9 +1408,18 @@ def test_full_universe_money_management_run_completes_allocation_pipeline(
     assert "money_management" in run.artifacts
     assert "portfolio_plan" in run.artifacts
     assert allocation["policy_source"] == "portfolio_plan"
-    assert run.artifacts["portfolio_plan"]["policy_version"] == "active_integration_policy"
+    assert (
+        run.artifacts["portfolio_plan"]["policy_version"] == "active_integration_policy"
+    )
     plan_candidates = run.artifacts["portfolio_plan"]["candidates"]
-    assert sum(1 for candidate in plan_candidates if candidate["source"] == "trader_proposal") == 3
+    assert (
+        sum(
+            1
+            for candidate in plan_candidates
+            if candidate["source"] == "trader_proposal"
+        )
+        == 3
+    )
     assert allocation["ledger_count"] == 3
     assert sum(ledger_counts.values()) == 3
     assert (
@@ -1380,7 +1504,9 @@ def test_m61_portfolio_rebalance_e2e_regression_covers_plan_routing_and_settleme
     routed_by_symbol = {
         row["symbol"]: row for row in first.artifacts["execution"]["routed_orders"]
     }
-    execution_symbols = [row["symbol"] for row in first.artifacts["execution"]["routed_orders"]]
+    execution_symbols = [
+        row["symbol"] for row in first.artifacts["execution"]["routed_orders"]
+    ]
 
     assert first.status == "COMPLETED"
     assert first.failed_symbols == []
@@ -1389,9 +1515,10 @@ def test_m61_portfolio_rebalance_e2e_regression_covers_plan_routing_and_settleme
     assert {row["symbol"] for row in plan["positions"]} == {"TCS", "RELIANCE"}
     assert candidates["INFY"]["raw_strategy_score"] == "0.1800"
     assert candidates["ICICIBANK"]["raw_strategy_score"] == "0.1450"
-    assert candidates["INFY"]["allocation_score_component"] != candidates["ICICIBANK"][
-        "allocation_score_component"
-    ]
+    assert (
+        candidates["INFY"]["allocation_score_component"]
+        != candidates["ICICIBANK"]["allocation_score_component"]
+    )
     assert candidates["LT"]["source"] == "core_shariah_basket_v1"
     assert planned_trades["LT"]["side"] == "BUY"
     assert planned_trades["TCS"]["side"] == "SELL"
@@ -1430,9 +1557,9 @@ def test_m61_portfolio_rebalance_e2e_regression_covers_plan_routing_and_settleme
     )
     assert execution_symbols[0] == "TCS"
     assert "LT" in execution_symbols[1:]
-    assert routed_by_symbol["TCS"]["order_status"] == "PENDING_NEXT_OPEN", routed_by_symbol[
-        "TCS"
-    ].get("reason")
+    assert routed_by_symbol["TCS"]["order_status"] == "PENDING_NEXT_OPEN", (
+        routed_by_symbol["TCS"].get("reason")
+    )
     assert routed_by_symbol["LT"]["order_status"] == "PENDING_NEXT_OPEN"
 
     client = TestClient(create_app(settings))
@@ -1453,7 +1580,9 @@ def test_m61_portfolio_rebalance_e2e_regression_covers_plan_routing_and_settleme
         ]
     ) == Decimal("80.0000")
     assert detail.json()["artifacts"]["portfolio_plan"]["plan_id"] == plan["plan_id"]
-    assert trail.json()["allocation_decision"]["proposal_source"] == "portfolio_plan_core"
+    assert (
+        trail.json()["allocation_decision"]["proposal_source"] == "portfolio_plan_core"
+    )
     assert _replay_stage(replay.json(), "portfolio_plan")["status"] == "complete"
     assert _decimal(
         portfolio.json()["allocation"]["portfolio_plan"]["buy_price_buffer_pct"]
@@ -1486,7 +1615,9 @@ def test_m61_portfolio_rebalance_e2e_regression_covers_plan_routing_and_settleme
 def test_portfolio_plan_core_buy_generates_risk_final_and_pending_order_records(
     tmp_path: Path,
 ) -> None:
-    policy_path = _write_active_allocation_policy(tmp_path, max_stock_pct=Decimal("50.0"))
+    policy_path = _write_active_allocation_policy(
+        tmp_path, max_stock_pct=Decimal("50.0")
+    )
     settings = _settings_for_temp_db(
         tmp_path,
         money_management_enabled=True,
@@ -1597,11 +1728,20 @@ def test_portfolio_plan_core_buy_generates_risk_final_and_pending_order_records(
     assert finalization.order is not None
     assert finalization.order.status == "PENDING_NEXT_OPEN"
     assert proposal is not None
-    assert proposal.payload["target_sizing_metadata"]["proposal_source"] == "portfolio_plan_core"
+    assert (
+        proposal.payload["target_sizing_metadata"]["proposal_source"]
+        == "portfolio_plan_core"
+    )
     assert risk_review is not None
-    assert risk_review.payload["allocation_decision"]["portfolio_plan_trade_id"] == "trade-core-infy"
+    assert (
+        risk_review.payload["allocation_decision"]["portfolio_plan_trade_id"]
+        == "trade-core-infy"
+    )
     assert final_decision is not None
-    assert final_decision.payload["allocation_decision"]["portfolio_plan_trade_id"] == "trade-core-infy"
+    assert (
+        final_decision.payload["allocation_decision"]["portfolio_plan_trade_id"]
+        == "trade-core-infy"
+    )
     assert order is not None
     assert order.status == "PENDING_NEXT_OPEN"
 
@@ -1697,7 +1837,9 @@ def test_full_universe_finalizes_all_symbols_before_allocated_execution(
         decisions = {
             row.symbol: row.payload
             for row in session.scalars(
-                select(FinalDecisionModel).where(FinalDecisionModel.run_id == run.run_id)
+                select(FinalDecisionModel).where(
+                    FinalDecisionModel.run_id == run.run_id
+                )
             )
         }
 
@@ -1747,25 +1889,37 @@ def test_replay_includes_run_level_context_for_selected_and_not_selected_decisio
         decision_ids = {
             row.symbol: row.decision_id
             for row in session.scalars(
-                select(FinalDecisionModel).where(FinalDecisionModel.run_id == run.run_id)
+                select(FinalDecisionModel).where(
+                    FinalDecisionModel.run_id == run.run_id
+                )
             )
         }
 
     client = TestClient(create_app(settings))
     selected_replay = client.get(f"/replay/{decision_ids[selected_symbol]}").json()
-    not_selected_replay = client.get(f"/replay/{decision_ids[not_selected_symbol]}").json()
+    not_selected_replay = client.get(
+        f"/replay/{decision_ids[not_selected_symbol]}"
+    ).json()
 
-    selected_allocation = _replay_stage(selected_replay, "allocation_ledger")["artifacts"][0]
+    selected_allocation = _replay_stage(selected_replay, "allocation_ledger")[
+        "artifacts"
+    ][0]
     selected_plan = _replay_stage(selected_replay, "portfolio_plan")["artifacts"][0]
-    selected_execution = _replay_stage(selected_replay, "deferred_execution")["artifacts"]
+    selected_execution = _replay_stage(selected_replay, "deferred_execution")[
+        "artifacts"
+    ]
     not_selected_allocation = _replay_stage(not_selected_replay, "allocation_ledger")[
         "artifacts"
     ][0]
-    not_selected_plan = _replay_stage(not_selected_replay, "portfolio_plan")["artifacts"][0]
+    not_selected_plan = _replay_stage(not_selected_replay, "portfolio_plan")[
+        "artifacts"
+    ][0]
     not_selected_execution = _replay_stage(not_selected_replay, "deferred_execution")[
         "artifacts"
     ]
-    not_selected_final = _replay_stage(not_selected_replay, "final_decision")["artifacts"][0]
+    not_selected_final = _replay_stage(not_selected_replay, "final_decision")[
+        "artifacts"
+    ][0]
 
     assert _replay_stage(selected_replay, "strategy_ranking")["artifact_count"] >= 1
     assert selected_plan["candidate"]["symbol"] == selected_symbol
@@ -1824,7 +1978,9 @@ def test_full_universe_graph_selection_does_not_narrow_analysis(
         proposal_symbols = {
             row.symbol
             for row in session.scalars(
-                select(TraderProposalModel).where(TraderProposalModel.run_id == run.run_id)
+                select(TraderProposalModel).where(
+                    TraderProposalModel.run_id == run.run_id
+                )
             )
         }
 
@@ -1867,7 +2023,9 @@ def test_full_universe_manual_symbols_remain_explicit_plus_open_positions(
         proposal_symbols = {
             row.symbol
             for row in session.scalars(
-                select(TraderProposalModel).where(TraderProposalModel.run_id == second.run_id)
+                select(TraderProposalModel).where(
+                    TraderProposalModel.run_id == second.run_id
+                )
             )
         }
 
@@ -1899,7 +2057,9 @@ def test_open_position_lifecycle_actions_survive_full_universe_finalization(
 
     _force_trader_actions(monkeypatch, {"INFY": action})
 
-    run = PaperRunService(settings, schedule_name=f"lifecycle_{action.lower()}").run_once(
+    run = PaperRunService(
+        settings, schedule_name=f"lifecycle_{action.lower()}"
+    ).run_once(
         symbols=["INFY"],
         universe=_paper_run_universe(source="manual_symbols", symbols=["INFY"]),
     )
@@ -1926,7 +2086,9 @@ def test_open_position_lifecycle_actions_survive_full_universe_finalization(
     else:
         assert symbol_artifact["no_paper_order_expected"] is True
         assert symbol_artifact["order_id"] is None
-        assert execution["skipped_symbols"][0]["reason"] == "hold_no_paper_order_expected"
+        assert (
+            execution["skipped_symbols"][0]["reason"] == "hold_no_paper_order_expected"
+        )
 
 
 def test_paper_loop_records_manual_symbol_universe_provenance(
@@ -2195,7 +2357,9 @@ def _force_m61_rebalance_inputs(
                 candidate["raw_strategy_score"] = str(score_by_symbol[symbol])
                 candidate["rank"] = rank_by_symbol[symbol]
                 candidate["eligibility_status"] = "eligible"
-                candidate["action_intent"] = "BUY" if symbol in {"INFY", "ICICIBANK"} else "HOLD"
+                candidate["action_intent"] = (
+                    "BUY" if symbol in {"INFY", "ICICIBANK"} else "HOLD"
+                )
             ranked_candidates.append(candidate)
         summary["ranked_candidates"] = ranked_candidates
         strategy_scores = dict(summary.get("strategy_score_by_symbol") or {})
@@ -2205,12 +2369,16 @@ def _force_m61_rebalance_inputs(
         summary["strategy_score_by_symbol"] = strategy_scores
         summary["strategy_ranked_symbols"] = [
             symbol
-            for symbol, _rank in sorted(rank_by_symbol.items(), key=lambda item: item[1])
+            for symbol, _rank in sorted(
+                rank_by_symbol.items(), key=lambda item: item[1]
+            )
         ]
         summary["targets"] = ["INFY", "ICICIBANK"]
         return summary
 
-    def patched_analyze_symbol(self: PaperRunService, *args, **kwargs) -> PaperSymbolAnalysis:
+    def patched_analyze_symbol(
+        self: PaperRunService, *args, **kwargs
+    ) -> PaperSymbolAnalysis:
         analysis = original_analyze_symbol(self, *args, **kwargs)
         symbol = analysis.symbol.upper()
         action = action_by_symbol.get(symbol)
@@ -2234,7 +2402,9 @@ def _force_m61_rebalance_inputs(
         proposal = analysis.proposal.model_copy(
             update={
                 "action": action,
-                "confidence": Decimal("0.9500") if action == "BUY" else analysis.proposal.confidence,
+                "confidence": Decimal("0.9500")
+                if action == "BUY"
+                else analysis.proposal.confidence,
                 "requested_position_pct_nav": target,
                 "target_position_pct_nav": target,
                 "lifecycle_trigger": trigger_by_action[action],
@@ -2257,7 +2427,9 @@ def _force_m61_rebalance_inputs(
             proposal=proposal,
         )
 
-    monkeypatch.setattr(PaperRunService, "_generate_strategy_summary", patched_generate_strategy_summary)
+    monkeypatch.setattr(
+        PaperRunService, "_generate_strategy_summary", patched_generate_strategy_summary
+    )
     monkeypatch.setattr(PaperRunService, "analyze_symbol", patched_analyze_symbol)
 
 
@@ -2267,7 +2439,9 @@ def _force_trader_actions(
 ) -> None:
     original_analyze_symbol = PaperRunService.analyze_symbol
 
-    def patched_analyze_symbol(self: PaperRunService, *args, **kwargs) -> PaperSymbolAnalysis:
+    def patched_analyze_symbol(
+        self: PaperRunService, *args, **kwargs
+    ) -> PaperSymbolAnalysis:
         analysis = original_analyze_symbol(self, *args, **kwargs)
         action = action_by_symbol.get(analysis.symbol)
         if action is None:
@@ -2436,8 +2610,7 @@ def _paper_run_universe(*, source: str, symbols: list[str]) -> PaperRunUniverse:
 def _seed_m61_rebalance_account_state(settings: Settings) -> None:
     provider = FakeKiteMarketDataProvider()
     latest_candle_by_symbol = {
-        symbol: provider.get_daily_candles(symbol)[-1]
-        for symbol in ("TCS", "RELIANCE")
+        symbol: provider.get_daily_candles(symbol)[-1] for symbol in ("TCS", "RELIANCE")
     }
     price_by_symbol = {
         symbol: candle.close for symbol, candle in latest_candle_by_symbol.items()
@@ -2530,7 +2703,9 @@ def _seed_m61_rebalance_account_state(settings: Settings) -> None:
                         symbol=symbol,
                         score=Decimal("-0.1000"),
                         confidence=Decimal("0.8000"),
-                        key_points=["Seeded setup carries no live trading implication."],
+                        key_points=[
+                            "Seeded setup carries no live trading implication."
+                        ],
                         risk_flags=["Regression fixture only."],
                         source_report_ids=source_report_ids,
                     ),
@@ -2608,7 +2783,9 @@ def _seed_m61_rebalance_account_state(settings: Settings) -> None:
                             recommendation="allow",
                             score=Decimal("0.0000"),
                             confidence=Decimal("0.8000"),
-                            key_points=["Seed row exists only to satisfy paper execution lineage."],
+                            key_points=[
+                                "Seed row exists only to satisfy paper execution lineage."
+                            ],
                             required_conditions=["Paper-only regression setup."],
                             model_version="m61_seed_risk_v1",
                         )
@@ -2716,12 +2893,16 @@ def _replay_stage(replay: dict[str, object], name: str) -> dict[str, object]:
 
 
 def _seed_paper_graph_fixture(settings: Settings) -> None:
-    latest_candle_date = FakeKiteMarketDataProvider().get_daily_candles("INFY")[-1].trade_date
+    latest_candle_date = (
+        FakeKiteMarketDataProvider().get_daily_candles("INFY")[-1].trade_date
+    )
     session_factory = build_session_factory(settings)
     with session_factory() as session:
         instrument_repo = InstrumentRepository(session)
         for instrument in TEST_INSTRUMENTS:
-            instrument_repo.upsert(Instrument(symbol=instrument.symbol, name=instrument.name))
+            instrument_repo.upsert(
+                Instrument(symbol=instrument.symbol, name=instrument.name)
+            )
         graph_repo = GraphRepository(session)
         for symbol in ("INFY", "RELIANCE"):
             graph_repo.upsert_node(

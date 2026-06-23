@@ -96,7 +96,9 @@ class PositionMonitorService:
         self._validate_runtime()
         runtime_profile = self._resolve_runtime_profile()
         now = _as_utc(self.now_func())
-        market_session_date = _market_session_date(now, self.settings.taurus_paper_timezone)
+        market_session_date = _market_session_date(
+            now, self.settings.taurus_paper_timezone
+        )
         if (
             self.settings.taurus_position_monitor_market_hours_only
             and not _is_market_hours(now, self.settings.taurus_paper_timezone)
@@ -126,7 +128,9 @@ class PositionMonitorService:
                     portfolio_id=self.settings.taurus_paper_portfolio_id,
                 )
             ]
-            symbols = sorted({position.symbol for position in positions if position.quantity > 0})
+            symbols = sorted(
+                {position.symbol for position in positions if position.quantity > 0}
+            )
             run = self._new_run(now=now, symbols=symbols)
             PaperRunRepository(session).upsert(run)
             self._audit(
@@ -213,7 +217,13 @@ class PositionMonitorService:
                     )
                     session.commit()
 
-        status = "PARTIAL_FAILED" if failed and succeeded else "FAILED" if failed else "COMPLETED"
+        status = (
+            "PARTIAL_FAILED"
+            if failed and succeeded
+            else "FAILED"
+            if failed
+            else "COMPLETED"
+        )
         result.status = status
         with self.session_factory() as session:
             self._complete_run(
@@ -242,7 +252,9 @@ class PositionMonitorService:
         try:
             snapshots = quote_provider.get_latest_snapshots([symbol])
             if not snapshots:
-                raise MarketDataProviderError(f"No latest quote snapshot returned for {symbol}.")
+                raise MarketDataProviderError(
+                    f"No latest quote snapshot returned for {symbol}."
+                )
             snapshot = snapshots[0]
             with self.session_factory() as session:
                 models = MarketPriceSnapshotRepository(session).insert_many([snapshot])
@@ -292,7 +304,10 @@ class PositionMonitorService:
                 market_session_date=market_session_date,
                 reason="missing_active_trade_thesis",
             )
-            return {"skipped_reason": "missing_active_trade_thesis", "quote": snapshot_payload}
+            return {
+                "skipped_reason": "missing_active_trade_thesis",
+                "quote": snapshot_payload,
+            }
 
         trigger_data = _trigger_data(
             position=position,
@@ -349,11 +364,15 @@ class PositionMonitorService:
                     symbol=symbol,
                     trigger=trigger,
                     latest_price_inr=str(trigger_data["latest_price_inr"]),
-                    threshold_price_inr=str(trigger_data["trigger_threshold_price_inr"]),
+                    threshold_price_inr=str(
+                        trigger_data["trigger_threshold_price_inr"]
+                    ),
                     source_id=f"{symbol}:{trigger}:{market_session_date}",
                     created_at=now,
                     payload={
-                        "quote_snapshot_id": snapshot_model.id if snapshot_model else None,
+                        "quote_snapshot_id": snapshot_model.id
+                        if snapshot_model
+                        else None,
                         "market_session_date": market_session_date,
                         **trigger_data,
                     },
@@ -362,7 +381,9 @@ class PositionMonitorService:
         record_position_monitor_trigger(trigger=trigger, symbol=symbol)
 
         with self.session_factory() as session:
-            proposal = TraderAgent(session, self.settings, llm_provider=llm_provider).run_market_hours_trigger(
+            proposal = TraderAgent(
+                session, self.settings, llm_provider=llm_provider
+            ).run_market_hours_trigger(
                 symbol=symbol,
                 run_id=run_id,
                 base_proposal=base_proposal,
@@ -404,14 +425,19 @@ class PositionMonitorService:
             account_model = execution_repo.latest_account_by_portfolio(
                 portfolio_id=self.settings.taurus_paper_portfolio_id,
             )
-            account = PaperAccount.model_validate(account_model.payload) if account_model else None
+            account = (
+                PaperAccount.model_validate(account_model.payload)
+                if account_model
+                else None
+            )
             review = RiskReviewService(
                 session,
                 self.settings,
                 current_open_positions=len(open_positions),
                 current_position_exposures_pct_nav=_position_exposures_pct_nav(
                     positions=[
-                        PaperPosition.model_validate(row.payload) for row in open_positions
+                        PaperPosition.model_validate(row.payload)
+                        for row in open_positions
                     ],
                     equity_inr=account.equity_inr if account is not None else None,
                 ),
@@ -471,7 +497,9 @@ class PositionMonitorService:
 
     def _validate_runtime(self) -> None:
         if self.settings.live_trading_enabled:
-            raise ValueError("Position monitor cannot run while live trading is enabled.")
+            raise ValueError(
+                "Position monitor cannot run while live trading is enabled."
+            )
         if self.settings.broker_provider != "paper":
             raise ValueError("Position monitor requires BROKER_PROVIDER=paper.")
         if self.settings.taurus_mode != "paper":
@@ -482,7 +510,9 @@ class PositionMonitorService:
     def _quote_provider(self) -> Any:
         provider = self.quote_provider or build_market_data_provider(self.settings)
         if not hasattr(provider, "get_latest_snapshots"):
-            raise MarketDataProviderError("Configured provider does not support latest quote snapshots.")
+            raise MarketDataProviderError(
+                "Configured provider does not support latest quote snapshots."
+            )
         return provider
 
     def _latest_base_proposal(self, symbol: str) -> TraderProposal | None:
@@ -524,9 +554,9 @@ class PositionMonitorService:
                 prior_threshold = payload.get("trigger_threshold_price_inr")
                 if prior_threshold is None:
                     continue
-                if _decimal(prior_threshold).quantize(SCORE_QUANT) == threshold_price.quantize(
+                if _decimal(prior_threshold).quantize(
                     SCORE_QUANT
-                ):
+                ) == threshold_price.quantize(SCORE_QUANT):
                     return True
         return False
 
@@ -694,9 +724,9 @@ def _position_exposures_pct_nav(
     if equity_inr is None or equity_inr <= 0:
         return {}
     return {
-        position.symbol.upper(): ((position.market_value_inr / equity_inr) * Decimal("100")).quantize(
-            SCORE_QUANT
-        )
+        position.symbol.upper(): (
+            (position.market_value_inr / equity_inr) * Decimal("100")
+        ).quantize(SCORE_QUANT)
         for position in positions
         if position.market_value_inr > 0
     }

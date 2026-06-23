@@ -49,7 +49,9 @@ class BacktestConfig:
 
     @property
     def effective_portfolio_breadth(self) -> int:
-        requested = self.portfolio_breadth or self.target_positions or self.max_open_positions
+        requested = (
+            self.portfolio_breadth or self.target_positions or self.max_open_positions
+        )
         return min(requested, self.max_open_positions)
 
 

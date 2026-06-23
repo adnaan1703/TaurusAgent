@@ -52,7 +52,9 @@ class MovingAverageCrossoverStrategy:
                     self._ranking(
                         trade_date=trade_date,
                         symbol=symbol,
-                        action_intent="SELL" if symbol in current_positions else "NO_TRADE",
+                        action_intent="SELL"
+                        if symbol in current_positions
+                        else "NO_TRADE",
                         score=None,
                         rank=None,
                         eligibility_status="ineligible",
@@ -79,7 +81,9 @@ class MovingAverageCrossoverStrategy:
                     self._ranking(
                         trade_date=trade_date,
                         symbol=symbol,
-                        action_intent="SELL" if symbol in current_positions else "NO_TRADE",
+                        action_intent="SELL"
+                        if symbol in current_positions
+                        else "NO_TRADE",
                         score=score,
                         rank=None,
                         eligibility_status="ineligible",
@@ -107,7 +111,9 @@ class MovingAverageCrossoverStrategy:
             for index, (symbol, score, snapshot, reasons) in enumerate(ranked, start=1)
         ]
         ranked_symbols_seen = {ranking.symbol for ranking in rankings}
-        for symbol in sorted(current_positions - set(features_by_symbol) - ranked_symbols_seen):
+        for symbol in sorted(
+            current_positions - set(features_by_symbol) - ranked_symbols_seen
+        ):
             rankings.append(
                 self._ranking(
                     trade_date=trade_date,

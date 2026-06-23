@@ -22,7 +22,10 @@ from taurus_core.features.technical_context import UniverseTechnicalContext
 from taurus_core.features.technical_signal import ANALYST_RULE_PROFILE
 from taurus_core.llm.base import LLMProvider
 from taurus_core.logging import get_logger
-from taurus_core.observability.metrics import record_agent_run, record_graph_agent_failure
+from taurus_core.observability.metrics import (
+    record_agent_run,
+    record_graph_agent_failure,
+)
 from taurus_core.observability.tracing import bound_trace_context
 from taurus_core.profiles.schemas import DEFAULT_PROFILE_ID, validate_profile_id
 
@@ -57,7 +60,9 @@ def run_analyst_suite(
             "make import-market-data first."
         )
 
-    enabled_value = DEFAULT_ENABLED_ANALYSTS if enabled_analysts is None else enabled_analysts
+    enabled_value = (
+        DEFAULT_ENABLED_ANALYSTS if enabled_analysts is None else enabled_analysts
+    )
     enabled_keys = parse_enabled_analysts(enabled_value)
     agents = tuple(ANALYST_REGISTRY[key](session, llm_provider) for key in enabled_keys)
     logger = get_logger(__name__)

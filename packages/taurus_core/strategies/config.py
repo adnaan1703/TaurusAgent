@@ -6,7 +6,9 @@ from typing import Any
 
 import yaml
 
-DEFAULT_STRATEGY_CONFIG_PATH = Path("configs/strategies/moving_average_crossover_v1.yaml")
+DEFAULT_STRATEGY_CONFIG_PATH = Path(
+    "configs/strategies/moving_average_crossover_v1.yaml"
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -35,7 +37,9 @@ def load_strategy_config(path: str | Path) -> StrategyConfig:
     return StrategyConfig(
         strategy_name=strategy_name,
         strategy_type=strategy_type,
-        target_positions=_optional_positive_int(raw, "target_positions", path=config_path),
+        target_positions=_optional_positive_int(
+            raw, "target_positions", path=config_path
+        ),
         lookback_days=_positive_int(raw, "lookback_days", default=60, path=config_path),
         rebalance_every_days=_positive_int(
             raw,

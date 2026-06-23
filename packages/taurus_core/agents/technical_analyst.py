@@ -7,7 +7,11 @@ from typing import Any
 from sqlalchemy import select
 
 from taurus_core.agents.base import BaseAnalystAgent, fallback_output, utc_now
-from taurus_core.agents.schemas import AnalystReport, AnalystScoreMetadata, stance_from_score
+from taurus_core.agents.schemas import (
+    AnalystReport,
+    AnalystScoreMetadata,
+    stance_from_score,
+)
 from taurus_core.db.models import BacktestSignalModel, FeatureValueModel
 from taurus_core.db.repositories import CandleRepository
 from taurus_core.domain.market_data import DailyCandle
@@ -78,7 +82,9 @@ class TechnicalAnalystAgent(BaseAnalystAgent):
             or signal_result.score is None
             or signal_result.confidence is None
         ):
-            raise RuntimeError("Technical analyst rule result must include score fields.")
+            raise RuntimeError(
+                "Technical analyst rule result must include score fields."
+            )
         raw_score = signal_result.raw_score
         score = signal_result.score
         confidence = signal_result.confidence
@@ -143,7 +149,9 @@ class TechnicalAnalystAgent(BaseAnalystAgent):
         score = signal_result.score
         confidence = signal_result.confidence
         source_ids = list(signal_result.source_ids)
-        context_source_ids = [] if source_ids == ["technical:none"] else list(source_ids)
+        context_source_ids = (
+            [] if source_ids == ["technical:none"] else list(source_ids)
+        )
         key_points = _ohlcv_v2_key_points(
             symbol=symbol,
             signal_result=signal_result,
@@ -212,7 +220,9 @@ class TechnicalAnalystAgent(BaseAnalystAgent):
         )
         if persisted is not None:
             return persisted
-        candles = CandleRepository(self.session).get_by_symbol_and_date_range(symbol=symbol)
+        candles = CandleRepository(self.session).get_by_symbol_and_date_range(
+            symbol=symbol
+        )
         if not candles:
             return None
         history = [
@@ -286,7 +296,9 @@ class TechnicalAnalystAgent(BaseAnalystAgent):
         return self.session.scalar(
             select(BacktestSignalModel)
             .where(BacktestSignalModel.symbol == symbol)
-            .order_by(BacktestSignalModel.trade_date.desc(), BacktestSignalModel.id.desc())
+            .order_by(
+                BacktestSignalModel.trade_date.desc(), BacktestSignalModel.id.desc()
+            )
             .limit(1)
         )
 
@@ -374,7 +386,9 @@ def _ohlcv_v2_metadata_notes(signal_result: TechnicalOhlcvSignalResult) -> list[
         "technical_ohlcv_v2 owns stored score and confidence; LLM output may change narrative only.",
     ]
     if not signal_result.metadata.get("universe_context_available"):
-        notes.append("Universe technical context was unavailable; result is symbol-local.")
+        notes.append(
+            "Universe technical context was unavailable; result is symbol-local."
+        )
     if signal_result.metadata.get("symbol_context_available") is False:
         notes.append("Symbol context was unavailable for cross-sectional scoring.")
     return notes
@@ -393,8 +407,12 @@ def _technical_v2_metadata(
         "composite_score": str(signal_result.composite_score),
         "coverage": str(signal_result.coverage),
         "score_source": signal_result.score_source,
-        "components": {key: str(value) for key, value in signal_result.components.items()},
-        "top_contributors": [dict(contributor) for contributor in signal_result.top_contributors],
+        "components": {
+            key: str(value) for key, value in signal_result.components.items()
+        },
+        "top_contributors": [
+            dict(contributor) for contributor in signal_result.top_contributors
+        ],
         "missing_features": list(signal_result.missing_features),
         "source_ids": list(signal_result.source_ids),
         "metadata": dict(signal_result.metadata),

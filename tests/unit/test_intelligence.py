@@ -8,7 +8,11 @@ from sqlalchemy import func, select
 from scripts.import_mock_news import import_mock_news
 from scripts.migrate import run_migrations
 from taurus_core.config import Settings
-from taurus_core.db.models import CompanyEventModel, RawDocumentModel, SentimentScoreModel
+from taurus_core.db.models import (
+    CompanyEventModel,
+    RawDocumentModel,
+    SentimentScoreModel,
+)
 from taurus_core.db.session import build_session_factory
 from taurus_core.intelligence.entity_resolver import EntityResolver
 from taurus_core.intelligence.event_scoring import event_from_document, score_event
@@ -25,9 +29,15 @@ def test_mock_news_import_stores_documents_events_and_scores(tmp_path: Path) -> 
         summary = import_mock_news(session, MockNewsProvider())
 
     with session_factory() as session:
-        document_count = session.scalar(select(func.count()).select_from(RawDocumentModel))
-        event_count = session.scalar(select(func.count()).select_from(CompanyEventModel))
-        score_count = session.scalar(select(func.count()).select_from(SentimentScoreModel))
+        document_count = session.scalar(
+            select(func.count()).select_from(RawDocumentModel)
+        )
+        event_count = session.scalar(
+            select(func.count()).select_from(CompanyEventModel)
+        )
+        score_count = session.scalar(
+            select(func.count()).select_from(SentimentScoreModel)
+        )
         infy_event = session.scalar(
             select(CompanyEventModel).where(CompanyEventModel.symbol == "INFY")
         )
@@ -60,8 +70,12 @@ def test_entity_resolver_maps_company_names_symbols_and_text() -> None:
 
 def test_event_scoring_uses_direction_severity_confidence_and_time_decay() -> None:
     documents = MockNewsProvider().list_documents()
-    positive_document = next(document for document in documents if "INFY" in document.symbols)
-    negative_document = next(document for document in documents if "HDFCBANK" in document.symbols)
+    positive_document = next(
+        document for document in documents if "INFY" in document.symbols
+    )
+    negative_document = next(
+        document for document in documents if "HDFCBANK" in document.symbols
+    )
     positive_event = event_from_document(positive_document, "INFY")
     negative_event = event_from_document(negative_document, "HDFCBANK")
 

@@ -105,7 +105,9 @@ def compute_graph_edge_stats(
     settings = settings or get_settings()
     graph_repo = GraphRepository(session)
     resolved_as_of_date = as_of_date or _latest_candle_date(session) or date.today()
-    resolved_windows = tuple(windows) if windows is not None else settings.graph_stats_windows
+    resolved_windows = (
+        tuple(windows) if windows is not None else settings.graph_stats_windows
+    )
     _validate_windows(resolved_windows)
 
     symbol_returns = _load_symbol_returns(session, as_of_date=resolved_as_of_date)
@@ -161,8 +163,12 @@ def compute_graph_edge_stats(
             )
             metadata = {
                 **stats.metadata,
-                "source_node_key": source_node.node_key if source_node is not None else "",
-                "target_node_key": target_node.node_key if target_node is not None else "",
+                "source_node_key": source_node.node_key
+                if source_node is not None
+                else "",
+                "target_node_key": target_node.node_key
+                if target_node is not None
+                else "",
                 "source_symbol": source_symbol,
                 "target_symbol": target_symbol,
                 "market_proxy_symbol_count": market_symbol_count,
@@ -186,7 +192,10 @@ def compute_graph_edge_stats(
             )
 
             promoted = False
-            if not stats.insufficient_data_reason and edge.edge_key not in promoted_edges:
+            if (
+                not stats.insufficient_data_reason
+                and edge.edge_key not in promoted_edges
+            ):
                 promoted = _maybe_auto_promote_edge(
                     graph_repo,
                     edge=edge,
@@ -212,7 +221,9 @@ def compute_graph_edge_stats(
                     as_of_date=resolved_as_of_date,
                     sample_size=stats.sample_size,
                     raw_correlation=_decimal_from_float(stats.raw_correlation),
-                    residual_correlation=_decimal_from_float(stats.residual_correlation),
+                    residual_correlation=_decimal_from_float(
+                        stats.residual_correlation
+                    ),
                     lead_lag_score=_decimal_from_float(stats.lead_lag_score),
                     stability_score=_decimal_from_float(stats.stability_score),
                     insufficient_data_reason=stats.insufficient_data_reason,
@@ -245,7 +256,9 @@ def compute_graph_edge_stats(
         model_version=model_version,
         edges_seen=len(edges),
         stats_upserted=len(results),
-        insufficient_stats=sum(1 for result in results if result.insufficient_data_reason),
+        insufficient_stats=sum(
+            1 for result in results if result.insufficient_data_reason
+        ),
         promoted_edges=tuple(sorted(promoted_edges)),
         warnings=tuple(warnings),
         results=tuple(results),
@@ -280,7 +293,10 @@ def _compute_window_stats(
         return _insufficient_stats("source_target_same_symbol")
     missing_symbols = [
         symbol
-        for symbol, returns in ((source_symbol, source_returns), (target_symbol, target_returns))
+        for symbol, returns in (
+            (source_symbol, source_returns),
+            (target_symbol, target_returns),
+        )
         if not returns
     ]
     if missing_symbols:
@@ -371,7 +387,10 @@ def _residual_correlation(
         if item in market_returns
     ]
     if len(triples) < min_sample_size:
-        return None, f"insufficient_market_proxy:required={min_sample_size},found={len(triples)}"
+        return (
+            None,
+            f"insufficient_market_proxy:required={min_sample_size},found={len(triples)}",
+        )
     x_values = [item[0] for item in triples]
     y_values = [item[1] for item in triples]
     market_values = [item[2] for item in triples]
@@ -460,7 +479,10 @@ def _maybe_auto_promote_edge(
         return False
     if stats.stability_score is None:
         return False
-    if _decimal_from_float(stats.stability_score) < settings.taurus_graph_min_stability_score:
+    if (
+        _decimal_from_float(stats.stability_score)
+        < settings.taurus_graph_min_stability_score
+    ):
         return False
 
     residual_passes = (
@@ -488,7 +510,9 @@ def _maybe_auto_promote_edge(
     return True
 
 
-def _load_symbol_returns(session: Session, *, as_of_date: date) -> dict[str, dict[date, float]]:
+def _load_symbol_returns(
+    session: Session, *, as_of_date: date
+) -> dict[str, dict[date, float]]:
     statement = (
         select(DailyCandleModel)
         .where(
@@ -508,14 +532,18 @@ def _load_symbol_returns(session: Session, *, as_of_date: date) -> dict[str, dic
         for candle in candles:
             close = Decimal(candle.close)
             if previous_close is not None and previous_close != 0:
-                symbol_returns[candle.trade_date] = float((close / previous_close) - Decimal("1"))
+                symbol_returns[candle.trade_date] = float(
+                    (close / previous_close) - Decimal("1")
+                )
             previous_close = close
         if symbol_returns:
             returns_by_symbol[symbol] = symbol_returns
     return returns_by_symbol
 
 
-def _market_proxy_returns(symbol_returns: dict[str, dict[date, float]]) -> dict[date, float]:
+def _market_proxy_returns(
+    symbol_returns: dict[str, dict[date, float]],
+) -> dict[date, float]:
     returns_by_date: dict[date, list[float]] = defaultdict(list)
     for returns in symbol_returns.values():
         for return_date, return_value in returns.items():

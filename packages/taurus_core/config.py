@@ -321,7 +321,9 @@ class Settings(BaseSettings):
         validation_alias="TAURUS_POSITION_MONITOR_MAX_ITERATIONS",
     )
 
-    taurus_llm_provider: str = Field(default="lmstudio", validation_alias="TAURUS_LLM_PROVIDER")
+    taurus_llm_provider: str = Field(
+        default="lmstudio", validation_alias="TAURUS_LLM_PROVIDER"
+    )
     taurus_llm_base_url: str = Field(default="", validation_alias="TAURUS_LLM_BASE_URL")
     taurus_llm_model: str = Field(default="", validation_alias="TAURUS_LLM_MODEL")
     taurus_llm_timeout_seconds: int = Field(
@@ -329,7 +331,9 @@ class Settings(BaseSettings):
         gt=0,
         validation_alias="TAURUS_LLM_TIMEOUT_SECONDS",
     )
-    taurus_alert_provider: str = Field(default="mock", validation_alias="TAURUS_ALERT_PROVIDER")
+    taurus_alert_provider: str = Field(
+        default="mock", validation_alias="TAURUS_ALERT_PROVIDER"
+    )
     taurus_enabled_analysts: str = Field(
         default=DEFAULT_ENABLED_ANALYSTS,
         validation_alias="TAURUS_ENABLED_ANALYSTS",
@@ -341,7 +345,9 @@ class Settings(BaseSettings):
     kite_api_key: str = Field(default="", validation_alias="KITE_API_KEY")
     kite_api_secret: str = Field(default="", validation_alias="KITE_API_SECRET")
     kite_access_token: str = Field(default="", validation_alias="KITE_ACCESS_TOKEN")
-    taurus_kite_exchange: str = Field(default="NSE", validation_alias="TAURUS_KITE_EXCHANGE")
+    taurus_kite_exchange: str = Field(
+        default="NSE", validation_alias="TAURUS_KITE_EXCHANGE"
+    )
 
     @field_validator("taurus_paper_execution_scope")
     @classmethod
@@ -363,15 +369,21 @@ class Settings(BaseSettings):
         if self.live_trading_enabled:
             raise ValueError("Live trading is disabled and cannot be enabled.")
         if self.broker_provider != "paper":
-            raise ValueError("Taurus currently supports only the paper broker provider.")
+            raise ValueError(
+                "Taurus currently supports only the paper broker provider."
+            )
         if urlsplit(self.database_url).scheme.lower().startswith("sqlite"):
-            raise ValueError("SQLite database URLs are no longer supported; use Docker Postgres.")
+            raise ValueError(
+                "SQLite database URLs are no longer supported; use Docker Postgres."
+            )
         if self.taurus_market_data_provider not in set(SUPPORTED_MARKET_DATA_PROVIDERS):
             raise ValueError(
                 "Unsupported Taurus market data provider. Supported values: "
                 f"{', '.join(SUPPORTED_MARKET_DATA_PROVIDERS)}."
             )
-        if self.taurus_position_monitor_provider not in set(SUPPORTED_MARKET_DATA_PROVIDERS):
+        if self.taurus_position_monitor_provider not in set(
+            SUPPORTED_MARKET_DATA_PROVIDERS
+        ):
             raise ValueError(
                 "Unsupported Taurus position monitor provider. Supported values: "
                 f"{', '.join(SUPPORTED_MARKET_DATA_PROVIDERS)}."
@@ -381,7 +393,9 @@ class Settings(BaseSettings):
                 "Unsupported Taurus paper analysis scope. Supported values: "
                 f"{', '.join(SUPPORTED_PAPER_ANALYSIS_SCOPES)}."
             )
-        if self.taurus_paper_execution_scope not in set(SUPPORTED_PAPER_EXECUTION_SCOPES):
+        if self.taurus_paper_execution_scope not in set(
+            SUPPORTED_PAPER_EXECUTION_SCOPES
+        ):
             raise ValueError(
                 "Unsupported Taurus paper execution scope. Supported values: "
                 f"{', '.join(SUPPORTED_PAPER_EXECUTION_SCOPES)}."
@@ -487,9 +501,13 @@ def _parse_graph_stats_windows(value: str) -> tuple[int, ...]:
         try:
             window = int(item)
         except ValueError as exc:
-            raise ValueError("TAURUS_GRAPH_STATS_WINDOWS must contain positive integers.") from exc
+            raise ValueError(
+                "TAURUS_GRAPH_STATS_WINDOWS must contain positive integers."
+            ) from exc
         if window <= 0:
-            raise ValueError("TAURUS_GRAPH_STATS_WINDOWS must contain positive integers.")
+            raise ValueError(
+                "TAURUS_GRAPH_STATS_WINDOWS must contain positive integers."
+            )
         windows.append(window)
     if not windows:
         raise ValueError("TAURUS_GRAPH_STATS_WINDOWS must contain at least one window.")

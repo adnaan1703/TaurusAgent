@@ -6,7 +6,11 @@ from pathlib import Path
 
 from scripts.migrate import run_migrations
 from taurus_core.config import Settings
-from taurus_core.db.repositories import CandleRepository, GraphRepository, InstrumentRepository
+from taurus_core.db.repositories import (
+    CandleRepository,
+    GraphRepository,
+    InstrumentRepository,
+)
 from taurus_core.db.session import build_session_factory
 from taurus_core.domain.instruments import Instrument
 from taurus_core.domain.market_data import DailyCandle

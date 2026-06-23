@@ -75,7 +75,9 @@ def test_mock_alerts_are_stored_and_replay_api_reconstructs_decision_path(
     with session_factory() as session:
         alert_types = set(
             session.scalars(
-                select(AuditLogModel.event_type).where(AuditLogModel.event_type.like("alert.%"))
+                select(AuditLogModel.event_type).where(
+                    AuditLogModel.event_type.like("alert.%")
+                )
             )
         )
 
@@ -134,7 +136,9 @@ def test_next_open_settlement_alert_and_ui_replay_show_terminal_fill(
     with session_factory() as session:
         alert_types = list(
             session.scalars(
-                select(AuditLogModel.event_type).where(AuditLogModel.event_type.like("alert.%"))
+                select(AuditLogModel.event_type).where(
+                    AuditLogModel.event_type.like("alert.%")
+                )
             )
         )
     assert alert_types.count("alert.paper_fill") == 1
@@ -309,7 +313,9 @@ def _append_next_open_candle(session, order: PaperOrder):
         close=Decimal("152.0000"),
         volume=1_000_000,
         source="test_next_open_settlement",
-        data_available_time=datetime.combine(trade_date, time(18, 0), tzinfo=timezone.utc),
+        data_available_time=datetime.combine(
+            trade_date, time(18, 0), tzinfo=timezone.utc
+        ),
     )
     CandleRepository(session).upsert([candle])
     session.commit()
@@ -329,7 +335,9 @@ def _stage_status(replay: dict[str, object], stage_id: str) -> str:
     return str(_ui_stage(replay, stage_id)["status"])
 
 
-def _stage_artifacts(replay: dict[str, object], stage_id: str) -> list[dict[str, object]]:
+def _stage_artifacts(
+    replay: dict[str, object], stage_id: str
+) -> list[dict[str, object]]:
     artifacts = _ui_stage(replay, stage_id)["artifacts"]
     assert isinstance(artifacts, list)
     return artifacts

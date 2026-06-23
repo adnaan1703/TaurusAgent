@@ -71,16 +71,22 @@ def get_db_session(request: Request) -> Iterator[Session]:
 
 
 @router.get("/instruments", response_model=list[InstrumentResponse])
-def list_instruments(session: Session = Depends(get_db_session)) -> list[InstrumentResponse]:
+def list_instruments(
+    session: Session = Depends(get_db_session),
+) -> list[InstrumentResponse]:
     instruments = InstrumentRepository(session).list(active_only=True)
     return [InstrumentResponse.model_validate(instrument) for instrument in instruments]
 
 
 @router.get("/instruments/{symbol}", response_model=InstrumentResponse)
-def get_instrument(symbol: str, session: Session = Depends(get_db_session)) -> InstrumentResponse:
+def get_instrument(
+    symbol: str, session: Session = Depends(get_db_session)
+) -> InstrumentResponse:
     instrument = InstrumentRepository(session).get(symbol)
     if instrument is None:
-        raise HTTPException(status_code=404, detail=f"Instrument {symbol.upper()} not found")
+        raise HTTPException(
+            status_code=404, detail=f"Instrument {symbol.upper()} not found"
+        )
     return InstrumentResponse.model_validate(instrument)
 
 
@@ -94,7 +100,9 @@ def list_candles(
 ) -> list[CandleResponse]:
     instrument_repo = InstrumentRepository(session)
     if instrument_repo.get(symbol) is None:
-        raise HTTPException(status_code=404, detail=f"Instrument {symbol.upper()} not found")
+        raise HTTPException(
+            status_code=404, detail=f"Instrument {symbol.upper()} not found"
+        )
 
     candles = CandleRepository(session).get_by_symbol_and_date_range(
         symbol=symbol,

@@ -9,8 +9,6 @@ from typing import Any, Literal
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from taurus_core.allocation_schemas import AllocationDecision
-
 
 DrawdownGovernorAction = Literal[
     "reduce_new_position_sizes_25_pct",
@@ -90,7 +88,9 @@ class ExposureLimitsPolicy(BaseModel):
     @model_validator(mode="after")
     def validate_stock_caps(self) -> ExposureLimitsPolicy:
         if self.max_stock_hard_cap_pct_nav < self.max_stock_pct_nav:
-            raise ValueError("max stock hard cap must be greater than or equal to normal cap.")
+            raise ValueError(
+                "max stock hard cap must be greater than or equal to normal cap."
+            )
         return self
 
 
@@ -100,7 +100,9 @@ class TradeRiskDefaultsPolicy(BaseModel):
     normal_trade_risk_pct_nav: Decimal = Field(ge=Decimal("0"), le=Decimal("100"))
     strong_trade_risk_pct_nav: Decimal = Field(ge=Decimal("0"), le=Decimal("100"))
     max_single_trade_risk_pct_nav: Decimal = Field(ge=Decimal("0"), le=Decimal("100"))
-    max_total_open_trade_risk_pct_nav: Decimal = Field(ge=Decimal("0"), le=Decimal("100"))
+    max_total_open_trade_risk_pct_nav: Decimal = Field(
+        ge=Decimal("0"), le=Decimal("100")
+    )
 
 
 class AllocationScoreWeightsPolicy(BaseModel):
@@ -263,7 +265,9 @@ class MoneyManagementPolicy(BaseModel):
     limits: ExposureLimitsPolicy
     trade_risk: TradeRiskDefaultsPolicy
     allocation_scoring: AllocationScoringPolicy
-    drawdown_governors: tuple[DrawdownGovernorPolicy, ...] = Field(default_factory=tuple)
+    drawdown_governors: tuple[DrawdownGovernorPolicy, ...] = Field(
+        default_factory=tuple
+    )
     rebalance: RebalanceThresholdPolicy
     rebalance_capacity: RebalanceCapacityPolicy = Field(
         default_factory=RebalanceCapacityPolicy
@@ -271,7 +275,9 @@ class MoneyManagementPolicy(BaseModel):
 
     @field_validator("sleeves")
     @classmethod
-    def require_sleeves(cls, value: tuple[SleevePolicy, ...]) -> tuple[SleevePolicy, ...]:
+    def require_sleeves(
+        cls, value: tuple[SleevePolicy, ...]
+    ) -> tuple[SleevePolicy, ...]:
         if not value:
             raise ValueError("money-management policy requires at least one sleeve.")
         return value
@@ -298,7 +304,8 @@ class MoneyManagementPolicy(BaseModel):
         )
         if missing_sleeves:
             raise ValueError(
-                "strategy mappings reference unknown sleeves: " + ", ".join(missing_sleeves)
+                "strategy mappings reference unknown sleeves: "
+                + ", ".join(missing_sleeves)
             )
 
         explicit_borrowable = tuple(self.rebalance_capacity.borrowable_sleeve_ids)
@@ -307,11 +314,7 @@ class MoneyManagementPolicy(BaseModel):
 
         known_sleeves = set(sleeve_ids)
         unknown_capacity_refs = sorted(
-            (
-                set(explicit_borrowable)
-                | set(explicit_borrowers)
-                | set(explicit_repay)
-            )
+            (set(explicit_borrowable) | set(explicit_borrowers) | set(explicit_repay))
             - known_sleeves
         )
         if unknown_capacity_refs:
@@ -380,7 +383,9 @@ class SleeveSnapshot(BaseModel):
     current_exposure_inr: Decimal = Field(default=Decimal("0"), ge=Decimal("0"))
     realized_pnl_inr: Decimal = Decimal("0")
     unrealized_pnl_inr: Decimal = Decimal("0")
-    drawdown_pct: Decimal = Field(default=Decimal("0"), ge=Decimal("0"), le=Decimal("100"))
+    drawdown_pct: Decimal = Field(
+        default=Decimal("0"), ge=Decimal("0"), le=Decimal("100")
+    )
     open_position_count: int = Field(ge=0)
     open_trade_risk_inr: Decimal = Field(default=Decimal("0"), ge=Decimal("0"))
     turnover_inr: Decimal = Field(default=Decimal("0"), ge=Decimal("0"))
@@ -399,7 +404,9 @@ class SleeveSnapshot(BaseModel):
             return tuple()
         if not isinstance(value, list | tuple):
             raise ValueError("symbols must be a list of symbols.")
-        return tuple(str(symbol).strip().upper() for symbol in value if str(symbol).strip())
+        return tuple(
+            str(symbol).strip().upper() for symbol in value if str(symbol).strip()
+        )
 
 
 PortfolioPolicy = MoneyManagementPolicy

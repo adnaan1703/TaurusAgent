@@ -77,7 +77,9 @@ class PaperBroker(BrokerAdapter):
         pending_affordability_cash_inr: Decimal | None = None,
     ) -> PaperOrder:
         if execution_policy not in {"immediate", "next_open"}:
-            raise ValueError("PaperBroker execution_policy must be immediate or next_open.")
+            raise ValueError(
+                "PaperBroker execution_policy must be immediate or next_open."
+            )
         self._validate_decision(decision)
         runtime_profile = resolve_runtime_profile(
             self.session,
@@ -108,7 +110,9 @@ class PaperBroker(BrokerAdapter):
                 reason=f"No candle data available for {decision.symbol}.",
                 execution_policy=execution_policy,
             )
-            repo.store_rejected_order(order=order, account=account, positions=position_models)
+            repo.store_rejected_order(
+                order=order, account=account, positions=position_models
+            )
             self.session.commit()
             self._log_order(order, fill_ids=[])
             self._send_order_alert(order, fill_ids=[])
@@ -130,9 +134,13 @@ class PaperBroker(BrokerAdapter):
                 positions=positions,
                 reason="No existing paper position or positive executable quantity for action.",
                 execution_policy=execution_policy,
-                signal_trade_date=candle.trade_date if execution_policy == "next_open" else None,
+                signal_trade_date=candle.trade_date
+                if execution_policy == "next_open"
+                else None,
             )
-            repo.store_rejected_order(order=order, account=account, positions=position_models)
+            repo.store_rejected_order(
+                order=order, account=account, positions=position_models
+            )
             self.session.commit()
             self._log_order(order, fill_ids=[])
             self._send_order_alert(order, fill_ids=[])
@@ -162,13 +170,17 @@ class PaperBroker(BrokerAdapter):
                     execution_policy=execution_policy,
                     signal_trade_date=candle.trade_date,
                 )
-                repo.store_rejected_order(order=order, account=account, positions=position_models)
+                repo.store_rejected_order(
+                    order=order, account=account, positions=position_models
+                )
                 self.session.commit()
                 self._log_order(order, fill_ids=[])
                 self._send_order_alert(order, fill_ids=[])
                 return order
 
-            self._mark_prices(positions=positions, symbol=decision.symbol, last_price=candle.close)
+            self._mark_prices(
+                positions=positions, symbol=decision.symbol, last_price=candle.close
+            )
             account, position_models = self._account_and_positions(
                 account_state=account_state,
                 positions=positions,
@@ -216,7 +228,9 @@ class PaperBroker(BrokerAdapter):
                 reason="Approved quantity could not produce a valid fill.",
                 execution_policy=execution_policy,
             )
-            repo.store_rejected_order(order=order, account=account, positions=position_models)
+            repo.store_rejected_order(
+                order=order, account=account, positions=position_models
+            )
             self.session.commit()
             self._log_order(order, fill_ids=[])
             self._send_order_alert(order, fill_ids=[])
@@ -241,7 +255,9 @@ class PaperBroker(BrokerAdapter):
                 reason="Insufficient paper cash or position for approved order.",
                 execution_policy=execution_policy,
             )
-            repo.store_rejected_order(order=order, account=account, positions=position_models)
+            repo.store_rejected_order(
+                order=order, account=account, positions=position_models
+            )
             self.session.commit()
             self._log_order(order, fill_ids=[])
             self._send_order_alert(order, fill_ids=[])
@@ -263,8 +279,12 @@ class PaperBroker(BrokerAdapter):
             )
 
         for fill in fills:
-            self._apply_fill(account_state=account_state, positions=positions, fill=fill)
-        self._mark_prices(positions=positions, symbol=decision.symbol, last_price=candle.close)
+            self._apply_fill(
+                account_state=account_state, positions=positions, fill=fill
+            )
+        self._mark_prices(
+            positions=positions, symbol=decision.symbol, last_price=candle.close
+        )
         account, position_models = self._account_and_positions(
             account_state=account_state,
             positions=positions,
@@ -508,7 +528,9 @@ class PaperBroker(BrokerAdapter):
                 trade_date=execution_candle.trade_date,
                 filled_at=timestamp + timedelta(seconds=terminal_sequence),
             )
-            self._apply_fill(account_state=account_state, positions=positions, fill=fill)
+            self._apply_fill(
+                account_state=account_state, positions=positions, fill=fill
+            )
             status = (
                 "FILLED"
                 if affordable_quantity == requested_quantity
@@ -621,7 +643,9 @@ class PaperBroker(BrokerAdapter):
             )
 
     def _latest_candle(self, symbol: str):
-        candles = CandleRepository(self.session).get_by_symbol_and_date_range(symbol=symbol)
+        candles = CandleRepository(self.session).get_by_symbol_and_date_range(
+            symbol=symbol
+        )
         return candles[-1] if candles else None
 
     def _first_candle_after_signal(self, *, symbol: str, signal_trade_date):
@@ -782,7 +806,9 @@ class PaperBroker(BrokerAdapter):
         if quantity <= threshold:
             return [quantity]
         first = int(
-            (Decimal(quantity) * self.settings.taurus_paper_first_fill_pct).to_integral_value(
+            (
+                Decimal(quantity) * self.settings.taurus_paper_first_fill_pct
+            ).to_integral_value(
                 rounding=ROUND_DOWN,
             )
         )
@@ -800,9 +826,13 @@ class PaperBroker(BrokerAdapter):
         symbol: str,
     ) -> int:
         if side == "SELL":
-            held = positions.get(symbol.upper(), _PositionState(symbol=symbol.upper())).quantity
+            held = positions.get(
+                symbol.upper(), _PositionState(symbol=symbol.upper())
+            ).quantity
             return min(requested_quantity, held)
-        total_debit = sum((fill.gross_value_inr + fill.cost_inr for fill in fills), SCORE_ZERO)
+        total_debit = sum(
+            (fill.gross_value_inr + fill.cost_inr for fill in fills), SCORE_ZERO
+        )
         if total_debit <= available_cash:
             return requested_quantity
 
@@ -876,28 +906,36 @@ class PaperBroker(BrokerAdapter):
         position.last_price_inr = fill.fill_price_inr
         if fill.side == "BUY":
             debit = _money(fill.gross_value_inr + fill.cost_inr)
-            account_state.available_cash_inr = _money(account_state.available_cash_inr - debit)
+            account_state.available_cash_inr = _money(
+                account_state.available_cash_inr - debit
+            )
             total_cost_basis = _money(
                 (position.average_cost_inr * Decimal(position.quantity))
                 + fill.gross_value_inr
                 + fill.cost_inr
             )
             position.quantity += fill.quantity
-            position.average_cost_inr = _money(total_cost_basis / Decimal(position.quantity))
+            position.average_cost_inr = _money(
+                total_cost_basis / Decimal(position.quantity)
+            )
             return
 
         sell_quantity = min(fill.quantity, position.quantity)
         if sell_quantity <= 0:
             return
         proceeds = _money(fill.gross_value_inr - fill.cost_inr)
-        account_state.available_cash_inr = _money(account_state.available_cash_inr + proceeds)
+        account_state.available_cash_inr = _money(
+            account_state.available_cash_inr + proceeds
+        )
         realized = _money(
             (fill.fill_price_inr - position.average_cost_inr) * Decimal(sell_quantity)
             - fill.cost_inr
         )
         position.quantity -= sell_quantity
         position.realized_pnl_inr = _money(position.realized_pnl_inr + realized)
-        account_state.realized_pnl_inr = _money(account_state.realized_pnl_inr + realized)
+        account_state.realized_pnl_inr = _money(
+            account_state.realized_pnl_inr + realized
+        )
         if position.quantity == 0:
             position.average_cost_inr = SCORE_ZERO
 
@@ -937,7 +975,9 @@ class PaperBroker(BrokerAdapter):
         for symbol in list(positions):
             candle = self._latest_candle(symbol)
             if candle is not None:
-                self._mark_prices(positions=positions, symbol=symbol, last_price=candle.close)
+                self._mark_prices(
+                    positions=positions, symbol=symbol, last_price=candle.close
+                )
         self._account_and_positions(
             account_state=account_state,
             positions=positions,
@@ -964,7 +1004,9 @@ class PaperBroker(BrokerAdapter):
                 continue
             candle = self._latest_candle(symbol)
             if candle is not None:
-                self._mark_prices(positions=positions, symbol=symbol, last_price=candle.close)
+                self._mark_prices(
+                    positions=positions, symbol=symbol, last_price=candle.close
+                )
 
     def _filled_order(
         self,
@@ -980,12 +1022,16 @@ class PaperBroker(BrokerAdapter):
         total_cost = sum((fill.cost_inr for fill in fills), SCORE_ZERO)
         total_slippage = sum((fill.slippage_inr for fill in fills), SCORE_ZERO)
         average_fill_price = (
-            _money(gross_value / Decimal(filled_quantity)) if filled_quantity else SCORE_ZERO
+            _money(gross_value / Decimal(filled_quantity))
+            if filled_quantity
+            else SCORE_ZERO
         )
         history = ["CREATED", "ACCEPTED"]
         if len(fills) > 1:
             history.append("PARTIALLY_FILLED")
-        status = "FILLED" if filled_quantity == requested_quantity else "PARTIALLY_FILLED"
+        status = (
+            "FILLED" if filled_quantity == requested_quantity else "PARTIALLY_FILLED"
+        )
         history.append(status)
         return PaperOrder(
             order_id=fills[0].order_id,

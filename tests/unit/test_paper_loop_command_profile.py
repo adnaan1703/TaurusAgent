@@ -108,8 +108,7 @@ def test_paper_loop_kite_profile_prefers_command_line_over_dotenv(
     )
 
     assert (
-        'TAURUS_TARGET_MARKET_UNIVERSE_PATH="configs/market_data/custom.yaml"'
-        in output
+        'TAURUS_TARGET_MARKET_UNIVERSE_PATH="configs/market_data/custom.yaml"' in output
     )
 
 
@@ -128,8 +127,7 @@ def test_paper_loop_kite_profile_prefers_shell_env_over_dotenv(
     output = _make_dry_run("paper-loop-kite", cwd=tmp_path, env=env)
 
     assert (
-        'TAURUS_TARGET_MARKET_UNIVERSE_PATH="configs/market_data/shell.yaml"'
-        in output
+        'TAURUS_TARGET_MARKET_UNIVERSE_PATH="configs/market_data/shell.yaml"' in output
     )
 
 
@@ -276,7 +274,9 @@ logger.warning("paper_run.warning", symbol="INFY")
     assert "paper_run.warning" in result.stdout
 
 
-def test_paper_loop_kite_profile_passes_manual_symbols_without_universe_expansion() -> None:
+def test_paper_loop_kite_profile_passes_manual_symbols_without_universe_expansion() -> (
+    None
+):
     output = _make_dry_run("paper-loop-kite", "SYMBOLS=INFY,TCS")
 
     assert 'SYMBOL=""' in output
@@ -301,7 +301,9 @@ def test_full_universe_manual_env_resolution_stays_explicit(
     assert resolved.universe.symbols == ["INFY", "TCS"]
 
 
-def test_manual_env_resolution_does_not_require_target_universe_outside_pytest() -> None:
+def test_manual_env_resolution_does_not_require_target_universe_outside_pytest() -> (
+    None
+):
     script = """
 import json
 

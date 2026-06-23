@@ -27,10 +27,19 @@ from taurus_core.db.models import (
     BacktestSignalModel,
     FeatureValueModel,
 )
-from taurus_core.db.repositories import BacktestRepository, CandleRepository, InstrumentRepository
+from taurus_core.db.repositories import (
+    BacktestRepository,
+    CandleRepository,
+    InstrumentRepository,
+)
 from taurus_core.domain.market_data import DailyCandle
 from taurus_core.features.store import FeatureValue, TechnicalFeatureService
-from taurus_core.strategies import StrategyConfig, StrategyRanking, StrategySignal, build_strategy
+from taurus_core.strategies import (
+    StrategyConfig,
+    StrategyRanking,
+    StrategySignal,
+    build_strategy,
+)
 
 MONEY = Decimal("0.0001")
 RATE_DENOMINATOR = Decimal("10000")
@@ -76,12 +85,12 @@ class BacktestEngine:
             for symbol, candles in candles_by_symbol.items()
         }
         common_dates = sorted(
-            set.intersection(
-                *[set(candles_by_date[symbol]) for symbol in symbols]
-            )
+            set.intersection(*[set(candles_by_date[symbol]) for symbol in symbols])
         )
         if len(common_dates) <= self.config.lookback_days + 1:
-            raise ValueError("Not enough candle history for the configured backtest lookback.")
+            raise ValueError(
+                "Not enough candle history for the configured backtest lookback."
+            )
 
         start_date = common_dates[self.config.lookback_days + 1]
         end_date = common_dates[-1]
@@ -105,7 +114,9 @@ class BacktestEngine:
         feature_service = TechnicalFeatureService.from_strategy_parameters(
             dict(self.config.strategy_parameters)
         )
-        graph_loader = GraphBacktestSignalLoader(self.session) if self._graph_enabled() else None
+        graph_loader = (
+            GraphBacktestSignalLoader(self.session) if self._graph_enabled() else None
+        )
         cash = self.config.initial_capital_inr
         positions: dict[str, PositionState] = {}
         closed_pnl: list[TradePnl] = []
@@ -126,14 +137,16 @@ class BacktestEngine:
                 continue
 
             candles_today = {
-                symbol: candles_by_date[symbol][trade_date]
-                for symbol in symbols
+                symbol: candles_by_date[symbol][trade_date] for symbol in symbols
             }
 
             if self._is_rebalance_day(date_index):
                 history_dates = common_dates[:date_index]
                 history_by_symbol = {
-                    symbol: [candles_by_date[symbol][history_date] for history_date in history_dates]
+                    symbol: [
+                        candles_by_date[symbol][history_date]
+                        for history_date in history_dates
+                    ]
                     for symbol in symbols
                 }
                 features_by_symbol = {}
@@ -151,7 +164,9 @@ class BacktestEngine:
                         for feature_value in snapshot.rows
                     )
                 current_symbols = {
-                    symbol for symbol, position in positions.items() if position.quantity > 0
+                    symbol
+                    for symbol, position in positions.items()
+                    if position.quantity > 0
                 }
                 graph_signals_by_symbol: dict[str, GraphBacktestSignal] = {}
                 if graph_loader is not None:
@@ -185,7 +200,9 @@ class BacktestEngine:
                         current_positions=current_symbols,
                         target_limit=target_limit,
                     )
-                signals.extend(_signal_model(run_id, signal) for signal in generated_signals)
+                signals.extend(
+                    _signal_model(run_id, signal) for signal in generated_signals
+                )
                 cash, new_orders, new_fills, new_closed_pnl = self._rebalance(
                     run_id=run_id,
                     trade_date=trade_date,
@@ -193,7 +210,9 @@ class BacktestEngine:
                     candles_today=candles_today,
                     cash=cash,
                     positions=positions,
-                    equity_before_trades=self._mark_to_market(cash, positions, candles_today),
+                    equity_before_trades=self._mark_to_market(
+                        cash, positions, candles_today
+                    ),
                 )
                 orders.extend(new_orders)
                 fills.extend(new_fills)
@@ -213,7 +232,9 @@ class BacktestEngine:
             total_equity = _money(cash + holdings_value)
             equity_values.append(total_equity)
             peak = max(equity_values)
-            drawdown = (total_equity / peak) - Decimal("1") if peak > 0 else Decimal("0")
+            drawdown = (
+                (total_equity / peak) - Decimal("1") if peak > 0 else Decimal("0")
+            )
             equity_points.append(
                 BacktestEquityPointModel(
                     run_id=run_id,
@@ -239,7 +260,9 @@ class BacktestEngine:
                 "portfolio_breadth_source": self.config.portfolio_breadth_source,
                 "ranked_candidate_count": ranking_summary["ranked_candidate_count"],
                 "eligible_candidate_count": ranking_summary["eligible_candidate_count"],
-                "ranked_candidates_preview": ranking_summary["ranked_candidates_preview"],
+                "ranked_candidates_preview": ranking_summary[
+                    "ranked_candidates_preview"
+                ],
                 "rebalance_count": rebalance_count,
             }
         )
@@ -249,8 +272,7 @@ class BacktestEngine:
             metrics["graph_open_trade_count"] = len(open_graph_trades)
         final_equity = equity_points[-1].total_equity_inr
         final_candles = {
-            symbol: candles_by_date[symbol][end_date]
-            for symbol in symbols
+            symbol: candles_by_date[symbol][end_date] for symbol in symbols
         }
         position_models = self._position_models(run_id, positions, final_candles)
         run = BacktestRunModel(
@@ -343,7 +365,8 @@ class BacktestEngine:
                         entry_date=open_trade.entry_date,
                         exit_date=fill.trade_date,
                         return_pct=(
-                            (fill.fill_price_inr / open_trade.entry_price_inr) - Decimal("1")
+                            (fill.fill_price_inr / open_trade.entry_price_inr)
+                            - Decimal("1")
                         ).quantize(Decimal("0.00000001")),
                         signal_score=open_trade.signal.score,
                         signal_confidence=open_trade.signal.confidence,
@@ -402,7 +425,9 @@ class BacktestEngine:
         cash: Decimal,
         positions: dict[str, PositionState],
         equity_before_trades: Decimal,
-    ) -> tuple[Decimal, list[BacktestOrderModel], list[BacktestFillModel], list[TradePnl]]:
+    ) -> tuple[
+        Decimal, list[BacktestOrderModel], list[BacktestFillModel], list[TradePnl]
+    ]:
         orders: list[BacktestOrderModel] = []
         fills: list[BacktestFillModel] = []
         closed_pnl: list[TradePnl] = []
@@ -432,7 +457,10 @@ class BacktestEngine:
 
         allocation = equity_before_trades / Decimal(max(len(targets), 1))
         for symbol in missing_targets:
-            if len({s for s, p in positions.items() if p.quantity > 0}) >= self.config.max_open_positions:
+            if (
+                len({s for s, p in positions.items() if p.quantity > 0})
+                >= self.config.max_open_positions
+            ):
                 break
             cash, order, fill = self._buy(
                 run_id=run_id,
@@ -458,8 +486,12 @@ class BacktestEngine:
         cash: Decimal,
         positions: dict[str, PositionState],
     ) -> tuple[Decimal, BacktestOrderModel | None, BacktestFillModel | None]:
-        fill_price = _money(candle.open * (Decimal("1") + self.config.slippage_bps / RATE_DENOMINATOR))
-        quantity = int((min(allocation, cash) / fill_price).to_integral_value(rounding=ROUND_DOWN))
+        fill_price = _money(
+            candle.open * (Decimal("1") + self.config.slippage_bps / RATE_DENOMINATOR)
+        )
+        quantity = int(
+            (min(allocation, cash) / fill_price).to_integral_value(rounding=ROUND_DOWN)
+        )
         while quantity > 0:
             gross_value = _money(fill_price * quantity)
             cost = _money(gross_value * self.config.cost_bps / RATE_DENOMINATOR)
@@ -472,20 +504,28 @@ class BacktestEngine:
         gross_value = _money(fill_price * quantity)
         cost = _money(gross_value * self.config.cost_bps / RATE_DENOMINATOR)
         cash = _money(cash - gross_value - cost)
-        position = positions.setdefault(candle.symbol, PositionState(symbol=candle.symbol))
-        total_cost = _money((position.average_cost_inr * position.quantity) + gross_value + cost)
+        position = positions.setdefault(
+            candle.symbol, PositionState(symbol=candle.symbol)
+        )
+        total_cost = _money(
+            (position.average_cost_inr * position.quantity) + gross_value + cost
+        )
         position.quantity += quantity
         position.average_cost_inr = _money(total_cost / Decimal(position.quantity))
-        return cash, _order_model(run_id, trade_date, candle.symbol, "BUY", quantity), _fill_model(
-            run_id,
-            trade_date,
-            candle.symbol,
-            "BUY",
-            quantity,
-            fill_price,
-            gross_value,
-            cost,
-            self.config.slippage_bps,
+        return (
+            cash,
+            _order_model(run_id, trade_date, candle.symbol, "BUY", quantity),
+            _fill_model(
+                run_id,
+                trade_date,
+                candle.symbol,
+                "BUY",
+                quantity,
+                fill_price,
+                gross_value,
+                cost,
+                self.config.slippage_bps,
+            ),
         )
 
     def _sell(
@@ -498,24 +538,31 @@ class BacktestEngine:
         cash: Decimal,
         position: PositionState,
     ) -> tuple[Decimal, BacktestOrderModel, BacktestFillModel, TradePnl]:
-        fill_price = _money(candle.open * (Decimal("1") - self.config.slippage_bps / RATE_DENOMINATOR))
+        fill_price = _money(
+            candle.open * (Decimal("1") - self.config.slippage_bps / RATE_DENOMINATOR)
+        )
         gross_value = _money(fill_price * quantity)
         cost = _money(gross_value * self.config.cost_bps / RATE_DENOMINATOR)
         cash = _money(cash + gross_value - cost)
         pnl = _money(gross_value - cost - (position.average_cost_inr * quantity))
         position.quantity = 0
         position.realized_pnl_inr = _money(position.realized_pnl_inr + pnl)
-        return cash, _order_model(run_id, trade_date, candle.symbol, "SELL", quantity), _fill_model(
-            run_id,
-            trade_date,
-            candle.symbol,
-            "SELL",
-            quantity,
-            fill_price,
-            gross_value,
-            cost,
-            self.config.slippage_bps,
-        ), TradePnl(symbol=candle.symbol, pnl_inr=pnl)
+        return (
+            cash,
+            _order_model(run_id, trade_date, candle.symbol, "SELL", quantity),
+            _fill_model(
+                run_id,
+                trade_date,
+                candle.symbol,
+                "SELL",
+                quantity,
+                fill_price,
+                gross_value,
+                cost,
+                self.config.slippage_bps,
+            ),
+            TradePnl(symbol=candle.symbol, pnl_inr=pnl),
+        )
 
     def _mark_to_market(
         self,
@@ -543,7 +590,9 @@ class BacktestEngine:
             position = positions[symbol]
             last_close = final_candles[symbol].close
             market_value = _money(position.quantity * last_close)
-            unrealized = _money(market_value - (position.average_cost_inr * position.quantity))
+            unrealized = _money(
+                market_value - (position.average_cost_inr * position.quantity)
+            )
             models.append(
                 BacktestPositionModel(
                     run_id=run_id,
@@ -576,7 +625,9 @@ class BacktestEngine:
             "end_date": end_date.isoformat(),
             "parameters": self._parameters(),
         }
-        digest = hashlib.sha256(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()
+        digest = hashlib.sha256(
+            json.dumps(payload, sort_keys=True).encode("utf-8")
+        ).hexdigest()
         return f"bt-{digest[:16]}"
 
     def _parameters(self) -> dict[str, object]:

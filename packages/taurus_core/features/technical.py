@@ -6,7 +6,9 @@ from decimal import Decimal
 from taurus_core.domain.market_data import DailyCandle
 
 
-def simple_moving_average(values: Sequence[Decimal], window: int) -> list[Decimal | None]:
+def simple_moving_average(
+    values: Sequence[Decimal], window: int
+) -> list[Decimal | None]:
     _validate_window(window)
     normalized = [_to_decimal(value) for value in values]
     result: list[Decimal | None] = [None] * len(normalized)
@@ -22,7 +24,9 @@ def simple_moving_average(values: Sequence[Decimal], window: int) -> list[Decima
     return result
 
 
-def exponential_moving_average(values: Sequence[Decimal], window: int) -> list[Decimal | None]:
+def exponential_moving_average(
+    values: Sequence[Decimal], window: int
+) -> list[Decimal | None]:
     _validate_window(window)
     normalized = [_to_decimal(value) for value in values]
     result: list[Decimal | None] = [None] * len(normalized)
@@ -59,7 +63,9 @@ def period_returns(values: Sequence[Decimal], *, period: int) -> list[Decimal | 
     return result
 
 
-def relative_strength_index(values: Sequence[Decimal], window: int = 14) -> list[Decimal | None]:
+def relative_strength_index(
+    values: Sequence[Decimal], window: int = 14
+) -> list[Decimal | None]:
     _validate_window(window)
     normalized = [_to_decimal(value) for value in values]
     result: list[Decimal | None] = [None] * len(normalized)
@@ -88,7 +94,9 @@ def relative_strength_index(values: Sequence[Decimal], window: int = 14) -> list
     return result
 
 
-def average_true_range(candles: Sequence[DailyCandle], window: int = 14) -> list[Decimal | None]:
+def average_true_range(
+    candles: Sequence[DailyCandle], window: int = 14
+) -> list[Decimal | None]:
     _validate_window(window)
     if not candles:
         return []
@@ -137,7 +145,9 @@ def rolling_volatility(
     return result
 
 
-def volume_z_score(volumes: Sequence[int | Decimal], window: int) -> list[Decimal | None]:
+def volume_z_score(
+    volumes: Sequence[int | Decimal], window: int
+) -> list[Decimal | None]:
     _validate_window(window)
     normalized = [_to_decimal(value) for value in volumes]
     result: list[Decimal | None] = [None] * len(normalized)
@@ -213,7 +223,9 @@ def average_directional_index(
         if index > window:
             smoothed_tr = _wilder_smooth(smoothed_tr, true_ranges[index], window)
             smoothed_plus_dm = _wilder_smooth(smoothed_plus_dm, plus_dm[index], window)
-            smoothed_minus_dm = _wilder_smooth(smoothed_minus_dm, minus_dm[index], window)
+            smoothed_minus_dm = _wilder_smooth(
+                smoothed_minus_dm, minus_dm[index], window
+            )
 
         if smoothed_tr == 0:
             plus = Decimal("0")
@@ -232,11 +244,19 @@ def average_directional_index(
 
         first_adx_index = (window * 2) - 1
         if index == first_adx_index:
-            dx_window = [value for value in dx[window : first_adx_index + 1] if value is not None]
+            dx_window = [
+                value for value in dx[window : first_adx_index + 1] if value is not None
+            ]
             if len(dx_window) == window:
                 adx[index] = sum(dx_window, Decimal("0")) / Decimal(window)
-        elif index > first_adx_index and adx[index - 1] is not None and dx[index] is not None:
-            adx[index] = ((adx[index - 1] * Decimal(window - 1)) + dx[index]) / Decimal(window)
+        elif (
+            index > first_adx_index
+            and adx[index - 1] is not None
+            and dx[index] is not None
+        ):
+            adx[index] = ((adx[index - 1] * Decimal(window - 1)) + dx[index]) / Decimal(
+                window
+            )
 
     return adx, plus_di, minus_di
 
@@ -273,7 +293,9 @@ def bollinger_bands(
         upper_band[index] = upper
         lower_band[index] = lower
         percent_b[index] = (
-            Decimal("0.5") if band_range == 0 else (normalized[index] - lower) / band_range
+            Decimal("0.5")
+            if band_range == 0
+            else (normalized[index] - lower) / band_range
         )
         if middle != 0:
             bandwidth[index] = band_range / middle
@@ -358,8 +380,13 @@ def volatility_adjusted_returns(
     returns = period_returns(values, period=window)
     volatility = rolling_volatility(daily_returns(values), window)
     result: list[Decimal | None] = [None] * len(values)
-    for index, (period_return, realized_volatility) in enumerate(zip(returns, volatility)):
-        if period_return is not None and realized_volatility not in (None, Decimal("0")):
+    for index, (period_return, realized_volatility) in enumerate(
+        zip(returns, volatility)
+    ):
+        if period_return is not None and realized_volatility not in (
+            None,
+            Decimal("0"),
+        ):
             result[index] = period_return / realized_volatility
     return result
 
@@ -381,7 +408,9 @@ def _stddev(values: Sequence[Decimal]) -> Decimal:
     return variance.sqrt()
 
 
-def _ema_optional(values: Sequence[Decimal | None], window: int) -> list[Decimal | None]:
+def _ema_optional(
+    values: Sequence[Decimal | None], window: int
+) -> list[Decimal | None]:
     _validate_window(window)
     result: list[Decimal | None] = [None] * len(values)
     multiplier = Decimal("2") / Decimal(window + 1)

@@ -391,19 +391,22 @@ def get_overview(
 
     run_rows = run_repo.list(profile_id=profile.profile_id, limit=limit)
     recent_runs = [
-        _run_summary(row, research_repo, risk_repo, execution_repo)
-        for row in run_rows
+        _run_summary(row, research_repo, risk_repo, execution_repo) for row in run_rows
     ]
     latest_run = recent_runs[0] if recent_runs else None
     latest_account = execution_repo.latest_account_by_portfolio(
         portfolio_id=profile.profile_id,
     )
-    latest_account_payload = _payload(latest_account) if latest_account is not None else None
+    latest_account_payload = (
+        _payload(latest_account) if latest_account is not None else None
+    )
     latest_proposal = research_repo.list_trader_proposals(
         portfolio_id=profile.profile_id,
         limit=1,
     )
-    latest_final = risk_repo.list_final_decisions(profile_id=profile.profile_id, limit=1)
+    latest_final = risk_repo.list_final_decisions(
+        profile_id=profile.profile_id, limit=1
+    )
     latest_orders = execution_repo.list_orders(
         portfolio_id=profile.profile_id,
         limit=1,
@@ -437,7 +440,9 @@ def get_overview(
         ),
         latest_account=latest_account_payload,
         latest_run=latest_run,
-        latest_trader_proposal=_payload(latest_proposal[0]) if latest_proposal else None,
+        latest_trader_proposal=_payload(latest_proposal[0])
+        if latest_proposal
+        else None,
         latest_final_decision=_payload(latest_final[0]) if latest_final else None,
         latest_order=_payload(latest_orders[0]) if latest_orders else None,
         recent_runs=recent_runs,
@@ -511,7 +516,9 @@ def get_decision_trail(
     profile = profile_for_run(session, settings, run, profile_id=profile_id)
     normalized_symbol = symbol.upper()
     if normalized_symbol not in set(run.symbols):
-        raise HTTPException(status_code=404, detail="Symbol was not part of this paper run.")
+        raise HTTPException(
+            status_code=404, detail="Symbol was not part of this paper run."
+        )
 
     context = _symbol_context(session=session, run=run, symbol=normalized_symbol)
     stages = _timeline_stages(run=run, symbol=normalized_symbol, context=context)
@@ -534,7 +541,9 @@ def get_decision_trail(
         company_name=instrument.name if instrument is not None else None,
         decision_id=final_decision.decision_id if final_decision is not None else None,
         final_status=final_decision.status if final_decision is not None else None,
-        final_action=final_decision.final_action if final_decision is not None else None,
+        final_action=final_decision.final_action
+        if final_decision is not None
+        else None,
         can_send_to_broker=final_decision.can_send_to_broker
         if final_decision is not None
         else None,
@@ -565,7 +574,10 @@ def get_ui_replay(
         if stage.name == "paper_order":
             order_artifacts = stage.artifacts
             break
-    stages = [_replay_timeline_stage(stage, order_artifacts=order_artifacts) for stage in replay.stages]
+    stages = [
+        _replay_timeline_stage(stage, order_artifacts=order_artifacts)
+        for stage in replay.stages
+    ]
     return UiReplayResponse(
         decision_id=replay.decision_id,
         run_id=replay.run_id,
@@ -588,7 +600,9 @@ def get_ui_risk(
     profile = active_profile(session, settings, profile_id=profile_id)
     risk_repo = RiskRepository(session)
     reviews = risk_repo.list_risk_reviews(profile_id=profile.profile_id, limit=limit)
-    decisions = risk_repo.list_final_decisions(profile_id=profile.profile_id, limit=limit)
+    decisions = risk_repo.list_final_decisions(
+        profile_id=profile.profile_id, limit=limit
+    )
     hard_rules: list[dict[str, Any]] = []
     persona_reviews: list[dict[str, Any]] = []
     for review in reviews:
@@ -625,7 +639,9 @@ def get_ui_risk(
             settings=settings,
             profile_id=profile.profile_id,
         ),
-        latest_risk_reviews=[_risk_review_payload(session, review) for review in reviews],
+        latest_risk_reviews=[
+            _risk_review_payload(session, review) for review in reviews
+        ],
         hard_rule_results=hard_rules,
         persona_reviews=persona_reviews,
         latest_final_decisions=[_payload(decision) for decision in decisions],
@@ -643,7 +659,9 @@ def get_ui_portfolio(
     settings: Settings = request.app.state.settings
     profile = active_profile(session, settings, profile_id=profile_id)
     execution_repo = ExecutionRepository(session)
-    latest_run_rows = PaperRunRepository(session).list(profile_id=profile.profile_id, limit=1)
+    latest_run_rows = PaperRunRepository(session).list(
+        profile_id=profile.profile_id, limit=1
+    )
     account = execution_repo.latest_account_by_portfolio(
         portfolio_id=profile.profile_id,
     )
@@ -857,21 +875,37 @@ def _run_summary(
     final_decisions: list[FinalDecisionModel] | None = None,
     orders: list[PaperOrderModel] | None = None,
 ) -> UiRunSummary:
-    proposals = proposals if proposals is not None else research_repo.list_trader_proposals(
-        run_id=run.run_id,
-        limit=None,
+    proposals = (
+        proposals
+        if proposals is not None
+        else research_repo.list_trader_proposals(
+            run_id=run.run_id,
+            limit=None,
+        )
     )
-    risk_reviews = risk_reviews if risk_reviews is not None else risk_repo.list_risk_reviews(
-        run_id=run.run_id,
-        limit=None,
+    risk_reviews = (
+        risk_reviews
+        if risk_reviews is not None
+        else risk_repo.list_risk_reviews(
+            run_id=run.run_id,
+            limit=None,
+        )
     )
-    final_decisions = final_decisions if final_decisions is not None else risk_repo.list_final_decisions(
-        run_id=run.run_id,
-        limit=None,
+    final_decisions = (
+        final_decisions
+        if final_decisions is not None
+        else risk_repo.list_final_decisions(
+            run_id=run.run_id,
+            limit=None,
+        )
     )
-    orders = orders if orders is not None else execution_repo.list_orders(
-        run_id=run.run_id,
-        limit=None,
+    orders = (
+        orders
+        if orders is not None
+        else execution_repo.list_orders(
+            run_id=run.run_id,
+            limit=None,
+        )
     )
     strategy = _strategy_summary(run)
     count_payload = _run_count_payload(
@@ -971,7 +1005,9 @@ def _run_count_payload(
     selected_count = (
         _optional_int(allocation_summary.get("selected_count"))
         or _ledger_status_count(ledger, SELECTED_ALLOCATION_STATUSES)
-        or sum(1 for decision in final_decisions if decision.status == "APPROVED_FOR_PAPER")
+        or sum(
+            1 for decision in final_decisions if decision.status == "APPROVED_FOR_PAPER"
+        )
     )
     not_selected_count = (
         _optional_int(allocation_summary.get("not_selected_count"))
@@ -990,9 +1026,8 @@ def _run_count_payload(
     risk_rejected_count = sum(
         1 for review in risk_reviews if review.status in RISK_REJECTED_STATUSES
     ) or _artifact_status_count(final_artifact, RISK_REJECTED_STATUSES)
-    executed_count = (
-        _optional_int(execution_artifact.get("routed_order_count"))
-        or sum(1 for order in orders if order.status != "REJECTED")
+    executed_count = _optional_int(execution_artifact.get("routed_order_count")) or sum(
+        1 for order in orders if order.status != "REJECTED"
     )
     return {
         "universe_count": int(universe_count),
@@ -1015,18 +1050,16 @@ def _run_settlement_summary(run: PaperRunModel) -> dict[str, Any]:
 
     raw_details = settlement.get("details", [])
     detail_items = raw_details if isinstance(raw_details, list) else []
-    details = [
-        dict(item)
-        for item in detail_items
-        if isinstance(item, dict)
-    ]
-    status_counts = Counter(str(detail.get("status") or "UNKNOWN") for detail in details)
+    details = [dict(item) for item in detail_items if isinstance(item, dict)]
+    status_counts = Counter(
+        str(detail.get("status") or "UNKNOWN") for detail in details
+    )
     raw_pending_symbols = settlement.get("pending_next_open_order_symbols", [])
-    pending_symbol_items = raw_pending_symbols if isinstance(raw_pending_symbols, list) else []
+    pending_symbol_items = (
+        raw_pending_symbols if isinstance(raw_pending_symbols, list) else []
+    )
     pending_symbols = [
-        str(symbol).upper()
-        for symbol in pending_symbol_items
-        if str(symbol).strip()
+        str(symbol).upper() for symbol in pending_symbol_items if str(symbol).strip()
     ]
     counts = {
         "settled": _optional_int(settlement.get("settled")) or 0,
@@ -1062,7 +1095,9 @@ def _selection_rows(
         return []
 
     proposals_by_symbol = {proposal.symbol.upper(): proposal for proposal in proposals}
-    final_by_symbol = {decision.symbol.upper(): decision for decision in final_decisions}
+    final_by_symbol = {
+        decision.symbol.upper(): decision for decision in final_decisions
+    }
     order_by_symbol = {order.symbol.upper(): order for order in orders}
     execution_by_symbol = _execution_artifacts_by_symbol(run)
 
@@ -1121,18 +1156,17 @@ def _selection_row_from_entry(
     allocation_status = _optional_string(entry.get("status"))
     proposal_payload = _payload(proposal) if proposal is not None else {}
     allocation_decision = _allocation_decision_from_payload(proposal_payload)
-    binding_constraint = (
-        _optional_string(entry.get("binding_constraint"))
-        or (
-            _optional_string(allocation_decision.get("binding_constraint"))
-            if allocation_decision
-            else None
-        )
+    binding_constraint = _optional_string(entry.get("binding_constraint")) or (
+        _optional_string(allocation_decision.get("binding_constraint"))
+        if allocation_decision
+        else None
     )
     proposal_id = _optional_string(entry.get("proposal_id")) or (
         proposal.proposal_id if proposal is not None else None
     )
-    selected = bool(entry.get("selected")) or allocation_status in SELECTED_ALLOCATION_STATUSES
+    selected = (
+        bool(entry.get("selected")) or allocation_status in SELECTED_ALLOCATION_STATUSES
+    )
     return UiRunSelectionRow(
         symbol=symbol,
         proposal_id=proposal_id,
@@ -1163,7 +1197,9 @@ def _selection_row_from_entry(
         ),
         allocation_status=allocation_status,
         final_status=final_decision.status if final_decision is not None else None,
-        final_action=final_decision.final_action if final_decision is not None else None,
+        final_action=final_decision.final_action
+        if final_decision is not None
+        else None,
         execution_status=order.status
         if order is not None
         else "skipped"
@@ -1274,7 +1310,10 @@ def _selection_reason(
 
     if final_decision is not None:
         if final_decision.status in RISK_REJECTED_STATUSES:
-            return final_decision.reason or f"risk_rejected:{final_decision.status.lower()}"
+            return (
+                final_decision.reason
+                or f"risk_rejected:{final_decision.status.lower()}"
+            )
         if final_decision.status == "NO_ACTION":
             return final_decision.reason or "no_action"
 
@@ -1304,7 +1343,9 @@ def _legacy_decision_reason(context: dict[str, Any]) -> str | None:
         "binding_constraint": allocation_decision.get("binding_constraint")
         if allocation_decision
         else None,
-        "rationale": allocation_decision.get("rationale") if allocation_decision else None,
+        "rationale": allocation_decision.get("rationale")
+        if allocation_decision
+        else None,
     }
     return _selection_reason(
         entry=entry,
@@ -1462,8 +1503,12 @@ def _symbol_context(
             symbol=symbol,
         ),
         "risk_review": risk_repo.latest_risk_review(run_id=run.run_id, symbol=symbol),
-        "final_decision": risk_repo.latest_final_decision(run_id=run.run_id, symbol=symbol),
-        "orders": execution_repo.list_orders(run_id=run.run_id, symbol=symbol, limit=None),
+        "final_decision": risk_repo.latest_final_decision(
+            run_id=run.run_id, symbol=symbol
+        ),
+        "orders": execution_repo.list_orders(
+            run_id=run.run_id, symbol=symbol, limit=None
+        ),
         "fills": sorted(
             execution_repo.list_fills(run_id=run.run_id, symbol=symbol, limit=None),
             key=lambda fill: (fill.filled_at, fill.fill_sequence),
@@ -1502,7 +1547,9 @@ def _symbol_pipeline_row(
             errors=errors,
         ),
         final_status=final_decision.status if final_decision is not None else None,
-        final_action=final_decision.final_action if final_decision is not None else None,
+        final_action=final_decision.final_action
+        if final_decision is not None
+        else None,
         order_status=orders[0].status if orders else None,
         decision_id=final_decision.decision_id if final_decision is not None else None,
         analyst_roster=_analyst_roster(run=run, symbol=symbol),
@@ -1621,7 +1668,9 @@ def _input_stage(
     status: StageStatus = "complete" if market_summary or strategy else "missing"
     event_payloads = [_event_payload(event) for event in events]
     provider = _market_provider(run) or "unknown"
-    candle_count = market_summary.get("candle_count") if isinstance(market_summary, dict) else None
+    candle_count = (
+        market_summary.get("candle_count") if isinstance(market_summary, dict) else None
+    )
     return _stage(
         id="inputs",
         label="Inputs",
@@ -1912,9 +1961,12 @@ def _monitor_status(session: Session, settings: Settings) -> dict[str, Any]:
         .order_by(AuditLogModel.created_at.desc(), AuditLogModel.id.desc())
         .limit(1)
     )
-    today = datetime.now(timezone.utc).astimezone(
-        _timezone(settings.taurus_paper_timezone)
-    ).date().isoformat()
+    today = (
+        datetime.now(timezone.utc)
+        .astimezone(_timezone(settings.taurus_paper_timezone))
+        .date()
+        .isoformat()
+    )
     trigger_count = int(
         session.scalar(
             select(func.count())
@@ -1974,7 +2026,8 @@ def _monitor_enriched_positions(
         latest_snapshot = session.scalar(
             select(MarketPriceSnapshotModel)
             .where(
-                MarketPriceSnapshotModel.provider == settings.taurus_position_monitor_provider,
+                MarketPriceSnapshotModel.provider
+                == settings.taurus_position_monitor_provider,
                 MarketPriceSnapshotModel.symbol == position.symbol,
             )
             .order_by(
@@ -2007,7 +2060,9 @@ def _monitor_enriched_positions(
             else _decimal_or_none(payload.get("last_price_inr"))
         )
         monitor_payload: dict[str, Any] = {
-            "latest_quote_id": latest_snapshot.id if latest_snapshot is not None else None,
+            "latest_quote_id": latest_snapshot.id
+            if latest_snapshot is not None
+            else None,
             "latest_quote_ltp_inr": latest_price,
             "latest_quote_fetched_at": latest_snapshot.fetched_at
             if latest_snapshot is not None
@@ -2015,9 +2070,17 @@ def _monitor_enriched_positions(
             "stop_loss_pct": stop_loss_pct,
             "take_profit_pct": take_profit_pct,
         }
-        if average_cost is not None and stop_loss_pct is not None and take_profit_pct is not None:
-            stop_loss_price = average_cost * (Decimal("1") - stop_loss_pct / Decimal("100"))
-            take_profit_price = average_cost * (Decimal("1") + take_profit_pct / Decimal("100"))
+        if (
+            average_cost is not None
+            and stop_loss_pct is not None
+            and take_profit_pct is not None
+        ):
+            stop_loss_price = average_cost * (
+                Decimal("1") - stop_loss_pct / Decimal("100")
+            )
+            take_profit_price = average_cost * (
+                Decimal("1") + take_profit_pct / Decimal("100")
+            )
             monitor_payload.update(
                 {
                     "stop_loss_price_inr": stop_loss_price,
@@ -2103,9 +2166,12 @@ def _allocation_dashboard_payload(
         or profile_starting_corpus
         or Decimal(str(settings.taurus_initial_capital_inr))
     )
-    available_cash = _decimal_or_none(
-        account_payload.get("available_cash_inr") if account_payload else None
-    ) or nav_inr
+    available_cash = (
+        _decimal_or_none(
+            account_payload.get("available_cash_inr") if account_payload else None
+        )
+        or nav_inr
+    )
     allocation_decisions = _latest_allocation_decisions(
         session,
         settings,
@@ -2164,7 +2230,10 @@ def _allocation_dashboard_payload(
                     "value": open_risk.get("used_pct_limit"),
                     "unit": "%",
                     "tone": "caution"
-                    if (_decimal_or_none(open_risk.get("used_pct_limit")) or Decimal("0"))
+                    if (
+                        _decimal_or_none(open_risk.get("used_pct_limit"))
+                        or Decimal("0")
+                    )
                     > Decimal("80")
                     else "neutral",
                 },
@@ -2229,8 +2298,12 @@ def _latest_allocation_decisions(
         proposals = research_repo.list_trader_proposals(run_id=run.run_id, limit=None)
         final_decisions = risk_repo.list_final_decisions(run_id=run.run_id, limit=None)
         orders = execution_repo.list_orders(run_id=run.run_id, limit=None)
-        proposals_by_symbol = {proposal.symbol.upper(): proposal for proposal in proposals}
-        final_by_symbol = {decision.symbol.upper(): decision for decision in final_decisions}
+        proposals_by_symbol = {
+            proposal.symbol.upper(): proposal for proposal in proposals
+        }
+        final_by_symbol = {
+            decision.symbol.upper(): decision for decision in final_decisions
+        }
         order_by_symbol = {order.symbol.upper(): order for order in orders}
         execution_by_symbol = _execution_artifacts_by_symbol(run)
 
@@ -2256,7 +2329,9 @@ def _latest_allocation_decisions(
                         "status": selection.allocation_status,
                         "run_id": run.run_id,
                         "proposal_id": selection.proposal_id,
-                        "as_of": proposal.as_of if proposal is not None else run.started_at,
+                        "as_of": proposal.as_of
+                        if proposal is not None
+                        else run.started_at,
                         "lifecycle_trigger": proposal.lifecycle_trigger
                         if proposal is not None
                         else None,
@@ -2343,7 +2418,9 @@ def _position_allocation_labels(
             "allocation_status": allocation_decision.get("status"),
             "binding_constraint": allocation_decision.get("binding_constraint"),
         }
-    if core_sleeve is not None and symbol.upper() in core_sleeve.get("runtime_symbols", set()):
+    if core_sleeve is not None and symbol.upper() in core_sleeve.get(
+        "runtime_symbols", set()
+    ):
         return {
             "sleeve_id": core_sleeve.get("sleeve_id"),
             "sleeve_name": core_sleeve.get("sleeve_name"),
@@ -2368,7 +2445,9 @@ def _sleeve_allocation_rows(
     allocation_decisions: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
-    sleeves = [sleeve for sleeve in policy.get("sleeves", []) if isinstance(sleeve, dict)]
+    sleeves = [
+        sleeve for sleeve in policy.get("sleeves", []) if isinstance(sleeve, dict)
+    ]
     estimated_risk_by_sleeve: dict[str, Decimal] = {}
     for decision in allocation_decisions:
         sleeve_id = str(decision.get("sleeve_id") or "")
@@ -2414,7 +2493,9 @@ def _sleeve_allocation_rows(
                     for position in sleeve_positions
                     if position.get("symbol")
                 ),
-                "open_trade_risk_inr": estimated_risk_by_sleeve.get(sleeve_id, Decimal("0")),
+                "open_trade_risk_inr": estimated_risk_by_sleeve.get(
+                    sleeve_id, Decimal("0")
+                ),
                 "new_entry_risk_cap_pct_nav": sleeve.get("new_entry_risk_cap_pct_nav"),
             }
         )
@@ -2446,7 +2527,9 @@ def _open_risk_payload(
     nav_inr: Decimal,
     allocation_decisions: list[dict[str, Any]],
 ) -> dict[str, Any]:
-    trade_risk = policy.get("trade_risk") if isinstance(policy.get("trade_risk"), dict) else {}
+    trade_risk = (
+        policy.get("trade_risk") if isinstance(policy.get("trade_risk"), dict) else {}
+    )
     limit_pct = _decimal_or_none(
         trade_risk.get("max_total_open_trade_risk_pct_nav")
     ) or Decimal("0")
@@ -2464,7 +2547,9 @@ def _open_risk_payload(
         "limit_risk_inr": limit_inr,
         "limit_pct_nav": limit_pct,
         "remaining_risk_inr": max(limit_inr - used_inr, Decimal("0")),
-        "used_pct_limit": (used_inr * Decimal("100") / limit_inr).quantize(Decimal("0.0001"))
+        "used_pct_limit": (used_inr * Decimal("100") / limit_inr).quantize(
+            Decimal("0.0001")
+        )
         if limit_inr > 0
         else Decimal("0"),
     }
@@ -2484,8 +2569,16 @@ def _core_basket_payload(
     core = money_management.get("core_shariah_basket")
     if not isinstance(core, dict):
         return _empty_core_basket()
-    target_weights = core.get("target_weights") if isinstance(core.get("target_weights"), dict) else {}
-    current_weights = core.get("current_weights") if isinstance(core.get("current_weights"), dict) else {}
+    target_weights = (
+        core.get("target_weights")
+        if isinstance(core.get("target_weights"), dict)
+        else {}
+    )
+    current_weights = (
+        core.get("current_weights")
+        if isinstance(core.get("current_weights"), dict)
+        else {}
+    )
     target_weights_by_symbol = {
         str(symbol).upper(): value
         for symbol, value in target_weights.items()
@@ -2499,8 +2592,12 @@ def _core_basket_payload(
     symbols = sorted(target_weights_by_symbol)
     composition = []
     for symbol in symbols:
-        target_pct = _decimal_or_none(target_weights_by_symbol.get(symbol)) or Decimal("0")
-        current_pct = _decimal_or_none(current_weights_by_symbol.get(symbol)) or Decimal("0")
+        target_pct = _decimal_or_none(target_weights_by_symbol.get(symbol)) or Decimal(
+            "0"
+        )
+        current_pct = _decimal_or_none(
+            current_weights_by_symbol.get(symbol)
+        ) or Decimal("0")
         composition.append(
             {
                 "symbol": symbol,
@@ -2555,9 +2652,7 @@ def _core_basket_target_symbols(latest_run: PaperRunModel | None) -> set[str]:
     if not isinstance(target_weights, dict):
         return set()
     return {
-        str(symbol).strip().upper()
-        for symbol in target_weights
-        if str(symbol).strip()
+        str(symbol).strip().upper() for symbol in target_weights if str(symbol).strip()
     }
 
 
@@ -2613,9 +2708,15 @@ def _risk_review_payload(session: Session, review: RiskReviewModel) -> dict[str,
                 "proposal_action": proposal_payload.get("action"),
                 "lifecycle_trigger": proposal_payload.get("lifecycle_trigger"),
                 "evaluation_mode": proposal_payload.get("evaluation_mode"),
-                "current_position_quantity": proposal_payload.get("current_position_quantity"),
-                "current_position_pct_nav": proposal_payload.get("current_position_pct_nav"),
-                "target_position_pct_nav": proposal_payload.get("target_position_pct_nav"),
+                "current_position_quantity": proposal_payload.get(
+                    "current_position_quantity"
+                ),
+                "current_position_pct_nav": proposal_payload.get(
+                    "current_position_pct_nav"
+                ),
+                "target_position_pct_nav": proposal_payload.get(
+                    "target_position_pct_nav"
+                ),
                 "latest_price_inr": proposal_payload.get("latest_price_inr"),
                 "trigger_threshold_price_inr": proposal_payload.get(
                     "trigger_threshold_price_inr"
@@ -2848,7 +2949,9 @@ def _decision_warnings(
         warnings.append(
             UiWarning(
                 id=f"{risk_review.risk_check_id}-{risk_review.status.lower()}",
-                severity="warning" if risk_review.status == "APPROVED_WITH_REDUCTION" else "critical",
+                severity="warning"
+                if risk_review.status == "APPROVED_WITH_REDUCTION"
+                else "critical",
                 title=f"Risk review {risk_review.status.lower()}",
                 message=risk_review.risk_committee_summary,
                 run_id=run.run_id,
@@ -2900,8 +3003,12 @@ def _portfolio_metrics(
         UiMetric(label="Equity", value=account.get("equity_inr"), unit="INR"),
         UiMetric(label="Cash", value=account.get("available_cash_inr"), unit="INR"),
         UiMetric(label="Exposure", value=account.get("gross_exposure_inr"), unit="INR"),
-        UiMetric(label="Realized P&L", value=account.get("realized_pnl_inr"), unit="INR"),
-        UiMetric(label="Unrealized P&L", value=account.get("unrealized_pnl_inr"), unit="INR"),
+        UiMetric(
+            label="Realized P&L", value=account.get("realized_pnl_inr"), unit="INR"
+        ),
+        UiMetric(
+            label="Unrealized P&L", value=account.get("unrealized_pnl_inr"), unit="INR"
+        ),
         UiMetric(label="Positions", value=len(positions)),
         UiMetric(label="Orders", value=len(orders)),
         UiMetric(label="Fills", value=len(fills)),
@@ -2919,8 +3026,13 @@ def _debate_summary(debate: DebateReportModel | None) -> str:
     if debate is None:
         return "No debate report is stored for this run and symbol."
     manager_summary = debate.manager_summary or {}
-    summary = manager_summary.get("summary") if isinstance(manager_summary, dict) else None
-    return str(summary or f"Consensus {debate.consensus_label} with score {debate.consensus_score}.")
+    summary = (
+        manager_summary.get("summary") if isinstance(manager_summary, dict) else None
+    )
+    return str(
+        summary
+        or f"Consensus {debate.consensus_label} with score {debate.consensus_score}."
+    )
 
 
 def _debate_metrics(debate: DebateReportModel | None) -> dict[str, Any]:
@@ -2955,9 +3067,13 @@ def _proposal_metrics(proposal: TraderProposalModel | None) -> dict[str, Any]:
         "lifecycle_trigger": proposal.lifecycle_trigger,
         "evaluation_mode": proposal.evaluation_mode,
         "confidence": _decimal_to_number(proposal.confidence),
-        "requested_position_pct_nav": _decimal_to_number(proposal.requested_position_pct_nav),
+        "requested_position_pct_nav": _decimal_to_number(
+            proposal.requested_position_pct_nav
+        ),
         "current_position_quantity": proposal.current_position_quantity,
-        "current_position_pct_nav": _decimal_to_number(proposal.current_position_pct_nav),
+        "current_position_pct_nav": _decimal_to_number(
+            proposal.current_position_pct_nav
+        ),
         "target_position_pct_nav": _decimal_to_number(proposal.target_position_pct_nav),
         "order_type": proposal.order_type,
         "stop_loss_pct": _decimal_to_number(proposal.stop_loss_pct),
@@ -2972,7 +3088,9 @@ def _proposal_metrics(proposal: TraderProposalModel | None) -> dict[str, Any]:
         "allocation_status": allocation_decision.get("status")
         if allocation_decision
         else None,
-        "sleeve_id": allocation_decision.get("sleeve_id") if allocation_decision else None,
+        "sleeve_id": allocation_decision.get("sleeve_id")
+        if allocation_decision
+        else None,
         "strategy_name": allocation_decision.get("strategy_name")
         if allocation_decision
         else None,
@@ -3000,15 +3118,21 @@ def _risk_metrics(review: RiskReviewModel | None) -> dict[str, Any]:
     allocation_decision = _allocation_decision_from_payload(_payload(review))
     return {
         "status": review.status,
-        "requested_position_pct_nav": _decimal_to_number(review.requested_position_pct_nav),
-        "approved_position_pct_nav": _decimal_to_number(review.approved_position_pct_nav),
+        "requested_position_pct_nav": _decimal_to_number(
+            review.requested_position_pct_nav
+        ),
+        "approved_position_pct_nav": _decimal_to_number(
+            review.approved_position_pct_nav
+        ),
         "hard_rule_count": len(review.hard_rule_results),
         "persona_review_count": len(review.persona_reviews),
         "can_send_to_broker": review.can_send_to_broker,
         "allocation_status": allocation_decision.get("status")
         if allocation_decision
         else None,
-        "sleeve_id": allocation_decision.get("sleeve_id") if allocation_decision else None,
+        "sleeve_id": allocation_decision.get("sleeve_id")
+        if allocation_decision
+        else None,
         "binding_constraint": allocation_decision.get("binding_constraint")
         if allocation_decision
         else None,
@@ -3035,12 +3159,16 @@ def _final_metrics(decision: FinalDecisionModel | None) -> dict[str, Any]:
         "status": decision.status,
         "final_action": decision.final_action,
         "approved_quantity": decision.approved_quantity,
-        "approved_position_pct_nav": _decimal_to_number(decision.approved_position_pct_nav),
+        "approved_position_pct_nav": _decimal_to_number(
+            decision.approved_position_pct_nav
+        ),
         "can_send_to_broker": decision.can_send_to_broker,
         "allocation_status": allocation_decision.get("status")
         if allocation_decision
         else None,
-        "sleeve_id": allocation_decision.get("sleeve_id") if allocation_decision else None,
+        "sleeve_id": allocation_decision.get("sleeve_id")
+        if allocation_decision
+        else None,
         "binding_constraint": allocation_decision.get("binding_constraint")
         if allocation_decision
         else None,
@@ -3100,7 +3228,9 @@ def _replay_timeline_stage(
                     "status": pending_order.get("status"),
                     "filled_quantity": pending_order.get("filled_quantity"),
                     "signal_trade_date": pending_order.get("signal_trade_date"),
-                    "scheduled_fill_session": pending_order.get("scheduled_fill_session"),
+                    "scheduled_fill_session": pending_order.get(
+                        "scheduled_fill_session"
+                    ),
                 }
             )
         elif stage.artifact_count:
@@ -3134,7 +3264,9 @@ def _replay_order_summary(order: dict[str, object]) -> str:
     quantity = order.get("quantity")
     side = order.get("side")
     history = order.get("status_history")
-    history_text = " -> ".join(str(item) for item in history) if isinstance(history, list) else ""
+    history_text = (
+        " -> ".join(str(item) for item in history) if isinstance(history, list) else ""
+    )
     signal_date = order.get("signal_trade_date")
     filled_date = order.get("filled_trade_date")
     date_text = []

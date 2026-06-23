@@ -59,26 +59,29 @@ class NewsAnalystAgent(BaseAnalystAgent):
         scores: list[SentimentScoreModel],
     ) -> Decimal:
         if scores:
-            return (
-                sum((score.event_score for score in scores), Decimal("0")) / Decimal(len(scores))
+            return sum((score.event_score for score in scores), Decimal("0")) / Decimal(
+                len(scores)
             )
         if not events:
             return Decimal("0")
         directional = []
         for event in events:
-            sign = Decimal("-1") if event.event_type.startswith("regulatory") else Decimal("1")
+            sign = (
+                Decimal("-1")
+                if event.event_type.startswith("regulatory")
+                else Decimal("1")
+            )
             directional.append(sign * event.severity * event.source_confidence)
         return sum(directional, Decimal("0")) / Decimal(len(directional))
 
     def _confidence(self, events: list[CompanyEventModel]) -> Decimal:
         if not events:
             return Decimal("0.30")
-        return sum((event.source_confidence for event in events), Decimal("0")) / Decimal(len(events))
+        return sum(
+            (event.source_confidence for event in events), Decimal("0")
+        ) / Decimal(len(events))
 
     def _key_points(self, symbol: str, events: list[CompanyEventModel]) -> list[str]:
         if not events:
             return [f"No mock news events were available for {symbol}."]
-        return [
-            f"{event.event_type}: {event.headline}"
-            for event in events[:3]
-        ]
+        return [f"{event.event_type}: {event.headline}" for event in events[:3]]

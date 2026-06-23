@@ -18,7 +18,9 @@ class MomentumSignal:
 
 
 class MockMomentumStrategy:
-    def __init__(self, *, lookback_days: int, target_positions: int | None = None) -> None:
+    def __init__(
+        self, *, lookback_days: int, target_positions: int | None = None
+    ) -> None:
         self.lookback_days = lookback_days
         self.target_positions = target_positions
 
@@ -37,7 +39,9 @@ class MockMomentumStrategy:
                     self._ranking(
                         trade_date=trade_date,
                         symbol=symbol,
-                        action_intent="SELL" if symbol in current_positions else "NO_TRADE",
+                        action_intent="SELL"
+                        if symbol in current_positions
+                        else "NO_TRADE",
                         score=None,
                         rank=None,
                         eligibility_status="ineligible",
@@ -52,7 +56,9 @@ class MockMomentumStrategy:
                     self._ranking(
                         trade_date=trade_date,
                         symbol=symbol,
-                        action_intent="SELL" if symbol in current_positions else "NO_TRADE",
+                        action_intent="SELL"
+                        if symbol in current_positions
+                        else "NO_TRADE",
                         score=None,
                         rank=None,
                         eligibility_status="ineligible",
@@ -68,7 +74,9 @@ class MockMomentumStrategy:
                     self._ranking(
                         trade_date=trade_date,
                         symbol=symbol,
-                        action_intent="SELL" if symbol in current_positions else "NO_TRADE",
+                        action_intent="SELL"
+                        if symbol in current_positions
+                        else "NO_TRADE",
                         score=score,
                         rank=None,
                         eligibility_status="ineligible",
@@ -172,5 +180,8 @@ class MockMomentumStrategy:
                 "momentum score <= 0",
             ],
             feature_snapshot_id="",
-            metadata={"strategy_type": "mock_momentum", "lookback_days": self.lookback_days},
+            metadata={
+                "strategy_type": "mock_momentum",
+                "lookback_days": self.lookback_days,
+            },
         )

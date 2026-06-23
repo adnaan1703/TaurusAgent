@@ -37,7 +37,9 @@ def score_fundamentals(metrics: Mapping[str, Decimal]) -> FundamentalScoreCompon
     )
     valuation_score = _average(
         [
-            _inverse_scale(metrics.get("stock_pe"), low=Decimal("12"), high=Decimal("45")),
+            _inverse_scale(
+                metrics.get("stock_pe"), low=Decimal("12"), high=Decimal("45")
+            ),
             _price_to_book_score(
                 current_price=metrics.get("current_price"),
                 book_value=metrics.get("book_value"),
@@ -47,13 +49,19 @@ def score_fundamentals(metrics: Mapping[str, Decimal]) -> FundamentalScoreCompon
     )
     leverage_risk_score = _average(
         [
-            _inverse_scale(metrics.get("debt_to_equity"), low=Decimal("0.2"), high=Decimal("2.0")),
-            _inverse_scale(metrics.get("pledged_percentage"), low=Decimal("0"), high=Decimal("20")),
+            _inverse_scale(
+                metrics.get("debt_to_equity"), low=Decimal("0.2"), high=Decimal("2.0")
+            ),
+            _inverse_scale(
+                metrics.get("pledged_percentage"), low=Decimal("0"), high=Decimal("20")
+            ),
         ]
     )
     ownership_score = _average(
         [
-            _scale(metrics.get("promoter_holding"), low=Decimal("25"), high=Decimal("60")),
+            _scale(
+                metrics.get("promoter_holding"), low=Decimal("25"), high=Decimal("60")
+            ),
             _scale(
                 _sum_optional(metrics.get("fii_holding"), metrics.get("dii_holding")),
                 low=Decimal("5"),
@@ -82,7 +90,9 @@ def _scale(value: Decimal | None, *, low: Decimal, high: Decimal) -> Decimal | N
     return _quantize(scaled)
 
 
-def _inverse_scale(value: Decimal | None, *, low: Decimal, high: Decimal) -> Decimal | None:
+def _inverse_scale(
+    value: Decimal | None, *, low: Decimal, high: Decimal
+) -> Decimal | None:
     score = _scale(value, low=low, high=high)
     return None if score is None else _quantize(-score)
 
@@ -104,7 +114,9 @@ def _price_to_book_score(
 ) -> Decimal | None:
     if current_price is None or book_value is None or book_value <= 0:
         return None
-    return _inverse_scale(current_price / book_value, low=Decimal("1.5"), high=Decimal("8"))
+    return _inverse_scale(
+        current_price / book_value, low=Decimal("1.5"), high=Decimal("8")
+    )
 
 
 def _average(values: list[Decimal | None]) -> Decimal | None:

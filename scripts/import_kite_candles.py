@@ -34,7 +34,9 @@ if __name__ == "__main__":
         summary = run_import(progress=progress)
     dates = ""
     if summary.start_date is not None and summary.end_date is not None:
-        dates = f", dates={summary.start_date.isoformat()}..{summary.end_date.isoformat()}"
+        dates = (
+            f", dates={summary.start_date.isoformat()}..{summary.end_date.isoformat()}"
+        )
     print(
         f"Imported {summary.candle_count} Kite candles for "
         f"{summary.instrument_count} instruments from {summary.source}{dates}."

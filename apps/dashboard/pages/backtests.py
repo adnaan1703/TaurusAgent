@@ -3,7 +3,13 @@ from __future__ import annotations
 import streamlit as st
 
 from apps.dashboard.data import list_backtest_equity, list_backtest_runs
-from apps.dashboard.ui import configure_page, load_data, render_equity_curve, render_table, sidebar_filters
+from apps.dashboard.ui import (
+    configure_page,
+    load_data,
+    render_equity_curve,
+    render_table,
+    sidebar_filters,
+)
 
 
 configure_page("Backtests")

@@ -10,15 +10,25 @@ from typing import Any, Protocol
 from sqlalchemy.orm import Session
 
 from taurus_core.config import Settings
-from taurus_core.data.universe import MarketDataUniverse, UniverseSymbol, load_market_data_universe
-from taurus_core.db.repositories import InstrumentProviderMappingRepository, InstrumentRepository
+from taurus_core.data.universe import (
+    MarketDataUniverse,
+    UniverseSymbol,
+    load_market_data_universe,
+)
+from taurus_core.db.repositories import (
+    InstrumentProviderMappingRepository,
+    InstrumentRepository,
+)
 from taurus_core.domain.instruments import Instrument
-from taurus_core.domain.market_data import DailyCandle, MarketDataProviderError, MarketPriceSnapshot
+from taurus_core.domain.market_data import (
+    DailyCandle,
+    MarketDataProviderError,
+    MarketPriceSnapshot,
+)
 
 
 class KiteClientProtocol(Protocol):
-    def instruments(self, exchange: str | None = None) -> list[dict[str, Any]]:
-        ...
+    def instruments(self, exchange: str | None = None) -> list[dict[str, Any]]: ...
 
     def historical_data(
         self,
@@ -28,11 +38,9 @@ class KiteClientProtocol(Protocol):
         interval: str,
         continuous: bool = False,
         oi: bool = False,
-    ) -> list[dict[str, Any]]:
-        ...
+    ) -> list[dict[str, Any]]: ...
 
-    def ohlc(self, *instruments: Any) -> dict[str, dict[str, Any]]:
-        ...
+    def ohlc(self, *instruments: Any) -> dict[str, dict[str, Any]]: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -89,7 +97,9 @@ class KiteMarketDataProvider:
         quote_chunk_size: int = 1000,
     ) -> None:
         self.settings = settings
-        self.universe = universe or load_market_data_universe(settings.taurus_market_data_universe_path)
+        self.universe = universe or load_market_data_universe(
+            settings.taurus_market_data_universe_path
+        )
         self.sleep_func = sleep_func
         self.request_interval_seconds = request_interval_seconds
         self.max_retries = max_retries
@@ -120,7 +130,9 @@ class KiteMarketDataProvider:
     ) -> list[DailyCandle]:
         instrument = self._resolve_symbol(symbol)
         to_date = end_date or datetime.now(timezone.utc).date()
-        from_date = start_date or to_date - timedelta(days=self.settings.taurus_market_data_lookback_days)
+        from_date = start_date or to_date - timedelta(
+            days=self.settings.taurus_market_data_lookback_days
+        )
         rows = self._call_with_retries(
             lambda: self._client.historical_data(
                 instrument.instrument_token,
@@ -136,10 +148,7 @@ class KiteMarketDataProvider:
                 f"Kite returned no historical daily candles for {instrument.universe_symbol.symbol} "
                 f"({instrument.provider_key}) from {from_date.isoformat()} to {to_date.isoformat()}."
             )
-        candles = [
-            _historical_row_to_candle(row, instrument)
-            for row in rows
-        ]
+        candles = [_historical_row_to_candle(row, instrument) for row in rows]
         return sorted(candles, key=lambda item: item.trade_date)
 
     def get_latest_candle(self, symbol: str) -> DailyCandle | None:
@@ -227,8 +236,13 @@ class KiteMarketDataProvider:
                 entry.provider_value("kite", "exchange", entry.exchange)
                 or self.settings.taurus_kite_exchange
             ).upper()
-            tradingsymbol = entry.provider_value("kite", "tradingsymbol", entry.symbol) or entry.symbol
-            record = self._load_instrument_index(exchange).get((exchange, tradingsymbol.upper()))
+            tradingsymbol = (
+                entry.provider_value("kite", "tradingsymbol", entry.symbol)
+                or entry.symbol
+            )
+            record = self._load_instrument_index(exchange).get(
+                (exchange, tradingsymbol.upper())
+            )
             if record is None:
                 missing.append(f"{entry.symbol} ({exchange}:{tradingsymbol})")
                 continue
@@ -257,7 +271,9 @@ class KiteMarketDataProvider:
             self._pace_request()
         return self._instrument_masters[exchange]
 
-    def _load_instrument_index(self, exchange: str) -> dict[tuple[str, str], dict[str, Any]]:
+    def _load_instrument_index(
+        self, exchange: str
+    ) -> dict[tuple[str, str], dict[str, Any]]:
         if exchange not in self._instrument_indexes:
             self._instrument_indexes[exchange] = {
                 (
@@ -299,8 +315,12 @@ def _build_kite_client(settings: Settings) -> KiteClientProtocol:
     try:
         from kiteconnect import KiteConnect
     except ImportError as exc:  # pragma: no cover - dependency is locked in pyproject.
-        raise MarketDataProviderError("kiteconnect is not installed. Run `uv sync`.") from exc
-    return KiteConnect(api_key=settings.kite_api_key, access_token=settings.kite_access_token)
+        raise MarketDataProviderError(
+            "kiteconnect is not installed. Run `uv sync`."
+        ) from exc
+    return KiteConnect(
+        api_key=settings.kite_api_key, access_token=settings.kite_access_token
+    )
 
 
 def _record_to_resolved_instrument(
@@ -312,7 +332,9 @@ def _record_to_resolved_instrument(
 ) -> ResolvedKiteInstrument:
     token = record.get("instrument_token")
     if token is None:
-        raise MarketDataProviderError(f"Kite instrument {exchange}:{tradingsymbol} has no token.")
+        raise MarketDataProviderError(
+            f"Kite instrument {exchange}:{tradingsymbol} has no token."
+        )
     name = str(record.get("name") or entry.name or f"{entry.symbol} Equity").strip()
     return ResolvedKiteInstrument(
         universe_symbol=entry,
@@ -323,7 +345,9 @@ def _record_to_resolved_instrument(
         segment=str(record.get("segment") or entry.segment),
         currency=str(record.get("currency") or "INR"),
         lot_size=_to_int(record.get("lot_size"), default=1),
-        tick_size=_to_decimal(record.get("tick_size"), field="tick_size", default=Decimal("0.05")),
+        tick_size=_to_decimal(
+            record.get("tick_size"), field="tick_size", default=Decimal("0.05")
+        ),
         raw=dict(record),
     )
 
@@ -343,7 +367,9 @@ def _historical_row_to_candle(
         volume=_to_int(row.get("volume"), default=0),
         timeframe="1d",
         source=f"kite:historical:{instrument.exchange}",
-        data_available_time=datetime.combine(trade_date, dt_time(18, 0), tzinfo=timezone.utc),
+        data_available_time=datetime.combine(
+            trade_date, dt_time(18, 0), tzinfo=timezone.utc
+        ),
     )
 
 
@@ -355,13 +381,17 @@ def _ohlc_row_to_snapshot(
 ) -> MarketPriceSnapshot:
     ohlc = row.get("ohlc")
     if not isinstance(ohlc, dict):
-        raise MarketDataProviderError(f"Kite OHLC response for {instrument.provider_key} has no ohlc object.")
+        raise MarketDataProviderError(
+            f"Kite OHLC response for {instrument.provider_key} has no ohlc object."
+        )
     return MarketPriceSnapshot(
         symbol=instrument.universe_symbol.symbol,
         provider="kite",
         exchange=instrument.exchange,
         provider_symbol=instrument.tradingsymbol,
-        instrument_token=str(row.get("instrument_token") or instrument.instrument_token),
+        instrument_token=str(
+            row.get("instrument_token") or instrument.instrument_token
+        ),
         last_price=_to_decimal(row.get("last_price"), field="last_price"),
         open=_to_decimal(ohlc.get("open"), field="ohlc.open"),
         high=_to_decimal(ohlc.get("high"), field="ohlc.high"),
@@ -385,10 +415,14 @@ def _parse_trade_date(value: object) -> date:
     try:
         return date.fromisoformat(text[:10])
     except ValueError as exc:
-        raise MarketDataProviderError(f"Invalid Kite historical candle date: {text}") from exc
+        raise MarketDataProviderError(
+            f"Invalid Kite historical candle date: {text}"
+        ) from exc
 
 
-def _to_decimal(value: object, *, field: str, default: Decimal | None = None) -> Decimal:
+def _to_decimal(
+    value: object, *, field: str, default: Decimal | None = None
+) -> Decimal:
     if value is None:
         if default is not None:
             return default
@@ -396,7 +430,9 @@ def _to_decimal(value: object, *, field: str, default: Decimal | None = None) ->
     try:
         return Decimal(str(value))
     except (InvalidOperation, ValueError) as exc:
-        raise MarketDataProviderError(f"Invalid Kite decimal field {field}: {value}") from exc
+        raise MarketDataProviderError(
+            f"Invalid Kite decimal field {field}: {value}"
+        ) from exc
 
 
 def _to_int(value: object, *, default: int) -> int:
@@ -422,9 +458,13 @@ def _normalize_symbols(symbols: Sequence[str]) -> list[str]:
     return normalized
 
 
-def _chunks(items: Sequence[ResolvedKiteInstrument], size: int) -> list[Sequence[ResolvedKiteInstrument]]:
+def _chunks(
+    items: Sequence[ResolvedKiteInstrument], size: int
+) -> list[Sequence[ResolvedKiteInstrument]]:
     chunk_size = max(size, 1)
-    return [items[index : index + chunk_size] for index in range(0, len(items), chunk_size)]
+    return [
+        items[index : index + chunk_size] for index in range(0, len(items), chunk_size)
+    ]
 
 
 def _is_permanent_kite_error(exc: Exception) -> bool:

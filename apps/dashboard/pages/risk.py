@@ -2,7 +2,11 @@ from __future__ import annotations
 
 import streamlit as st
 
-from apps.dashboard.data import list_final_decisions, list_hard_rule_results, list_risk_reviews
+from apps.dashboard.data import (
+    list_final_decisions,
+    list_hard_rule_results,
+    list_risk_reviews,
+)
 from apps.dashboard.ui import configure_page, load_data, render_table, sidebar_filters
 
 

@@ -12,14 +12,20 @@ from taurus_core.agents.runner import run_analyst_suite
 from taurus_core.agents.schemas import LLMAnalystOutput
 from taurus_core.config import Settings
 from taurus_core.db.models import GraphSignalContributionModel, GraphSignalModel
-from taurus_core.db.repositories import CandleRepository, GraphRepository, InstrumentRepository
+from taurus_core.db.repositories import (
+    CandleRepository,
+    GraphRepository,
+    InstrumentRepository,
+)
 from taurus_core.db.session import build_session_factory
 from taurus_core.domain.instruments import Instrument
 from taurus_core.domain.market_data import DailyCandle
 from tests.llm_fakes import FakeLLMProvider
 
 
-def test_graph_analyst_returns_neutral_when_no_graph_evidence_exists(tmp_path: Path) -> None:
+def test_graph_analyst_returns_neutral_when_no_graph_evidence_exists(
+    tmp_path: Path,
+) -> None:
     settings = _settings_for_temp_db(tmp_path)
     run_migrations(settings)
     _seed_instruments(settings, ["AAA"])
@@ -35,7 +41,9 @@ def test_graph_analyst_returns_neutral_when_no_graph_evidence_exists(tmp_path: P
         )
 
     with session_factory() as session:
-        signal_count = session.scalar(select(func.count()).select_from(GraphSignalModel))
+        signal_count = session.scalar(
+            select(func.count()).select_from(GraphSignalModel)
+        )
         contribution_count = session.scalar(
             select(func.count()).select_from(GraphSignalContributionModel)
         )
@@ -69,7 +77,9 @@ def test_graph_analyst_explains_bullish_positive_peer_momentum(tmp_path: Path) -
 
     with session_factory() as session:
         graph_repo = GraphRepository(session)
-        signal = graph_repo.list_signals(symbol="AAA", source_agent="GraphAnalystAgent")[0]
+        signal = graph_repo.list_signals(
+            symbol="AAA", source_agent="GraphAnalystAgent"
+        )[0]
         contributions = graph_repo.list_signal_contributions(signal_id=signal.signal_id)
 
     assert report.stance == "bullish"
@@ -90,7 +100,9 @@ def test_graph_analyst_explains_bullish_positive_peer_momentum(tmp_path: Path) -
     assert "confidence" not in metadata
 
 
-def test_graph_analyst_explains_bearish_negative_dependency_signal(tmp_path: Path) -> None:
+def test_graph_analyst_explains_bearish_negative_dependency_signal(
+    tmp_path: Path,
+) -> None:
     settings = _settings_for_temp_db(tmp_path)
     run_migrations(settings)
     _seed_graph_fixture(
@@ -115,19 +127,25 @@ def test_graph_analyst_explains_bearish_negative_dependency_signal(tmp_path: Pat
 
     with session_factory() as session:
         graph_repo = GraphRepository(session)
-        signal = graph_repo.list_signals(symbol="AAA", source_agent="GraphAnalystAgent")[0]
+        signal = graph_repo.list_signals(
+            symbol="AAA", source_agent="GraphAnalystAgent"
+        )[0]
         contributions = graph_repo.list_signal_contributions(signal_id=signal.signal_id)
 
     assert report.stance == "bearish"
     assert report.score < Decimal("-0.10")
-    assert any("expected sign is negative" in point.lower() for point in report.key_points)
+    assert any(
+        "expected sign is negative" in point.lower() for point in report.key_points
+    )
     assert signal.score == report.score
     assert len(contributions) == 1
     assert contributions[0].direction == "bearish"
     assert contributions[0].contribution_metadata["expected_sign"] == "negative"
 
 
-def test_graph_analyst_ignores_inferred_candidate_edges_by_default(tmp_path: Path) -> None:
+def test_graph_analyst_ignores_inferred_candidate_edges_by_default(
+    tmp_path: Path,
+) -> None:
     settings = _settings_for_temp_db(tmp_path)
     run_migrations(settings)
     _seed_graph_fixture(
@@ -183,12 +201,21 @@ def test_graph_analyst_contribution_ignores_raw_edge_confidence(tmp_path: Path) 
         run_id="graph-high-edge-confidence",
     )
 
-    assert low_confidence_contribution["score_contribution"] == high_confidence_contribution[
-        "score_contribution"
-    ]
-    assert low_confidence_contribution["weight"] == high_confidence_contribution["weight"]
-    assert low_confidence_contribution["metadata"]["raw_edge_confidence_metadata"] == "0.1000"
-    assert high_confidence_contribution["metadata"]["raw_edge_confidence_metadata"] == "0.9500"
+    assert (
+        low_confidence_contribution["score_contribution"]
+        == high_confidence_contribution["score_contribution"]
+    )
+    assert (
+        low_confidence_contribution["weight"] == high_confidence_contribution["weight"]
+    )
+    assert (
+        low_confidence_contribution["metadata"]["raw_edge_confidence_metadata"]
+        == "0.1000"
+    )
+    assert (
+        high_confidence_contribution["metadata"]["raw_edge_confidence_metadata"]
+        == "0.9500"
+    )
 
 
 def test_graph_analyst_does_not_let_llm_failure_override_deterministic_output(
@@ -313,11 +340,15 @@ def _run_graph_contribution(settings: Settings, *, run_id: str) -> dict[str, obj
         graph_repo = GraphRepository(session)
         signals = [
             signal
-            for signal in graph_repo.list_signals(symbol="AAA", source_agent="GraphAnalystAgent")
+            for signal in graph_repo.list_signals(
+                symbol="AAA", source_agent="GraphAnalystAgent"
+            )
             if signal.signal_metadata.get("run_id") == run_id
         ]
         assert len(signals) == 1
-        contributions = graph_repo.list_signal_contributions(signal_id=signals[0].signal_id)
+        contributions = graph_repo.list_signal_contributions(
+            signal_id=signals[0].signal_id
+        )
         assert len(contributions) == 1
         contribution = contributions[0]
         return {
@@ -327,7 +358,9 @@ def _run_graph_contribution(settings: Settings, *, run_id: str) -> dict[str, obj
         }
 
 
-def _candles_with_constant_return(symbol: str, daily_return: Decimal) -> list[DailyCandle]:
+def _candles_with_constant_return(
+    symbol: str, daily_return: Decimal
+) -> list[DailyCandle]:
     trade_date = date(2024, 1, 1)
     close = Decimal("100.00")
     candles = [

@@ -16,7 +16,11 @@ from taurus_core.db.models import (
     BacktestSignalModel,
     FeatureValueModel,
 )
-from taurus_core.db.repositories import BacktestRepository, CandleRepository, InstrumentRepository
+from taurus_core.db.repositories import (
+    BacktestRepository,
+    CandleRepository,
+    InstrumentRepository,
+)
 from taurus_core.db.session import build_session_factory
 from taurus_core.domain.instruments import Instrument
 from taurus_core.domain.market_data import DailyCandle
@@ -126,7 +130,9 @@ def test_backtest_engine_aligns_candles_by_common_trade_date(tmp_path: Path) -> 
         candle_repo = CandleRepository(session)
         instrument_repo.upsert(Instrument(symbol="AAA", name="AAA Ltd"))
         instrument_repo.upsert(Instrument(symbol="BBB", name="BBB Ltd"))
-        candle_repo.insert(_increasing_candles("AAA", date(2024, 1, 1), 9, future_spike=True))
+        candle_repo.insert(
+            _increasing_candles("AAA", date(2024, 1, 1), 9, future_spike=True)
+        )
         candle_repo.insert(_increasing_candles("BBB", date(2024, 1, 2), 7))
         session.commit()
 

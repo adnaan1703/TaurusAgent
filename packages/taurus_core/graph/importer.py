@@ -129,9 +129,13 @@ class _TaurusGraphCSVImporter:
 
     def import_all(self) -> TaurusGraphImportSummary:
         if not self.data_dir.exists():
-            raise TaurusGraphImportError(f"TaurusData graph directory not found: {self.data_dir}")
+            raise TaurusGraphImportError(
+                f"TaurusData graph directory not found: {self.data_dir}"
+            )
         if not self.data_dir.is_dir():
-            raise TaurusGraphImportError(f"TaurusData graph path is not a directory: {self.data_dir}")
+            raise TaurusGraphImportError(
+                f"TaurusData graph path is not a directory: {self.data_dir}"
+            )
 
         importers: dict[str, Callable[[dict[str, str], str, str], bool]] = {
             "company_industry_classifications.csv": self._import_industry_classification,
@@ -224,7 +228,9 @@ class _TaurusGraphCSVImporter:
             )
             return
         if not path.is_file():
-            raise TaurusGraphImportError(f"TaurusData graph CSV path is not a file: {path}")
+            raise TaurusGraphImportError(
+                f"TaurusData graph CSV path is not a file: {path}"
+            )
 
         seen = 0
         imported = 0
@@ -266,10 +272,14 @@ class _TaurusGraphCSVImporter:
 
         company = self._upsert_company_node(
             symbol=symbol,
-            name=_first_value(row, "nse_issuer_name", "input_company_name", fallback=symbol),
+            name=_first_value(
+                row, "nse_issuer_name", "input_company_name", fallback=symbol
+            ),
             isin=_value(row, "isin") or None,
             metadata={
-                "industry_classification": _metadata_payload(row, source_file, row_hash),
+                "industry_classification": _metadata_payload(
+                    row, source_file, row_hash
+                ),
                 "batch_id": _value(row, "batch_id"),
             },
         )
@@ -328,7 +338,9 @@ class _TaurusGraphCSVImporter:
         symbol = _value(row, "input_symbol")
         segment_name = _value(row, "segment_name")
         if not symbol or not segment_name:
-            self._warn_skipped(source_file, row_hash, "missing company symbol or segment name")
+            self._warn_skipped(
+                source_file, row_hash, "missing company symbol or segment name"
+            )
             return False
 
         company = self._upsert_company_node(
@@ -382,9 +394,13 @@ class _TaurusGraphCSVImporter:
         row_hash: str,
     ) -> bool:
         symbol = _value(row, "input_symbol")
-        product_name = _first_value(row, "normalized_product_group", "product_or_service")
+        product_name = _first_value(
+            row, "normalized_product_group", "product_or_service"
+        )
         if not symbol or not product_name:
-            self._warn_skipped(source_file, row_hash, "missing company symbol or product")
+            self._warn_skipped(
+                source_file, row_hash, "missing company symbol or product"
+            )
             return False
 
         company = self._upsert_company_node(
@@ -445,7 +461,9 @@ class _TaurusGraphCSVImporter:
             "related_industry",
         )
         if not symbol or not dependency_name:
-            self._warn_skipped(source_file, row_hash, "missing company symbol or dependency")
+            self._warn_skipped(
+                source_file, row_hash, "missing company symbol or dependency"
+            )
             return False
 
         company = self._upsert_company_node(
@@ -493,8 +511,12 @@ class _TaurusGraphCSVImporter:
             source_row_hash=row_hash,
             metadata={
                 "relationship_strength": relationship_strength,
-                "expected_lag_days_min": _int_or_none(_value(row, "expected_lag_days_min")),
-                "expected_lag_days_max": _int_or_none(_value(row, "expected_lag_days_max")),
+                "expected_lag_days_min": _int_or_none(
+                    _value(row, "expected_lag_days_min")
+                ),
+                "expected_lag_days_max": _int_or_none(
+                    _value(row, "expected_lag_days_max")
+                ),
                 "upstream_or_downstream": upstream_or_downstream,
                 "related_industry": _value(row, "related_industry"),
                 "related_commodity_or_macro_factor": _value(
@@ -547,8 +569,12 @@ class _TaurusGraphCSVImporter:
             source_row_hash=row_hash,
             metadata={
                 "relationship_strength": relationship_strength,
-                "expected_lag_days_min": _int_or_none(_value(row, "expected_lag_days_min")),
-                "expected_lag_days_max": _int_or_none(_value(row, "expected_lag_days_max")),
+                "expected_lag_days_min": _int_or_none(
+                    _value(row, "expected_lag_days_min")
+                ),
+                "expected_lag_days_max": _int_or_none(
+                    _value(row, "expected_lag_days_max")
+                ),
                 "source": _value(row, "source"),
                 "batch_id": _value(row, "batch_id"),
                 "raw": _clean_row(row),
@@ -664,7 +690,9 @@ class _TaurusGraphCSVImporter:
         evidence_id = _value(row, "evidence_id")
         symbol = _value(row, "input_symbol")
         if not evidence_id or not symbol:
-            self._warn_skipped(source_file, row_hash, "missing evidence id or company symbol")
+            self._warn_skipped(
+                source_file, row_hash, "missing evidence id or company symbol"
+            )
             return False
 
         company = self._upsert_company_node(
@@ -737,7 +765,9 @@ class _TaurusGraphCSVImporter:
     ) -> GraphNodeModel:
         normalized_symbol = _normalize_symbol(symbol)
         display_name = name.strip() if name else normalized_symbol
-        self.instrument_repo.upsert(Instrument(symbol=normalized_symbol, name=display_name))
+        self.instrument_repo.upsert(
+            Instrument(symbol=normalized_symbol, name=display_name)
+        )
 
         node_key = _company_node_key(normalized_symbol)
         existing = self.graph_repo.get_node_by_key(node_key)
@@ -747,7 +777,9 @@ class _TaurusGraphCSVImporter:
         return self._upsert_node(
             node_key=node_key,
             node_type="company",
-            display_name=existing.display_name if existing is not None else display_name,
+            display_name=existing.display_name
+            if existing is not None
+            else display_name,
             symbol=normalized_symbol,
             isin=isin or (existing.isin if existing is not None else None),
             metadata=merged_metadata,
@@ -796,7 +828,9 @@ class _TaurusGraphCSVImporter:
     ) -> GraphEdgeModel:
         normalized_provenance_type = normalize_graph_edge_provenance(provenance_type)
         edge = self.graph_repo.upsert_edge(
-            edge_key=_edge_key(namespace, source_node_key, target_node_key, edge_type, direction),
+            edge_key=_edge_key(
+                namespace, source_node_key, target_node_key, edge_type, direction
+            ),
             source_node_key=source_node_key,
             target_node_key=target_node_key,
             edge_type=edge_type,
@@ -808,7 +842,8 @@ class _TaurusGraphCSVImporter:
             confidence=confidence,
             mechanism=mechanism,
             tradability_relevance=tradability_relevance,
-            status=status or initial_graph_edge_status_for_provenance(normalized_provenance_type),
+            status=status
+            or initial_graph_edge_status_for_provenance(normalized_provenance_type),
             source_file=source_file,
             source_row_hash=source_row_hash,
             metadata=metadata,
@@ -868,12 +903,20 @@ def _source_row_hash(source_file: str, row: dict[str, str]) -> str:
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
-def _metadata_payload(row: dict[str, str], source_file: str, row_hash: str) -> dict[str, object]:
-    return {"source_file": source_file, "source_row_hash": row_hash, "raw": _clean_row(row)}
+def _metadata_payload(
+    row: dict[str, str], source_file: str, row_hash: str
+) -> dict[str, object]:
+    return {
+        "source_file": source_file,
+        "source_row_hash": row_hash,
+        "raw": _clean_row(row),
+    }
 
 
 def _clean_row(row: dict[str, str]) -> dict[str, str]:
-    return {str(key): _clean_text(value) for key, value in row.items() if key is not None}
+    return {
+        str(key): _clean_text(value) for key, value in row.items() if key is not None
+    }
 
 
 def _value(row: dict[str, str], key: str) -> str:

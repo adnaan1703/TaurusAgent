@@ -22,10 +22,14 @@ def list_profiles(
     *,
     include_archived: bool = False,
 ) -> list[TaurusProfileModel]:
-    return TaurusProfileRepository(session).list_profiles(include_archived=include_archived)
+    return TaurusProfileRepository(session).list_profiles(
+        include_archived=include_archived
+    )
 
 
-def create_profile(session: Session, profile: TaurusProfileCreate) -> TaurusProfileModel:
+def create_profile(
+    session: Session, profile: TaurusProfileCreate
+) -> TaurusProfileModel:
     return TaurusProfileRepository(session).create_profile(profile)
 
 
@@ -42,4 +46,3 @@ def update_profile_corpus(
         profile_id,
         starting_corpus_inr,
     )
-

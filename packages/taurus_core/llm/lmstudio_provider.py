@@ -38,7 +38,9 @@ from taurus_core.llm.base import (
 )
 
 
-def _lmstudio_schema_response_format(name: str, schema: dict[str, object]) -> dict[str, object]:
+def _lmstudio_schema_response_format(
+    name: str, schema: dict[str, object]
+) -> dict[str, object]:
     return {
         "type": "json_schema",
         "json_schema": {
@@ -292,7 +294,9 @@ def _openai_compatible_bull_thesis_completion(
         response_format=response_format,
         provider_name=provider_name,
     )
-    output = parse_bull_thesis_output(str(content), fallback_model_version=model_version)
+    output = parse_bull_thesis_output(
+        str(content), fallback_model_version=model_version
+    )
     append_llm_usage_record(usage_sink, usage_record)
     return output
 
@@ -337,7 +341,9 @@ def _openai_compatible_bear_thesis_completion(
         response_format=response_format,
         provider_name=provider_name,
     )
-    output = parse_bear_thesis_output(str(content), fallback_model_version=model_version)
+    output = parse_bear_thesis_output(
+        str(content), fallback_model_version=model_version
+    )
     append_llm_usage_record(usage_sink, usage_record)
     return output
 
@@ -381,7 +387,9 @@ def _openai_compatible_research_manager_completion(
         response_format=response_format,
         provider_name=provider_name,
     )
-    output = parse_research_manager_output(str(content), fallback_model_version=model_version)
+    output = parse_research_manager_output(
+        str(content), fallback_model_version=model_version
+    )
     append_llm_usage_record(usage_sink, usage_record)
     return output
 
@@ -530,8 +538,12 @@ def _openai_compatible_chat_content(
     try:
         message = response_payload["choices"][0]["message"]
     except (KeyError, IndexError, TypeError) as exc:
-        raise LLMProviderError(f"{provider_name} response did not include chat content") from exc
-    content = _non_empty_string(message.get("content") if isinstance(message, dict) else None)
+        raise LLMProviderError(
+            f"{provider_name} response did not include chat content"
+        ) from exc
+    content = _non_empty_string(
+        message.get("content") if isinstance(message, dict) else None
+    )
     if content is None and provider_name == "LM Studio" and isinstance(message, dict):
         content = _non_empty_string(message.get("reasoning_content"))
     if content is None:
@@ -617,7 +629,9 @@ def openai_trader_json_schema_response_format() -> dict[str, object]:
     }
 
 
-def openai_final_decision_explanation_json_schema_response_format() -> dict[str, object]:
+def openai_final_decision_explanation_json_schema_response_format() -> dict[
+    str, object
+]:
     return {
         "type": "json_schema",
         "json_schema": {

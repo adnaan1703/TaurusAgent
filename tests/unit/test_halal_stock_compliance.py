@@ -34,7 +34,16 @@ def test_halal_parser_maps_icons_dedupes_and_ignores_duplicate_table() -> None:
             _row("yes", "Alpha Foods Ltd", "ALPHA", "ALPHA", "Food Products", "/alpha"),
         ],
         trailing_html=_table_html(
-            [_row("unknown", "Should Be Ignored Ltd", "IGN", "IGN", "Other", "/ignored")]
+            [
+                _row(
+                    "unknown",
+                    "Should Be Ignored Ltd",
+                    "IGN",
+                    "IGN",
+                    "Other",
+                    "/ignored",
+                )
+            ]
         ),
     )
 
@@ -51,10 +60,21 @@ def test_halal_parser_maps_icons_dedupes_and_ignores_duplicate_table() -> None:
 
 def test_halal_parser_rejects_unknown_status_icons() -> None:
     html = _table_html(
-        [_row("unknown", "Alpha Foods Ltd", "ALPHA", "ALPHA", "Food Products", "/alpha")]
+        [
+            _row(
+                "unknown",
+                "Alpha Foods Ltd",
+                "ALPHA",
+                "ALPHA",
+                "Food Products",
+                "/alpha",
+            )
+        ]
     )
 
-    with pytest.raises(HalalStockComplianceError, match="Unknown HalalStock status icon"):
+    with pytest.raises(
+        HalalStockComplianceError, match="Unknown HalalStock status icon"
+    ):
         parse_halal_stock_rows(html, source_url=SOURCE_URL)
 
 
@@ -76,7 +96,14 @@ def test_halal_import_upserts_rows_marks_missing_inactive_and_tracks_status_chan
     first = parse_halal_stock_rows(
         _table_html(
             [
-                _row("yes", "Alpha Foods Ltd", "ALPHA", "ALPHA", "Food Products", "/alpha"),
+                _row(
+                    "yes",
+                    "Alpha Foods Ltd",
+                    "ALPHA",
+                    "ALPHA",
+                    "Food Products",
+                    "/alpha",
+                ),
                 _row("no", "Beta Finance Ltd", "BETA", "BETA", "Finance", "/beta"),
                 _row("yes", "Gamma Tools Ltd", "GAMMA", "", "Engineering", "/gamma"),
             ]
@@ -87,9 +114,13 @@ def test_halal_import_upserts_rows_marks_missing_inactive_and_tracks_status_chan
     second = parse_halal_stock_rows(
         _table_html(
             [
-                _row("no", "Alpha Foods Ltd", "ALPHA", "ALPHA", "Food Products", "/alpha"),
+                _row(
+                    "no", "Alpha Foods Ltd", "ALPHA", "ALPHA", "Food Products", "/alpha"
+                ),
                 _row("yes", "Gamma Tools Ltd", "GAMMA", "", "Engineering", "/gamma"),
-                _row("yes", "Delta Health Ltd", "DELTA", "DELTA", "Healthcare", "/delta"),
+                _row(
+                    "yes", "Delta Health Ltd", "DELTA", "DELTA", "Healthcare", "/delta"
+                ),
             ]
         ),
         source_url=SOURCE_URL,
@@ -115,8 +146,7 @@ def test_halal_import_upserts_rows_marks_missing_inactive_and_tracks_status_chan
 
     with session_factory() as session:
         rows = {
-            row.name: row
-            for row in session.scalars(select(HalalStockComplianceModel))
+            row.name: row for row in session.scalars(select(HalalStockComplianceModel))
         }
         import_count = len(list(session.scalars(select(HalalStockImportModel))))
 
@@ -124,19 +154,32 @@ def test_halal_import_upserts_rows_marks_missing_inactive_and_tracks_status_chan
     assert inactive_count == 1
     assert import_count == 2
     assert rows["Alpha Foods Ltd"].compliance_status == "haram"
-    assert _iso(rows["Alpha Foods Ltd"].status_changed_at).startswith("2026-05-25T09:00:00")
+    assert _iso(rows["Alpha Foods Ltd"].status_changed_at).startswith(
+        "2026-05-25T09:00:00"
+    )
     assert rows["Gamma Tools Ltd"].active is True
-    assert _iso(rows["Gamma Tools Ltd"].status_changed_at).startswith("2026-05-24T09:00:00")
+    assert _iso(rows["Gamma Tools Ltd"].status_changed_at).startswith(
+        "2026-05-24T09:00:00"
+    )
     assert rows["Beta Finance Ltd"].active is False
 
 
-def test_halal_export_excludes_haram_and_missing_nse_and_loads_universe(tmp_path: Path) -> None:
+def test_halal_export_excludes_haram_and_missing_nse_and_loads_universe(
+    tmp_path: Path,
+) -> None:
     settings = _settings(tmp_path)
     session_factory = _prepare_db(settings)
     parse_result = parse_halal_stock_rows(
         _table_html(
             [
-                _row("yes", "Alpha Foods Ltd", "ALPHA", "ALPHA", "Food Products", "/alpha"),
+                _row(
+                    "yes",
+                    "Alpha Foods Ltd",
+                    "ALPHA",
+                    "ALPHA",
+                    "Food Products",
+                    "/alpha",
+                ),
                 _row("no", "Beta Finance Ltd", "BETA", "BETA", "Finance", "/beta"),
                 _row("yes", "Gamma Tools Ltd", "GAMMA", "", "Engineering", "/gamma"),
             ]
@@ -169,8 +212,17 @@ def test_halal_export_rejects_duplicate_nse_symbols(tmp_path: Path) -> None:
     parse_result = parse_halal_stock_rows(
         _table_html(
             [
-                _row("yes", "Alpha Foods Ltd", "ALPHA", "DUPL", "Food Products", "/alpha"),
-                _row("yes", "Alpha Foods New Ltd", "ALPHAN", "DUPL", "Food Products", "/alpha-new"),
+                _row(
+                    "yes", "Alpha Foods Ltd", "ALPHA", "DUPL", "Food Products", "/alpha"
+                ),
+                _row(
+                    "yes",
+                    "Alpha Foods New Ltd",
+                    "ALPHAN",
+                    "DUPL",
+                    "Food Products",
+                    "/alpha-new",
+                ),
             ]
         ),
         source_url=SOURCE_URL,
@@ -195,7 +247,14 @@ def test_halal_sync_uses_fetch_result_and_row_guard(tmp_path: Path) -> None:
         final_url=SOURCE_URL,
         html=_table_html(
             [
-                _row("yes", "Alpha Foods Ltd", "ALPHA", "ALPHA", "Food Products", "/alpha"),
+                _row(
+                    "yes",
+                    "Alpha Foods Ltd",
+                    "ALPHA",
+                    "ALPHA",
+                    "Food Products",
+                    "/alpha",
+                ),
                 _row("no", "Beta Finance Ltd", "BETA", "BETA", "Finance", "/beta"),
             ]
         ),
@@ -255,7 +314,14 @@ def _row(
 def _table_html(
     rows: list[str],
     *,
-    headers: tuple[str, ...] = ("Halal", "NAME", "BSE-ID", "NSECode", "Industry", "More"),
+    headers: tuple[str, ...] = (
+        "Halal",
+        "NAME",
+        "BSE-ID",
+        "NSECode",
+        "Industry",
+        "More",
+    ),
     trailing_html: str = "",
 ) -> str:
     header_html = "".join(f"<th>{header}</th>" for header in headers)

@@ -17,7 +17,9 @@ def send_alert_smoke(settings: Settings | None = None) -> dict[str, object]:
     session_factory = build_session_factory(settings)
     with session_factory() as session:
         event = alert_smoke_test_event(run_id=os.environ.get("RUN_ID", "alert-smoke"))
-        result = AlertService(session, settings, adapter=build_alert_adapter(settings)).send(event)
+        result = AlertService(
+            session, settings, adapter=build_alert_adapter(settings)
+        ).send(event)
         return {
             "event": event.model_dump(mode="json"),
             "delivery": result.model_dump(mode="json"),

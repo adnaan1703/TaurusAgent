@@ -89,8 +89,12 @@ def test_profile_repository_lifecycle_filters_archived_profiles(
 
     with session_factory() as session:
         repo = TaurusProfileRepository(session)
-        assert [profile.profile_id for profile in repo.list_profiles()] == ["local-paper"]
-        assert [profile.profile_id for profile in repo.list_profiles(include_archived=True)] == [
+        assert [profile.profile_id for profile in repo.list_profiles()] == [
+            "local-paper"
+        ]
+        assert [
+            profile.profile_id for profile in repo.list_profiles(include_archived=True)
+        ] == [
             "client-a",
             "local-paper",
         ]

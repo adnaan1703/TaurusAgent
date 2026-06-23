@@ -40,11 +40,15 @@ class RestoreResult:
             "database_kind": self.database_kind,
             "restored_from": str(self.restored_from),
             "restored_to": self.restored_to,
-            "pre_restore_backup": str(self.pre_restore_backup) if self.pre_restore_backup else None,
+            "pre_restore_backup": str(self.pre_restore_backup)
+            if self.pre_restore_backup
+            else None,
         }
 
 
-def create_backup(settings: Settings, *, output_root: Path | None = None) -> BackupResult:
+def create_backup(
+    settings: Settings, *, output_root: Path | None = None
+) -> BackupResult:
     output_root = output_root or Path("backups")
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
     backup_dir = output_root / f"taurus-{timestamp}"
@@ -64,7 +68,9 @@ def create_backup(settings: Settings, *, output_root: Path | None = None) -> Bac
         "database_url": _redact_url_password(settings.database_url),
         "artifact": artifact_path.name,
     }
-    manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    manifest_path.write_text(
+        json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
     return BackupResult(
         backup_dir=backup_dir,
         database_kind=database_kind,
@@ -155,7 +161,9 @@ def _backup_postgres_with_compose(database_url: str, artifact_path: Path) -> Non
 def _restore_postgres_with_compose(database_url: str, artifact_path: Path) -> None:
     url = make_url(database_url)
     if shutil.which("docker") is None:
-        raise FileNotFoundError("pg_restore is not installed and docker is unavailable.")
+        raise FileNotFoundError(
+            "pg_restore is not installed and docker is unavailable."
+        )
     with artifact_path.open("rb") as input_file:
         subprocess.run(
             [
@@ -180,7 +188,9 @@ def _restore_postgres_with_compose(database_url: str, artifact_path: Path) -> No
 
 
 def _load_manifest(backup: Path) -> dict[str, object]:
-    manifest_path = backup / "manifest.json" if backup.is_dir() else backup.parent / "manifest.json"
+    manifest_path = (
+        backup / "manifest.json" if backup.is_dir() else backup.parent / "manifest.json"
+    )
     if not manifest_path.exists():
         raise FileNotFoundError(f"Backup manifest not found: {manifest_path}")
     return json.loads(manifest_path.read_text(encoding="utf-8"))

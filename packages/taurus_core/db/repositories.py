@@ -54,7 +54,12 @@ from taurus_core.intelligence.documents import NewsEvent, RawDocument, Sentiment
 from taurus_core.agents.schemas import AnalystReport
 from taurus_core.research.schemas import DebateReport, TraderProposal
 from taurus_core.risk.schemas import FinalDecision, RiskReview
-from taurus_core.execution.schemas import PaperAccount, PaperFill, PaperOrder, PaperPosition
+from taurus_core.execution.schemas import (
+    PaperAccount,
+    PaperFill,
+    PaperOrder,
+    PaperPosition,
+)
 from taurus_core.paper_trading.schemas import PaperRun
 from taurus_core.profiles.schemas import (
     DEFAULT_PROFILE_CURRENCY,
@@ -188,8 +193,12 @@ class CandleRepository:
         return self.session.scalar(statement)
 
     @staticmethod
-    def _base_select(symbol: str | None, timeframe: str) -> Select[tuple[DailyCandleModel]]:
-        statement = select(DailyCandleModel).where(DailyCandleModel.timeframe == timeframe)
+    def _base_select(
+        symbol: str | None, timeframe: str
+    ) -> Select[tuple[DailyCandleModel]]:
+        statement = select(DailyCandleModel).where(
+            DailyCandleModel.timeframe == timeframe
+        )
         if symbol is not None:
             statement = statement.where(DailyCandleModel.symbol == symbol.upper())
         return statement.order_by(DailyCandleModel.symbol, DailyCandleModel.trade_date)
@@ -252,18 +261,24 @@ class InstrumentProviderMappingRepository:
         self.session.flush()
         return model
 
-    def list(self, *, provider: str | None = None, active_only: bool = False) -> list[InstrumentProviderMappingModel]:
+    def list(
+        self, *, provider: str | None = None, active_only: bool = False
+    ) -> list[InstrumentProviderMappingModel]:
         statement = select(InstrumentProviderMappingModel).order_by(
             InstrumentProviderMappingModel.provider,
             InstrumentProviderMappingModel.symbol,
         )
         if provider is not None:
-            statement = statement.where(InstrumentProviderMappingModel.provider == provider.lower())
+            statement = statement.where(
+                InstrumentProviderMappingModel.provider == provider.lower()
+            )
         if active_only:
             statement = statement.where(InstrumentProviderMappingModel.active.is_(True))
         return list(self.session.scalars(statement))
 
-    def get(self, *, provider: str, symbol: str) -> InstrumentProviderMappingModel | None:
+    def get(
+        self, *, provider: str, symbol: str
+    ) -> InstrumentProviderMappingModel | None:
         statement = select(InstrumentProviderMappingModel).where(
             InstrumentProviderMappingModel.provider == provider.lower(),
             InstrumentProviderMappingModel.symbol == symbol.upper(),
@@ -275,7 +290,9 @@ class MarketPriceSnapshotRepository:
     def __init__(self, session: Session) -> None:
         self.session = session
 
-    def insert_many(self, snapshots: list[MarketPriceSnapshot]) -> list[MarketPriceSnapshotModel]:
+    def insert_many(
+        self, snapshots: list[MarketPriceSnapshot]
+    ) -> list[MarketPriceSnapshotModel]:
         models = [_snapshot_to_model(snapshot) for snapshot in snapshots]
         self.session.add_all(models)
         self.session.flush()
@@ -291,7 +308,9 @@ class MarketPriceSnapshotRepository:
             MarketPriceSnapshotModel.symbol == symbol.upper()
         )
         if provider is not None:
-            statement = statement.where(MarketPriceSnapshotModel.provider == provider.lower())
+            statement = statement.where(
+                MarketPriceSnapshotModel.provider == provider.lower()
+            )
         statement = statement.order_by(
             MarketPriceSnapshotModel.fetched_at.desc(),
             MarketPriceSnapshotModel.id.desc(),
@@ -351,7 +370,9 @@ class BacktestRepository:
                 AuditLogModel.payload["run_id"].as_string() == run_id,
             )
         )
-        self.session.execute(delete(BacktestRunModel).where(BacktestRunModel.run_id == run_id))
+        self.session.execute(
+            delete(BacktestRunModel).where(BacktestRunModel.run_id == run_id)
+        )
 
     def get_run(self, run_id: str) -> BacktestRunModel | None:
         return self.session.get(BacktestRunModel, run_id)
@@ -368,7 +389,9 @@ class BacktestRepository:
         return {
             name: int(
                 self.session.scalar(
-                    select(func.count()).select_from(model).where(model.run_id == run_id)
+                    select(func.count())
+                    .select_from(model)
+                    .where(model.run_id == run_id)
                 )
                 or 0
             )
@@ -545,7 +568,9 @@ class AnalystReportRepository:
             AnalystReportModel.agent_name,
         )
         if profile_id is not None:
-            statement = statement.where(AnalystReportModel.portfolio_id == validate_profile_id(profile_id))
+            statement = statement.where(
+                AnalystReportModel.portfolio_id == validate_profile_id(profile_id)
+            )
         if symbol is not None:
             statement = statement.where(AnalystReportModel.symbol == symbol.upper())
         if limit is not None:
@@ -644,7 +669,9 @@ class FundamentalsRepository:
             FundamentalSnapshotModel.metric_name,
         )
         if symbol is not None:
-            statement = statement.where(FundamentalSnapshotModel.symbol == symbol.upper())
+            statement = statement.where(
+                FundamentalSnapshotModel.symbol == symbol.upper()
+            )
         if import_id is not None:
             statement = statement.where(FundamentalSnapshotModel.import_id == import_id)
         if limit is not None:
@@ -833,7 +860,9 @@ class HalalStockComplianceRepository:
     ) -> list[Any]:
         filters: list[Any] = [HalalStockComplianceModel.active.is_(True)]
         if compliance_status is not None:
-            filters.append(HalalStockComplianceModel.compliance_status == compliance_status)
+            filters.append(
+                HalalStockComplianceModel.compliance_status == compliance_status
+            )
         cleaned_query = query.strip()
         if cleaned_query:
             pattern = f"%{cleaned_query}%"
@@ -936,7 +965,9 @@ class ResearchRepository:
                 DebateReportModel.run_id == run_id,
                 DebateReportModel.symbol == symbol.upper(),
             )
-            .order_by(DebateReportModel.as_of.desc(), DebateReportModel.created_at.desc())
+            .order_by(
+                DebateReportModel.as_of.desc(), DebateReportModel.created_at.desc()
+            )
             .limit(1)
         )
         return self.session.scalar(statement)
@@ -953,7 +984,9 @@ class ResearchRepository:
             DebateReportModel.debate_id,
         )
         if profile_id is not None:
-            statement = statement.where(DebateReportModel.portfolio_id == validate_profile_id(profile_id))
+            statement = statement.where(
+                DebateReportModel.portfolio_id == validate_profile_id(profile_id)
+            )
         if symbol is not None:
             statement = statement.where(DebateReportModel.symbol == symbol.upper())
         if limit is not None:
@@ -980,7 +1013,9 @@ class ResearchRepository:
         if run_id is not None:
             statement = statement.where(TraderProposalModel.run_id == run_id)
         if portfolio_filter is not None:
-            statement = statement.where(TraderProposalModel.portfolio_id == portfolio_filter)
+            statement = statement.where(
+                TraderProposalModel.portfolio_id == portfolio_filter
+            )
         if symbol is not None:
             statement = statement.where(TraderProposalModel.symbol == symbol.upper())
         if limit is not None:
@@ -999,7 +1034,9 @@ class ResearchRepository:
                 TraderProposalModel.run_id == run_id,
                 TraderProposalModel.symbol == symbol.upper(),
             )
-            .order_by(TraderProposalModel.as_of.desc(), TraderProposalModel.created_at.desc())
+            .order_by(
+                TraderProposalModel.as_of.desc(), TraderProposalModel.created_at.desc()
+            )
             .limit(1)
         )
         return self.session.scalar(statement)
@@ -1032,7 +1069,9 @@ class RiskRepository:
         self.session.flush()
         return model
 
-    def replace_final_decision_for_run_symbol(self, decision: FinalDecision) -> FinalDecisionModel:
+    def replace_final_decision_for_run_symbol(
+        self, decision: FinalDecision
+    ) -> FinalDecisionModel:
         _delete_paper_artifacts_for_run_symbol(
             self.session,
             run_id=decision.run_id,
@@ -1084,7 +1123,9 @@ class RiskRepository:
                 FinalDecisionModel.run_id == run_id,
                 FinalDecisionModel.symbol == symbol.upper(),
             )
-            .order_by(FinalDecisionModel.as_of.desc(), FinalDecisionModel.created_at.desc())
+            .order_by(
+                FinalDecisionModel.as_of.desc(), FinalDecisionModel.created_at.desc()
+            )
             .limit(1)
         )
         return self.session.scalar(statement)
@@ -1104,7 +1145,9 @@ class RiskRepository:
         if run_id is not None:
             statement = statement.where(RiskReviewModel.run_id == run_id)
         if profile_id is not None:
-            statement = statement.where(RiskReviewModel.portfolio_id == validate_profile_id(profile_id))
+            statement = statement.where(
+                RiskReviewModel.portfolio_id == validate_profile_id(profile_id)
+            )
         if symbol is not None:
             statement = statement.where(RiskReviewModel.symbol == symbol.upper())
         if limit is not None:
@@ -1126,7 +1169,9 @@ class RiskRepository:
         if run_id is not None:
             statement = statement.where(FinalDecisionModel.run_id == run_id)
         if profile_id is not None:
-            statement = statement.where(FinalDecisionModel.portfolio_id == validate_profile_id(profile_id))
+            statement = statement.where(
+                FinalDecisionModel.portfolio_id == validate_profile_id(profile_id)
+            )
         if symbol is not None:
             statement = statement.where(FinalDecisionModel.symbol == symbol.upper())
         if limit is not None:
@@ -1157,7 +1202,9 @@ class TaurusProfileRepository:
     def get_profile(self, profile_id: str) -> TaurusProfileModel | None:
         return self.session.get(TaurusProfileModel, validate_profile_id(profile_id))
 
-    def list_profiles(self, *, include_archived: bool = False) -> list[TaurusProfileModel]:
+    def list_profiles(
+        self, *, include_archived: bool = False
+    ) -> list[TaurusProfileModel]:
         statement = select(TaurusProfileModel).order_by(TaurusProfileModel.profile_id)
         if not include_archived:
             statement = statement.where(TaurusProfileModel.status == "ACTIVE")
@@ -1197,7 +1244,9 @@ class TaurusProfileRepository:
         self.session.flush()
         return model
 
-    def update_profile(self, profile_id: str, update: TaurusProfileUpdate) -> TaurusProfileModel:
+    def update_profile(
+        self, profile_id: str, update: TaurusProfileUpdate
+    ) -> TaurusProfileModel:
         model = self.get_profile(profile_id)
         if model is None:
             raise ValueError(f"Profile {profile_id} not found.")
@@ -1214,7 +1263,9 @@ class TaurusProfileRepository:
         if update.starting_corpus_inr is not None:
             self._ensure_corpus_update_allowed(model.profile_id)
             model.starting_corpus_inr = update.starting_corpus_inr
-            self._sync_initial_account_snapshots(model.profile_id, update.starting_corpus_inr)
+            self._sync_initial_account_snapshots(
+                model.profile_id, update.starting_corpus_inr
+            )
         model.updated_at = utc_now()
         self.session.flush()
         return model
@@ -1224,29 +1275,38 @@ class TaurusProfileRepository:
             raise _corpus_update_error(profile_id)
         if self._count(PaperOrderModel, profile_id) > 0:
             raise _corpus_update_error(profile_id)
-        nonzero_positions = self.session.scalar(
-            select(func.count())
-            .select_from(PaperPositionModel)
-            .where(
-                PaperPositionModel.portfolio_id == profile_id,
-                PaperPositionModel.quantity != 0,
+        nonzero_positions = (
+            self.session.scalar(
+                select(func.count())
+                .select_from(PaperPositionModel)
+                .where(
+                    PaperPositionModel.portfolio_id == profile_id,
+                    PaperPositionModel.quantity != 0,
+                )
             )
-        ) or 0
+            or 0
+        )
         if nonzero_positions > 0:
             raise _corpus_update_error(profile_id)
 
         accounts = list(
             self.session.scalars(
-                select(PaperAccountModel).where(PaperAccountModel.portfolio_id == profile_id)
+                select(PaperAccountModel).where(
+                    PaperAccountModel.portfolio_id == profile_id
+                )
             )
         )
         if any(not _is_initial_account_snapshot(account) for account in accounts):
             raise _corpus_update_error(profile_id)
 
-    def _count(self, model: type[PaperFillModel] | type[PaperOrderModel], profile_id: str) -> int:
+    def _count(
+        self, model: type[PaperFillModel] | type[PaperOrderModel], profile_id: str
+    ) -> int:
         return int(
             self.session.scalar(
-                select(func.count()).select_from(model).where(model.portfolio_id == profile_id)
+                select(func.count())
+                .select_from(model)
+                .where(model.portfolio_id == profile_id)
             )
             or 0
         )
@@ -1254,7 +1314,9 @@ class TaurusProfileRepository:
     def _sync_initial_account_snapshots(self, profile_id: str, corpus: Decimal) -> None:
         accounts = list(
             self.session.scalars(
-                select(PaperAccountModel).where(PaperAccountModel.portfolio_id == profile_id)
+                select(PaperAccountModel).where(
+                    PaperAccountModel.portfolio_id == profile_id
+                )
             )
         )
         for account in accounts:
@@ -1315,7 +1377,9 @@ class PaperRunRepository:
             PaperRunModel.run_id,
         )
         if profile_id is not None:
-            statement = statement.where(PaperRunModel.portfolio_id == validate_profile_id(profile_id))
+            statement = statement.where(
+                PaperRunModel.portfolio_id == validate_profile_id(profile_id)
+            )
         if limit is not None:
             statement = statement.limit(limit)
         return list(self.session.scalars(statement))
@@ -1371,15 +1435,24 @@ class ExecutionRepository:
         positions: list[PaperPosition] | None = None,
     ) -> PaperOrderModel:
         if order.status != "PENDING_NEXT_OPEN":
-            raise ValueError("Only PENDING_NEXT_OPEN orders can be stored as pending next-open orders.")
-        if order.execution_policy != "next_open" or order.scheduled_fill_session != "next_open":
-            raise ValueError("Pending next-open orders must use next_open execution metadata.")
+            raise ValueError(
+                "Only PENDING_NEXT_OPEN orders can be stored as pending next-open orders."
+            )
+        if (
+            order.execution_policy != "next_open"
+            or order.scheduled_fill_session != "next_open"
+        ):
+            raise ValueError(
+                "Pending next-open orders must use next_open execution metadata."
+            )
         self.delete_execution_for_final_decision(order.final_decision_id)
         order_model = _paper_order_to_model(order)
         self.session.add(order_model)
         if account is not None or positions is not None:
             if account is None or positions is None:
-                raise ValueError("Both account and positions are required when replacing account state.")
+                raise ValueError(
+                    "Both account and positions are required when replacing account state."
+                )
             self.replace_account_state(
                 run_id=order.run_id,
                 portfolio_id=order.portfolio_id,
@@ -1423,11 +1496,17 @@ class ExecutionRepository:
             raise ValueError(f"Pending paper order {order_id} not found.")
         pending_order = PaperOrder.model_validate(model.payload)
         if pending_order.status != "PENDING_NEXT_OPEN":
-            raise ValueError(f"Paper order {order_id} is not pending next-open settlement.")
+            raise ValueError(
+                f"Paper order {order_id} is not pending next-open settlement."
+            )
         if order.order_id != order_id:
-            raise ValueError("Pending order replacement must preserve the original order_id.")
+            raise ValueError(
+                "Pending order replacement must preserve the original order_id."
+            )
         if order.final_decision_id != pending_order.final_decision_id:
-            raise ValueError("Pending order replacement cannot change final_decision_id.")
+            raise ValueError(
+                "Pending order replacement cannot change final_decision_id."
+            )
         if order.status not in {"FILLED", "PARTIALLY_FILLED", "REJECTED"}:
             raise ValueError(
                 "Pending order replacement status must be FILLED, PARTIALLY_FILLED, or REJECTED."
@@ -1435,18 +1514,28 @@ class ExecutionRepository:
         if order.status in {"FILLED", "PARTIALLY_FILLED"} and not fills:
             raise ValueError("Filled pending order replacements require fill rows.")
         if order.status == "REJECTED" and fills:
-            raise ValueError("Rejected pending order replacements cannot include fill rows.")
+            raise ValueError(
+                "Rejected pending order replacements cannot include fill rows."
+            )
         for fill in fills:
             if fill.order_id != order_id:
-                raise ValueError("Pending order replacement fills must preserve order_id.")
+                raise ValueError(
+                    "Pending order replacement fills must preserve order_id."
+                )
             if fill.final_decision_id != pending_order.final_decision_id:
-                raise ValueError("Pending order replacement fills cannot change final_decision_id.")
-        self.session.execute(delete(PaperFillModel).where(PaperFillModel.order_id == order_id))
+                raise ValueError(
+                    "Pending order replacement fills cannot change final_decision_id."
+                )
+        self.session.execute(
+            delete(PaperFillModel).where(PaperFillModel.order_id == order_id)
+        )
         _update_paper_order_model(model, order)
         self.session.add_all([_paper_fill_to_model(fill) for fill in fills])
         if account is not None or positions is not None:
             if account is None or positions is None:
-                raise ValueError("Both account and positions are required when replacing account state.")
+                raise ValueError(
+                    "Both account and positions are required when replacing account state."
+                )
             self.replace_account_state(
                 run_id=order.run_id,
                 portfolio_id=order.portfolio_id,
@@ -1524,7 +1613,8 @@ class ExecutionRepository:
         self.session.execute(
             delete(AuditLogModel).where(
                 AuditLogModel.event_type.like("paper.%"),
-                AuditLogModel.payload["final_decision_id"].as_string() == final_decision_id,
+                AuditLogModel.payload["final_decision_id"].as_string()
+                == final_decision_id,
             )
         )
 
@@ -1542,7 +1632,9 @@ class ExecutionRepository:
                 PaperPositionModel.portfolio_id == portfolio_id,
             )
         )
-        self.session.add_all([_paper_position_to_model(position) for position in positions])
+        self.session.add_all(
+            [_paper_position_to_model(position) for position in positions]
+        )
 
         model = self.session.get(PaperAccountModel, account.account_id)
         if model is None:
@@ -1588,7 +1680,9 @@ class ExecutionRepository:
         if decision_id is not None:
             statement = statement.where(PaperOrderModel.decision_id == decision_id)
         if final_decision_id is not None:
-            statement = statement.where(PaperOrderModel.final_decision_id == final_decision_id)
+            statement = statement.where(
+                PaperOrderModel.final_decision_id == final_decision_id
+            )
         if limit is not None:
             statement = statement.limit(limit)
         return list(self.session.scalars(statement))
@@ -1637,7 +1731,9 @@ class ExecutionRepository:
         if order_id is not None:
             statement = statement.where(PaperFillModel.order_id == order_id)
         if final_decision_id is not None:
-            statement = statement.where(PaperFillModel.final_decision_id == final_decision_id)
+            statement = statement.where(
+                PaperFillModel.final_decision_id == final_decision_id
+            )
         if limit is not None:
             statement = statement.limit(limit)
         return list(self.session.scalars(statement))
@@ -1667,7 +1763,9 @@ class ExecutionRepository:
             statement = statement.where(PaperAccountModel.run_id == run_id)
         return self.session.scalar(statement.limit(1))
 
-    def latest_account_by_portfolio(self, *, portfolio_id: str) -> PaperAccountModel | None:
+    def latest_account_by_portfolio(
+        self, *, portfolio_id: str
+    ) -> PaperAccountModel | None:
         statement = (
             select(PaperAccountModel)
             .where(PaperAccountModel.portfolio_id == portfolio_id)
@@ -1797,7 +1895,9 @@ class GraphRepository:
             GraphNodeModel.node_key,
         )
         if node_type is not None:
-            statement = statement.where(GraphNodeModel.node_type == node_type.strip().lower())
+            statement = statement.where(
+                GraphNodeModel.node_type == node_type.strip().lower()
+            )
         if symbol is not None:
             statement = statement.where(GraphNodeModel.symbol == symbol.upper())
         if limit is not None:
@@ -1904,7 +2004,9 @@ class GraphRepository:
     ) -> GraphEdgeModel:
         normalized_status = status.strip().lower()
         if normalized_status not in {"active", "candidate", "rejected"}:
-            raise ValueError("Graph edge status must be active, candidate, or rejected.")
+            raise ValueError(
+                "Graph edge status must be active, candidate, or rejected."
+            )
         model = self.get_edge_by_key(edge_key)
         if model is None:
             raise ValueError(f"Unknown graph edge_key: {edge_key}")
@@ -1948,7 +2050,9 @@ class GraphRepository:
                 return []
             statement = statement.where(GraphEdgeModel.target_node_id == target_node.id)
         if edge_type is not None:
-            statement = statement.where(GraphEdgeModel.edge_type == edge_type.strip().lower())
+            statement = statement.where(
+                GraphEdgeModel.edge_type == edge_type.strip().lower()
+            )
         if status is not None:
             statement = statement.where(GraphEdgeModel.status == status.strip().lower())
         if limit is not None:
@@ -2000,9 +2104,13 @@ class GraphRepository:
             GraphEdgeModel.source_node_id == node.id,
             GraphEdgeModel.target_node_id == node.id,
         )
-        count_statement = select(func.count()).select_from(GraphEdgeModel).where(edge_predicate)
-        edge_statement = select(GraphEdgeModel).where(edge_predicate).order_by(
-            GraphEdgeModel.edge_key
+        count_statement = (
+            select(func.count()).select_from(GraphEdgeModel).where(edge_predicate)
+        )
+        edge_statement = (
+            select(GraphEdgeModel)
+            .where(edge_predicate)
+            .order_by(GraphEdgeModel.edge_key)
         )
         if normalized_statuses is not None:
             count_statement = count_statement.where(
@@ -2267,7 +2375,9 @@ class GraphRepository:
         explanation: str = "",
         metadata: dict[str, object] | None = None,
     ) -> GraphSignalContributionModel:
-        signal = self.session.get(GraphSignalModel, _clean_graph_key(signal_id, "signal_id"))
+        signal = self.session.get(
+            GraphSignalModel, _clean_graph_key(signal_id, "signal_id")
+        )
         if signal is None:
             raise ValueError(f"Unknown graph signal_id: {signal_id}")
         edge = self.get_edge_by_key(edge_key) if edge_key is not None else None
@@ -2277,10 +2387,16 @@ class GraphRepository:
         if node_key is not None and node is None:
             raise ValueError(f"Unknown graph node_key: {node_key}")
         if edge is None and node is None:
-            raise ValueError("A graph signal contribution requires edge_key or node_key.")
+            raise ValueError(
+                "A graph signal contribution requires edge_key or node_key."
+            )
 
-        normalized_contribution_id = _clean_graph_key(contribution_id, "contribution_id")
-        model = self.session.get(GraphSignalContributionModel, normalized_contribution_id)
+        normalized_contribution_id = _clean_graph_key(
+            contribution_id, "contribution_id"
+        )
+        model = self.session.get(
+            GraphSignalContributionModel, normalized_contribution_id
+        )
         if model is None:
             model = GraphSignalContributionModel(
                 contribution_id=normalized_contribution_id,
@@ -2389,10 +2505,16 @@ class AuditLogRepository:
         if run_id is not None:
             filters.append(AuditLogModel.payload["run_id"].as_string() == run_id)
         if symbol is not None:
-            filters.append(AuditLogModel.payload["symbol"].as_string() == symbol.upper())
-        statement = select(AuditLogModel).where(*filters).order_by(
-            AuditLogModel.created_at,
-            AuditLogModel.id,
+            filters.append(
+                AuditLogModel.payload["symbol"].as_string() == symbol.upper()
+            )
+        statement = (
+            select(AuditLogModel)
+            .where(*filters)
+            .order_by(
+                AuditLogModel.created_at,
+                AuditLogModel.id,
+            )
         )
         if limit is not None:
             statement = statement.limit(limit)
@@ -2425,7 +2547,8 @@ def _delete_paper_artifacts_for_run_symbol(
                 PaperFillModel.symbol == normalized_symbol,
                 PaperOrderModel.status.in_(("FILLED", "PARTIALLY_FILLED")),
                 PaperOrderModel.payload["execution_policy"].as_string() == "next_open",
-                PaperOrderModel.payload["scheduled_fill_session"].as_string() == "next_open",
+                PaperOrderModel.payload["scheduled_fill_session"].as_string()
+                == "next_open",
             )
             .distinct()
         )
@@ -2442,7 +2565,8 @@ def _delete_paper_artifacts_for_run_symbol(
             PaperOrderModel.symbol == normalized_symbol,
             PaperOrderModel.status == "REJECTED",
             PaperOrderModel.payload["execution_policy"].as_string() == "next_open",
-            PaperOrderModel.payload["scheduled_fill_session"].as_string() == "next_open",
+            PaperOrderModel.payload["scheduled_fill_session"].as_string()
+            == "next_open",
             PaperOrderModel.payload["filled_trade_date"].as_string().is_not(None),
         )
         if run_model is not None:
@@ -2453,7 +2577,9 @@ def _delete_paper_artifacts_for_run_symbol(
             rejected_settlement_orders = rejected_settlement_orders.where(
                 PaperOrderModel.updated_at <= account_model.updated_at
             )
-        protected_settlement_order_ids.update(session.scalars(rejected_settlement_orders))
+        protected_settlement_order_ids.update(
+            session.scalars(rejected_settlement_orders)
+        )
     protected_settlement_order_ids_list = sorted(protected_settlement_order_ids)
     fill_delete = delete(PaperFillModel).where(
         PaperFillModel.run_id == run_id,
@@ -2487,19 +2613,23 @@ def _delete_paper_artifacts_for_run_symbol(
     )
     if protected_settlement_order_ids_list:
         audit_delete = audit_delete.where(
-            AuditLogModel.payload["order_id"].as_string().not_in(
-                protected_settlement_order_ids_list
-            )
+            AuditLogModel.payload["order_id"]
+            .as_string()
+            .not_in(protected_settlement_order_ids_list)
         )
     session.execute(audit_delete)
     remaining_fills = int(
         session.scalar(
-            select(func.count()).select_from(PaperFillModel).where(PaperFillModel.run_id == run_id)
+            select(func.count())
+            .select_from(PaperFillModel)
+            .where(PaperFillModel.run_id == run_id)
         )
         or 0
     )
     if remaining_fills == 0 and not protected_settlement_order_ids_list:
-        session.execute(delete(PaperAccountModel).where(PaperAccountModel.run_id == run_id))
+        session.execute(
+            delete(PaperAccountModel).where(PaperAccountModel.run_id == run_id)
+        )
 
 
 def _utc_now() -> datetime:
@@ -2525,7 +2655,9 @@ def _normalize_graph_edge_statuses(
         if not value:
             continue
         if value not in valid_statuses:
-            raise ValueError("Graph edge status must be active, candidate, or rejected.")
+            raise ValueError(
+                "Graph edge status must be active, candidate, or rejected."
+            )
         if value not in normalized:
             normalized.append(value)
     return normalized
@@ -2648,7 +2780,9 @@ def _profile_filter_value(
     normalized_profile_id = validate_profile_id(profile_id)
     normalized_portfolio_id = validate_profile_id(portfolio_id)
     if normalized_profile_id != normalized_portfolio_id:
-        raise ValueError("profile_id and portfolio_id filters must match when both are supplied.")
+        raise ValueError(
+            "profile_id and portfolio_id filters must match when both are supplied."
+        )
     return normalized_profile_id
 
 
@@ -2953,8 +3087,12 @@ def _risk_review_to_model(review: RiskReview) -> RiskReviewModel:
         status=review.status,
         requested_position_pct_nav=review.requested_position_pct_nav,
         approved_position_pct_nav=review.approved_position_pct_nav,
-        hard_rule_results=[result.model_dump(mode="json") for result in review.hard_rule_results],
-        persona_reviews=[persona.model_dump(mode="json") for persona in review.persona_reviews],
+        hard_rule_results=[
+            result.model_dump(mode="json") for result in review.hard_rule_results
+        ],
+        persona_reviews=[
+            persona.model_dump(mode="json") for persona in review.persona_reviews
+        ],
         risk_committee_summary=review.risk_committee_summary,
         source_report_ids=list(review.source_report_ids),
         is_order=review.is_order,

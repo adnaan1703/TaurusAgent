@@ -180,20 +180,36 @@ class PortfolioRebalancePlan(BaseModel):
     hard_cash_reserve_inr: Decimal = Field(ge=Decimal("0"))
     spendable_cash_before_reserve_inr: Decimal = Field(ge=Decimal("0"))
     spendable_cash_after_reserve_inr: Decimal = Field(ge=Decimal("0"))
-    same_run_sell_proceeds_haircut_pct: Decimal = Field(ge=Decimal("0"), le=Decimal("100"))
-    same_run_sell_proceeds_gross_inr: Decimal = Field(default=Decimal("0.00"), ge=Decimal("0"))
-    same_run_sell_proceeds_cost_inr: Decimal = Field(default=Decimal("0.00"), ge=Decimal("0"))
-    same_run_sell_proceeds_net_inr: Decimal = Field(default=Decimal("0.00"), ge=Decimal("0"))
-    same_run_sell_proceeds_spendable_inr: Decimal = Field(default=Decimal("0.00"), ge=Decimal("0"))
-    same_run_sell_proceeds_safety_reserve_inr: Decimal = Field(default=Decimal("0.00"), ge=Decimal("0"))
+    same_run_sell_proceeds_haircut_pct: Decimal = Field(
+        ge=Decimal("0"), le=Decimal("100")
+    )
+    same_run_sell_proceeds_gross_inr: Decimal = Field(
+        default=Decimal("0.00"), ge=Decimal("0")
+    )
+    same_run_sell_proceeds_cost_inr: Decimal = Field(
+        default=Decimal("0.00"), ge=Decimal("0")
+    )
+    same_run_sell_proceeds_net_inr: Decimal = Field(
+        default=Decimal("0.00"), ge=Decimal("0")
+    )
+    same_run_sell_proceeds_spendable_inr: Decimal = Field(
+        default=Decimal("0.00"), ge=Decimal("0")
+    )
+    same_run_sell_proceeds_safety_reserve_inr: Decimal = Field(
+        default=Decimal("0.00"), ge=Decimal("0")
+    )
     buy_price_buffer_pct: Decimal = Field(ge=Decimal("0"), le=Decimal("100"))
     soft_borrowing_enabled: bool = False
-    max_borrowed_capacity_pct_nav: Decimal | None = Field(default=None, ge=Decimal("0"), le=Decimal("100"))
+    max_borrowed_capacity_pct_nav: Decimal | None = Field(
+        default=None, ge=Decimal("0"), le=Decimal("100")
+    )
     max_borrowed_capacity_inr: Decimal | None = Field(default=None, ge=Decimal("0"))
     positions: tuple[PortfolioPlanPosition, ...] = Field(default_factory=tuple)
     candidates: tuple[PortfolioPlanCandidate, ...] = Field(default_factory=tuple)
     core_basket_target_weights: dict[str, Decimal] = Field(default_factory=dict)
-    core_basket_advisory_decisions: tuple[dict[str, Any], ...] = Field(default_factory=tuple)
+    core_basket_advisory_decisions: tuple[dict[str, Any], ...] = Field(
+        default_factory=tuple
+    )
     planned_trades: tuple[PortfolioPlanTrade, ...] = Field(default_factory=tuple)
     cash_budget: tuple[PortfolioPlanCashBudget, ...] = Field(default_factory=tuple)
     sleeve_budgets: tuple[PortfolioPlanSleeveBudget, ...] = Field(default_factory=tuple)
@@ -214,7 +230,9 @@ class PortfolioRebalancePlanInput:
     current_cash_inr: Decimal
     current_positions: tuple[ActiveAllocationPosition, ...] = ()
     sleeve_snapshots: tuple[SleeveAllocationSnapshot, ...] = ()
-    histories_by_symbol: Mapping[str, tuple[DailyCandle, ...]] = field(default_factory=dict)
+    histories_by_symbol: Mapping[str, tuple[DailyCandle, ...]] = field(
+        default_factory=dict
+    )
     core_basket_artifact: Mapping[str, Any] | None = None
     core_basket_symbols: tuple[str, ...] = ()
     strategy_rank_by_symbol: Mapping[str, int] = field(default_factory=dict)
@@ -271,7 +289,10 @@ class PortfolioRebalancePlanService:
         planned_trades = tuple(
             sorted(
                 [
-                    *[_trade_from_candidate(plan_input, candidate) for candidate in candidates],
+                    *[
+                        _trade_from_candidate(plan_input, candidate)
+                        for candidate in candidates
+                    ],
                 ],
                 key=lambda trade: (
                     trade.rank if trade.rank is not None else 1_000_000,
@@ -329,7 +350,9 @@ class PortfolioRebalancePlanService:
             same_run_sell_proceeds_cost_inr=proceeds_summary["cost"],
             same_run_sell_proceeds_net_inr=proceeds_summary["net"],
             same_run_sell_proceeds_spendable_inr=proceeds_summary["spendable"],
-            same_run_sell_proceeds_safety_reserve_inr=proceeds_summary["safety_reserve"],
+            same_run_sell_proceeds_safety_reserve_inr=proceeds_summary[
+                "safety_reserve"
+            ],
             buy_price_buffer_pct=buy_price_buffer_pct,
             soft_borrowing_enabled=(
                 bool(policy.rebalance_capacity.soft_borrowing_enabled)
@@ -396,7 +419,9 @@ def _position_rows(
                 symbol=position.symbol,
                 quantity=position.quantity,
                 market_value_inr=_money(position.market_value_inr),
-                current_pct_nav=_pct_of_nav(position.market_value_inr, plan_input.nav_inr),
+                current_pct_nav=_pct_of_nav(
+                    position.market_value_inr, plan_input.nav_inr
+                ),
                 sleeve_id=sleeve_id,
                 sleeve_label_source=source,
             )
@@ -408,7 +433,9 @@ def _trader_candidate_rows(
     plan_input: PortfolioRebalancePlanInput,
 ) -> tuple[PortfolioPlanCandidate, ...]:
     rows = []
-    for proposal in sorted(plan_input.proposals, key=lambda item: (item.symbol, item.proposal_id)):
+    for proposal in sorted(
+        plan_input.proposals, key=lambda item: (item.symbol, item.proposal_id)
+    ):
         symbol = proposal.symbol.upper()
         rank = _strategy_rank(plan_input, symbol)
         raw_score = _strategy_score(plan_input, symbol)
@@ -482,9 +509,15 @@ def _core_candidate_rows(
         symbol = str(decision.get("symbol") or "").strip().upper()
         if not symbol:
             continue
-        target_pct = _as_decimal(decision.get("target_weight_pct_nav")).quantize(PCT_QUANT)
-        current_pct = _as_decimal(decision.get("current_weight_pct_nav")).quantize(PCT_QUANT)
-        action = _core_candidate_action(decision, target_pct=target_pct, current_pct=current_pct)
+        target_pct = _as_decimal(decision.get("target_weight_pct_nav")).quantize(
+            PCT_QUANT
+        )
+        current_pct = _as_decimal(decision.get("current_weight_pct_nav")).quantize(
+            PCT_QUANT
+        )
+        action = _core_candidate_action(
+            decision, target_pct=target_pct, current_pct=current_pct
+        )
         score_evidence = score_by_symbol.get(symbol, {})
         raw_score = (
             _as_decimal(score_evidence.get("rank_score")).quantize(PCT_QUANT)
@@ -679,7 +712,9 @@ def _threshold_action_for_position(
             policy=policy,
             metadata={
                 "max_stock_pct_nav": str(policy.limits.max_stock_pct_nav),
-                "max_stock_hard_cap_pct_nav": str(policy.limits.max_stock_hard_cap_pct_nav),
+                "max_stock_hard_cap_pct_nav": str(
+                    policy.limits.max_stock_hard_cap_pct_nav
+                ),
             },
         )
 
@@ -756,9 +791,9 @@ def _trade_from_candidate(
     plan_input: PortfolioRebalancePlanInput,
     candidate: PortfolioPlanCandidate,
 ) -> PortfolioPlanTrade:
-    delta_pct = (candidate.target_position_pct_nav - candidate.current_position_pct_nav).quantize(
-        PCT_QUANT
-    )
+    delta_pct = (
+        candidate.target_position_pct_nav - candidate.current_position_pct_nav
+    ).quantize(PCT_QUANT)
     action = candidate.action.upper()
     side: PlanSide
     if action == "BUY" and delta_pct > 0:
@@ -954,9 +989,7 @@ def _cash_budget_rows(
         forecast_sell_gross - forecast_sell_costs,
     ).quantize(MONEY_QUANT)
     spendable_same_run_proceeds = (
-        forecast_sell_proceeds
-        * same_run_sell_proceeds_haircut_pct
-        / Decimal("100")
+        forecast_sell_proceeds * same_run_sell_proceeds_haircut_pct / Decimal("100")
     ).quantize(MONEY_QUANT)
     unspendable_same_run_proceeds = (
         forecast_sell_proceeds - spendable_same_run_proceeds
@@ -1068,9 +1101,13 @@ def _sleeve_budget_rows(
     policy = plan_input.money_management_policy
     deltas = _trade_deltas_by_sleeve(planned_trades)
     if policy is None:
-        current = sum((position.market_value_inr for position in positions), Decimal("0.00"))
+        current = sum(
+            (position.market_value_inr for position in positions), Decimal("0.00")
+        )
         target = _money(plan_input.nav_inr)
-        projected = max(Decimal("0.00"), current + deltas.get("settings_fallback", Decimal("0.00")))
+        projected = max(
+            Decimal("0.00"), current + deltas.get("settings_fallback", Decimal("0.00"))
+        )
         return (
             PortfolioPlanSleeveBudget(
                 sleeve_id="settings_fallback",
@@ -1079,7 +1116,9 @@ def _sleeve_budget_rows(
                 current_pct_nav=_pct_of_nav(current, plan_input.nav_inr),
                 target_exposure_inr=target,
                 current_exposure_inr=_money(current),
-                idle_capacity_inr=max(Decimal("0.00"), target - current).quantize(MONEY_QUANT),
+                idle_capacity_inr=max(Decimal("0.00"), target - current).quantize(
+                    MONEY_QUANT
+                ),
                 protected_capacity_inr=Decimal("0.00"),
                 borrowable_capacity_inr=Decimal("0.00"),
                 borrowed_capacity_inr=Decimal("0.00"),
@@ -1089,8 +1128,7 @@ def _sleeve_budget_rows(
         )
 
     snapshot_by_sleeve = {
-        snapshot.sleeve_id: snapshot
-        for snapshot in plan_input.sleeve_snapshots
+        snapshot.sleeve_id: snapshot for snapshot in plan_input.sleeve_snapshots
     }
     position_exposure_by_sleeve: dict[str, Decimal] = {}
     for position in positions:
@@ -1118,7 +1156,9 @@ def _sleeve_budget_rows(
             current + deltas.get(sleeve.sleeve_id, Decimal("0.00")),
         ).quantize(MONEY_QUANT)
         raw_capacity = max(Decimal("0.00"), target - current).quantize(MONEY_QUANT)
-        has_deployable_buy = deployed_buy_by_sleeve.get(sleeve.sleeve_id, Decimal("0.00")) > 0
+        has_deployable_buy = (
+            deployed_buy_by_sleeve.get(sleeve.sleeve_id, Decimal("0.00")) > 0
+        )
         freeze_reason = _sleeve_freeze_reason(sleeve, snapshot)
         idle_capacity = (
             raw_capacity
@@ -1391,7 +1431,9 @@ def _strategy_rank(plan_input: PortfolioRebalancePlanInput, symbol: str) -> int 
     return int(rank) if rank is not None else None
 
 
-def _strategy_score(plan_input: PortfolioRebalancePlanInput, symbol: str) -> Decimal | None:
+def _strategy_score(
+    plan_input: PortfolioRebalancePlanInput, symbol: str
+) -> Decimal | None:
     score = plan_input.strategy_score_by_symbol.get(symbol.upper())
     return Decimal(str(score)) if score is not None else None
 

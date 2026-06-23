@@ -24,7 +24,9 @@ from taurus_core.research.schemas import TraderProposal
 def test_money_management_batch_allocation_consumes_pending_sleeve_capacity(
     tmp_path: Path,
 ) -> None:
-    policy = load_money_management_policy(_write_policy(tmp_path, active_target_pct="10.0"))
+    policy = load_money_management_policy(
+        _write_policy(tmp_path, active_target_pct="10.0")
+    )
     proposals = tuple(
         _proposal(symbol=symbol, target_pct=Decimal("5.0000"))
         for symbol in ("AAA", "BBB", "CCC")
@@ -45,9 +47,16 @@ def test_money_management_batch_allocation_consumes_pending_sleeve_capacity(
                     current_exposure_inr=Decimal("0.00"),
                 ),
             ),
-            histories_by_symbol={proposal.symbol: tuple(_candles(proposal.symbol)) for proposal in proposals},
+            histories_by_symbol={
+                proposal.symbol: tuple(_candles(proposal.symbol))
+                for proposal in proposals
+            },
             strategy_rank_by_symbol={"AAA": 1, "BBB": 2, "CCC": 3},
-            strategy_score_by_symbol={"AAA": Decimal("0.20"), "BBB": Decimal("0.19"), "CCC": Decimal("0.18")},
+            strategy_score_by_symbol={
+                "AAA": Decimal("0.20"),
+                "BBB": Decimal("0.19"),
+                "CCC": Decimal("0.18"),
+            },
             money_management_policy=policy,
         )
     )
@@ -108,9 +117,17 @@ def test_fallback_allocation_derives_selected_count_from_cash_and_settings() -> 
             proposals=proposals,
             nav_inr=Decimal("1000000"),
             available_cash_inr=Decimal("120000"),
-            histories_by_symbol={proposal.symbol: tuple(_candles(proposal.symbol)) for proposal in proposals},
-            strategy_rank_by_symbol={proposal.symbol: index for index, proposal in enumerate(proposals, start=1)},
-            strategy_score_by_symbol={proposal.symbol: Decimal("0.20") for proposal in proposals},
+            histories_by_symbol={
+                proposal.symbol: tuple(_candles(proposal.symbol))
+                for proposal in proposals
+            },
+            strategy_rank_by_symbol={
+                proposal.symbol: index
+                for index, proposal in enumerate(proposals, start=1)
+            },
+            strategy_score_by_symbol={
+                proposal.symbol: Decimal("0.20") for proposal in proposals
+            },
             fallback_policy=FallbackAllocationPolicy(
                 max_open_positions=8,
                 max_position_pct_nav=Decimal("5.0"),
@@ -137,9 +154,17 @@ def test_fallback_allocation_stops_without_fixed_candidate_count() -> None:
             proposals=proposals,
             nav_inr=Decimal("1000000"),
             available_cash_inr=Decimal("1000000"),
-            histories_by_symbol={proposal.symbol: tuple(_candles(proposal.symbol)) for proposal in proposals},
-            strategy_rank_by_symbol={proposal.symbol: index for index, proposal in enumerate(proposals, start=1)},
-            strategy_score_by_symbol={proposal.symbol: Decimal("0.20") for proposal in proposals},
+            histories_by_symbol={
+                proposal.symbol: tuple(_candles(proposal.symbol))
+                for proposal in proposals
+            },
+            strategy_rank_by_symbol={
+                proposal.symbol: index
+                for index, proposal in enumerate(proposals, start=1)
+            },
+            strategy_score_by_symbol={
+                proposal.symbol: Decimal("0.20") for proposal in proposals
+            },
             fallback_policy=FallbackAllocationPolicy(
                 max_open_positions=4,
                 max_position_pct_nav=Decimal("5.0"),
@@ -191,7 +216,9 @@ def test_open_position_lifecycle_proposal_remains_in_ledger() -> None:
 def test_portfolio_plan_allocation_ranks_active_and_core_buys_together(
     tmp_path: Path,
 ) -> None:
-    policy = load_money_management_policy(_write_policy(tmp_path, active_target_pct="50.0"))
+    policy = load_money_management_policy(
+        _write_policy(tmp_path, active_target_pct="50.0")
+    )
     active = _proposal(symbol="AAA", target_pct=Decimal("5.0000"))
     plan = _portfolio_plan(
         policy=policy,
@@ -253,7 +280,9 @@ def test_portfolio_plan_allocation_ranks_active_and_core_buys_together(
 def test_portfolio_plan_allocation_nets_same_run_sell_proceeds_for_buys(
     tmp_path: Path,
 ) -> None:
-    policy = load_money_management_policy(_write_policy(tmp_path, active_target_pct="50.0"))
+    policy = load_money_management_policy(
+        _write_policy(tmp_path, active_target_pct="50.0")
+    )
     sell = _proposal(
         symbol="TCS",
         action="EXIT",
@@ -416,7 +445,9 @@ def test_portfolio_plan_allocation_allows_observable_active_soft_borrowing(
 def test_portfolio_plan_allocation_rejects_tiny_core_buy_after_rounding(
     tmp_path: Path,
 ) -> None:
-    policy = load_money_management_policy(_write_policy(tmp_path, active_target_pct="50.0"))
+    policy = load_money_management_policy(
+        _write_policy(tmp_path, active_target_pct="50.0")
+    )
     plan = _portfolio_plan(
         policy=policy,
         proposals=tuple(),
@@ -463,7 +494,9 @@ def test_portfolio_plan_allocation_rejects_tiny_core_buy_after_rounding(
 def test_legacy_run_level_allocation_still_available_without_portfolio_plan(
     tmp_path: Path,
 ) -> None:
-    policy = load_money_management_policy(_write_policy(tmp_path, active_target_pct="10.0"))
+    policy = load_money_management_policy(
+        _write_policy(tmp_path, active_target_pct="10.0")
+    )
     proposal = _proposal(symbol="AAA", target_pct=Decimal("5.0000"))
 
     result = RunLevelAllocationService().allocate(
@@ -611,7 +644,9 @@ def _portfolio_plan(
     core_rank_score: Decimal = Decimal("90.0000"),
     positions: tuple[ActiveAllocationPosition, ...] = (),
 ):
-    core_target_pct = core_target_pct if core_target_pct is not None else Decimal("0.0000")
+    core_target_pct = (
+        core_target_pct if core_target_pct is not None else Decimal("0.0000")
+    )
     core_trade_notional = (
         core_trade_notional
         if core_trade_notional is not None
@@ -637,8 +672,7 @@ def _portfolio_plan(
             ],
         }
     histories = {
-        proposal.symbol: tuple(_candles(proposal.symbol))
-        for proposal in proposals
+        proposal.symbol: tuple(_candles(proposal.symbol)) for proposal in proposals
     }
     if core_target_pct > 0:
         histories[core_symbol.upper()] = tuple(_candles(core_symbol))

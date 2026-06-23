@@ -145,7 +145,9 @@ class ResearchManagerAgent:
         symbol = symbol.upper()
         consensus_score = self._consensus_score(reports, bull_thesis, bear_thesis)
         label = _label_from_score(consensus_score)
-        confidence = self._confidence(reports, bull_thesis, bear_thesis, consensus_score)
+        confidence = self._confidence(
+            reports, bull_thesis, bear_thesis, consensus_score
+        )
         unresolved = self._uncertainties(reports, bear_thesis)
         summary = (
             f"{symbol.upper()} research consensus is {label.replace('_', ' ')} "
@@ -221,9 +223,13 @@ class ResearchManagerAgent:
         for report in reports:
             weighted_total += report.score * report.confidence
             confidence_total += report.confidence
-        analyst_score = weighted_total / confidence_total if confidence_total else Decimal("0")
-        score = (analyst_score * Decimal("0.60")) + (bull_thesis.score * Decimal("0.25")) + (
-            bear_thesis.score * Decimal("0.15")
+        analyst_score = (
+            weighted_total / confidence_total if confidence_total else Decimal("0")
+        )
+        score = (
+            (analyst_score * Decimal("0.60"))
+            + (bull_thesis.score * Decimal("0.25"))
+            + (bear_thesis.score * Decimal("0.15"))
         )
         return _clamp(score).quantize(SCORE_QUANT)
 
@@ -238,7 +244,9 @@ class ResearchManagerAgent:
             (report.confidence for report in reports),
             Decimal("0"),
         ) / Decimal(len(reports))
-        disagreement_penalty = abs(bull_thesis.score - bear_thesis.score) * Decimal("0.08")
+        disagreement_penalty = abs(bull_thesis.score - bear_thesis.score) * Decimal(
+            "0.08"
+        )
         conviction_boost = abs(consensus_score) * Decimal("0.12")
         confidence = (
             (average_report_confidence * Decimal("0.60"))
@@ -256,13 +264,25 @@ class ResearchManagerAgent:
     ) -> list[str]:
         uncertainties = list(bear_thesis.risk_flags[:3])
         if any("mock" in " ".join(report.risks).lower() for report in reports):
-            uncertainties.append("Some inputs remain mock-mode and require real data before live use.")
+            uncertainties.append(
+                "Some inputs remain mock-mode and require real data before live use."
+            )
         if any(_mentions_incomplete_real_data(report.risks) for report in reports):
-            uncertainties.append("Some inputs have incomplete real-data coverage and require operator review.")
-        low_confidence = [report.agent_name for report in reports if report.confidence < Decimal("0.50")]
+            uncertainties.append(
+                "Some inputs have incomplete real-data coverage and require operator review."
+            )
+        low_confidence = [
+            report.agent_name
+            for report in reports
+            if report.confidence < Decimal("0.50")
+        ]
         if low_confidence:
-            uncertainties.append(f"Low-confidence reports: {', '.join(sorted(low_confidence))}.")
-        return uncertainties[:4] or ["No unresolved uncertainty was identified beyond normal market risk."]
+            uncertainties.append(
+                f"Low-confidence reports: {', '.join(sorted(low_confidence))}."
+            )
+        return uncertainties[:4] or [
+            "No unresolved uncertainty was identified beyond normal market risk."
+        ]
 
 
 def _label_from_score(score: Decimal) -> ConsensusLabel:
@@ -386,7 +406,10 @@ def _is_evidence_bound(
     bear_thesis: BearThesis,
 ) -> bool:
     normalized = text.casefold()
-    return any(term in normalized for term in _evidence_terms(reports, bull_thesis, bear_thesis))
+    return any(
+        term in normalized
+        for term in _evidence_terms(reports, bull_thesis, bear_thesis)
+    )
 
 
 def _evidence_terms(
@@ -432,13 +455,16 @@ def _is_repetitive(text: str) -> bool:
 
 def _mentions_incomplete_real_data(risks: list[str]) -> bool:
     text = " ".join(risks).casefold()
-    return "incomplete" in text and ("real data" in text or "real-data" in text or "coverage" in text)
+    return "incomplete" in text and (
+        "real data" in text or "real-data" in text or "coverage" in text
+    )
 
 
 def _is_data_quality_warning(text: str) -> bool:
     normalized = text.casefold()
     return "mock" in normalized or (
-        "incomplete" in normalized and ("real data" in normalized or "real-data" in normalized)
+        "incomplete" in normalized
+        and ("real data" in normalized or "real-data" in normalized)
     )
 
 

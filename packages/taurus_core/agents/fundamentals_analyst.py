@@ -6,7 +6,11 @@ from decimal import Decimal
 from taurus_core.agents.base import BaseAnalystAgent, fallback_output, utc_now
 from taurus_core.agents.schemas import AnalystReport
 from taurus_core.db.models import FundamentalScoreModel
-from taurus_core.db.repositories import CandleRepository, FundamentalsRepository, InstrumentRepository
+from taurus_core.db.repositories import (
+    CandleRepository,
+    FundamentalsRepository,
+    InstrumentRepository,
+)
 
 
 class FundamentalsAnalystAgent(BaseAnalystAgent):
@@ -82,12 +86,17 @@ class FundamentalsAnalystAgent(BaseAnalystAgent):
             ),
         ]
         if metric_names:
-            key_points.append(f"Imported metrics include {_join_metric_names(metric_names)}.")
+            key_points.append(
+                f"Imported metrics include {_join_metric_names(metric_names)}."
+            )
         risks = [
             "Screener CSV data is a point-in-time user export and must be refreshed manually.",
             "Scoring is deterministic and should be reviewed before any real-money use.",
         ]
-        if latest_score.valuation_score is not None and latest_score.valuation_score < Decimal("0"):
+        if (
+            latest_score.valuation_score is not None
+            and latest_score.valuation_score < Decimal("0")
+        ):
             risks.append("Valuation component is below neutral.")
         if (
             latest_score.leverage_risk_score is not None
@@ -122,7 +131,9 @@ class FundamentalsAnalystAgent(BaseAnalystAgent):
         )
 
     def _as_of(self, symbol: str) -> datetime:
-        candles = CandleRepository(self.session).get_by_symbol_and_date_range(symbol=symbol)
+        candles = CandleRepository(self.session).get_by_symbol_and_date_range(
+            symbol=symbol
+        )
         if not candles:
             return utc_now()
         as_of_date = candles[-1].trade_date + timedelta(days=1)
@@ -136,7 +147,10 @@ def _component_summary(score: FundamentalScoreModel) -> str:
         ("leverage", score.leverage_risk_score),
         ("ownership", score.ownership_score),
     ]
-    return ", ".join(f"{name}={value}" for name, value in parts if value is not None) or "unavailable"
+    return (
+        ", ".join(f"{name}={value}" for name, value in parts if value is not None)
+        or "unavailable"
+    )
 
 
 def _join_metric_names(metric_names: list[str], *, limit: int = 6) -> str:

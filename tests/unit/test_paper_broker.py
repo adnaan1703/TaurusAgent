@@ -43,7 +43,12 @@ from taurus_core.execution.schemas import (
     paper_fill_id,
     paper_order_id,
 )
-from taurus_core.intelligence.documents import NewsEvent, RawDocument, document_checksum, stable_id
+from taurus_core.intelligence.documents import (
+    NewsEvent,
+    RawDocument,
+    document_checksum,
+    stable_id,
+)
 from taurus_core.intelligence.mock_news_provider import MockNewsProvider
 from tests.llm_fakes import FakeLLMProvider
 from taurus_core.profiles.schemas import TaurusProfileCreate
@@ -81,8 +86,12 @@ def test_paper_broker_queues_after_close_decision_and_api_returns_artifacts(
     with session_factory() as session:
         order_count = session.scalar(select(func.count()).select_from(PaperOrderModel))
         fill_count = session.scalar(select(func.count()).select_from(PaperFillModel))
-        position_count = session.scalar(select(func.count()).select_from(PaperPositionModel))
-        account_count = session.scalar(select(func.count()).select_from(PaperAccountModel))
+        position_count = session.scalar(
+            select(func.count()).select_from(PaperPositionModel)
+        )
+        account_count = session.scalar(
+            select(func.count()).select_from(PaperAccountModel)
+        )
         repo = ExecutionRepository(session)
         account = PaperAccount.model_validate(
             repo.latest_account_by_portfolio(
@@ -178,7 +187,9 @@ def test_paper_broker_uses_profile_corpus_and_keeps_accounts_independent(
         taurus_initial_capital_inr=999_999,
     )
     session_factory = _prepare_market_data_db(client_settings)
-    _create_profile(session_factory, profile_id="client-a", corpus_inr=Decimal("250000"))
+    _create_profile(
+        session_factory, profile_id="client-a", corpus_inr=Decimal("250000")
+    )
     run_mock_final_approval(symbol="INFY", settings=client_settings)
     with session_factory() as session:
         client_decision = _latest_final_decision(session, "INFY")
@@ -192,8 +203,12 @@ def test_paper_broker_uses_profile_corpus_and_keeps_accounts_independent(
         client_account = PaperAccount.model_validate(
             repo.latest_account_by_portfolio(portfolio_id="client-a").payload
         )
-        local_account_before = repo.latest_account_by_portfolio(portfolio_id="local-paper")
-        client_positions = repo.latest_open_positions_by_portfolio(portfolio_id="client-a")
+        local_account_before = repo.latest_account_by_portfolio(
+            portfolio_id="local-paper"
+        )
+        client_positions = repo.latest_open_positions_by_portfolio(
+            portfolio_id="client-a"
+        )
         local_positions_before = repo.latest_open_positions_by_portfolio(
             portfolio_id="local-paper"
         )
@@ -223,13 +238,20 @@ def test_paper_broker_uses_profile_corpus_and_keeps_accounts_independent(
         client_positions_after = repo.latest_open_positions_by_portfolio(
             portfolio_id="client-a"
         )
-        local_positions = repo.latest_open_positions_by_portfolio(portfolio_id="local-paper")
+        local_positions = repo.latest_open_positions_by_portfolio(
+            portfolio_id="local-paper"
+        )
 
     assert local_account.starting_cash_inr == Decimal("10000.0000")
-    assert client_account_after.model_dump(mode="json") == client_account.model_dump(mode="json")
+    assert client_account_after.model_dump(mode="json") == client_account.model_dump(
+        mode="json"
+    )
     assert len(client_positions_after) == 1
     assert local_positions == []
-    assert PaperPosition.model_validate(client_positions_after[0].payload).portfolio_id == "client-a"
+    assert (
+        PaperPosition.model_validate(client_positions_after[0].payload).portfolio_id
+        == "client-a"
+    )
 
 
 def test_paper_broker_rejects_decision_from_another_selected_profile(
@@ -237,7 +259,9 @@ def test_paper_broker_rejects_decision_from_another_selected_profile(
 ) -> None:
     settings = _settings_for_temp_db(tmp_path, taurus_profile_id="client-a")
     session_factory = _prepare_market_data_db(settings)
-    _create_profile(session_factory, profile_id="client-a", corpus_inr=Decimal("250000"))
+    _create_profile(
+        session_factory, profile_id="client-a", corpus_inr=Decimal("250000")
+    )
     local_settings = _settings_for_temp_db(tmp_path, taurus_profile_id="local-paper")
     run_mock_final_approval(symbol="INFY", settings=local_settings)
 
@@ -251,9 +275,12 @@ def test_paper_broker_rejects_decision_from_another_selected_profile(
 
     with session_factory() as session:
         assert ExecutionRepository(session).list_orders(limit=None) == []
-        assert ExecutionRepository(session).latest_account_by_portfolio(
-            portfolio_id="client-a"
-        ) is None
+        assert (
+            ExecutionRepository(session).latest_account_by_portfolio(
+                portfolio_id="client-a"
+            )
+            is None
+        )
 
 
 def test_next_open_settlement_only_settles_selected_profile(
@@ -262,12 +289,16 @@ def test_next_open_settlement_only_settles_selected_profile(
     settings = _settings_for_temp_db(tmp_path, taurus_profile_id="client-a")
     local_settings = _settings_for_temp_db(tmp_path, taurus_profile_id="local-paper")
     session_factory = _prepare_market_data_db(settings)
-    _create_profile(session_factory, profile_id="client-a", corpus_inr=Decimal("250000"))
+    _create_profile(
+        session_factory, profile_id="client-a", corpus_inr=Decimal("250000")
+    )
 
     run_mock_final_approval(symbol="INFY", settings=settings)
     with session_factory() as session:
         client_decision = _latest_final_decision(session, "INFY")
-        client_pending = ExecutionRouter(session, settings).route_decision(client_decision)
+        client_pending = ExecutionRouter(session, settings).route_decision(
+            client_decision
+        )
     run_mock_final_approval(symbol="TCS", settings=local_settings)
     with session_factory() as session:
         local_decision = _latest_final_decision(session, "TCS")
@@ -309,8 +340,12 @@ def test_next_open_settlement_only_settles_selected_profile(
 
     with session_factory() as session:
         repo = ExecutionRepository(session)
-        client_order = PaperOrder.model_validate(repo.get_order(client_pending.order_id).payload)
-        local_order = PaperOrder.model_validate(repo.get_order(local_pending.order_id).payload)
+        client_order = PaperOrder.model_validate(
+            repo.get_order(client_pending.order_id).payload
+        )
+        local_order = PaperOrder.model_validate(
+            repo.get_order(local_pending.order_id).payload
+        )
         client_fills = repo.list_fills(order_id=client_pending.order_id, limit=None)
         local_fills = repo.list_fills(order_id=local_pending.order_id, limit=None)
         client_account = repo.latest_account_by_portfolio(portfolio_id="client-a")
@@ -399,7 +434,10 @@ def test_pending_next_open_order_repository_and_api_round_trip(tmp_path: Path) -
     assert updated_row is not None
     assert updated_row.order_id == pending.order_id
     assert updated_row.status == "FILLED"
-    assert PaperOrder.model_validate(updated_row.payload).filled_trade_date == filled_trade_date
+    assert (
+        PaperOrder.model_validate(updated_row.payload).filled_trade_date
+        == filled_trade_date
+    )
     assert [fill.order_id for fill in updated_fills] == [pending.order_id]
     assert pending_rows == []
 
@@ -481,7 +519,10 @@ def test_next_open_buy_affordability_can_include_pending_same_run_proceeds(
         )
 
     assert rejected.status == "REJECTED"
-    assert rejected.rejection_reason == "Insufficient paper cash or position for approved order."
+    assert (
+        rejected.rejection_reason
+        == "Insufficient paper cash or position for approved order."
+    )
     assert queued.status == "PENDING_NEXT_OPEN"
     assert queued.remaining_quantity == decision.approved_quantity
     assert queued.submitted_at == decision.as_of + timedelta(seconds=1)
@@ -552,9 +593,13 @@ def test_paper_execution_is_deterministic_and_not_duplicated(tmp_path: Path) -> 
     session_factory = build_session_factory(settings)
 
     with session_factory() as session:
-        first = ExecutionRouter(session, settings).route_latest_for_symbol(symbol="INFY")
+        first = ExecutionRouter(session, settings).route_latest_for_symbol(
+            symbol="INFY"
+        )
     with session_factory() as session:
-        second = ExecutionRouter(session, settings).route_latest_for_symbol(symbol="INFY")
+        second = ExecutionRouter(session, settings).route_latest_for_symbol(
+            symbol="INFY"
+        )
 
     with session_factory() as session:
         order_count = session.scalar(select(func.count()).select_from(PaperOrderModel))
@@ -601,7 +646,9 @@ def test_event_risk_blocked_final_decision_does_not_create_paper_order(
 
     with session_factory() as session:
         _insert_severe_negative_event(session, proposal)
-        review = RiskReviewService(session, settings).run(symbol="INFY", proposal=proposal)
+        review = RiskReviewService(session, settings).run(
+            symbol="INFY", proposal=proposal
+        )
     with session_factory() as session:
         decision = PortfolioManagerAgent(
             session,
@@ -693,7 +740,10 @@ def test_paper_broker_queues_after_close_exit_for_position_opened_in_prior_run(
     assert exit_order.filled_quantity == 0
     assert exit_order.remaining_quantity == original_quantity
     assert len(open_positions) == 1
-    assert PaperPosition.model_validate(open_positions[0].payload).quantity == original_quantity
+    assert (
+        PaperPosition.model_validate(open_positions[0].payload).quantity
+        == original_quantity
+    )
     assert {fill.side for fill in fills} == {"BUY"}
     assert account.portfolio_id == settings.taurus_paper_portfolio_id
 
@@ -733,12 +783,16 @@ def test_next_open_settlement_fills_pending_buy_at_first_newer_open(
 
     with session_factory() as session:
         repo = ExecutionRepository(session)
-        settled_order = PaperOrder.model_validate(repo.get_order(pending_order.order_id).payload)
+        settled_order = PaperOrder.model_validate(
+            repo.get_order(pending_order.order_id).payload
+        )
         fills = [
             PaperFill.model_validate(row.payload)
             for row in repo.list_fills(order_id=pending_order.order_id, limit=None)
         ]
-        account = PaperAccount.model_validate(repo.latest_account(run_id="settlement-run").payload)
+        account = PaperAccount.model_validate(
+            repo.latest_account(run_id="settlement-run").payload
+        )
         position = PaperPosition.model_validate(
             repo.latest_open_position_by_portfolio_symbol(
                 portfolio_id=settings.taurus_paper_portfolio_id,
@@ -784,7 +838,9 @@ def test_next_open_settlement_leaves_order_pending_without_newer_candle(
 
     with session_factory() as session:
         repo = ExecutionRepository(session)
-        order = PaperOrder.model_validate(repo.get_order(pending_order.order_id).payload)
+        order = PaperOrder.model_validate(
+            repo.get_order(pending_order.order_id).payload
+        )
         fills = repo.list_fills(order_id=pending_order.order_id, limit=None)
 
     assert summary.settled == 0
@@ -836,7 +892,9 @@ def test_next_open_settlement_partially_fills_buy_when_cash_caps_quantity(
 
     with session_factory() as session:
         repo = ExecutionRepository(session)
-        order = PaperOrder.model_validate(repo.get_order(resized_order.order_id).payload)
+        order = PaperOrder.model_validate(
+            repo.get_order(resized_order.order_id).payload
+        )
         fills = [
             PaperFill.model_validate(row.payload)
             for row in repo.list_fills(order_id=resized_order.order_id, limit=None)
@@ -890,7 +948,9 @@ def test_next_open_settlement_rejects_buy_when_zero_quantity_is_affordable(
 
     with session_factory() as session:
         repo = ExecutionRepository(session)
-        order = PaperOrder.model_validate(repo.get_order(resized_order.order_id).payload)
+        order = PaperOrder.model_validate(
+            repo.get_order(resized_order.order_id).payload
+        )
         fills = repo.list_fills(order_id=resized_order.order_id, limit=None)
         account = repo.latest_account(run_id="settlement-run")
 
@@ -906,7 +966,9 @@ def test_next_open_settlement_rejects_buy_when_zero_quantity_is_affordable(
     assert "cash" in summary.details[0].rejection_reason.lower()
 
     with session_factory() as session:
-        proposal_model = ResearchRepository(session).get_trader_proposal(decision.proposal_id)
+        proposal_model = ResearchRepository(session).get_trader_proposal(
+            decision.proposal_id
+        )
         assert proposal_model is not None
         base_proposal = TraderProposal.model_validate(proposal_model.payload)
         replacement_proposal = base_proposal.model_copy(
@@ -982,7 +1044,9 @@ def test_next_open_settlement_rejection_sends_one_final_alert(
     with session_factory() as session:
         alert_types = list(
             session.scalars(
-                select(AuditLogModel.event_type).where(AuditLogModel.event_type.like("alert.%"))
+                select(AuditLogModel.event_type).where(
+                    AuditLogModel.event_type.like("alert.%")
+                )
             )
         )
 
@@ -1060,7 +1124,9 @@ def test_next_open_settlement_fills_exit_sell_and_realizes_pnl(
 
     with session_factory() as session:
         repo = ExecutionRepository(session)
-        settled_order = PaperOrder.model_validate(repo.get_order(exit_order.order_id).payload)
+        settled_order = PaperOrder.model_validate(
+            repo.get_order(exit_order.order_id).payload
+        )
         fills = [
             PaperFill.model_validate(row.payload)
             for row in repo.list_fills(order_id=exit_order.order_id, limit=None)
@@ -1068,7 +1134,9 @@ def test_next_open_settlement_fills_exit_sell_and_realizes_pnl(
         open_positions = repo.latest_open_positions_by_portfolio(
             portfolio_id=settings.taurus_paper_portfolio_id,
         )
-        account = PaperAccount.model_validate(repo.latest_account(run_id="settlement-run").payload)
+        account = PaperAccount.model_validate(
+            repo.latest_account(run_id="settlement-run").payload
+        )
 
     assert decision.final_action == "EXIT"
     assert summary.settled == 1
@@ -1200,7 +1268,9 @@ def _insert_severe_negative_event(session, proposal: TraderProposal) -> None:
     published_at = proposal.as_of
     if published_at.tzinfo is None:
         published_at = published_at.replace(tzinfo=timezone.utc)
-    checksum = document_checksum("paper_test", proposal.symbol, published_at.isoformat())
+    checksum = document_checksum(
+        "paper_test", proposal.symbol, published_at.isoformat()
+    )
     document = RawDocument(
         document_id=stable_id("raw", checksum),
         source="paper_test",
@@ -1214,7 +1284,9 @@ def _insert_severe_negative_event(session, proposal: TraderProposal) -> None:
         metadata={"provider": "paper_test"},
     )
     event = NewsEvent(
-        event_id=stable_id("evt", document.document_id, proposal.symbol, "regulatory_probe"),
+        event_id=stable_id(
+            "evt", document.document_id, proposal.symbol, "regulatory_probe"
+        ),
         document_id=document.document_id,
         symbol=proposal.symbol,
         event_type="regulatory_probe",
@@ -1253,13 +1325,17 @@ def _route_default_after_close_buy(settings: Settings):
 
 
 def _proposal_evaluation_mode(session, decision: FinalDecision) -> str:
-    proposal_model = ResearchRepository(session).get_trader_proposal(decision.proposal_id)
+    proposal_model = ResearchRepository(session).get_trader_proposal(
+        decision.proposal_id
+    )
     assert proposal_model is not None
     return proposal_model.evaluation_mode
 
 
 def _mark_proposal_as_market_hours(session, decision: FinalDecision) -> None:
-    proposal_model = ResearchRepository(session).get_trader_proposal(decision.proposal_id)
+    proposal_model = ResearchRepository(session).get_trader_proposal(
+        decision.proposal_id
+    )
     assert proposal_model is not None
     payload = dict(proposal_model.payload)
     payload["evaluation_mode"] = "market_hours"
@@ -1294,7 +1370,9 @@ def _append_manual_daily_candle(
         close=close_price,
         volume=1_000_000,
         source="test_manual_next_open",
-        data_available_time=datetime.combine(trade_date, time(18, 0), tzinfo=timezone.utc),
+        data_available_time=datetime.combine(
+            trade_date, time(18, 0), tzinfo=timezone.utc
+        ),
     )
     CandleRepository(session).upsert([candle])
     return candle

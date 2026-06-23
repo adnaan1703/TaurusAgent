@@ -39,7 +39,9 @@ class DisabledAlertAdapter:
 class TelegramAlertAdapter:
     name = "telegram"
 
-    def __init__(self, *, bot_token: str, chat_id: str, timeout_seconds: float = 10.0) -> None:
+    def __init__(
+        self, *, bot_token: str, chat_id: str, timeout_seconds: float = 10.0
+    ) -> None:
         if not bot_token or not chat_id:
             raise ValueError("TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID are required.")
         self.bot_token = bot_token

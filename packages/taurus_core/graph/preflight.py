@@ -8,7 +8,12 @@ from sqlalchemy.orm import Session
 
 from taurus_core.backtesting.graph import GraphBacktestSignalLoader
 from taurus_core.config import Settings
-from taurus_core.db.models import DailyCandleModel, GraphEdgeModel, GraphEdgeStatsModel, GraphNodeModel
+from taurus_core.db.models import (
+    DailyCandleModel,
+    GraphEdgeModel,
+    GraphEdgeStatsModel,
+    GraphNodeModel,
+)
 
 
 class GraphReadinessError(RuntimeError):
@@ -43,9 +48,13 @@ def assert_graph_ready_for_paper(
     settings: Settings,
     symbols: list[str],
 ) -> GraphReadinessSummary:
-    normalized_symbols = sorted({symbol.upper() for symbol in symbols if symbol.strip()})
+    normalized_symbols = sorted(
+        {symbol.upper() for symbol in symbols if symbol.strip()}
+    )
     if not normalized_symbols:
-        raise GraphReadinessError("Graph readiness requires at least one selected symbol.")
+        raise GraphReadinessError(
+            "Graph readiness requires at least one selected symbol."
+        )
     if not settings.taurus_graph_enabled:
         raise GraphReadinessError(
             "Graph-enabled paper execution requires TAURUS_GRAPH_ENABLED=true."
@@ -130,7 +139,9 @@ def assert_graph_ready_for_paper(
             "make compute-graph-stats after importing the latest Kite candles."
         )
 
-    graph_signals = GraphBacktestSignalLoader(session, edge_statuses=("active",)).load_by_as_of_date(
+    graph_signals = GraphBacktestSignalLoader(
+        session, edge_statuses=("active",)
+    ).load_by_as_of_date(
         as_of_date=latest_candle_date + timedelta(days=1),
         symbols=normalized_symbols,
     )

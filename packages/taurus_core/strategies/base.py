@@ -78,8 +78,7 @@ class StrategyRanking:
 
 class Strategy(Protocol):
     @property
-    def name(self) -> str:
-        ...
+    def name(self) -> str: ...
 
     def rank_universe(
         self,
@@ -88,8 +87,7 @@ class Strategy(Protocol):
         features_by_symbol: dict[str, FeatureSnapshot],
         current_positions: set[str],
         graph_signals_by_symbol: Mapping[str, Any] | None = None,
-    ) -> list[StrategyRanking]:
-        ...
+    ) -> list[StrategyRanking]: ...
 
     def select_targets(
         self,
@@ -98,8 +96,7 @@ class Strategy(Protocol):
         features_by_symbol: dict[str, FeatureSnapshot],
         current_positions: set[str],
         target_limit: int | None = None,
-    ) -> tuple[set[str], list[StrategySignal]]:
-        ...
+    ) -> tuple[set[str], list[StrategySignal]]: ...
 
 
 def ranked_symbols(

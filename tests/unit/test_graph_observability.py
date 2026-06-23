@@ -251,7 +251,9 @@ def _assert_metric_sample(
     for line in body.splitlines():
         if not line.startswith(f"{metric_name}{{"):
             continue
-        if all(label in line for label in expected_labels) and line.endswith(f" {value}"):
+        if all(label in line for label in expected_labels) and line.endswith(
+            f" {value}"
+        ):
             return
     raise AssertionError(f"Metric sample not found: {metric_name} {labels} {value}")
 
@@ -271,4 +273,6 @@ def _assert_metric_sample_at_least(
             value = float(line.rsplit(" ", maxsplit=1)[1])
             if value >= minimum:
                 return
-    raise AssertionError(f"Metric sample not found above {minimum}: {metric_name} {labels}")
+    raise AssertionError(
+        f"Metric sample not found above {minimum}: {metric_name} {labels}"
+    )

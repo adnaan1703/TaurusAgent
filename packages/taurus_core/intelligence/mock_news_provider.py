@@ -42,7 +42,9 @@ class MockNewsProvider:
             for symbol in document.symbols:
                 events.append(
                     NewsEvent(
-                        event_id=stable_id("evt", document.document_id, symbol, event_type),
+                        event_id=stable_id(
+                            "evt", document.document_id, symbol, event_type
+                        ),
                         document_id=document.document_id,
                         symbol=symbol,
                         event_type=event_type,
@@ -51,7 +53,9 @@ class MockNewsProvider:
                         summary=document.body,
                         severity=Decimal(str(document.metadata["severity"])),
                         horizon=str(document.metadata["horizon"]),  # type: ignore[arg-type]
-                        source_confidence=Decimal(str(document.metadata["source_confidence"])),
+                        source_confidence=Decimal(
+                            str(document.metadata["source_confidence"])
+                        ),
                         metadata={
                             "source": document.source,
                             "source_url": document.source_url,
@@ -222,7 +226,9 @@ MOCK_NEWS_SPECS: tuple[MockNewsSpec, ...] = (
 
 
 def _document_from_spec(spec: MockNewsSpec) -> RawDocument:
-    checksum = document_checksum(spec.source, spec.title, spec.body, spec.published_at.isoformat())
+    checksum = document_checksum(
+        spec.source, spec.title, spec.body, spec.published_at.isoformat()
+    )
     return RawDocument(
         document_id=stable_id("raw", checksum),
         source=spec.source,

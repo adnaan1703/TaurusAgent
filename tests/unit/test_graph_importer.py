@@ -32,21 +32,26 @@ def test_taurus_graph_importer_is_idempotent_and_preserves_edge_metadata(
         all_edges = graph_repo.list_edges(limit=None)
         active_edges = graph_repo.list_edges(status="active", limit=None)
         candidate_edges = graph_repo.list_edges(status="candidate", limit=None)
-        company_edge = next(edge for edge in all_edges if edge.edge_type == "direct_competitor")
+        company_edge = next(
+            edge for edge in all_edges if edge.edge_type == "direct_competitor"
+        )
         candidate_edge = next(
             edge
             for edge in candidate_edges
             if edge.edge_type == "common_raw_material_exposure"
         )
-        evidence_edge = next(edge for edge in active_edges if edge.edge_type == "has_source_evidence")
+        evidence_edge = next(
+            edge for edge in active_edges if edge.edge_type == "has_source_evidence"
+        )
         evidence = graph_repo.list_edge_evidence(edge_key=evidence_edge.edge_key)
 
     assert first_summary.files_missing == ()
     assert second_summary.overview_counts == first_summary.overview_counts
     assert second_summary.overview_counts["candidate_edges"] >= 1
-    assert second_summary.overview_counts["active_edges"] > second_summary.overview_counts[
-        "candidate_edges"
-    ]
+    assert (
+        second_summary.overview_counts["active_edges"]
+        > second_summary.overview_counts["candidate_edges"]
+    )
 
     assert company_edge.status == "active"
     assert company_edge.source_file == "company_edges.csv"
@@ -88,7 +93,9 @@ test,company:INFY,company,INFY,Infosys Limited,company:TCS,company,TCS,Tata Cons
         summary = import_taurus_graph_csvs(session, data_dir=data_dir)
 
     assert summary.files_imported == ("company_edges.csv",)
-    assert set(summary.files_missing) == set(TAURUS_GRAPH_CSV_FILES) - {"company_edges.csv"}
+    assert set(summary.files_missing) == set(TAURUS_GRAPH_CSV_FILES) - {
+        "company_edges.csv"
+    }
     assert len(summary.warnings) == len(summary.files_missing)
     assert summary.overview_counts["edges"] == 1
     assert summary.overview_counts["active_edges"] == 1
@@ -120,7 +127,9 @@ def test_taurus_graph_importer_emits_file_progress_events(tmp_path: Path) -> Non
 
     assert event_names[0] == "graph.import.started"
     assert event_names.count("graph.import.file_started") == len(TAURUS_GRAPH_CSV_FILES)
-    assert event_names.count("graph.import.file_completed") == len(TAURUS_GRAPH_CSV_FILES)
+    assert event_names.count("graph.import.file_completed") == len(
+        TAURUS_GRAPH_CSV_FILES
+    )
     assert events[-1][0] == "graph.import.completed"
     assert company_edges_completed["status"] == "imported"
     assert company_edges_completed["rows_seen"] == 1
@@ -185,7 +194,10 @@ test,company:INFY,company,INFY,Infosys Limited,company:TCS,company,TCS,Tata Cons
     run_migrations(settings)
     session_factory = build_session_factory(settings)
 
-    with session_factory() as session, pytest.raises(TaurusGraphImportError) as exc_info:
+    with (
+        session_factory() as session,
+        pytest.raises(TaurusGraphImportError) as exc_info,
+    ):
         import_taurus_graph_csvs(session, data_dir=data_dir)
 
     assert "provenance_type" in str(exc_info.value)

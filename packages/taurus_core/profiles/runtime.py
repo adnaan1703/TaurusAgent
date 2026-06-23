@@ -37,7 +37,9 @@ def resolve_runtime_profile(
     *,
     profile_id: str | None = None,
 ) -> RuntimeProfile:
-    selected_profile_id = validate_profile_id(profile_id or settings.effective_profile_id)
+    selected_profile_id = validate_profile_id(
+        profile_id or settings.effective_profile_id
+    )
     model = TaurusProfileRepository(session).get_profile(selected_profile_id)
     if model is None:
         raise RuntimeProfileError(

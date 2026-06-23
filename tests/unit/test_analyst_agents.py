@@ -31,7 +31,10 @@ from taurus_core.db.models import (
 from taurus_core.db.session import build_session_factory
 from taurus_core.features.store import FeatureSnapshot
 from taurus_core.features.technical_context import build_universe_technical_context
-from taurus_core.features.technical_signal import OHLCV_V2_PROFILE, TechnicalSignalService
+from taurus_core.features.technical_signal import (
+    OHLCV_V2_PROFILE,
+    TechnicalSignalService,
+)
 from taurus_core.intelligence.mock_news_provider import MockNewsProvider
 from taurus_core.llm.base import LLMProviderError
 from tests.llm_fakes import FakeLLMProvider
@@ -40,7 +43,9 @@ from tests.market_data_fixtures import seed_test_market_data
 FULL_ANALYST_ROSTER = ANALYST_KEYS
 
 
-def test_analyst_suite_stores_full_roster_without_creating_orders(tmp_path: Path) -> None:
+def test_analyst_suite_stores_full_roster_without_creating_orders(
+    tmp_path: Path,
+) -> None:
     settings = _settings_for_temp_db(tmp_path)
     session_factory = _prepare_intelligence_db(settings)
 
@@ -54,8 +59,12 @@ def test_analyst_suite_stores_full_roster_without_creating_orders(tmp_path: Path
         )
 
     with session_factory() as session:
-        report_count = session.scalar(select(func.count()).select_from(AnalystReportModel))
-        order_count = session.scalar(select(func.count()).select_from(BacktestOrderModel))
+        report_count = session.scalar(
+            select(func.count()).select_from(AnalystReportModel)
+        )
+        order_count = session.scalar(
+            select(func.count()).select_from(BacktestOrderModel)
+        )
 
     assert {report.agent_name for report in reports} == {
         "TechnicalAnalystAgent",
@@ -76,7 +85,9 @@ def test_analyst_suite_raises_when_llm_provider_fails(tmp_path: Path) -> None:
     session_factory = _prepare_intelligence_db(settings)
 
     with session_factory() as session:
-        with pytest.raises(LLMProviderError, match="TechnicalAnalystAgent LLM provider failed"):
+        with pytest.raises(
+            LLMProviderError, match="TechnicalAnalystAgent LLM provider failed"
+        ):
             run_analyst_suite(
                 session,
                 symbol="INFY",
@@ -86,7 +97,9 @@ def test_analyst_suite_raises_when_llm_provider_fails(tmp_path: Path) -> None:
             )
 
     with session_factory() as session:
-        report_count = session.scalar(select(func.count()).select_from(AnalystReportModel))
+        report_count = session.scalar(
+            select(func.count()).select_from(AnalystReportModel)
+        )
 
     assert report_count == 0
 
@@ -129,7 +142,9 @@ def test_analyst_suite_allows_technical_only_roster(tmp_path: Path) -> None:
     assert reports[0].agent_name == "TechnicalAnalystAgent"
 
 
-def test_technical_analyst_keeps_bounded_score_with_raw_metadata(tmp_path: Path) -> None:
+def test_technical_analyst_keeps_bounded_score_with_raw_metadata(
+    tmp_path: Path,
+) -> None:
     settings = _settings_for_temp_db(tmp_path)
     session_factory = _prepare_intelligence_db(settings)
 
@@ -370,7 +385,10 @@ def test_technical_analyst_v2_symbol_local_fallback_marks_missing_context(
     technical_v2 = report.score_metadata.technical_v2
     assert technical_v2["metadata"]["universe_context_available"] is False
     assert technical_v2["metadata"]["symbol_context_available"] is False
-    assert any("Universe technical context was unavailable" in point for point in report.key_points)
+    assert any(
+        "Universe technical context was unavailable" in point
+        for point in report.key_points
+    )
     assert any("result is symbol-local" in note for note in report.score_metadata.notes)
 
 

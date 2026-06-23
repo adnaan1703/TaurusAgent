@@ -170,18 +170,30 @@ class TechnicalFeatureService:
         for window in sorted(self.sma_windows):
             _add_latest(values, f"sma_{window}", simple_moving_average(closes, window))
         for window in sorted(self.ema_windows):
-            _add_latest(values, f"ema_{window}", exponential_moving_average(closes, window))
+            _add_latest(
+                values, f"ema_{window}", exponential_moving_average(closes, window)
+            )
         for window in sorted(self.return_windows):
-            series = returns_1d if window == 1 else period_returns(closes, period=window)
+            series = (
+                returns_1d if window == 1 else period_returns(closes, period=window)
+            )
             _add_latest(values, f"return_{window}d", series)
         for window in sorted(self.rsi_windows):
-            _add_latest(values, f"rsi_{window}", relative_strength_index(closes, window))
+            _add_latest(
+                values, f"rsi_{window}", relative_strength_index(closes, window)
+            )
         for window in sorted(self.atr_windows):
-            _add_latest(values, f"atr_{window}", average_true_range(ordered_history, window))
+            _add_latest(
+                values, f"atr_{window}", average_true_range(ordered_history, window)
+            )
         for window in sorted(self.volatility_windows):
-            _add_latest(values, f"volatility_{window}", rolling_volatility(returns_1d, window))
+            _add_latest(
+                values, f"volatility_{window}", rolling_volatility(returns_1d, window)
+            )
         for window in sorted(self.volume_z_windows):
-            _add_latest(values, f"volume_z_score_{window}", volume_z_score(volumes, window))
+            _add_latest(
+                values, f"volume_z_score_{window}", volume_z_score(volumes, window)
+            )
         for fast_window, slow_window, signal_window in sorted(self.macd_windows):
             macd_line, signal_line, histogram = moving_average_convergence_divergence(
                 closes,
@@ -209,7 +221,9 @@ class TechnicalFeatureService:
             _add_latest(values, f"bollinger_percent_b_{window}", percent_b)
             _add_latest(values, f"bollinger_bandwidth_{window}", bandwidth)
         for window in sorted(self.breakout_windows):
-            high_distance, low_distance = rolling_breakout_distance(ordered_history, window)
+            high_distance, low_distance = rolling_breakout_distance(
+                ordered_history, window
+            )
             _add_latest(values, f"breakout_high_distance_{window}d", high_distance)
             _add_latest(values, f"breakout_low_distance_{window}d", low_distance)
         for window in sorted(self.distance_from_high_windows):
@@ -218,7 +232,11 @@ class TechnicalFeatureService:
                 if window == 252
                 else f"distance_from_{window}d_high"
             )
-            _add_latest(values, feature_name, distance_from_rolling_high(ordered_history, window))
+            _add_latest(
+                values,
+                feature_name,
+                distance_from_rolling_high(ordered_history, window),
+            )
         for window in sorted(self.atr_percent_windows):
             _add_latest(
                 values,
@@ -253,7 +271,9 @@ class TechnicalFeatureService:
             feature_version=self.feature_version,
             values=values,
         )
-        data_available_time = datetime.combine(as_of_date, time.min, tzinfo=timezone.utc)
+        data_available_time = datetime.combine(
+            as_of_date, time.min, tzinfo=timezone.utc
+        )
         rows = tuple(
             FeatureValue(
                 snapshot_id=snapshot_id,
@@ -298,9 +318,9 @@ def _technical_feature_version(strategy_parameters: dict[str, object]) -> str:
         value = nested.get("feature_version") or nested.get("technical_feature_version")
         if isinstance(value, str) and value:
             return value
-    value = strategy_parameters.get("technical_feature_version") or strategy_parameters.get(
-        "feature_version"
-    )
+    value = strategy_parameters.get(
+        "technical_feature_version"
+    ) or strategy_parameters.get("feature_version")
     if isinstance(value, str) and value:
         return value
     return TECHNICAL_FEATURE_VERSION
@@ -331,5 +351,7 @@ def _snapshot_id(
         "feature_version": feature_version,
         "values": {name: str(value) for name, value in sorted(values.items())},
     }
-    digest = hashlib.sha256(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()
+    digest = hashlib.sha256(
+        json.dumps(payload, sort_keys=True).encode("utf-8")
+    ).hexdigest()
     return f"fs-{digest[:16]}"

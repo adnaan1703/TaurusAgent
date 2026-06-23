@@ -30,7 +30,9 @@ def normalize_money(value: Decimal | int | str) -> Decimal:
     try:
         amount = value if isinstance(value, Decimal) else Decimal(str(value))
     except (InvalidOperation, ValueError) as exc:
-        raise ValueError("starting_corpus_inr must be a positive decimal amount.") from exc
+        raise ValueError(
+            "starting_corpus_inr must be a positive decimal amount."
+        ) from exc
     if amount <= 0:
         raise ValueError("starting_corpus_inr must be positive.")
     return amount.quantize(MONEY_QUANT, rounding=ROUND_HALF_UP)
@@ -120,4 +122,3 @@ class TaurusProfileResponse(BaseModel):
     profile_metadata: dict[str, Any]
     created_at: datetime
     updated_at: datetime
-

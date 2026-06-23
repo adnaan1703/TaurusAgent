@@ -39,13 +39,21 @@ def test_replay_portfolio_plan_stage_is_legacy_safe(tmp_path: Path) -> None:
         stage_names = [stage.name for stage in replay.stages]
         plan_stage = _stage(replay, "portfolio_plan")
 
-        assert stage_names.index("portfolio_plan") == stage_names.index("strategy_ranking") + 1
-        assert stage_names.index("allocation_ledger") == stage_names.index("portfolio_plan") + 1
+        assert (
+            stage_names.index("portfolio_plan")
+            == stage_names.index("strategy_ranking") + 1
+        )
+        assert (
+            stage_names.index("allocation_ledger")
+            == stage_names.index("portfolio_plan") + 1
+        )
         assert plan_stage.artifact_count == 1
         assert plan_stage.artifacts[0]["plan_id"] == f"portfolio-plan-{run.run_id}"
         assert plan_stage.artifacts[0]["candidate"]["symbol"] == "INFY"
         assert plan_stage.artifacts[0]["planned_trades"][0]["symbol"] == "INFY"
-        assert plan_stage.artifacts[0]["same_run_sell_proceeds_haircut_pct"] == "80.0000"
+        assert (
+            plan_stage.artifacts[0]["same_run_sell_proceeds_haircut_pct"] == "80.0000"
+        )
         assert plan_stage.artifacts[0]["buy_price_buffer_pct"] == "5.0000"
         assert plan_stage.artifacts[0]["soft_borrowing_enabled"] is False
 
@@ -57,7 +65,9 @@ def test_replay_portfolio_plan_stage_is_legacy_safe(tmp_path: Path) -> None:
         stored_run.payload = {**stored_run.payload, "artifacts": legacy_artifacts}
         session.commit()
 
-        legacy_replay = DecisionReplayService(session).replay(decision_id=decision.decision_id)
+        legacy_replay = DecisionReplayService(session).replay(
+            decision_id=decision.decision_id
+        )
         legacy_plan_stage = _stage(legacy_replay, "portfolio_plan")
 
         assert legacy_plan_stage.artifact_count == 0

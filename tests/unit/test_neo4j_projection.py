@@ -13,7 +13,10 @@ from taurus_core.config import Settings
 from taurus_core.db.repositories import GraphRepository, InstrumentRepository
 from taurus_core.db.session import build_session_factory
 from taurus_core.domain.instruments import Instrument
-from taurus_core.graph.neo4j_projection import build_neo4j_driver, rebuild_neo4j_projection
+from taurus_core.graph.neo4j_projection import (
+    build_neo4j_driver,
+    rebuild_neo4j_projection,
+)
 
 
 def test_neo4j_projection_is_skipped_when_disabled(tmp_path: Path) -> None:

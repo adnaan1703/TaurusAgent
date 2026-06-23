@@ -18,7 +18,9 @@ from taurus_core.research.debate_service import ResearchDebateService
 from tests.market_data_fixtures import seed_test_market_data
 
 
-def test_research_debate_is_deterministic_and_does_not_create_orders(tmp_path: Path) -> None:
+def test_research_debate_is_deterministic_and_does_not_create_orders(
+    tmp_path: Path,
+) -> None:
     settings = _settings_for_temp_db(tmp_path)
     session_factory = _prepare_research_db(settings)
     with session_factory() as session:
@@ -41,8 +43,12 @@ def test_research_debate_is_deterministic_and_does_not_create_orders(tmp_path: P
         )
 
     with session_factory() as session:
-        debate_count = session.scalar(select(func.count()).select_from(DebateReportModel))
-        order_count = session.scalar(select(func.count()).select_from(BacktestOrderModel))
+        debate_count = session.scalar(
+            select(func.count()).select_from(DebateReportModel)
+        )
+        order_count = session.scalar(
+            select(func.count()).select_from(BacktestOrderModel)
+        )
 
     assert first.model_dump(mode="json") == second.model_dump(mode="json")
     assert first.bull_thesis.key_points

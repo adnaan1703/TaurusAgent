@@ -50,11 +50,17 @@ class GraphAwareScoreStrategy:
         self.slow_window = int_param(parameters, "slow_window", 30)
         self.technical_weight = decimal_param(parameters, "technical_weight", "1.0")
         self.graph_weight = decimal_param(parameters, "graph_weight", "0.35")
-        self.min_combined_score = decimal_param(parameters, "min_combined_score", "-0.10")
+        self.min_combined_score = decimal_param(
+            parameters, "min_combined_score", "-0.10"
+        )
         self.min_return_20d = decimal_param(parameters, "min_return_20d", "-1")
-        self.min_graph_confidence = decimal_param(parameters, "min_graph_confidence", "0")
+        self.min_graph_confidence = decimal_param(
+            parameters, "min_graph_confidence", "0"
+        )
         self.require_graph_signal = bool(parameters.get("require_graph_signal", False))
-        self.technical_profile = str(parameters.get("technical_profile", SMA_SPREAD_PROFILE))
+        self.technical_profile = str(
+            parameters.get("technical_profile", SMA_SPREAD_PROFILE)
+        )
         if self.technical_profile not in SUPPORTED_TECHNICAL_PROFILES:
             raise ValueError(f"Unsupported technical_profile: {self.technical_profile}")
         if self.fast_window >= self.slow_window:
@@ -124,7 +130,9 @@ class GraphAwareScoreStrategy:
                     self._ranking(
                         trade_date=trade_date,
                         symbol=symbol,
-                        action_intent="SELL" if symbol in current_positions else "NO_TRADE",
+                        action_intent="SELL"
+                        if symbol in current_positions
+                        else "NO_TRADE",
                         score=None,
                         rank=None,
                         eligibility_status="ineligible",
@@ -155,7 +163,9 @@ class GraphAwareScoreStrategy:
                     self._ranking(
                         trade_date=trade_date,
                         symbol=symbol,
-                        action_intent="SELL" if symbol in current_positions else "NO_TRADE",
+                        action_intent="SELL"
+                        if symbol in current_positions
+                        else "NO_TRADE",
                         score=score,
                         rank=None,
                         eligibility_status="ineligible",
@@ -223,7 +233,9 @@ class GraphAwareScoreStrategy:
         target_limit: int | None = None,
         universe_technical_context: UniverseTechnicalContext | None = None,
     ) -> tuple[set[str], list[StrategySignal]]:
-        graph_by_symbol = {key.upper(): value for key, value in graph_signals_by_symbol.items()}
+        graph_by_symbol = {
+            key.upper(): value for key, value in graph_signals_by_symbol.items()
+        }
         rankings = self.rank_universe(
             trade_date=trade_date,
             features_by_symbol=features_by_symbol,
@@ -270,7 +282,9 @@ class GraphAwareScoreStrategy:
             graph_score = ZERO
         else:
             graph_score = graph_signal.score
-        combined = (technical_score * self.technical_weight) + (graph_score * self.graph_weight)
+        combined = (technical_score * self.technical_weight) + (
+            graph_score * self.graph_weight
+        )
         return combined.quantize(SCORE_VALUE)
 
     def _technical_score(
@@ -385,7 +399,9 @@ class GraphAwareScoreStrategy:
         reasons: list[str],
     ) -> StrategyRanking:
         snapshot_id = snapshot.snapshot_id if snapshot is not None else ""
-        technical_score = technical_result.score if technical_result is not None else None
+        technical_score = (
+            technical_result.score if technical_result is not None else None
+        )
         graph_score = graph_signal.score if graph_signal is not None else ZERO
         graph_confidence = graph_signal.confidence if graph_signal is not None else ZERO
         edge_types = graph_signal.edge_types if graph_signal is not None else ()
@@ -393,8 +409,12 @@ class GraphAwareScoreStrategy:
             "strategy_type": "graph_aware_score",
             "technical_weight": str(self.technical_weight),
             "graph_weight": str(self.graph_weight),
-            "technical_score": str(technical_score) if technical_score is not None else "0",
-            "graph_signal": graph_signal.to_dict() if graph_signal is not None else None,
+            "technical_score": str(technical_score)
+            if technical_score is not None
+            else "0",
+            "graph_signal": graph_signal.to_dict()
+            if graph_signal is not None
+            else None,
         }
         technical_v2 = _technical_v2_metadata(technical_result)
         if technical_v2 is not None:
@@ -464,7 +484,9 @@ class GraphAwareScoreStrategy:
                 "technical_weight": str(self.technical_weight),
                 "graph_weight": str(self.graph_weight),
                 "technical_score": str(technical_score),
-                "graph_signal": graph_signal.to_dict() if graph_signal is not None else None,
+                "graph_signal": graph_signal.to_dict()
+                if graph_signal is not None
+                else None,
             }
         return StrategySignal(
             trade_date=trade_date,
@@ -497,7 +519,9 @@ def _technical_v2_metadata(
         "confidence": str(signal_result.confidence),
         "composite_score": str(signal_result.composite_score),
         "coverage": str(signal_result.coverage),
-        "top_contributors": [dict(contributor) for contributor in signal_result.top_contributors],
+        "top_contributors": [
+            dict(contributor) for contributor in signal_result.top_contributors
+        ],
         "missing_features": list(signal_result.missing_features),
         "score_source": signal_result.score_source,
         "metadata": dict(signal_result.metadata),

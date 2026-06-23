@@ -108,7 +108,10 @@ class UniverseTechnicalContext:
             self,
             "symbols_by_feature",
             MappingProxyType(
-                {feature: tuple(symbols) for feature, symbols in self.symbols_by_feature.items()}
+                {
+                    feature: tuple(symbols)
+                    for feature, symbols in self.symbols_by_feature.items()
+                }
             ),
         )
         object.__setattr__(
@@ -121,7 +124,9 @@ class UniverseTechnicalContext:
                 }
             ),
         )
-        object.__setattr__(self, "rank_directions", MappingProxyType(dict(self.rank_directions)))
+        object.__setattr__(
+            self, "rank_directions", MappingProxyType(dict(self.rank_directions))
+        )
         object.__setattr__(
             self,
             "symbol_contexts",
@@ -160,7 +165,9 @@ def build_universe_technical_context(
     symbol_feature_contexts: dict[str, dict[str, TechnicalFeatureContext]] = {
         symbol: {} for symbol in symbols
     }
-    missing_features_by_symbol: dict[str, list[str]] = {symbol: [] for symbol in symbols}
+    missing_features_by_symbol: dict[str, list[str]] = {
+        symbol: [] for symbol in symbols
+    }
     symbols_by_feature: dict[str, tuple[str, ...]] = {}
     missing_symbols_by_feature: dict[str, tuple[str, ...]] = {}
 
@@ -192,7 +199,9 @@ def build_universe_technical_context(
                 rank=ranks[symbol],
                 percentile=percentiles[symbol],
                 z_score=z_score.quantize(TECHNICAL_CONTEXT_VALUE),
-                directional_z_score=directional_z_score.quantize(TECHNICAL_CONTEXT_VALUE),
+                directional_z_score=directional_z_score.quantize(
+                    TECHNICAL_CONTEXT_VALUE
+                ),
                 eligible_count=len(available),
                 rank_direction=direction,
             )
@@ -265,13 +274,19 @@ def _latest_as_of_date(snapshots: Mapping[str, FeatureSnapshot]) -> date | None:
     return max(dates)
 
 
-def _feature_ranks(values_by_symbol: Mapping[str, Decimal], direction: str) -> dict[str, int]:
+def _feature_ranks(
+    values_by_symbol: Mapping[str, Decimal], direction: str
+) -> dict[str, int]:
     ranks: dict[str, int] = {}
     for symbol, value in values_by_symbol.items():
         if direction == HIGHER_IS_BETTER:
-            better_count = sum(1 for other in values_by_symbol.values() if other > value)
+            better_count = sum(
+                1 for other in values_by_symbol.values() if other > value
+            )
         else:
-            better_count = sum(1 for other in values_by_symbol.values() if other < value)
+            better_count = sum(
+                1 for other in values_by_symbol.values() if other < value
+            )
         ranks[symbol] = better_count + 1
     return ranks
 
@@ -353,7 +368,8 @@ def _metadata(
             feature: len(symbols_by_feature[feature]) for feature in selected_features
         },
         "missing_symbols_by_feature": {
-            feature: list(missing_symbols_by_feature[feature]) for feature in selected_features
+            feature: list(missing_symbols_by_feature[feature])
+            for feature in selected_features
         },
         "rank_direction_by_feature": {
             feature: directions[feature] for feature in selected_features

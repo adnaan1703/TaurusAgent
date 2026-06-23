@@ -41,7 +41,9 @@ def _seed_default_profile(engine: Engine) -> None:
 
     with engine.begin() as connection:
         existing = connection.execute(
-            text("SELECT profile_id FROM taurus_profiles WHERE profile_id = :profile_id"),
+            text(
+                "SELECT profile_id FROM taurus_profiles WHERE profile_id = :profile_id"
+            ),
             {"profile_id": DEFAULT_PROFILE_ID},
         ).first()
         if existing is not None:
@@ -65,12 +67,13 @@ def _add_missing_backtest_signal_columns(engine: Engine) -> None:
         return
 
     existing_columns = {
-        column["name"]
-        for column in inspector.get_columns("backtest_signals")
+        column["name"] for column in inspector.get_columns("backtest_signals")
     }
     statements: list[str] = []
     if "feature_snapshot_id" not in existing_columns:
-        statements.append("ALTER TABLE backtest_signals ADD COLUMN feature_snapshot_id VARCHAR(128)")
+        statements.append(
+            "ALTER TABLE backtest_signals ADD COLUMN feature_snapshot_id VARCHAR(128)"
+        )
     if "explanation" not in existing_columns:
         statements.append("ALTER TABLE backtest_signals ADD COLUMN explanation JSON")
 
@@ -87,7 +90,9 @@ def _add_missing_daily_candle_columns(engine: Engine) -> None:
     if "daily_candles" not in inspector.get_table_names():
         return
 
-    existing_columns = {column["name"] for column in inspector.get_columns("daily_candles")}
+    existing_columns = {
+        column["name"] for column in inspector.get_columns("daily_candles")
+    }
     statements: list[str] = []
     source_added = False
     available_time_added = False
@@ -95,7 +100,9 @@ def _add_missing_daily_candle_columns(engine: Engine) -> None:
         statements.append("ALTER TABLE daily_candles ADD COLUMN source VARCHAR(128)")
         source_added = True
     if "data_available_time" not in existing_columns:
-        statements.append("ALTER TABLE daily_candles ADD COLUMN data_available_time TIMESTAMP")
+        statements.append(
+            "ALTER TABLE daily_candles ADD COLUMN data_available_time TIMESTAMP"
+        )
         available_time_added = True
 
     if not statements:
@@ -140,8 +147,7 @@ def _widen_graph_edge_columns(engine: Engine) -> None:
         return
 
     columns = {
-        column["name"]: column
-        for column in inspector.get_columns("graph_edges")
+        column["name"]: column for column in inspector.get_columns("graph_edges")
     }
     tradability_relevance = columns.get("tradability_relevance")
     if tradability_relevance is None:
@@ -162,16 +168,15 @@ def _migrate_graph_edge_provenance(engine: Engine) -> None:
     if "graph_edges" not in inspector.get_table_names():
         return
 
-    columns = {
-        column["name"]
-        for column in inspector.get_columns("graph_edges")
-    }
+    columns = {column["name"] for column in inspector.get_columns("graph_edges")}
     has_provenance_type = "provenance_type" in columns
     has_inferred = "inferred" in columns
 
     statements: list[str] = []
     if not has_provenance_type:
-        statements.append("ALTER TABLE graph_edges ADD COLUMN provenance_type VARCHAR(32)")
+        statements.append(
+            "ALTER TABLE graph_edges ADD COLUMN provenance_type VARCHAR(32)"
+        )
     if has_inferred:
         statements.append(
             "UPDATE graph_edges "
@@ -209,7 +214,9 @@ def _migrate_graph_edge_provenance(engine: Engine) -> None:
         if engine.dialect.name == "postgresql":
             constraints = {
                 constraint["name"]
-                for constraint in inspect(connection).get_check_constraints("graph_edges")
+                for constraint in inspect(connection).get_check_constraints(
+                    "graph_edges"
+                )
             }
             if "ck_graph_edges_provenance_type" not in constraints:
                 connection.execute(
@@ -240,7 +247,9 @@ def _add_missing_m28_position_lifecycle_columns(engine: Engine) -> None:
             )
 
     if "trader_proposals" in table_names:
-        columns = {column["name"] for column in inspector.get_columns("trader_proposals")}
+        columns = {
+            column["name"] for column in inspector.get_columns("trader_proposals")
+        }
         if "portfolio_id" not in columns:
             statements.append(
                 "ALTER TABLE trader_proposals "
@@ -289,7 +298,15 @@ def _add_missing_m28_position_lifecycle_columns(engine: Engine) -> None:
         "ON paper_positions (portfolio_id, symbol)",
     ]
 
-    if not statements and not any(table in table_names for table in ("paper_accounts", "paper_orders", "paper_fills", "paper_positions")):
+    if not statements and not any(
+        table in table_names
+        for table in (
+            "paper_accounts",
+            "paper_orders",
+            "paper_fills",
+            "paper_positions",
+        )
+    ):
         return
 
     with engine.begin() as connection:
@@ -380,10 +397,7 @@ def _widen_agent_model_version_columns(engine: Engine) -> None:
     for table in agent_tables:
         if table not in table_names:
             continue
-        columns = {
-            column["name"]: column
-            for column in inspector.get_columns(table)
-        }
+        columns = {column["name"]: column for column in inspector.get_columns(table)}
         model_version = columns.get("model_version")
         if model_version is None:
             continue

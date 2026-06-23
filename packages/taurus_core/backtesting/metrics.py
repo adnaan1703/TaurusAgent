@@ -55,12 +55,16 @@ def calculate_backtest_metrics(
         "sharpe": round((average_return / std_return) * math.sqrt(periods_per_year), 8)
         if std_return
         else 0.0,
-        "sortino": round((average_return / downside_std) * math.sqrt(periods_per_year), 8)
+        "sortino": round(
+            (average_return / downside_std) * math.sqrt(periods_per_year), 8
+        )
         if downside_std
         else 0.0,
         "max_drawdown": round(min(drawdowns), 8),
         "win_rate": round(len(winning_pnl) / trade_count, 8) if trade_count else 0.0,
-        "profit_factor": round(float(gross_profit / gross_loss), 8) if gross_loss else float(len(winning_pnl) > 0),
+        "profit_factor": round(float(gross_profit / gross_loss), 8)
+        if gross_loss
+        else float(len(winning_pnl) > 0),
     }
 
 

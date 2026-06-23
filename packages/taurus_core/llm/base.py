@@ -103,9 +103,14 @@ def aggregate_llm_usage_summaries(
     summaries: Iterable[Mapping[str, object]],
 ) -> dict[str, object]:
     usage_summaries = [summary for summary in summaries if summary]
-    request_count = sum(_int_value(summary.get("request_count")) or 0 for summary in usage_summaries)
+    request_count = sum(
+        _int_value(summary.get("request_count")) or 0 for summary in usage_summaries
+    )
     elapsed_seconds = round(
-        sum(_float_value(summary.get("elapsed_seconds")) or 0.0 for summary in usage_summaries),
+        sum(
+            _float_value(summary.get("elapsed_seconds")) or 0.0
+            for summary in usage_summaries
+        ),
         6,
     )
     providers = sorted(
@@ -557,8 +562,7 @@ def portfolio_manager_system_prompt() -> str:
 
 class LLMProvider(Protocol):
     @property
-    def model_version(self) -> str:
-        ...
+    def model_version(self) -> str: ...
 
     def complete_analyst_report(
         self,
@@ -566,8 +570,7 @@ class LLMProvider(Protocol):
         agent_name: str,
         symbol: str,
         context: dict[str, object],
-    ) -> LLMAnalystOutput:
-        ...
+    ) -> LLMAnalystOutput: ...
 
     def complete_bull_thesis(
         self,
@@ -576,8 +579,7 @@ class LLMProvider(Protocol):
         symbol: str,
         baseline: dict[str, object],
         evidence_pack: list[dict[str, object]],
-    ) -> LLMBullThesisOutput:
-        ...
+    ) -> LLMBullThesisOutput: ...
 
     def complete_bear_thesis(
         self,
@@ -586,8 +588,7 @@ class LLMProvider(Protocol):
         symbol: str,
         baseline: dict[str, object],
         evidence_pack: list[dict[str, object]],
-    ) -> LLMBearThesisOutput:
-        ...
+    ) -> LLMBearThesisOutput: ...
 
     def complete_research_manager_summary(
         self,
@@ -595,8 +596,7 @@ class LLMProvider(Protocol):
         agent_name: str,
         symbol: str,
         context: dict[str, object],
-    ) -> LLMResearchManagerOutput:
-        ...
+    ) -> LLMResearchManagerOutput: ...
 
     def complete_trader_proposal(
         self,
@@ -604,8 +604,7 @@ class LLMProvider(Protocol):
         agent_name: str,
         symbol: str,
         context: dict[str, object],
-    ) -> LLMTraderOutput:
-        ...
+    ) -> LLMTraderOutput: ...
 
     def complete_final_decision_explanation(
         self,
@@ -613,18 +612,21 @@ class LLMProvider(Protocol):
         agent_name: str,
         symbol: str,
         context: dict[str, object],
-    ) -> LLMFinalDecisionExplanation:
-        ...
+    ) -> LLMFinalDecisionExplanation: ...
 
 
-def _summarize_llm_usage_by_agent(records: list[LLMUsageRecord]) -> list[dict[str, object]]:
+def _summarize_llm_usage_by_agent(
+    records: list[LLMUsageRecord],
+) -> list[dict[str, object]]:
     grouped: dict[str, list[LLMUsageRecord]] = {}
     for record in records:
         grouped.setdefault(record.agent_name, []).append(record)
 
     rows: list[dict[str, object]] = []
     for agent_name, agent_records in sorted(grouped.items()):
-        elapsed_seconds = round(sum(record.elapsed_seconds for record in agent_records), 6)
+        elapsed_seconds = round(
+            sum(record.elapsed_seconds for record in agent_records), 6
+        )
         row: dict[str, object] = {
             "agent_name": agent_name,
             "request_count": len(agent_records),
@@ -671,7 +673,8 @@ def _aggregate_llm_usage_by_agent(
         row: dict[str, object] = {
             "agent_name": agent_name,
             "request_count": sum(
-                _int_value(agent_row.get("request_count")) or 0 for agent_row in agent_rows
+                _int_value(agent_row.get("request_count")) or 0
+                for agent_row in agent_rows
             ),
             "symbols": sorted(symbols_by_agent.get(agent_name, set())),
             "elapsed_seconds": elapsed_seconds,
@@ -698,7 +701,9 @@ def _sum_optional_record_field(records: list[LLMUsageRecord], key: str) -> int |
     return sum(known_values)
 
 
-def _sum_optional_summary_key(summaries: Iterable[Mapping[str, object]], key: str) -> int | None:
+def _sum_optional_summary_key(
+    summaries: Iterable[Mapping[str, object]], key: str
+) -> int | None:
     values = [_int_value(summary.get(key)) for summary in summaries]
     known_values = [value for value in values if value is not None]
     if not known_values:
@@ -770,7 +775,9 @@ def _list_value(value: object) -> list[object]:
     return []
 
 
-def parse_llm_output(raw_content: str, *, fallback_model_version: str) -> LLMAnalystOutput:
+def parse_llm_output(
+    raw_content: str, *, fallback_model_version: str
+) -> LLMAnalystOutput:
     try:
         payload = json.loads(raw_content)
     except json.JSONDecodeError as exc:
@@ -779,7 +786,9 @@ def parse_llm_output(raw_content: str, *, fallback_model_version: str) -> LLMAna
     try:
         return LLMAnalystOutput.model_validate(payload)
     except ValidationError as exc:
-        raise LLMProviderError("LLM response failed AnalystOutput schema validation") from exc
+        raise LLMProviderError(
+            "LLM response failed AnalystOutput schema validation"
+        ) from exc
 
 
 def parse_bull_thesis_output(
@@ -795,7 +804,9 @@ def parse_bull_thesis_output(
     try:
         return LLMBullThesisOutput.model_validate(payload)
     except ValidationError as exc:
-        raise LLMProviderError("LLM bull thesis response failed schema validation") from exc
+        raise LLMProviderError(
+            "LLM bull thesis response failed schema validation"
+        ) from exc
 
 
 def parse_bear_thesis_output(
@@ -811,7 +822,9 @@ def parse_bear_thesis_output(
     try:
         return LLMBearThesisOutput.model_validate(payload)
     except ValidationError as exc:
-        raise LLMProviderError("LLM bear thesis response failed schema validation") from exc
+        raise LLMProviderError(
+            "LLM bear thesis response failed schema validation"
+        ) from exc
 
 
 def parse_research_manager_output(
@@ -822,12 +835,16 @@ def parse_research_manager_output(
     try:
         payload = json.loads(raw_content)
     except json.JSONDecodeError as exc:
-        raise LLMProviderError("LLM research manager response was not valid JSON") from exc
+        raise LLMProviderError(
+            "LLM research manager response was not valid JSON"
+        ) from exc
     payload = _payload_with_model_version(payload, fallback_model_version)
     try:
         return LLMResearchManagerOutput.model_validate(payload)
     except ValidationError as exc:
-        raise LLMProviderError("LLM research manager response failed schema validation") from exc
+        raise LLMProviderError(
+            "LLM research manager response failed schema validation"
+        ) from exc
 
 
 def parse_trader_output(
@@ -854,7 +871,9 @@ def parse_final_decision_explanation_output(
     try:
         payload = json.loads(raw_content)
     except json.JSONDecodeError as exc:
-        raise LLMProviderError("LLM final-decision explanation response was not valid JSON") from exc
+        raise LLMProviderError(
+            "LLM final-decision explanation response was not valid JSON"
+        ) from exc
     payload = _payload_with_model_version(payload, fallback_model_version)
     try:
         return LLMFinalDecisionExplanation.model_validate(payload)

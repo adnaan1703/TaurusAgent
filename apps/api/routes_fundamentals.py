@@ -73,4 +73,6 @@ def list_fundamental_imports(
     session: Session = Depends(get_db_session),
 ) -> list[FundamentalImportResponse]:
     imports = FundamentalsRepository(session).list_imports(limit=limit)
-    return [FundamentalImportResponse.model_validate(import_row) for import_row in imports]
+    return [
+        FundamentalImportResponse.model_validate(import_row) for import_row in imports
+    ]
