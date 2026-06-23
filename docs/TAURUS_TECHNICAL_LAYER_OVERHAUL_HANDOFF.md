@@ -5,15 +5,16 @@ Last updated: 2026-06-23
 ## Current Status
 
 - Current milestone: None.
-- Last completed milestone before this sequence: M73 Graph Explorer closeout.
+- Last completed milestone before this sequence: M74 Baseline, Evidence
+  Contract, And Validation Design.
 - Planning completed: M74-M86 technical layer overhaul sequence.
-- Implementation state: No implementation work has started. The current code
-  remains the post-M69 behavior-preserving `TechnicalSignalService` foundation:
-  `TechnicalAnalystAgent` uses `technical_rule_v1`, and
+- Implementation state: M74 is complete. The current code remains
+  behavior-preserving: `TechnicalAnalystAgent` uses `technical_rule_v1`, and
   `GraphAwareScoreStrategy` uses the SMA-spread profile for
-  `graph_aware_score_v1`.
-- Next recommended milestone: M74 Baseline, Evidence Contract, And Validation
-  Design.
+  `graph_aware_score_v1`. Focused characterization tests now pin the current
+  v1 technical-layer metadata, graph-aware ranking payload, allocation score
+  calibration, and base analyst LLM numeric ownership behavior.
+- Next recommended milestone: M75 OHLCV Indicator Primitive Expansion.
 - Thread model requirement from the user: each milestone worker thread should
   use GPT 5.5 with xhigh thinking.
 - Commit policy from the user: do not commit anything unless explicitly asked.
@@ -60,7 +61,7 @@ Last updated: 2026-06-23
 The source of truth is the tracker table in `docs/MILESTONE.md`. The planned
 sequence is:
 
-- M74: baseline, evidence contract, and validation design.
+- M74: baseline, evidence contract, and validation design. Done.
 - M75: OHLCV indicator primitive expansion.
 - M76: universe technical context and cross-sectional normalization.
 - M77: `TechnicalSignalService` v2A scoring profile.

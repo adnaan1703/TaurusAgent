@@ -150,12 +150,11 @@ removed during docs cleanup. Use Git history for detailed historical plans.
   loading/error/truncation state, and reset expansion state when initial
   neighborhoods refresh. M73 final regression, operator docs, browser QA, and
   graph explorer sequence closeout are complete.
-- M74-M86 technical layer overhaul planning is complete: the sequence will
-  preserve `graph_aware_score_v1` and `technical_rule_v1` as compatibility
-  baselines, add opt-in OHLCV and official-data technical profiles, validate
-  technical-agent predictive quality and full-system historical backtest
-  behavior, and promote only after a conservative evidence gate. No
-  implementation work has started.
+- M74 baseline characterization and validation-contract work is complete:
+  focused tests now pin current `technical_rule_v1`, `sma_spread`,
+  `graph_aware_score_v1` ranking payload, allocation score calibration, and
+  current `BaseAnalystAgent` LLM numeric ownership behavior. M75-M86 technical
+  layer overhaul implementation remains planned.
 
 ## Standing Safety Rules
 
@@ -228,6 +227,7 @@ removed during docs cleanup. Use Git history for detailed historical plans.
 | M72 | Done | Added explicit selected-node one-hop expansion in the Reagraph inspector, duplicate-free local node/edge merging, per-node expansion loading/error/truncation state, reset-on-refresh/filter behavior, focused React coverage, and approval-rule cleanup inspection. |
 | M73 | Done | Ran focused graph API/repository tests, React graph tests, React production build, the full backend suite, and browser QA; refreshed graph explorer operator/developer docs; fixed a Reagraph expansion focus regression found during visual QA; confirmed approval-rule cleanup was not needed; and closed the M70-M73 sequence. |
 | M74-M86 plan document | Done | Created the flat technical layer overhaul plan and handoff covering v1 baselines, OHLCV v2A indicators, cross-sectional context, deterministic scoring, opt-in strategy and analyst wiring, API/UI visibility, historical validation reports, official index/VIX/delivery/circuit ingestion, v2B scoring, and evidence-gated promotion. Implementation remains planned and no implementation work was done. |
+| M74 | Done | Added focused v1 technical-layer characterization coverage for analyst-rule metadata, SMA-spread availability and precision, graph-aware ranked-candidate payloads, allocation score calibration, and current base analyst LLM numeric ownership; documented the validation output contract for later M81-M82 evidence reports. |
 
 ## Completed Graph Explorer Sequence
 
@@ -248,7 +248,7 @@ up, and documented; do not automatically begin later scope.
 
 | Order | Milestone | Status | Plan | Purpose |
 |---:|---|---|---|---|
-| 74 | M74 | Planned | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Pin current technical, analyst, strategy, and allocation score behavior and define the validation evidence contract. |
+| 74 | M74 | Done | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Pin current technical, analyst, strategy, and allocation score behavior and define the validation evidence contract. |
 | 75 | M75 | Planned | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Add the full opt-in OHLCV indicator primitive and feature snapshot suite for v2A. |
 | 76 | M76 | Planned | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Add DB-free universe technical context and cross-sectional normalization without market/sector proxies. |
 | 77 | M77 | Planned | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Add the deterministic `technical_ohlcv_v2` alpha/risk/tradability/confidence scoring profile. |
@@ -272,6 +272,22 @@ This completed sequence was executed in order as separate milestone work.
 | 67 | M67 | Done | `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md` | Add the DB-free shared `TechnicalSignalService` foundation without runtime wiring. |
 | 68 | M68 | Done | `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md` | Route `TechnicalAnalystAgent` and `GraphAwareScoreStrategy` through the shared service without behavior drift. |
 | 69 | M69 | Done | `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md` | Run final regression, refresh architecture/deep-dive docs for implemented behavior, and close the sequence. |
+
+### M74 Completion Summary
+
+- Assumptions made: M74 should remain behavior-preserving and mostly
+  test/docs-only; existing M66-M69 tests already covered core
+  `TechnicalSignalService` parity, so this milestone should tighten metadata,
+  ranked-payload, allocation-calibration, and base analyst LLM-boundary
+  characterization without changing production code; the validation output
+  contract is a design target for M81-M82 and should not create new runtime
+  commands or artifacts in M74.
+- Mocks created: `NumericOwningLLMProvider` and `DraftOwningAnalyst` in
+  `tests/unit/test_analyst_agents.py` to pin current
+  `BaseAnalystAgent._build_report()` numeric ownership behavior.
+- Mocks used: Existing `FakeLLMProvider` analyst test fixture, existing
+  graph-backtest signal fixtures, and deterministic in-test allocation policy
+  fixtures.
 
 ### M74-M86 Plan Document Completion Summary
 

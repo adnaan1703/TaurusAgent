@@ -200,6 +200,26 @@ def test_graph_aware_strategy_preserves_weighted_sma_and_graph_combined_score() 
     assert rankings[0].raw_strategy_score == Decimal("0.26000000")
     assert rankings[0].metadata["technical_score"] == "0.10000000"
     assert "technical_score=0.10000000" in rankings[0].reasons
+    payload = rankings[0].to_dict()
+    assert payload["raw_strategy_score"] == "0.26000000"
+    assert payload["rank"] == 1
+    assert payload["eligibility_status"] == "eligible"
+    assert payload["feature_snapshot_id"] == "fs-AAA"
+    assert payload["metadata"] == {
+        "strategy_type": "graph_aware_score",
+        "technical_weight": "0.60",
+        "graph_weight": "0.40",
+        "technical_score": "0.10000000",
+        "graph_signal": {
+            "symbol": "AAA",
+            "as_of_date": "2024-01-05",
+            "score": "0.50000000",
+            "confidence": "0.90000000",
+            "edge_types": [],
+            "edge_keys": [],
+            "contributions": [],
+        },
+    }
     assert targets == {"AAA"}
     assert [signal.score for signal in signals] == [Decimal("0.26000000")]
     assert signals[0].explanation.metadata["technical_score"] == "0.10000000"

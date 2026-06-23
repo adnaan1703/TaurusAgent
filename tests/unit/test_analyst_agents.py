@@ -13,7 +13,12 @@ from scripts.import_mock_news import import_mock_news
 from scripts.migrate import run_migrations
 from taurus_core.agents.runner import run_analyst_suite
 from taurus_core.agents.roster import ANALYST_KEYS
-from taurus_core.agents.schemas import LLMAnalystOutput, stance_from_score
+from taurus_core.agents.base import BaseAnalystAgent
+from taurus_core.agents.schemas import (
+    AnalystScoreMetadata,
+    LLMAnalystOutput,
+    stance_from_score,
+)
 from taurus_core.agents.technical_analyst import TechnicalAnalystAgent
 from taurus_core.config import Settings
 from taurus_core.db.models import (
@@ -261,6 +266,53 @@ def test_technical_analyst_characterizes_empty_feature_fallback(
     ]
 
 
+def test_base_analyst_report_currently_uses_llm_owned_numeric_output() -> None:
+    provider = NumericOwningLLMProvider()
+    agent = DraftOwningAnalyst(None, provider)  # type: ignore[arg-type]
+    fallback = LLMAnalystOutput(
+        score=Decimal("-0.2500"),
+        confidence=Decimal("0.3000"),
+        stance="bearish",
+        horizon="medium",
+        key_points=["Deterministic fallback key point."],
+        risks=["Deterministic fallback risk."],
+        model_version="deterministic-fallback",
+    )
+
+    report = agent._build_report(
+        symbol="infy",
+        run_id="llm-numeric-ownership-run",
+        as_of=datetime(2024, 1, 12, tzinfo=timezone.utc),
+        fallback=fallback,
+        context={
+            "score": "-0.2500",
+            "confidence": "0.3000",
+            "horizon": "medium",
+            "key_points": ["Deterministic context key point."],
+            "risks": ["Deterministic context risk."],
+        },
+        source_ids=["deterministic-context"],
+        score_metadata=AnalystScoreMetadata(
+            raw_signal_score=Decimal("-0.2500"),
+            bounded_report_score=Decimal("-0.2500"),
+            score_source="deterministic_context",
+        ),
+    )
+
+    assert report.symbol == "INFY"
+    assert report.score == Decimal("0.7777")
+    assert report.confidence == Decimal("0.4444")
+    assert report.stance == "bullish"
+    assert report.horizon == "long"
+    assert report.key_points == ["LLM draft owns the report text and score."]
+    assert report.risks == ["LLM draft risk text."]
+    assert report.model_version == "llm-owning-test"
+    assert report.score_metadata is not None
+    assert report.score_metadata.raw_signal_score == Decimal("-0.2500")
+    assert report.score_metadata.bounded_report_score == Decimal("0.7777")
+    assert report.score_metadata.score_source == "deterministic_context"
+
+
 def test_intelligence_api_returns_events_and_agent_reports(tmp_path: Path) -> None:
     settings = _settings_for_temp_db(tmp_path)
     session_factory = _prepare_intelligence_db(settings)
@@ -307,6 +359,34 @@ class FailingLLMProvider:
         context: dict[str, object],
     ) -> LLMAnalystOutput:
         raise RuntimeError("simulated provider failure")
+
+
+class DraftOwningAnalyst(BaseAnalystAgent):
+    agent_name = "DraftOwningAnalyst"
+
+
+class NumericOwningLLMProvider:
+    @property
+    def model_version(self) -> str:
+        return "llm-owning-test"
+
+    def complete_analyst_report(
+        self,
+        *,
+        agent_name: str,
+        symbol: str,
+        context: dict[str, object],
+    ) -> LLMAnalystOutput:
+        score = Decimal("0.7777")
+        return LLMAnalystOutput(
+            score=score,
+            confidence=Decimal("0.4444"),
+            stance=stance_from_score(score),
+            horizon="long",
+            key_points=["LLM draft owns the report text and score."],
+            risks=["LLM draft risk text."],
+            model_version=self.model_version,
+        )
 
 
 def _prepare_intelligence_db(settings: Settings):

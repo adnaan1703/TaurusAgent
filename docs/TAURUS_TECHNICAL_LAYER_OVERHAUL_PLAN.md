@@ -8,8 +8,8 @@ milestone intended to be executed in a separate Codex thread. Stop after
 completing and documenting the current milestone; do not automatically continue
 to the next milestone.
 
-Status: Planning is complete. Implementation remains planned and has not
-started. The intended execution model is one fresh Codex thread per milestone,
+Status: Planning is complete. M74 implementation is complete. M75-M86 remain
+planned. The intended execution model is one fresh Codex thread per milestone,
 using GPT 5.5 with xhigh thinking, unless the user explicitly changes that
 instruction in the worker thread.
 
@@ -195,6 +195,112 @@ Completion summary requirements:
 - Assumptions made
 - Mocks created
 - Mocks used
+
+### M74 Validation Output Contract
+
+This contract is the design target for M81 and M82. M74 does not add new
+commands, generated artifacts, API fields, strategy profiles, or runtime
+behavior.
+
+Validation artifacts should be written under an operator-selected output root,
+defaulting to:
+
+```text
+artifacts/technical_validation/<profile_name>/<run_id>/
+```
+
+Expected files:
+
+- `technical_agent_predictive_report.json`
+- `technical_agent_predictive_report.md`
+- `system_backtest_report.json`
+- `system_backtest_report.md`
+- `profile_comparison_matrix.csv`
+- `promotion_gate.json`
+
+The technical-agent predictive report must include:
+
+- profile name, feature version, strategy config path, code commit, run id, and
+  generated-at timestamp.
+- input universe, excluded symbols, minimum data window, missing-data counts,
+  and data-readiness warnings.
+- prediction label definition, holding horizon, scoring date, outcome date, and
+  whether labels are forward-return, decile, or binary hit-rate labels.
+- score distribution by date, symbol count by date, missing-score count, and
+  confidence distribution.
+- rank evidence: decile or quintile forward returns, monotonicity checks,
+  top-minus-bottom spread, hit rate, rank correlation, and coverage.
+- stability evidence across rolling or walk-forward windows, including periods
+  that fail minimum sample thresholds.
+- feature family contribution summaries for alpha, risk, tradability, and
+  confidence when those vectors exist; v1 reports should explicitly state that
+  only the current `technical_rule_v1` scalar score exists.
+- failure and caveat section covering data gaps, survivorship risk, corporate
+  action assumptions, stale feature snapshots, and out-of-sample limitations.
+
+The full-system backtest report must include:
+
+- profile name, strategy name, strategy config path, money-management config,
+  universe path, graph-enabled flag, paper-only execution statement, code
+  commit, run id, and generated-at timestamp.
+- date range, rebalance cadence, lookback days, starting capital, target
+  positions, cost bps, slippage bps, and portfolio breadth source.
+- headline metrics: final equity, total return, annualized return when
+  meaningful, Sharpe or risk-adjusted proxy, max drawdown, turnover, hit rate,
+  win/loss asymmetry, trade count, fill count, and open-position count.
+- rank and allocation evidence: ranked-candidate count, eligible-candidate
+  count, preview of ranked candidates, raw strategy score distribution,
+  calibrated allocation score distribution, rejected allocation reasons, and
+  binding constraints.
+- cost and implementability evidence: estimated costs, slippage assumptions,
+  quantity rounding effects, liquidity/tradability warnings when available, and
+  capacity warnings.
+- regression comparison against the v1 compatibility baseline, with no silent
+  promotion if any required comparison is missing.
+
+The profile comparison matrix must be machine-readable and include one row per
+profile and evaluation slice. Required columns:
+
+| Column | Meaning |
+|---|---|
+| `profile_name` | Technical profile under evaluation, for example `technical_rule_v1` or `technical_ohlcv_v2`. |
+| `strategy_name` | Strategy config using the profile. |
+| `slice_name` | Overall, walk-forward fold, market regime, or data-quality slice. |
+| `start_date` | Inclusive evaluation start date. |
+| `end_date` | Inclusive evaluation end date. |
+| `symbol_count` | Symbols with enough data for the slice. |
+| `trade_count` | Executed full-system backtest trades, if applicable. |
+| `coverage_pct` | Share of eligible symbols with usable technical scores. |
+| `rank_ic` | Rank correlation between score and future return, if computed. |
+| `top_bottom_spread` | Top bucket minus bottom bucket forward return. |
+| `hit_rate` | Directional or trade hit rate using the report's label definition. |
+| `total_return` | Full-system total return, if applicable. |
+| `max_drawdown` | Full-system max drawdown, if applicable. |
+| `turnover` | Full-system or rank turnover. |
+| `status` | `pass`, `warn`, `fail`, or `not_applicable`. |
+| `notes` | Short reason for warnings, failures, or missing metrics. |
+
+The promotion gate must be conservative and explicit. Required inputs:
+
+- v1 baseline report paths and v2 candidate report paths.
+- technical-agent evidence status for rank monotonicity, coverage, stability,
+  and missing-data thresholds.
+- full-system evidence status for total return, drawdown, turnover, trade count,
+  cost assumptions, and regression-vs-baseline comparison.
+- data-readiness status for OHLCV coverage, corporate-action assumptions,
+  official-data availability, and any mocked or unavailable source.
+- operational safety status proving `graph_aware_score_v1` and
+  `technical_rule_v1` remain unchanged unless the promotion milestone explicitly
+  switches them.
+- final decision: `promote`, `keep_opt_in`, or `defer`, with blocking reasons.
+
+Minimum promotion rule:
+
+```text
+Promote only when technical-agent evidence and full-system evidence both pass,
+data readiness has no blocking failure, no safety regression is present, and
+the comparison includes the current v1 baseline.
+```
 
 ## M75 - OHLCV Indicator Primitive Expansion
 

@@ -12,6 +12,7 @@ from taurus_core.portfolio import (
     SleeveAllocationSnapshot,
     load_money_management_policy,
 )
+from taurus_core.portfolio.score_semantics import calibrate_strategy_score
 from taurus_core.research.schemas import TraderProposal
 
 
@@ -50,6 +51,31 @@ def test_strategy_score_calibration_preserves_precision_above_old_saturation(
     assert stronger["strategy_score"] > old_saturation["strategy_score"]
     assert stronger["raw_strategy_score"] == Decimal("0.2000")
     assert stronger["calibrated_strategy_score"] == Decimal("80.0000")
+
+
+def test_ranked_strategy_score_propagates_to_allocation_score_parts(
+    tmp_path: Path,
+) -> None:
+    policy = load_money_management_policy(_write_policy(tmp_path, max_stock_pct=Decimal("50.0")))
+    service = PortfolioAllocationService(policy)
+
+    candidate_score, parts = service.candidate_score(
+        _input(
+            target_pct=Decimal("20.0000"),
+            strategy_score=Decimal("0.26000000"),
+            strategy_rank=2,
+        )
+    )
+    calibration = calibrate_strategy_score(Decimal("0.26000000"), strategy_rank=2)
+
+    assert calibration.raw_strategy_score == Decimal("0.26000000")
+    assert calibration.calibrated_strategy_score == Decimal("86.0000")
+    assert calibration.allocation_score_component == Decimal("86.0000")
+    assert "strategy_rank=2" in calibration.rationale()
+    assert parts["raw_strategy_score"] == Decimal("0.2600")
+    assert parts["calibrated_strategy_score"] == Decimal("86.0000")
+    assert parts["strategy_score"] == Decimal("86.0000")
+    assert candidate_score == Decimal("92.0500")
 
 
 def test_stock_exposure_cap_limits_active_buy(tmp_path: Path) -> None:
@@ -489,6 +515,7 @@ def _input(
     graph_cluster_by_symbol: dict[str, str] | None = None,
     core_basket_symbols: tuple[str, ...] = (),
     strategy_score: Decimal | None = Decimal("0.2000"),
+    strategy_rank: int | None = None,
 ) -> ActiveAllocationInput:
     base = proposal or _proposal(action="BUY", target_pct=target_pct)
     if proposal is None:
@@ -514,6 +541,7 @@ def _input(
         core_basket_symbols=core_basket_symbols,
         history=history or tuple(_candles(symbol=tagged.symbol, volatility="low")),
         strategy_score=strategy_score,
+        strategy_rank=strategy_rank,
         sector_by_symbol=sector_by_symbol,
         graph_cluster_by_symbol=graph_cluster_by_symbol,
     )

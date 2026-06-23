@@ -49,7 +49,13 @@ def test_analyst_rule_uses_backtest_signal_override() -> None:
     assert "20-day return feature is 0.08000000." in result.key_points
     assert result.components["signal_score"] == Decimal("0.42000000")
     assert result.components["signal_direction"] == Decimal("-1")
+    assert result.metadata["snapshot_id"] == "snapshot-INFY-2024-01-12"
+    assert result.metadata["symbol"] == "INFY"
+    assert result.metadata["feature_time"] == "2024-01-11"
+    assert result.metadata["as_of_date"] == "2024-01-12"
+    assert result.metadata["signal_id"] == 123
     assert result.metadata["signal_action"] == "SELL"
+    assert result.metadata["score_precision"] == Decimal("0.0001")
 
 
 def test_analyst_rule_feature_formula_matches_existing_clamped_report_score() -> None:
@@ -131,12 +137,16 @@ def test_sma_spread_requires_fast_and_slow_sma() -> None:
     assert missing_slow.score is None
     assert missing_slow.missing_features == ("sma_5",)
     assert missing_slow.metadata["unavailable_reason"] == "missing_sma_feature"
+    assert missing_slow.metadata["fast_feature"] == "sma_3"
+    assert missing_slow.metadata["slow_feature"] == "sma_5"
+    assert missing_slow.metadata["score_precision"] == Decimal("0.00000001")
     assert missing_fast.available is False
     assert missing_fast.score is None
     assert missing_fast.missing_features == ("sma_3",)
     assert zero_slow.available is False
     assert zero_slow.score is None
     assert zero_slow.metadata["unavailable_reason"] == "invalid_slow_sma"
+    assert zero_slow.metadata["invalid_features"] == ["sma_5"]
 
 
 def test_sma_spread_quantizes_like_graph_aware_strategy() -> None:
@@ -164,6 +174,9 @@ def test_sma_spread_quantizes_like_graph_aware_strategy() -> None:
     assert result.components["slow_sma"] == Decimal("100.00000000")
     assert result.metadata["fast_window"] == 3
     assert result.metadata["slow_window"] == 5
+    assert result.metadata["fast_feature"] == "sma_3"
+    assert result.metadata["slow_feature"] == "sma_5"
+    assert result.metadata["score_precision"] == Decimal("0.00000001")
 
 
 def test_signal_results_are_immutable() -> None:
