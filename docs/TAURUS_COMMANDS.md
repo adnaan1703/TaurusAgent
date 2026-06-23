@@ -270,10 +270,12 @@ is preferred.
 The standard mode validates a 3-year evaluation window after a 252-trading-day
 indicator warm-up. The strong mode uses a 5-year evaluation window with the
 same warm-up. The command compares `graph_aware_score_v1`, v1 with graph
-contribution weight set to zero, `graph_aware_score_v2`, and v2A with graph
+contribution weight set to zero, `graph_aware_score_v2`, v2A with graph
+contribution weight set to zero, `graph_aware_score_v2b`, and v2B with graph
 contribution weight set to zero on the same symbols, dates, costs, slippage,
 NAV, rebalance cadence, and position limits when local `daily_candles` coverage
-is sufficient.
+is sufficient. v2B official-data rows are opt-in validation evidence only; this
+command does not promote v2B.
 
 M82 report artifacts include:
 
@@ -288,13 +290,14 @@ M82 report artifacts include:
   counts, inferred sizing failures, and equity curve summaries.
 - `profile_comparison_matrix.csv` for cross-profile comparison.
 - `promotion_gate.json` with a conservative recommendation of `promote`,
-  `keep_opt_in`, or `defer`.
+  `keep_opt_in`, or `defer`, plus the report-only
+  `official_candidate_profile` field for v2B.
 
 The promotion gate is report-only. It requires v2A to beat or tie v1 after
 costs, avoid material drawdown worsening, keep turnover controlled, show
 positive 21d rank/decile evidence, and avoid allocation utilization or sizing
 failures. It does not switch `make paper-loop-kite`, `graph_aware_score_v1`, or
-`technical_rule_v1` to v2.
+`technical_rule_v1` to v2, and it does not promote v2B.
 
 If coverage is insufficient, the command still writes `data_readiness.json` and
 `validation_manifest.json`, writes not-run technical/system reports plus a
@@ -326,6 +329,7 @@ make paper-once-mock SYMBOL=INFY
 make paper-loop-once SYMBOLS=INFY,TCS
 make paper-loop-start PAPER_LOOP_ITERATIONS=5
 make paper-loop-kite
+STRATEGY=configs/strategies/graph_aware_score_v2b.yaml make paper-loop-kite
 PROFILE_ID=client-a make paper-loop-kite
 make paper-loop-dashboard
 make position-monitor POSITION_MONITOR_ENABLED=true POSITION_MONITOR_ITERATIONS=1

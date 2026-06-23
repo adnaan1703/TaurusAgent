@@ -7,10 +7,12 @@ from typing import Any, Mapping
 
 from taurus_core.features.store import FeatureSnapshot
 from taurus_core.features.technical_context import (
+    OfficialTechnicalContext,
     UniverseTechnicalContext,
     build_universe_technical_context,
 )
 from taurus_core.features.technical_signal import (
+    OFFICIAL_V2B_PROFILE,
     OHLCV_V2_PROFILE,
     SMA_SPREAD_PROFILE,
     TechnicalOhlcvSignalResult,
@@ -28,7 +30,11 @@ from taurus_core.strategies.base import (
 
 SCORE_VALUE = Decimal("0.00000001")
 ZERO = Decimal("0")
-SUPPORTED_TECHNICAL_PROFILES = {SMA_SPREAD_PROFILE, OHLCV_V2_PROFILE}
+SUPPORTED_TECHNICAL_PROFILES = {
+    SMA_SPREAD_PROFILE,
+    OHLCV_V2_PROFILE,
+    OFFICIAL_V2B_PROFILE,
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -95,6 +101,7 @@ class GraphAwareScoreStrategy:
         current_positions: set[str],
         graph_signals_by_symbol: Mapping[str, Any] | None = None,
         universe_technical_context: UniverseTechnicalContext | None = None,
+        official_technical_context: OfficialTechnicalContext | None = None,
     ) -> list[StrategyRanking]:
         graph_by_symbol = {
             key.upper(): value for key, value in (graph_signals_by_symbol or {}).items()
@@ -119,6 +126,7 @@ class GraphAwareScoreStrategy:
             technical_result = self._technical_signal(
                 snapshot,
                 universe_context=technical_context,
+                official_context=official_technical_context,
             )
             score = self._combined_score(
                 snapshot=snapshot,
@@ -232,6 +240,7 @@ class GraphAwareScoreStrategy:
         graph_signals_by_symbol: Mapping[str, Any],
         target_limit: int | None = None,
         universe_technical_context: UniverseTechnicalContext | None = None,
+        official_technical_context: OfficialTechnicalContext | None = None,
     ) -> tuple[set[str], list[StrategySignal]]:
         graph_by_symbol = {
             key.upper(): value for key, value in graph_signals_by_symbol.items()
@@ -242,6 +251,7 @@ class GraphAwareScoreStrategy:
             current_positions=current_positions,
             graph_signals_by_symbol=graph_by_symbol,
             universe_technical_context=universe_technical_context,
+            official_technical_context=official_technical_context,
         )
         targets = ranked_symbols(rankings, target_limit=target_limit)
         score_by_symbol = {
@@ -292,10 +302,12 @@ class GraphAwareScoreStrategy:
         snapshot: FeatureSnapshot,
         *,
         universe_context: UniverseTechnicalContext | None = None,
+        official_context: OfficialTechnicalContext | None = None,
     ) -> Decimal | None:
         return self._technical_signal(
             snapshot,
             universe_context=universe_context,
+            official_context=official_context,
         ).score
 
     def _technical_signal(
@@ -303,7 +315,20 @@ class GraphAwareScoreStrategy:
         snapshot: FeatureSnapshot,
         *,
         universe_context: UniverseTechnicalContext | None = None,
+        official_context: OfficialTechnicalContext | None = None,
     ) -> _TechnicalScoreResult:
+        if self.technical_profile == OFFICIAL_V2B_PROFILE:
+            result = self._technical_signal_service.score_official_v2b(
+                snapshot,
+                universe_context=universe_context,
+                official_context=official_context,
+                symbol=snapshot.symbol,
+            )
+            return _TechnicalScoreResult(
+                profile_name=result.profile_name,
+                score=result.score if result.available else None,
+                signal_result=result,
+            )
         if self.technical_profile == OHLCV_V2_PROFILE:
             result = self._technical_signal_service.score_ohlcv_v2(
                 snapshot,
@@ -333,7 +358,7 @@ class GraphAwareScoreStrategy:
         *,
         universe_technical_context: UniverseTechnicalContext | None,
     ) -> UniverseTechnicalContext | None:
-        if self.technical_profile != OHLCV_V2_PROFILE:
+        if self.technical_profile not in {OHLCV_V2_PROFILE, OFFICIAL_V2B_PROFILE}:
             return None
         if universe_technical_context is not None:
             return universe_technical_context

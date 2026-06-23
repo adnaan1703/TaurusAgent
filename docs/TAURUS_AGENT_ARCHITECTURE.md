@@ -260,25 +260,38 @@ strategy/allocation stages can all expose the same compact vector. The vector is
 for debugging and traceability only; M80 does not change scoring formulas,
 allocation calibration, validation gates, or default v1 behavior.
 
-M83 added official market/regime reference storage for future v2B work:
+M83 added official market/regime reference storage now consumed by opt-in v2B
+scoring:
 `official_index_candles` stores benchmark index, sector-index, and India VIX
 OHLC history with source, source URL, index identifier, family, timeframe, raw
 source-row metadata, and `data_available_time`. Import and readiness commands
 are available through `make import-official-index-data` and
 `make check-official-index-readiness`. Current v1/v2A profiles do not read this
-table; M85 is responsible for joining these official rows into
-market-relative, sector-relative, and volatility-regime scoring.
+table. The opt-in `technical_official_v2b` profile joins these rows as-of for
+market-relative, configured sector-relative, and India VIX regime scoring.
 
-M84 added official microstructure/tradability reference storage for future v2B
-work: `official_security_microstructure` stores symbol/date keyed delivery
-quantity/percentage, price-band or circuit-hit fields, average trade value,
-turnover, and impact-cost fields whose source kind is explicitly labeled
+M84 added official microstructure/tradability reference storage now consumed by
+opt-in v2B scoring: `official_security_microstructure` stores symbol/date keyed
+delivery quantity/percentage, price-band or circuit-hit fields, average trade
+value, turnover, and impact-cost fields whose source kind is explicitly labeled
 `official`, `proxy`, or `unavailable`. Rows also keep source, source URL,
 source-row metadata, timeframe, and `data_available_time`. Import and readiness
 commands are available through `make import-official-microstructure-data` and
 `make check-official-microstructure-readiness`. Current v1/v2A profiles do not
-read this table; M85 is responsible for joining these official delivery,
-circuit, and tradability rows into v2B scoring.
+read this table. The opt-in `technical_official_v2b` profile joins these rows
+as-of for delivery participation, circuit-band penalties, and
+implementability/impact-cost scoring.
+
+M85 added `technical_official_v2b` and
+`configs/strategies/graph_aware_score_v2b.yaml` as additive opt-ins. The v2B
+profile reuses v2A OHLCV alpha/risk/tradability features, then blends official
+market-relative returns, optional sector-relative returns, market/sector
+regimes, India VIX level/change/regime, delivery state, circuit penalties, and
+implementability evidence into deterministic score metadata. Missing official
+context makes v2B unavailable; partial official coverage lowers confidence and
+surfaces explicit missing features. `graph_aware_score_v1` and
+`graph_aware_score_v2` remain unchanged until an evidence-backed promotion
+decision.
 
 The shared service is DB-free and behavior-preserving for the first
 implementation sequence. Runtime profile selection is currently implemented for

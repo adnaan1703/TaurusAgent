@@ -47,11 +47,20 @@ from taurus_core.execution.schemas import (
     PaperOrder,
 )
 from taurus_core.features.store import FeatureSnapshot, TechnicalFeatureService
+from taurus_core.features.official_context import (
+    build_official_technical_context,
+    official_context_with_snapshot_returns,
+)
 from taurus_core.features.technical_context import (
+    OfficialTechnicalContext,
     UniverseTechnicalContext,
     build_universe_technical_context,
 )
-from taurus_core.features.technical_signal import ANALYST_RULE_PROFILE, OHLCV_V2_PROFILE
+from taurus_core.features.technical_signal import (
+    ANALYST_RULE_PROFILE,
+    OFFICIAL_V2B_PROFILE,
+    OHLCV_V2_PROFILE,
+)
 from taurus_core.features.technical_visibility import (
     technical_v2_by_symbol_from_strategy_summary,
     technical_v2_from_strategy_signal,
@@ -189,6 +198,7 @@ class StrategySummaryResult:
     technical_analyst_profile: str
     technical_feature_snapshots: dict[str, FeatureSnapshot]
     universe_technical_context: UniverseTechnicalContext | None
+    official_technical_context: OfficialTechnicalContext | None
 
     def get(self, key: str, default: object | None = None) -> object | None:
         return self.summary.get(key, default)
@@ -548,6 +558,7 @@ class PaperRunService:
                     technical_profile=strategy_result.technical_analyst_profile,
                     technical_feature_snapshots=strategy_result.technical_feature_snapshots,
                     universe_technical_context=strategy_result.universe_technical_context,
+                    official_technical_context=strategy_result.official_technical_context,
                 )
                 analysis_by_symbol[symbol] = analysis
                 artifacts["analysis"][symbol] = _analysis_artifact_from_result(
@@ -1021,6 +1032,7 @@ class PaperRunService:
         technical_profile: str = ANALYST_RULE_PROFILE,
         technical_feature_snapshots: dict[str, FeatureSnapshot] | None = None,
         universe_technical_context: UniverseTechnicalContext | None = None,
+        official_technical_context: OfficialTechnicalContext | None = None,
     ) -> PaperSymbolAnalysis:
         symbol = symbol.upper()
         with bound_trace_context(run_id=run_id):
@@ -1039,6 +1051,7 @@ class PaperRunService:
             technical_profile=technical_profile,
             technical_feature_snapshots=technical_feature_snapshots,
             universe_technical_context=universe_technical_context,
+            official_technical_context=official_technical_context,
         )
         debate = self._run_symbol_research_debate(
             symbol=symbol,
@@ -1153,6 +1166,7 @@ class PaperRunService:
         technical_profile: str,
         technical_feature_snapshots: dict[str, FeatureSnapshot] | None,
         universe_technical_context: UniverseTechnicalContext | None,
+        official_technical_context: OfficialTechnicalContext | None,
     ) -> list[AnalystReport]:
         self._emit_symbol_stage_started(
             run_id=run_id,
@@ -1176,6 +1190,7 @@ class PaperRunService:
                 technical_profile=technical_profile,
                 technical_feature_snapshots=technical_feature_snapshots,
                 universe_technical_context=universe_technical_context,
+                official_technical_context=official_technical_context,
             )
 
     def _run_symbol_research_debate(
@@ -1998,14 +2013,46 @@ class PaperRunService:
                 if snapshot is not None:
                     snapshots[symbol] = snapshot
 
+        uses_v2_features = technical_analyst_profile in {
+            OHLCV_V2_PROFILE,
+            OFFICIAL_V2B_PROFILE,
+        }
         universe_technical_context = (
             build_universe_technical_context(snapshots)
-            if technical_analyst_profile == OHLCV_V2_PROFILE and snapshots
+            if uses_v2_features and snapshots
             else None
         )
-        technical_feature_snapshots = (
-            dict(snapshots) if technical_analyst_profile == OHLCV_V2_PROFILE else {}
-        )
+        official_technical_context = None
+        if technical_analyst_profile == OFFICIAL_V2B_PROFILE and snapshots:
+            returns_by_symbol = {
+                symbol: snapshot.get("return_20d")
+                for symbol, snapshot in snapshots.items()
+            }
+            with self.session_factory() as session:
+                official_technical_context = official_context_with_snapshot_returns(
+                    build_official_technical_context(
+                        session,
+                        symbols=tuple(snapshots),
+                        as_of=max(snapshot.as_of_date for snapshot in snapshots.values()),
+                        benchmark_index_symbol=_official_benchmark_index_symbol(
+                            strategy_config.parameters
+                        ),
+                        volatility_index_symbol=_official_volatility_index_symbol(
+                            strategy_config.parameters
+                        ),
+                        sector_index_by_symbol=_official_sector_index_by_symbol(
+                            strategy_config.parameters
+                        ),
+                        index_timeframe=_official_index_timeframe(
+                            strategy_config.parameters
+                        ),
+                        microstructure_timeframe=_official_microstructure_timeframe(
+                            strategy_config.parameters
+                        ),
+                    ),
+                    returns_by_symbol,
+                )
+        technical_feature_snapshots = dict(snapshots) if uses_v2_features else {}
         trade_dates = [snapshot.as_of_date for snapshot in snapshots.values()]
         if not trade_dates:
             return StrategySummaryResult(
@@ -2058,6 +2105,7 @@ class PaperRunService:
                 technical_analyst_profile=technical_analyst_profile,
                 technical_feature_snapshots=technical_feature_snapshots,
                 universe_technical_context=universe_technical_context,
+                official_technical_context=official_technical_context,
             )
 
         trade_date = max(trade_dates)
@@ -2087,6 +2135,8 @@ class PaperRunService:
         }
         if _strategy_accepts_universe_context(strategy):
             rank_kwargs["universe_technical_context"] = universe_technical_context
+        if _strategy_accepts_official_context(strategy):
+            rank_kwargs["official_technical_context"] = official_technical_context
         rankings = strategy.rank_universe(**rank_kwargs)
         if select_targets_with_graph_called:
             target_kwargs: dict[str, object] = {
@@ -2098,6 +2148,8 @@ class PaperRunService:
             }
             if _strategy_accepts_universe_context(strategy):
                 target_kwargs["universe_technical_context"] = universe_technical_context
+            if _strategy_accepts_official_context(strategy):
+                target_kwargs["official_technical_context"] = official_technical_context
             targets, signals = select_targets_with_graph(**target_kwargs)
         else:
             targets, signals = strategy.select_targets(
@@ -2183,6 +2235,7 @@ class PaperRunService:
             technical_analyst_profile=technical_analyst_profile,
             technical_feature_snapshots=technical_feature_snapshots,
             universe_technical_context=universe_technical_context,
+            official_technical_context=official_technical_context,
         )
 
     def _generate_money_management_summary(self) -> dict[str, object] | None:
@@ -3145,13 +3198,91 @@ def _technical_analyst_profile(strategy_parameters: dict[str, object]) -> str:
     if isinstance(value, str) and value.strip():
         return value.strip()
     value = strategy_parameters.get("technical_profile")
+    if value == OFFICIAL_V2B_PROFILE:
+        return OFFICIAL_V2B_PROFILE
     if value == OHLCV_V2_PROFILE:
         return OHLCV_V2_PROFILE
     return ANALYST_RULE_PROFILE
 
 
 def _strategy_accepts_universe_context(strategy: object) -> bool:
-    return getattr(strategy, "technical_profile", None) == OHLCV_V2_PROFILE
+    return getattr(strategy, "technical_profile", None) in {
+        OHLCV_V2_PROFILE,
+        OFFICIAL_V2B_PROFILE,
+    }
+
+
+def _strategy_accepts_official_context(strategy: object) -> bool:
+    return getattr(strategy, "technical_profile", None) == OFFICIAL_V2B_PROFILE
+
+
+def _official_benchmark_index_symbol(strategy_parameters: dict[str, object]) -> str:
+    return _official_string_parameter(
+        strategy_parameters,
+        "official_benchmark_index_symbol",
+        default="NIFTY_50",
+    )
+
+
+def _official_volatility_index_symbol(strategy_parameters: dict[str, object]) -> str:
+    return _official_string_parameter(
+        strategy_parameters,
+        "official_volatility_index_symbol",
+        default="INDIA_VIX",
+    )
+
+
+def _official_index_timeframe(strategy_parameters: dict[str, object]) -> str:
+    return _official_string_parameter(
+        strategy_parameters,
+        "official_index_timeframe",
+        default="1d",
+        uppercase=False,
+    )
+
+
+def _official_microstructure_timeframe(strategy_parameters: dict[str, object]) -> str:
+    return _official_string_parameter(
+        strategy_parameters,
+        "official_microstructure_timeframe",
+        default="1d",
+        uppercase=False,
+    )
+
+
+def _official_sector_index_by_symbol(
+    strategy_parameters: dict[str, object],
+) -> dict[str, str]:
+    nested = strategy_parameters.get("official_data")
+    value: object | None = None
+    if isinstance(nested, dict):
+        value = nested.get("sector_index_by_symbol")
+    if value is None:
+        value = strategy_parameters.get("official_sector_index_by_symbol")
+    if not isinstance(value, dict):
+        return {}
+    return {
+        str(symbol).upper(): str(index_symbol).upper()
+        for symbol, index_symbol in value.items()
+        if str(symbol).strip() and str(index_symbol).strip()
+    }
+
+
+def _official_string_parameter(
+    strategy_parameters: dict[str, object],
+    key: str,
+    *,
+    default: str,
+    uppercase: bool = True,
+) -> str:
+    nested = strategy_parameters.get("official_data")
+    value = nested.get(key.replace("official_", "")) if isinstance(nested, dict) else None
+    if not value:
+        value = strategy_parameters.get(key)
+    if isinstance(value, str) and value.strip():
+        cleaned = value.strip()
+        return cleaned.upper() if uppercase else cleaned
+    return default
 
 
 def _graph_profile_enabled(

@@ -33,7 +33,13 @@ from taurus_core.db.repositories import (
     InstrumentRepository,
 )
 from taurus_core.domain.market_data import DailyCandle
+from taurus_core.features.official_context import (
+    build_official_technical_context,
+    official_context_with_snapshot_returns,
+)
 from taurus_core.features.store import FeatureValue, TechnicalFeatureService
+from taurus_core.features.technical_context import build_universe_technical_context
+from taurus_core.features.technical_signal import OFFICIAL_V2B_PROFILE, OHLCV_V2_PROFILE
 from taurus_core.strategies import (
     StrategyConfig,
     StrategyRanking,
@@ -182,6 +188,46 @@ class BacktestEngine:
                     for symbol, position in positions.items()
                     if position.quantity > 0
                 }
+                technical_profile = str(
+                    self.config.strategy_parameters.get("technical_profile", "")
+                )
+                universe_technical_context = (
+                    build_universe_technical_context(
+                        features_by_symbol,
+                        as_of_date=trade_date,
+                    )
+                    if technical_profile in {OHLCV_V2_PROFILE, OFFICIAL_V2B_PROFILE}
+                    and features_by_symbol
+                    else None
+                )
+                official_technical_context = None
+                if technical_profile == OFFICIAL_V2B_PROFILE and features_by_symbol:
+                    official_technical_context = official_context_with_snapshot_returns(
+                        build_official_technical_context(
+                            self.session,
+                            symbols=tuple(features_by_symbol),
+                            as_of=trade_date,
+                            benchmark_index_symbol=_official_benchmark_index_symbol(
+                                self.config.strategy_parameters
+                            ),
+                            volatility_index_symbol=_official_volatility_index_symbol(
+                                self.config.strategy_parameters
+                            ),
+                            sector_index_by_symbol=_official_sector_index_by_symbol(
+                                self.config.strategy_parameters
+                            ),
+                            index_timeframe=_official_index_timeframe(
+                                self.config.strategy_parameters
+                            ),
+                            microstructure_timeframe=_official_microstructure_timeframe(
+                                self.config.strategy_parameters
+                            ),
+                        ),
+                        {
+                            symbol: snapshot.get("return_20d")
+                            for symbol, snapshot in features_by_symbol.items()
+                        },
+                    )
                 graph_signals_by_symbol: dict[str, GraphBacktestSignal] = {}
                 if graph_loader is not None:
                     graph_signals_by_symbol = graph_loader.load_by_as_of_date(
@@ -190,23 +236,41 @@ class BacktestEngine:
                     )
                     graph_signal_count += len(graph_signals_by_symbol)
 
-                latest_rankings = strategy.rank_universe(
-                    trade_date=trade_date,
-                    features_by_symbol=features_by_symbol,
-                    current_positions=current_symbols,
-                    graph_signals_by_symbol=graph_signals_by_symbol,
-                )
+                rank_kwargs: dict[str, object] = {
+                    "trade_date": trade_date,
+                    "features_by_symbol": features_by_symbol,
+                    "current_positions": current_symbols,
+                    "graph_signals_by_symbol": graph_signals_by_symbol,
+                }
+                if _strategy_accepts_universe_context(strategy):
+                    rank_kwargs["universe_technical_context"] = (
+                        universe_technical_context
+                    )
+                if _strategy_accepts_official_context(strategy):
+                    rank_kwargs["official_technical_context"] = (
+                        official_technical_context
+                    )
+                latest_rankings = strategy.rank_universe(**rank_kwargs)
                 rebalance_count += 1
                 target_limit = self.config.effective_portfolio_breadth
                 select_with_graph = getattr(strategy, "select_targets_with_graph", None)
                 if callable(select_with_graph):
-                    targets, generated_signals = select_with_graph(
-                        trade_date=trade_date,
-                        features_by_symbol=features_by_symbol,
-                        current_positions=current_symbols,
-                        graph_signals_by_symbol=graph_signals_by_symbol,
-                        target_limit=target_limit,
-                    )
+                    target_kwargs: dict[str, object] = {
+                        "trade_date": trade_date,
+                        "features_by_symbol": features_by_symbol,
+                        "current_positions": current_symbols,
+                        "graph_signals_by_symbol": graph_signals_by_symbol,
+                        "target_limit": target_limit,
+                    }
+                    if _strategy_accepts_universe_context(strategy):
+                        target_kwargs["universe_technical_context"] = (
+                            universe_technical_context
+                        )
+                    if _strategy_accepts_official_context(strategy):
+                        target_kwargs["official_technical_context"] = (
+                            official_technical_context
+                        )
+                    targets, generated_signals = select_with_graph(**target_kwargs)
                 else:
                     targets, generated_signals = strategy.select_targets(
                         trade_date=trade_date,
@@ -760,6 +824,86 @@ def _ranking_summary(rankings: list[StrategyRanking]) -> dict[str, object]:
         "ranked_symbols": [ranking.symbol for ranking in ranked],
         "ranked_candidates_preview": [ranking.to_dict() for ranking in ranked[:25]],
     }
+
+
+def _strategy_accepts_universe_context(strategy: object) -> bool:
+    return getattr(strategy, "technical_profile", None) in {
+        OHLCV_V2_PROFILE,
+        OFFICIAL_V2B_PROFILE,
+    }
+
+
+def _strategy_accepts_official_context(strategy: object) -> bool:
+    return getattr(strategy, "technical_profile", None) == OFFICIAL_V2B_PROFILE
+
+
+def _official_benchmark_index_symbol(strategy_parameters: dict[str, object]) -> str:
+    return _official_string_parameter(
+        strategy_parameters,
+        "official_benchmark_index_symbol",
+        default="NIFTY_50",
+    )
+
+
+def _official_volatility_index_symbol(strategy_parameters: dict[str, object]) -> str:
+    return _official_string_parameter(
+        strategy_parameters,
+        "official_volatility_index_symbol",
+        default="INDIA_VIX",
+    )
+
+
+def _official_index_timeframe(strategy_parameters: dict[str, object]) -> str:
+    return _official_string_parameter(
+        strategy_parameters,
+        "official_index_timeframe",
+        default="1d",
+        uppercase=False,
+    )
+
+
+def _official_microstructure_timeframe(strategy_parameters: dict[str, object]) -> str:
+    return _official_string_parameter(
+        strategy_parameters,
+        "official_microstructure_timeframe",
+        default="1d",
+        uppercase=False,
+    )
+
+
+def _official_sector_index_by_symbol(
+    strategy_parameters: dict[str, object],
+) -> dict[str, str]:
+    nested = strategy_parameters.get("official_data")
+    value: object | None = None
+    if isinstance(nested, dict):
+        value = nested.get("sector_index_by_symbol")
+    if value is None:
+        value = strategy_parameters.get("official_sector_index_by_symbol")
+    if not isinstance(value, dict):
+        return {}
+    return {
+        str(symbol).upper(): str(index_symbol).upper()
+        for symbol, index_symbol in value.items()
+        if str(symbol).strip() and str(index_symbol).strip()
+    }
+
+
+def _official_string_parameter(
+    strategy_parameters: dict[str, object],
+    key: str,
+    *,
+    default: str,
+    uppercase: bool = True,
+) -> str:
+    nested = strategy_parameters.get("official_data")
+    value = nested.get(key.replace("official_", "")) if isinstance(nested, dict) else None
+    if not value:
+        value = strategy_parameters.get(key)
+    if isinstance(value, str) and value.strip():
+        cleaned = value.strip()
+        return cleaned.upper() if uppercase else cleaned
+    return default
 
 
 def _json_safe(value: Any) -> Any:

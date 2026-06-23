@@ -36,11 +36,16 @@ from taurus_core.db.repositories import (
 )
 from taurus_core.db.session import build_session_factory
 from taurus_core.domain.market_data import DailyCandle
+from taurus_core.features.official_context import (
+    build_official_technical_context,
+    official_context_with_snapshot_returns,
+)
 from taurus_core.features.store import FeatureSnapshot, TechnicalFeatureService
 from taurus_core.features.technical_context import build_universe_technical_context
 from taurus_core.features.technical_signal import (
     ANALYST_FEATURE_NAMES,
     ANALYST_RULE_PROFILE,
+    OFFICIAL_V2B_PROFILE,
     OHLCV_V2_PROFILE,
     TechnicalSignalService,
 )
@@ -54,6 +59,7 @@ STANDARD_VALIDATION_YEARS = 3
 STRONG_VALIDATION_YEARS = 5
 V1_STRATEGY_PATH = Path("configs/strategies/graph_aware_score_v1.yaml")
 V2_STRATEGY_PATH = Path("configs/strategies/graph_aware_score_v2.yaml")
+V2B_STRATEGY_PATH = Path("configs/strategies/graph_aware_score_v2b.yaml")
 COMPARISON_METRICS = (
     "total_return",
     "cagr",
@@ -74,11 +80,14 @@ COMPARISON_METRICS = (
 PREDICTION_HORIZONS = (5, 21, 63)
 BASELINE_PROFILE_NAME = "graph_aware_score_v1"
 CANDIDATE_PROFILE_NAME = "graph_aware_score_v2"
+OFFICIAL_CANDIDATE_PROFILE_NAME = "graph_aware_score_v2b"
 TECHNICAL_PROFILE_FOR_STRATEGY = {
     "graph_aware_score_v1": ANALYST_RULE_PROFILE,
     "graph_aware_score_v1_technical_only": ANALYST_RULE_PROFILE,
     "graph_aware_score_v2": OHLCV_V2_PROFILE,
     "graph_aware_score_v2_technical_only": OHLCV_V2_PROFILE,
+    "graph_aware_score_v2b": OFFICIAL_V2B_PROFILE,
+    "graph_aware_score_v2b_technical_only": OFFICIAL_V2B_PROFILE,
 }
 PROMOTION_DRAWDOWN_TOLERANCE = 0.02
 PROMOTION_TURNOVER_MULTIPLE = 1.25
@@ -385,6 +394,7 @@ def build_data_readiness(
 def validation_profiles() -> tuple[ValidationProfile, ...]:
     v1 = load_strategy_config(V1_STRATEGY_PATH)
     v2 = load_strategy_config(V2_STRATEGY_PATH)
+    v2b = load_strategy_config(V2B_STRATEGY_PATH)
     return (
         ValidationProfile(
             profile_name="graph_aware_score_v1",
@@ -425,6 +435,27 @@ def validation_profiles() -> tuple[ValidationProfile, ...]:
             graph_contribution_enabled=False,
             notes=(
                 "V2A OHLCV graph-aware strategy with graph contribution weight set to zero.",
+                "Backtest graph loading remains available, but ranking ignores graph score.",
+            ),
+        ),
+        ValidationProfile(
+            profile_name="graph_aware_score_v2b",
+            strategy_name=v2b.strategy_name,
+            strategy_type=v2b.strategy_type,
+            strategy_config_path=str(V2B_STRATEGY_PATH),
+            strategy_parameters=dict(v2b.parameters),
+            graph_contribution_enabled=True,
+            notes=("Opt-in v2B official-data graph-aware score profile.",),
+        ),
+        ValidationProfile(
+            profile_name="graph_aware_score_v2b_technical_only",
+            strategy_name="graph_aware_score_v2b_technical_only",
+            strategy_type=v2b.strategy_type,
+            strategy_config_path=str(V2B_STRATEGY_PATH),
+            strategy_parameters=_without_graph_contribution(v2b.parameters),
+            graph_contribution_enabled=False,
+            notes=(
+                "V2B official-data graph-aware strategy with graph contribution weight set to zero.",
                 "Backtest graph loading remains available, but ranking ignores graph score.",
             ),
         ),
@@ -597,7 +628,9 @@ def _technical_agent_predictive_report(
     feature_services = {
         ANALYST_RULE_PROFILE: TechnicalFeatureService(),
         OHLCV_V2_PROFILE: TechnicalFeatureService.ohlcv_v2(),
+        OFFICIAL_V2B_PROFILE: TechnicalFeatureService.ohlcv_v2(),
     }
+    v2b_config = load_strategy_config(V2B_STRATEGY_PATH)
     scoring_start_index = request.warmup_days + 1
     for date_index, scoring_date in enumerate(readiness.selected_dates):
         if date_index < scoring_start_index:
@@ -617,9 +650,49 @@ def _technical_agent_predictive_report(
             snapshots_by_profile[OHLCV_V2_PROFILE],
             as_of_date=scoring_date,
         )
+        v2b_official_context = official_context_with_snapshot_returns(
+            build_official_technical_context(
+                session,
+                symbols=tuple(snapshots_by_profile[OFFICIAL_V2B_PROFILE]),
+                as_of=scoring_date,
+                benchmark_index_symbol=_official_benchmark_index_symbol(
+                    v2b_config.parameters
+                ),
+                volatility_index_symbol=_official_volatility_index_symbol(
+                    v2b_config.parameters
+                ),
+                sector_index_by_symbol=_official_sector_index_by_symbol(
+                    v2b_config.parameters
+                ),
+                index_timeframe=_official_index_timeframe(v2b_config.parameters),
+                microstructure_timeframe=_official_microstructure_timeframe(
+                    v2b_config.parameters
+                ),
+            ),
+            {
+                symbol: snapshot.get("return_20d")
+                for symbol, snapshot in snapshots_by_profile[
+                    OFFICIAL_V2B_PROFILE
+                ].items()
+            },
+        )
         for profile_name, snapshots in snapshots_by_profile.items():
             for symbol, snapshot in snapshots.items():
-                if profile_name == OHLCV_V2_PROFILE:
+                if profile_name == OFFICIAL_V2B_PROFILE:
+                    result = signal_service.score_official_v2b(
+                        snapshot,
+                        universe_context=v2_context,
+                        official_context=v2b_official_context,
+                        symbol=symbol,
+                    )
+                    score = result.score if result.available else None
+                    confidence = result.confidence
+                    coverage = result.coverage
+                    top_contributor_count = len(result.top_contributors)
+                    vector_present = bool(result.top_contributors)
+                    missing_features = tuple(result.missing_features)
+                    components = dict(result.components)
+                elif profile_name == OHLCV_V2_PROFILE:
                     result = signal_service.score_ohlcv_v2(
                         snapshot,
                         universe_context=v2_context,
@@ -682,7 +755,11 @@ def _technical_agent_predictive_report(
 
     checks: list[dict[str, object]] = []
     profiles: list[dict[str, object]] = []
-    for profile_name in (ANALYST_RULE_PROFILE, OHLCV_V2_PROFILE):
+    for profile_name in (
+        ANALYST_RULE_PROFILE,
+        OHLCV_V2_PROFILE,
+        OFFICIAL_V2B_PROFILE,
+    ):
         observations = observations_by_profile.get(profile_name, [])
         checks.extend(_prediction_checks(profile_name, observations))
         profiles.append(_technical_profile_summary(profile_name, observations))
@@ -858,6 +935,7 @@ def _promotion_gate(
         "decision": decision,
         "baseline_profile": BASELINE_PROFILE_NAME,
         "candidate_profile": CANDIDATE_PROFILE_NAME,
+        "official_candidate_profile": OFFICIAL_CANDIDATE_PROFILE_NAME,
         "checks": checks,
         "blocking_reasons": blockers,
         "promotion_policy": {
@@ -871,7 +949,7 @@ def _promotion_gate(
             "rank_rule": "v2A 21d rank correlation and top-vs-bottom spread must be non-negative.",
             "utilization_rule": "v2A must avoid lower allocation utilization or inferred sizing failures versus v1.",
         },
-        "note": "This gate reports a recommendation only; M82 does not promote v2.",
+        "note": "This gate reports a recommendation only; M85 does not promote v2B or change canonical defaults.",
     }
 
 
@@ -1115,7 +1193,7 @@ def _technical_profile_summary(
             "average_contributor_count": _mean_float(contributor_counts),
             "summary": (
                 "v2 vector/contributor evidence present"
-                if profile_name == OHLCV_V2_PROFILE
+                if profile_name in {OHLCV_V2_PROFILE, OFFICIAL_V2B_PROFILE}
                 else "v1 scalar score with deterministic components/key points"
             ),
         },
@@ -1852,7 +1930,7 @@ def _operator_report_markdown(
         "- `profile_comparison_matrix.csv`",
         "- `promotion_gate.json`",
         "",
-        "M82 report only: this milestone does not promote v2 or change canonical v1 defaults.",
+        "Validation report only: this command does not promote v2B or change canonical v1 defaults.",
         "",
     ]
     return "\n".join(lines)
@@ -2212,6 +2290,73 @@ def _without_graph_contribution(
     updated["graph_weight"] = "0"
     updated["require_graph_signal"] = False
     return updated
+
+
+def _official_benchmark_index_symbol(parameters: Mapping[str, object]) -> str:
+    return _official_string_parameter(
+        parameters,
+        "official_benchmark_index_symbol",
+        default="NIFTY_50",
+    )
+
+
+def _official_volatility_index_symbol(parameters: Mapping[str, object]) -> str:
+    return _official_string_parameter(
+        parameters,
+        "official_volatility_index_symbol",
+        default="INDIA_VIX",
+    )
+
+
+def _official_index_timeframe(parameters: Mapping[str, object]) -> str:
+    return _official_string_parameter(
+        parameters,
+        "official_index_timeframe",
+        default="1d",
+        uppercase=False,
+    )
+
+
+def _official_microstructure_timeframe(parameters: Mapping[str, object]) -> str:
+    return _official_string_parameter(
+        parameters,
+        "official_microstructure_timeframe",
+        default="1d",
+        uppercase=False,
+    )
+
+
+def _official_sector_index_by_symbol(parameters: Mapping[str, object]) -> dict[str, str]:
+    nested = parameters.get("official_data")
+    value: object | None = None
+    if isinstance(nested, Mapping):
+        value = nested.get("sector_index_by_symbol")
+    if value is None:
+        value = parameters.get("official_sector_index_by_symbol")
+    if not isinstance(value, Mapping):
+        return {}
+    return {
+        str(symbol).upper(): str(index_symbol).upper()
+        for symbol, index_symbol in value.items()
+        if str(symbol).strip() and str(index_symbol).strip()
+    }
+
+
+def _official_string_parameter(
+    parameters: Mapping[str, object],
+    key: str,
+    *,
+    default: str,
+    uppercase: bool = True,
+) -> str:
+    nested = parameters.get("official_data")
+    value = nested.get(key.replace("official_", "")) if isinstance(nested, Mapping) else None
+    if not value:
+        value = parameters.get(key)
+    if isinstance(value, str) and value.strip():
+        cleaned = value.strip()
+        return cleaned.upper() if uppercase else cleaned
+    return default
 
 
 def _insufficient_data_actions(

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from types import MappingProxyType
 from typing import Mapping
@@ -14,6 +14,9 @@ from taurus_core.features.store import (
 TECHNICAL_CONTEXT_VALUE = Decimal("0.00000001")
 HIGHER_IS_BETTER = "higher_is_better"
 LOWER_IS_BETTER = "lower_is_better"
+TECHNICAL_OFFICIAL_V2B_PROFILE = "technical_official_v2b"
+DEFAULT_OFFICIAL_BENCHMARK_INDEX_SYMBOL = "NIFTY_50"
+DEFAULT_OFFICIAL_VOLATILITY_INDEX_SYMBOL = "INDIA_VIX"
 
 DEFAULT_TECHNICAL_CONTEXT_FEATURES = (
     "return_20d",
@@ -146,6 +149,112 @@ class UniverseTechnicalContext:
         if symbol_context is None:
             return None
         return symbol_context.get(feature_name)
+
+
+@dataclass(frozen=True, slots=True)
+class OfficialIndexFeature:
+    index_symbol: str
+    index_family: str
+    trade_date: date
+    close: Decimal
+    return_20d: Decimal | None
+    return_63d: Decimal | None
+    regime_state: str
+    source: str
+    source_url: str | None = None
+    data_available_time: datetime | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class OfficialMicrostructureFeature:
+    symbol: str
+    trade_date: date
+    delivery_percentage: Decimal | None
+    delivery_z_score: Decimal | None
+    delivery_state: str
+    circuit_status: str | None
+    circuit_hit: bool | None
+    near_circuit: bool
+    impact_cost_bps: Decimal | None
+    impact_cost_source_kind: str
+    impact_cost_proxy_name: str | None
+    implementability_score: Decimal | None
+    implementability_label: str
+    source: str
+    source_url: str | None = None
+    data_available_time: datetime | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class OfficialTechnicalSymbolContext:
+    symbol: str
+    as_of_date: date
+    benchmark_index: OfficialIndexFeature | None
+    sector_index: OfficialIndexFeature | None
+    volatility_index: OfficialIndexFeature | None
+    microstructure: OfficialMicrostructureFeature | None
+    market_relative_return_20d: Decimal | None
+    sector_relative_return_20d: Decimal | None
+    source_coverage: Mapping[str, bool] = field(default_factory=dict)
+    missing_features: tuple[str, ...] = ()
+    metadata: Mapping[str, object] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self, "source_coverage", MappingProxyType(dict(self.source_coverage))
+        )
+        object.__setattr__(self, "missing_features", tuple(self.missing_features))
+        object.__setattr__(self, "metadata", MappingProxyType(dict(self.metadata)))
+
+    @property
+    def coverage_ratio(self) -> Decimal:
+        if not self.source_coverage:
+            return Decimal("0.0000")
+        available = sum(1 for value in self.source_coverage.values() if value)
+        return (Decimal(available) / Decimal(len(self.source_coverage))).quantize(
+            Decimal("0.0001")
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class OfficialTechnicalContext:
+    profile_name: str
+    as_of_date: date
+    benchmark_index_symbol: str
+    volatility_index_symbol: str
+    sector_index_by_symbol: Mapping[str, str] = field(default_factory=dict)
+    symbols: tuple[str, ...] = ()
+    symbol_contexts: Mapping[str, OfficialTechnicalSymbolContext] = field(
+        default_factory=dict
+    )
+    metadata: Mapping[str, object] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "sector_index_by_symbol",
+            MappingProxyType(
+                {
+                    symbol.upper(): index_symbol.upper()
+                    for symbol, index_symbol in self.sector_index_by_symbol.items()
+                }
+            ),
+        )
+        object.__setattr__(self, "symbols", tuple(symbol.upper() for symbol in self.symbols))
+        object.__setattr__(
+            self,
+            "symbol_contexts",
+            MappingProxyType(
+                {
+                    symbol.upper(): context
+                    for symbol, context in self.symbol_contexts.items()
+                }
+            ),
+        )
+        object.__setattr__(self, "metadata", MappingProxyType(dict(self.metadata)))
+
+    def for_symbol(self, symbol: str) -> OfficialTechnicalSymbolContext | None:
+        return self.symbol_contexts.get(symbol.upper())
 
 
 def build_universe_technical_context(

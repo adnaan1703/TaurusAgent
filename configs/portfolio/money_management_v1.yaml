@@ -35,6 +35,8 @@ strategy_mappings:
     sleeve_id: active_strategy
   - strategy_name: graph_aware_score_v2
     sleeve_id: active_strategy
+  - strategy_name: graph_aware_score_v2b
+    sleeve_id: active_strategy
   - strategy_name: moving_average_crossover_v1
     sleeve_id: active_strategy
   - strategy_name: blended_score_v1

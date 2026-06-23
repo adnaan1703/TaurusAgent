@@ -35,6 +35,7 @@ Main implementation files:
 | Agent implementation | `packages/taurus_core/agents/technical_analyst.py` |
 | Analyst suite runner | `packages/taurus_core/agents/runner.py` |
 | Feature construction | `packages/taurus_core/features/store.py` |
+| Official context construction | `packages/taurus_core/features/official_context.py` |
 | Indicator math | `packages/taurus_core/features/technical.py` |
 | Shared technical scoring | `packages/taurus_core/features/technical_signal.py` |
 | Analyst report schema | `packages/taurus_core/agents/schemas.py` |
@@ -80,6 +81,19 @@ TechnicalAnalystAgent.run(
 )
 ```
 
+M85 added optional profile-gated inputs for v2B:
+
+```python
+TechnicalAnalystAgent.run(
+    symbol=symbol,
+    run_id=run_id,
+    technical_profile="technical_official_v2b",
+    feature_snapshot=snapshot,
+    universe_technical_context=context,
+    official_technical_context=official_context,
+)
+```
+
 If those optional arguments are omitted, the analyst keeps the legacy
 `technical_rule_v1` behavior.
 
@@ -91,9 +105,10 @@ The agent also receives these constructor dependencies:
 | `llm_provider` | `build_llm_provider(settings)` | Produces the final structured analyst report JSON. |
 | `symbol` | Paper run / analyst suite | Stock being analyzed. |
 | `run_id` | Paper run | Durable lineage for the generated analyst report. |
-| `technical_profile` | Analyst runner / paper strategy profile | Defaults to `technical_rule_v1`; opt-in `technical_ohlcv_v2` selects v2A scoring. |
+| `technical_profile` | Analyst runner / paper strategy profile | Defaults to `technical_rule_v1`; opt-in `technical_ohlcv_v2` selects v2A scoring, while opt-in `technical_official_v2b` selects official-data v2B scoring. |
 | `feature_snapshot` | Paper strategy stage or direct caller | Optional in-memory v2A snapshot so the analyst can reuse strategy-built features. |
 | `universe_technical_context` | Paper strategy stage or direct caller | Optional DB-free cross-sectional context for v2A scoring. |
+| `official_technical_context` | Paper strategy stage or direct caller | Optional as-of official-data context required for v2B scoring. |
 
 ## Database Tables Read
 
@@ -106,8 +121,8 @@ several tables inside it.
 | `feature_values` | `TechnicalAnalystAgent._persisted_feature_snapshot()` | Optional precomputed technical feature snapshots. |
 | `daily_candles` | `TechnicalAnalystAgent._latest_feature_snapshot()` | Source OHLCV history when no persisted feature snapshot is available. |
 | `backtest_signals` | `TechnicalAnalystAgent._latest_signal()` | Optional latest strategy signal that can override v1 scoring; v2 stores it only as audit metadata. |
-| `official_index_candles` | Not read by current profiles | M83 stores official benchmark, sector-index, and India VIX history for future v2B market-relative/sector-relative/regime features. |
-| `official_security_microstructure` | Not read by current profiles | M84 stores official delivery, circuit/price-band, and tradability rows for future v2B microstructure features. |
+| `official_index_candles` | `build_official_technical_context()` for v2B | Stores official benchmark, sector-index, and India VIX history for v2B market-relative, sector-relative, and regime features. |
+| `official_security_microstructure` | `build_official_technical_context()` for v2B | Stores official delivery, circuit/price-band, and tradability rows for v2B microstructure features. |
 
 Important nuance: both `feature_values` and `backtest_signals` lookups are
 symbol-based. The current `TechnicalAnalystAgent` does not filter these lookups
@@ -299,13 +314,13 @@ its analyst-report stage, and React renders a compact v2 panel with profile,
 composite score, confidence, alpha/risk/tradability, top contributors, and
 missing-feature warnings when the payload exists.
 
-M83 added official index/VIX storage and readiness checks, and M84 added
-official delivery, circuit/price-band, and tradability storage/readiness
-checks, but `technical_ohlcv_v2` remains OHLCV-only. `TechnicalAnalystAgent`
-will not read `official_index_candles` or `official_security_microstructure`
-until a later v2B scoring milestone explicitly wires official market-relative,
-sector-relative, volatility-regime, delivery, circuit, and tradability
-features.
+M83 added official index/VIX storage and readiness checks, M84 added official
+delivery, circuit/price-band, and tradability storage/readiness checks, and M85
+wired those as opt-in v2B scoring inputs. `technical_ohlcv_v2` remains
+OHLCV-only. `technical_official_v2b` reuses the v2A OHLCV feature snapshot and
+adds official market-relative return, configured sector-relative return,
+market/sector regime, India VIX level/change/regime, delivery participation,
+circuit-band penalty, and implementability/impact-cost evidence.
 
 ## Key Points and Risks
 
@@ -381,9 +396,10 @@ Implementation note: the current code builds a `fallback` object, but
 LLM provider fails. Provider failure raises `LLMProviderError`, and the analyst
 suite stores no partial report for that run/symbol.
 
-For `technical_ohlcv_v2`, the agent calls `_build_report()` for narrative
-generation and then resets stored score, confidence, stance, model version, and
-score metadata to the deterministic v2 result.
+For `technical_ohlcv_v2` and `technical_official_v2b`, the agent calls
+`_build_report()` for narrative generation and then resets stored score,
+confidence, stance, model version, and score metadata to the deterministic
+service result.
 
 ## Output Shape
 
@@ -406,7 +422,7 @@ The output is an `AnalystReport` with this shape:
 | `risks` | Risk bullets. |
 | `source_ids` | Feature snapshot id and optional signal id. |
 | `model_version` | LLM/model version or rule-model version. |
-| `score_metadata` | Additive deterministic score evidence. For v2A reports, `score_metadata.technical_v2` contains alpha/risk/tradability/confidence/composite metadata. |
+| `score_metadata` | Additive deterministic score evidence. For v2A and v2B reports, `score_metadata.technical_v2` contains alpha/risk/tradability/confidence/composite metadata plus profile-specific coverage and contributor details. |
 
 ## Artifacts Created
 
@@ -416,8 +432,10 @@ The output is an `AnalystReport` with this shape:
 | `FeatureValue` rows | In memory from feature service; persisted by backtesting paths | `TechnicalFeatureService.build_snapshot()` plus caller | Backtests persist these into `feature_values`; paper analyst fallback does not. |
 | `TechnicalSignalResult` | In memory | `TechnicalSignalService.score_analyst_rule()` | DB-free deterministic v1 score, confidence, key-point, source, and metadata contract copied into the report. |
 | `TechnicalOhlcvSignalResult` | In memory | `TechnicalSignalService.score_ohlcv_v2()` | DB-free deterministic v2 alpha/risk/tradability/confidence/composite contract copied into `score_metadata.technical_v2`. |
+| `OfficialTechnicalContext` | In memory | `build_official_technical_context()` plus `official_context_with_snapshot_returns()` | As-of official benchmark, sector-index, India VIX, delivery, circuit, and implementability context required by `technical_official_v2b`. |
+| `TechnicalOhlcvSignalResult` for v2B | In memory | `TechnicalSignalService.score_official_v2b()` | DB-free deterministic official-data v2B score copied into `score_metadata.technical_v2` with official coverage, source IDs, missing features, and contributors. |
 | Technical analyst report | `analyst_reports` table | `AnalystReportRepository.replace_for_run_symbol()` | Durable per-run, per-symbol agent output. |
-| Full report payload | `analyst_reports.payload` JSON | Repository conversion | Stores the full serialized `AnalystReport`, including additive `score_metadata.technical_v2` when the v2A profile is selected. |
+| Full report payload | `analyst_reports.payload` JSON | Repository conversion | Stores the full serialized `AnalystReport`, including additive `score_metadata.technical_v2` when a v2 profile is selected. |
 | Per-symbol analysis artifact | `paper_runs.artifacts["analysis"][symbol]` | `PaperRunService` | Stores report ids, analyst roster, debate id, proposal id, proposal action, and finalization status. |
 | Strategy summary artifact | `paper_runs.artifacts["strategy"]` | `PaperRunService._generate_strategy_summary()` | Stores feature snapshot count, ranked candidates, targets, strategy scores, and signals. |
 | Agent run metrics/logs | Observability pipeline | `run_analyst_suite()` | Emits `agent.report.created` logs and agent runtime metrics. |

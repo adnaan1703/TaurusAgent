@@ -21,15 +21,21 @@ from taurus_core.features.store import (
     TechnicalFeatureService,
 )
 from taurus_core.features.technical_context import UniverseTechnicalContext
+from taurus_core.features.technical_context import OfficialTechnicalContext
 from taurus_core.features.technical_signal import (
     ANALYST_RULE_PROFILE,
+    OFFICIAL_V2B_PROFILE,
     OHLCV_V2_PROFILE,
     TechnicalBacktestSignal,
     TechnicalOhlcvSignalResult,
     TechnicalSignalService,
 )
 
-SUPPORTED_TECHNICAL_ANALYST_PROFILES = {ANALYST_RULE_PROFILE, OHLCV_V2_PROFILE}
+SUPPORTED_TECHNICAL_ANALYST_PROFILES = {
+    ANALYST_RULE_PROFILE,
+    OHLCV_V2_PROFILE,
+    OFFICIAL_V2B_PROFILE,
+}
 DEFAULT_TECHNICAL_RISKS = [
     "Technical signals can reverse quickly when volatility rises.",
     "Mock technical analysis is not an execution instruction.",
@@ -47,6 +53,7 @@ class TechnicalAnalystAgent(BaseAnalystAgent):
         technical_profile: str = ANALYST_RULE_PROFILE,
         feature_snapshot: FeatureSnapshot | None = None,
         universe_technical_context: UniverseTechnicalContext | None = None,
+        official_technical_context: OfficialTechnicalContext | None = None,
     ) -> AnalystReport:
         symbol = symbol.upper()
         profile = _normalize_technical_profile(technical_profile)
@@ -54,12 +61,14 @@ class TechnicalAnalystAgent(BaseAnalystAgent):
             symbol,
             technical_profile=profile,
         )
-        if profile == OHLCV_V2_PROFILE:
+        if profile in {OHLCV_V2_PROFILE, OFFICIAL_V2B_PROFILE}:
             return self._run_ohlcv_v2(
                 symbol=symbol,
                 run_id=run_id,
+                technical_profile=profile,
                 snapshot=snapshot,
                 universe_technical_context=universe_technical_context,
+                official_technical_context=official_technical_context,
             )
 
         return self._run_analyst_rule(symbol=symbol, run_id=run_id, snapshot=snapshot)
@@ -137,15 +146,26 @@ class TechnicalAnalystAgent(BaseAnalystAgent):
         *,
         symbol: str,
         run_id: str,
+        technical_profile: str,
         snapshot: FeatureSnapshot | None,
         universe_technical_context: UniverseTechnicalContext | None,
+        official_technical_context: OfficialTechnicalContext | None,
     ) -> AnalystReport:
         latest_signal = _technical_backtest_signal(self._latest_signal(symbol))
-        signal_result = TechnicalSignalService().score_ohlcv_v2(
-            snapshot,
-            universe_context=universe_technical_context,
-            symbol=symbol,
-        )
+        signal_service = TechnicalSignalService()
+        if technical_profile == OFFICIAL_V2B_PROFILE:
+            signal_result = signal_service.score_official_v2b(
+                snapshot,
+                universe_context=universe_technical_context,
+                official_context=official_technical_context,
+                symbol=symbol,
+            )
+        else:
+            signal_result = signal_service.score_ohlcv_v2(
+                snapshot,
+                universe_context=universe_technical_context,
+                symbol=symbol,
+            )
         score = signal_result.score
         confidence = signal_result.confidence
         source_ids = list(signal_result.source_ids)
@@ -242,7 +262,7 @@ class TechnicalAnalystAgent(BaseAnalystAgent):
         as_of_date = history[-1].trade_date + timedelta(days=1)
         feature_service = (
             TechnicalFeatureService.ohlcv_v2()
-            if technical_profile == OHLCV_V2_PROFILE
+            if technical_profile in {OHLCV_V2_PROFILE, OFFICIAL_V2B_PROFILE}
             else TechnicalFeatureService()
         )
         return feature_service.build_snapshot(
@@ -260,7 +280,7 @@ class TechnicalAnalystAgent(BaseAnalystAgent):
         statement = select(FeatureValueModel.snapshot_id).where(
             FeatureValueModel.symbol == symbol
         )
-        if technical_profile == OHLCV_V2_PROFILE:
+        if technical_profile in {OHLCV_V2_PROFILE, OFFICIAL_V2B_PROFILE}:
             statement = statement.where(
                 FeatureValueModel.feature_version == TECHNICAL_OHLCV_V2_FEATURE_VERSION
             )
@@ -330,11 +350,11 @@ def _ohlcv_v2_key_points(
 ) -> list[str]:
     if not signal_result.available:
         return [
-            f"No technical_ohlcv_v2 feature snapshot was available for {symbol}; neutral deterministic fallback used.",
+            f"No available {signal_result.profile_name} technical context was available for {symbol}; neutral deterministic fallback used.",
         ]
     points = [
         (
-            f"technical_ohlcv_v2 composite score is {signal_result.composite_score} "
+            f"{signal_result.profile_name} composite score is {signal_result.composite_score} "
             f"with confidence {signal_result.confidence}."
         ),
         (
@@ -354,6 +374,17 @@ def _ohlcv_v2_key_points(
         points.append(
             f"Universe technical context covered {signal_result.metadata.get('universe_size', 0)} symbols."
         )
+    if signal_result.profile_name == OFFICIAL_V2B_PROFILE:
+        points.append(
+            "Official-data source coverage was "
+            f"{signal_result.metadata.get('official_coverage', '0.0000')}."
+        )
+        missing_official = signal_result.metadata.get("official_missing_features", [])
+        if missing_official:
+            points.append(
+                "Missing official-data families lowered confidence: "
+                f"{', '.join(str(item) for item in missing_official)}."
+            )
     if signal_result.top_contributors:
         contributor = signal_result.top_contributors[0]
         points.append(
@@ -370,10 +401,16 @@ def _ohlcv_v2_key_points(
 
 
 def _ohlcv_v2_risks(signal_result: TechnicalOhlcvSignalResult) -> list[str]:
-    risks = [
-        "technical_ohlcv_v2 is OHLCV-only and does not yet include official market, sector, delivery, circuit, or impact-cost data.",
-        "Technical signals can reverse quickly when volatility rises.",
-    ]
+    risks = ["Technical signals can reverse quickly when volatility rises."]
+    if signal_result.profile_name == OFFICIAL_V2B_PROFILE:
+        risks.append(
+            "technical_official_v2b is opt-in and depends on local official index, VIX, delivery, circuit, and tradability coverage."
+        )
+    else:
+        risks.insert(
+            0,
+            "technical_ohlcv_v2 is OHLCV-only and does not yet include official market, sector, delivery, circuit, or impact-cost data.",
+        )
     if not signal_result.metadata.get("universe_context_available"):
         risks.append(
             "Missing universe context makes v2 confidence lower and cross-sectional evidence unavailable."
@@ -383,7 +420,7 @@ def _ohlcv_v2_risks(signal_result: TechnicalOhlcvSignalResult) -> list[str]:
 
 def _ohlcv_v2_metadata_notes(signal_result: TechnicalOhlcvSignalResult) -> list[str]:
     notes = [
-        "technical_ohlcv_v2 owns stored score and confidence; LLM output may change narrative only.",
+        f"{signal_result.profile_name} owns stored score and confidence; LLM output may change narrative only.",
     ]
     if not signal_result.metadata.get("universe_context_available"):
         notes.append(
@@ -391,6 +428,10 @@ def _ohlcv_v2_metadata_notes(signal_result: TechnicalOhlcvSignalResult) -> list[
         )
     if signal_result.metadata.get("symbol_context_available") is False:
         notes.append("Symbol context was unavailable for cross-sectional scoring.")
+    if signal_result.profile_name == OFFICIAL_V2B_PROFILE:
+        notes.append(
+            "Official-data source coverage is recorded in score metadata and lowers confidence when incomplete."
+        )
     return notes
 
 

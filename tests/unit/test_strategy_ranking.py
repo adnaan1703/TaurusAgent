@@ -11,7 +11,14 @@ from taurus_core.features.store import (
     TechnicalFeatureService,
 )
 from taurus_core.features.technical_context import build_universe_technical_context
+from taurus_core.features.technical_context import (
+    OfficialIndexFeature,
+    OfficialMicrostructureFeature,
+    OfficialTechnicalContext,
+    OfficialTechnicalSymbolContext,
+)
 from taurus_core.features.technical_signal import (
+    OFFICIAL_V2B_PROFILE,
     OHLCV_V2_PROFILE,
     TechnicalSignalService,
 )
@@ -201,6 +208,32 @@ def test_graph_aware_v2_config_selects_ohlcv_profile_and_feature_version() -> No
     assert strategy.technical_profile == OHLCV_V2_PROFILE
 
 
+def test_graph_aware_v2b_config_selects_official_profile_without_changing_v2a() -> None:
+    v2_config = load_strategy_config("configs/strategies/graph_aware_score_v2.yaml")
+    v2b_config = load_strategy_config("configs/strategies/graph_aware_score_v2b.yaml")
+    feature_service = TechnicalFeatureService.from_strategy_parameters(
+        v2b_config.parameters
+    )
+    strategy = GraphAwareScoreStrategy(
+        name=v2b_config.strategy_name,
+        parameters=v2b_config.parameters,
+    )
+
+    assert v2_config.parameters["technical_profile"] == OHLCV_V2_PROFILE
+    assert v2b_config.strategy_name == "graph_aware_score_v2b"
+    assert v2b_config.strategy_type == "graph_aware_score"
+    assert v2b_config.lookback_days == 756
+    assert v2b_config.parameters["technical_analyst_profile"] == OFFICIAL_V2B_PROFILE
+    assert v2b_config.parameters["technical_profile"] == OFFICIAL_V2B_PROFILE
+    assert (
+        v2b_config.parameters["technical_feature_version"]
+        == TECHNICAL_OHLCV_V2_FEATURE_VERSION
+    )
+    assert v2b_config.parameters["official_data"]["benchmark_index_symbol"] == "NIFTY_50"
+    assert feature_service.feature_version == TECHNICAL_OHLCV_V2_FEATURE_VERSION
+    assert strategy.technical_profile == OFFICIAL_V2B_PROFILE
+
+
 def test_graph_aware_v2_ranking_uses_ohlcv_signal_and_nested_metadata() -> None:
     strategy = GraphAwareScoreStrategy(
         name="graph_aware_v2_context_test",
@@ -255,6 +288,85 @@ def test_graph_aware_v2_ranking_uses_ohlcv_signal_and_nested_metadata() -> None:
     assert (
         signals[0].explanation.metadata["technical_v2"]["profile_name"]
         == OHLCV_V2_PROFILE
+    )
+
+
+def test_graph_aware_v2b_ranking_uses_official_context_and_metadata() -> None:
+    strategy = GraphAwareScoreStrategy(
+        name="graph_aware_v2b_context_test",
+        parameters={
+            "technical_profile": OFFICIAL_V2B_PROFILE,
+            "technical_weight": "1",
+            "graph_weight": "0",
+            "min_combined_score": "-1",
+        },
+    )
+    features = {
+        "AAA": _feature_snapshot("AAA", _ohlcv_v2_values(momentum="strong")),
+        "BBB": _feature_snapshot("BBB", _ohlcv_v2_values(momentum="weak")),
+    }
+    universe_context = build_universe_technical_context(features)
+    official_context = _official_context()
+    expected_aaa = TechnicalSignalService().score_official_v2b(
+        features["AAA"],
+        universe_context=universe_context,
+        official_context=official_context,
+    )
+
+    rankings = strategy.rank_universe(
+        trade_date=date(2024, 1, 10),
+        features_by_symbol=features,
+        current_positions=set(),
+        universe_technical_context=universe_context,
+        official_technical_context=official_context,
+    )
+    targets, signals = strategy.select_targets_with_graph(
+        trade_date=date(2024, 1, 10),
+        features_by_symbol=features,
+        current_positions=set(),
+        graph_signals_by_symbol={},
+        target_limit=1,
+        universe_technical_context=universe_context,
+        official_technical_context=official_context,
+    )
+
+    assert rankings[0].symbol == "AAA"
+    assert rankings[0].raw_strategy_score == expected_aaa.score
+    technical_v2 = rankings[0].metadata["technical_v2"]
+    assert technical_v2["profile_name"] == OFFICIAL_V2B_PROFILE
+    assert technical_v2["score_source"] == OFFICIAL_V2B_PROFILE
+    assert technical_v2["metadata"]["official_coverage"] == "1.0000"
+    assert targets == {"AAA"}
+    assert (
+        signals[0].explanation.metadata["technical_v2"]["profile_name"]
+        == OFFICIAL_V2B_PROFILE
+    )
+
+
+def test_graph_aware_v2b_missing_official_context_is_ineligible() -> None:
+    strategy = GraphAwareScoreStrategy(
+        name="graph_aware_v2b_missing_official_context_test",
+        parameters={
+            "technical_profile": OFFICIAL_V2B_PROFILE,
+            "technical_weight": "1",
+            "graph_weight": "0",
+            "min_combined_score": "-1",
+        },
+    )
+    features = {"AAA": _feature_snapshot("AAA", _ohlcv_v2_values(momentum="strong"))}
+
+    rankings = strategy.rank_universe(
+        trade_date=date(2024, 1, 10),
+        features_by_symbol=features,
+        current_positions=set(),
+    )
+
+    assert rankings[0].symbol == "AAA"
+    assert rankings[0].is_eligible is False
+    assert rankings[0].metadata["technical_v2"]["profile_name"] == OFFICIAL_V2B_PROFILE
+    assert (
+        rankings[0].metadata["technical_v2"]["metadata"]["unavailable_reason"]
+        == "missing_official_context"
     )
 
 
@@ -427,6 +539,102 @@ def _ohlcv_v2_values(*, momentum: str) -> dict[str, Decimal]:
         "avg_traded_value_63": Decimal("28000000.00000000"),
         "turnover_z_score_20": Decimal("-0.40000000"),
     }
+
+
+def _official_context() -> OfficialTechnicalContext:
+    benchmark = OfficialIndexFeature(
+        index_symbol="NIFTY_50",
+        index_family="benchmark",
+        trade_date=date(2024, 1, 9),
+        close=Decimal("100"),
+        return_20d=Decimal("0.03000000"),
+        return_63d=Decimal("0.08000000"),
+        regime_state="bullish",
+        source="nse",
+    )
+    volatility = OfficialIndexFeature(
+        index_symbol="INDIA_VIX",
+        index_family="volatility",
+        trade_date=date(2024, 1, 9),
+        close=Decimal("13"),
+        return_20d=Decimal("-0.05000000"),
+        return_63d=Decimal("-0.10000000"),
+        regime_state="calm",
+        source="nse",
+    )
+    contexts = {
+        "AAA": _official_symbol_context(
+            "AAA",
+            benchmark=benchmark,
+            volatility=volatility,
+            market_relative_return_20d=Decimal("0.03000000"),
+            delivery_state="high_participation",
+            delivery_z_score=Decimal("1.50000000"),
+            implementability_score=Decimal("0.8000"),
+        ),
+        "BBB": _official_symbol_context(
+            "BBB",
+            benchmark=benchmark,
+            volatility=volatility,
+            market_relative_return_20d=Decimal("-0.05000000"),
+            delivery_state="low_participation",
+            delivery_z_score=Decimal("-1.20000000"),
+            implementability_score=Decimal("-0.4000"),
+        ),
+    }
+    return OfficialTechnicalContext(
+        profile_name=OFFICIAL_V2B_PROFILE,
+        as_of_date=date(2024, 1, 10),
+        benchmark_index_symbol="NIFTY_50",
+        volatility_index_symbol="INDIA_VIX",
+        symbols=tuple(contexts),
+        symbol_contexts=contexts,
+    )
+
+
+def _official_symbol_context(
+    symbol: str,
+    *,
+    benchmark: OfficialIndexFeature,
+    volatility: OfficialIndexFeature,
+    market_relative_return_20d: Decimal,
+    delivery_state: str,
+    delivery_z_score: Decimal,
+    implementability_score: Decimal,
+) -> OfficialTechnicalSymbolContext:
+    microstructure = OfficialMicrostructureFeature(
+        symbol=symbol,
+        trade_date=date(2024, 1, 9),
+        delivery_percentage=Decimal("55"),
+        delivery_z_score=delivery_z_score,
+        delivery_state=delivery_state,
+        circuit_status="none",
+        circuit_hit=False,
+        near_circuit=False,
+        impact_cost_bps=Decimal("12"),
+        impact_cost_source_kind="proxy",
+        impact_cost_proxy_name="avg_trade_value_proxy",
+        implementability_score=implementability_score,
+        implementability_label="impact_cost_proxy:avg_trade_value_proxy",
+        source="nse",
+    )
+    return OfficialTechnicalSymbolContext(
+        symbol=symbol,
+        as_of_date=date(2024, 1, 10),
+        benchmark_index=benchmark,
+        sector_index=None,
+        volatility_index=volatility,
+        microstructure=microstructure,
+        market_relative_return_20d=market_relative_return_20d,
+        sector_relative_return_20d=None,
+        source_coverage={
+            "benchmark": True,
+            "volatility": True,
+            "delivery": True,
+            "circuit": True,
+            "tradability": True,
+        },
+    )
 
 
 def _candles(symbol: str, *closes: str) -> list[DailyCandle]:

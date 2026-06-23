@@ -217,6 +217,17 @@ removed during docs cleanup. Use Git history for detailed historical plans.
   imports official CSVs; and `make check-official-index-readiness` produces
   explicit v2B readiness failures for missing benchmark, sector, or India VIX
   history without wiring official data into v2A scoring.
+- M84 official microstructure ingestion work is complete:
+  `official_security_microstructure` stores security-wise delivery,
+  circuit/price-band, average trade value, turnover, impact-cost, and explicit
+  implementability source-kind labels with as-of repository access and
+  readiness checks for v2B use.
+- M85 official-data technical profile work is complete: the opt-in
+  `technical_official_v2b` profile reuses v2A OHLCV features plus as-of
+  official benchmark, sector-index, India VIX, delivery, circuit, and
+  implementability context; `graph_aware_score_v2b` is registered for
+  strategy, analyst, backtest, paper-loop, money-management, and validation
+  use; v1 and v2A defaults remain unchanged and v2B is not canonical.
 
 ## Standing Safety Rules
 
@@ -288,7 +299,7 @@ removed during docs cleanup. Use Git history for detailed historical plans.
 | M71 | Done | Replaced the static company SVG with a Reagraph-backed full main-content explorer shell, toolbar search/status/edge-type/camera/refresh controls, node and edge inspection, edge evidence/stats detail loading, focused JSDOM Reagraph tests, and approval-rule cleanup inspection. |
 | M72 | Done | Added explicit selected-node one-hop expansion in the Reagraph inspector, duplicate-free local node/edge merging, per-node expansion loading/error/truncation state, reset-on-refresh/filter behavior, focused React coverage, and approval-rule cleanup inspection. |
 | M73 | Done | Ran focused graph API/repository tests, React graph tests, React production build, the full backend suite, and browser QA; refreshed graph explorer operator/developer docs; fixed a Reagraph expansion focus regression found during visual QA; confirmed approval-rule cleanup was not needed; and closed the M70-M73 sequence. |
-| M74-M86 plan document | Done | Created the flat technical layer overhaul plan and handoff covering v1 baselines, OHLCV v2A indicators, cross-sectional context, deterministic scoring, opt-in strategy and analyst wiring, API/UI visibility, historical validation reports, official index/VIX/delivery/circuit ingestion, v2B scoring, and evidence-gated promotion. Implementation is complete through M84. |
+| M74-M86 plan document | Done | Created the flat technical layer overhaul plan and handoff covering v1 baselines, OHLCV v2A indicators, cross-sectional context, deterministic scoring, opt-in strategy and analyst wiring, API/UI visibility, historical validation reports, official index/VIX/delivery/circuit ingestion, v2B scoring, and evidence-gated promotion. Implementation is complete through M85. |
 | M74 | Done | Added focused v1 technical-layer characterization coverage for analyst-rule metadata, SMA-spread availability and precision, graph-aware ranked-candidate payloads, allocation score calibration, and current base analyst LLM numeric ownership; documented the validation output contract for later M81-M82 evidence reports. |
 | M75 | Done | Added pure OHLCV indicator primitives and opt-in `technical_ohlcv_v2` feature snapshots while preserving v1 defaults and graph-aware v1 scoring behavior. |
 | M76 | Done | Added the pure DB-free universe technical context builder with deterministic cross-sectional ranks, percentiles, z-scores, missing-feature maps, availability counts, and JSON-friendly universe metadata without changing v1 runtime behavior. |
@@ -300,6 +311,7 @@ removed during docs cleanup. Use Git history for detailed historical plans.
 | M82 | Done | Added deterministic technical-agent predictive reports, full-system backtest reports, expanded validation CSVs, an operator Markdown report, and a conservative promotion gate that reports `promote`, `keep_opt_in`, or `defer` without changing v1 defaults or promoting v2. |
 | M83 | Done | Added official benchmark, sector-index, and India VIX ingestion contracts, CSV import/readiness commands, as-of repository access, and focused no-lookahead coverage for future v2B use without wiring official data into v2A scoring. |
 | M84 | Done | Added official security-wise delivery, circuit/price-band, and tradability ingestion contracts, CSV import/readiness commands, as-of repository access, impact-cost proxy labeling, and focused no-lookahead coverage for future v2B use without wiring official microstructure into v2A scoring. |
+| M85 | Done | Added the opt-in `technical_official_v2b` scoring profile, official as-of context builder, `graph_aware_score_v2b` config, analyst/strategy/backtest/paper-loop wiring, money-management mapping, v2B validation profile rows, focused official-data regressions, and docs while preserving v1/v2A defaults. |
 
 ## Completed Graph Explorer Sequence
 
@@ -331,7 +343,7 @@ up, and documented; do not automatically begin later scope.
 | 82 | M82 | Done | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Generate technical-agent and full-system validation reports with a conservative promotion gate. |
 | 83 | M83 | Done | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Ingest official benchmark, sector-index, and India VIX data for v2B. |
 | 84 | M84 | Done | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Ingest official delivery, circuit, and tradability data for v2B. |
-| 85 | M85 | Planned | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Add the opt-in official-data `technical_official_v2b` profile and v2B validation. |
+| 85 | M85 | Done | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Add the opt-in official-data `technical_official_v2b` profile and v2B validation. |
 | 86 | M86 | Planned | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Make the evidence-backed promotion or keep-opt-in decision and close the sequence. |
 
 ## Completed Technical Signal Service Sequence
@@ -344,6 +356,34 @@ This completed sequence was executed in order as separate milestone work.
 | 67 | M67 | Done | `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md` | Add the DB-free shared `TechnicalSignalService` foundation without runtime wiring. |
 | 68 | M68 | Done | `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md` | Route `TechnicalAnalystAgent` and `GraphAwareScoreStrategy` through the shared service without behavior drift. |
 | 69 | M69 | Done | `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md` | Run final regression, refresh architecture/deep-dive docs for implemented behavior, and close the sequence. |
+
+### M85 Completion Summary
+
+- Assumptions made: M85 should remain additive and opt-in only; v2B should
+  reuse the v2A OHLCV feature suite and add official-data context rather than
+  changing `technical_ohlcv_v2`; official sector-relative evidence should be
+  present only for symbols mapped to an official sector index; missing official
+  context should make v2B unavailable instead of silently behaving like v2A;
+  partial official coverage should lower confidence and surface missing
+  features; `make validate-technical-v2` should compare v1, v2A, and v2B but
+  leave promotion to M86.
+- Mocks created: Deterministic in-test official benchmark, sector-index, India
+  VIX, and security microstructure rows in
+  `tests/unit/test_official_technical_context.py`, plus manual
+  `OfficialTechnicalContext` fixtures in
+  `tests/unit/test_strategy_ranking.py`.
+- Mocks used: Project-local Postgres test fixtures and deterministic in-memory
+  official context objects only; no external official CSVs or live services
+  were used.
+- Verification: `uv run python -m compileall` on touched modules and tests;
+  `uv run pytest tests/unit/test_official_technical_context.py tests/unit/test_technical_signal_service.py tests/unit/test_strategy_ranking.py tests/unit/test_graph_backtesting.py tests/unit/test_money_management.py tests/unit/test_paper_runs.py`
+  passed with 74 tests; `uv run pytest tests/unit/test_config.py
+  tests/unit/test_dashboard_observability.py` passed with 29 tests;
+  `make test` passed with 436 tests and 1 skipped test; `make lint` passed;
+  `make validate-technical-v2` exited 0 and wrote
+  `techval-748ec624a9fe1297` with v2B profile rows but deferred promotion
+  because local common candle coverage is 282 of 1009 required candles;
+  `make migrate` completed with schema up to date.
 
 ### M84 Completion Summary
 

@@ -260,6 +260,8 @@ strategy_mappings:
     sleeve_id: active_strategy
   - strategy_name: graph_aware_score_v2
     sleeve_id: active_strategy
+  - strategy_name: graph_aware_score_v2b
+    sleeve_id: active_strategy
   - strategy_name: moving_average_crossover_v1
     sleeve_id: active_strategy
   - strategy_name: blended_score_v1
@@ -385,12 +387,12 @@ React debugging tables. These copies are additive evidence for operators; they
 do not change candidate-score formulas or allocation ordering.
 
 M83 added official benchmark, sector-index, and India VIX ingestion/readiness
-contracts for future v2B scoring. M84 added official delivery, circuit,
-price-band, and tradability ingestion/readiness contracts, including explicit
-impact-cost source-kind labels for official, proxy, or unavailable data. Those
-rows are not consumed by `graph_aware_score_v2`, allocation calibration,
-candidate scoring, or quantity sizing until a later explicit v2B milestone
-wires them into `TechnicalSignalService`.
+contracts, and M84 added official delivery, circuit, price-band, and
+tradability ingestion/readiness contracts, including explicit impact-cost
+source-kind labels for official, proxy, or unavailable data. Those rows are not
+consumed by `graph_aware_score_v2`, allocation calibration, candidate scoring,
+or quantity sizing. They are consumed only by the opt-in
+`graph_aware_score_v2b` profile described below.
 
 Allocation impact:
 
@@ -398,6 +400,48 @@ Allocation impact:
 - raw composite strategy score contributes through the existing strategy-score
   calibration and 30% allocation candidate-score component
 - remains opt-in until a later evidence-backed promotion decision
+
+### `graph_aware_score_v2b`
+
+Config: `configs/strategies/graph_aware_score_v2b.yaml`
+
+Implementation: `GraphAwareScoreStrategy`
+
+This is an opt-in M85 strategy profile, not the canonical Kite paper-loop
+default. Run it only by explicitly selecting:
+
+```text
+STRATEGY=configs/strategies/graph_aware_score_v2b.yaml
+```
+
+The v2B profile keeps graph behavior equivalent to v1/v2A but sets:
+
+```text
+technical_profile = technical_official_v2b
+technical_analyst_profile = technical_official_v2b
+technical_feature_version = technical_ohlcv_v2
+official_data.benchmark_index_symbol = NIFTY_50
+official_data.volatility_index_symbol = INDIA_VIX
+```
+
+`PaperRunService` and `BacktestEngine` build the same v2A universe technical
+context, then add an as-of official context from `official_index_candles` and
+`official_security_microstructure`. `TechnicalSignalService.score_official_v2b()`
+uses v2A OHLCV score components plus official market-relative return,
+configured sector-relative return, market/sector regime, India VIX
+level/change/regime, delivery participation, circuit penalties, and
+implementability/impact-cost evidence.
+
+Missing official context makes v2B unavailable rather than silently falling
+back to v2A. Partial official coverage lowers confidence and is visible in the
+nested technical metadata.
+
+Allocation impact:
+
+- maps to `active_strategy`
+- raw v2B composite strategy score contributes through the existing
+  strategy-score calibration and 30% allocation candidate-score component
+- remains opt-in until M86 or a later evidence-backed promotion decision
 
 ### `moving_average_crossover_v1`
 

@@ -5,15 +5,15 @@ Last updated: 2026-06-23
 ## Current Status
 
 - Current milestone: None.
-- Last completed milestone: M84 Official Delivery, Circuit, And Tradability
-  Data Ingestion.
+- Last completed milestone: M85 V2B Official-Data Technical Profile.
 - Planning completed: M74-M86 technical layer overhaul sequence.
 - Implementation state: M74, M75, M76, M77, M78, M79, M80, M81, M82, M83,
-  and M84 are complete. The
+  M84, and M85 are complete. The
   canonical/default runtime remains behavior-preserving:
   `TechnicalAnalystAgent` uses `technical_rule_v1` unless the analyst runner is
-  explicitly passed `technical_ohlcv_v2`, and `GraphAwareScoreStrategy` uses the
-  SMA-spread profile for `graph_aware_score_v1`. M75 added pure OHLCV indicator primitives and an
+  explicitly passed `technical_ohlcv_v2` or `technical_official_v2b`, and
+  `GraphAwareScoreStrategy` uses the SMA-spread profile for
+  `graph_aware_score_v1`. M75 added pure OHLCV indicator primitives and an
   opt-in `technical_ohlcv_v2` `TechnicalFeatureService` suite. M76 added the
   pure DB-free `build_universe_technical_context()` path for cross-sectional
   ranks, percentiles, z-scores, missing-feature visibility, availability
@@ -81,8 +81,20 @@ Last updated: 2026-06-23
   failures for missing delivery, circuit, or tradability families. M84 did not
   wire official microstructure data into `technical_ohlcv_v2`,
   `graph_aware_score_v2`, `make validate-technical-v2`, or canonical
-  paper-loop scoring.
-- Next recommended milestone: M85 v2B official-data technical profile.
+  paper-loop scoring. M85 added the opt-in `technical_official_v2b` profile:
+  `build_official_technical_context()` joins official index/VIX and security
+  microstructure rows as-of, enriches them with snapshot returns, and feeds
+  `TechnicalSignalService.score_official_v2b()`. The profile adds
+  market-relative return, optional sector-relative return, market/sector
+  regime, India VIX level/change/regime, delivery participation, circuit-band
+  penalties, and implementability/impact-cost evidence on top of v2A OHLCV.
+  `configs/strategies/graph_aware_score_v2b.yaml` is opt-in only and is wired
+  through strategy ranking/signals, `TechnicalAnalystAgent`, paper summaries,
+  backtesting, money-management mapping, and validation profile manifests.
+  Missing official context makes v2B unavailable and partial official coverage
+  lowers confidence. M85 did not promote v2B or change v1/v2A defaults.
+- Next recommended milestone: M86 promotion decision, regression, docs, and
+  cleanup.
 - Thread model requirement from the user: each milestone worker thread should
   use GPT 5.5 with xhigh thinking.
 - Commit policy from the user: do not commit anything unless explicitly asked.
@@ -97,6 +109,7 @@ Last updated: 2026-06-23
 - `/Users/adnaan/Downloads/deep-research-report.md`
 - `packages/taurus_core/features/technical_signal.py`
 - `packages/taurus_core/features/technical_context.py`
+- `packages/taurus_core/features/official_context.py`
 - `packages/taurus_core/features/store.py`
 - `packages/taurus_core/features/technical.py`
 - `packages/taurus_core/data/official_indices.py`
@@ -107,6 +120,7 @@ Last updated: 2026-06-23
 - `packages/taurus_core/portfolio/score_semantics.py`
 - `configs/strategies/graph_aware_score_v1.yaml`
 - `configs/strategies/graph_aware_score_v2.yaml`
+- `configs/strategies/graph_aware_score_v2b.yaml`
 - `configs/portfolio/money_management_v1.yaml`
 
 ## Worker Thread Instructions
@@ -145,7 +159,7 @@ sequence is:
 - M82: technical validation reports and conservative gate. Done.
 - M83: official index, sector, and India VIX data ingestion. Done.
 - M84: official delivery, circuit, and tradability data ingestion. Done.
-- M85: v2B official-data technical profile.
+- M85: v2B official-data technical profile. Done.
 - M86: promotion decision, regression, docs, and cleanup.
 
 ## Update Rules
@@ -166,21 +180,24 @@ sequence is:
 ## Known Boundaries
 
 - `graph_aware_score_v1` remains canonical until M86 or a later explicit user
-  instruction changes it. `graph_aware_score_v2` is opt-in only via
-  `STRATEGY=configs/strategies/graph_aware_score_v2.yaml`.
+  instruction changes it. `graph_aware_score_v2` and `graph_aware_score_v2b`
+  are opt-in only via their strategy YAMLs.
 - v2A may use full OHLCV plus universe cross-sectional ranks, but must not use
   local market/sector proxies for official market-relative or sector-relative
   scoring.
 - v2A technical analyst score/confidence are deterministic when the analyst
   profile is `technical_ohlcv_v2`; LLM output may provide narrative, key
   points, and risks but must not own stored v2 score/confidence.
+- v2B technical analyst score/confidence are deterministic when the analyst
+  profile is `technical_official_v2b`; the profile requires explicit official
+  context and does not silently fall back to v2A when official data is absent.
 - M80 visibility is additive only: v2A metadata may be absent on legacy v1 runs,
   and API/UI/replay consumers must omit it cleanly instead of treating it as
   required.
-- v2B official relative-strength/regime/microstructure features wait for M85
-  scoring. M83 official benchmark, sector-index, and India VIX history plus
-  M84 official delivery, circuit, and tradability history are available as
-  ingestion/readiness contracts only.
+- v2B official relative-strength/regime/microstructure scoring is implemented
+  as opt-in only. Sector-relative evidence is present only for configured
+  symbol-to-sector-index mappings; missing or stale official rows are surfaced
+  as missing features and lower coverage/confidence.
 - Validation must prove both technical-agent predictive quality and full-system
   historical backtest behavior before promotion.
 - M82 reports allocation behavior from the backtest layer as an explicit proxy;

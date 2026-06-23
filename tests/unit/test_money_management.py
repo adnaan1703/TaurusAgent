@@ -42,6 +42,7 @@ def test_graph_aware_v2_maps_to_active_strategy_in_default_policy() -> None:
 
     assert mappings["graph_aware_score_v1"] == "active_strategy"
     assert mappings["graph_aware_score_v2"] == "active_strategy"
+    assert mappings["graph_aware_score_v2b"] == "active_strategy"
 
 
 def test_legacy_policy_without_rebalance_capacity_uses_safe_defaults(

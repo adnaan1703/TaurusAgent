@@ -18,7 +18,10 @@ from taurus_core.agents.sentiment_analyst import SentimentAnalystAgent
 from taurus_core.agents.technical_analyst import TechnicalAnalystAgent
 from taurus_core.db.repositories import AnalystReportRepository, InstrumentRepository
 from taurus_core.features.store import FeatureSnapshot
-from taurus_core.features.technical_context import UniverseTechnicalContext
+from taurus_core.features.technical_context import (
+    OfficialTechnicalContext,
+    UniverseTechnicalContext,
+)
 from taurus_core.features.technical_signal import ANALYST_RULE_PROFILE
 from taurus_core.llm.base import LLMProvider
 from taurus_core.logging import get_logger
@@ -51,6 +54,7 @@ def run_analyst_suite(
     technical_profile: str = ANALYST_RULE_PROFILE,
     technical_feature_snapshots: dict[str, FeatureSnapshot] | None = None,
     universe_technical_context: UniverseTechnicalContext | None = None,
+    official_technical_context: OfficialTechnicalContext | None = None,
 ) -> list[AnalystReport]:
     symbol = symbol.upper()
     profile_id = validate_profile_id(portfolio_id)
@@ -78,6 +82,7 @@ def run_analyst_suite(
                     technical_profile=technical_profile,
                     feature_snapshot=feature_snapshot,
                     universe_technical_context=universe_technical_context,
+                    official_technical_context=official_technical_context,
                 ).model_copy(update={"portfolio_id": profile_id})
             else:
                 report = agent.run(symbol=symbol, run_id=run_id).model_copy(
