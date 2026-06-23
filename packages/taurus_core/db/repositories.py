@@ -37,6 +37,7 @@ from taurus_core.db.models import (
     InstrumentModel,
     MarketPriceSnapshotModel,
     OfficialIndexCandleModel,
+    OfficialSecurityMicrostructureModel,
     PaperRunModel,
     PaperAccountModel,
     PaperFillModel,
@@ -51,7 +52,10 @@ from taurus_core.db.models import (
 )
 from taurus_core.domain.instruments import Instrument
 from taurus_core.domain.market_data import DailyCandle, MarketPriceSnapshot
-from taurus_core.domain.official_market_data import OfficialIndexCandle
+from taurus_core.domain.official_market_data import (
+    OfficialIndexCandle,
+    OfficialSecurityMicrostructure,
+)
 from taurus_core.intelligence.documents import NewsEvent, RawDocument, SentimentScore
 from taurus_core.agents.schemas import AnalystReport
 from taurus_core.research.schemas import DebateReport, TraderProposal
@@ -364,6 +368,170 @@ class OfficialIndexCandleRepository:
             OfficialIndexCandleModel.index_symbol,
             OfficialIndexCandleModel.trade_date,
             OfficialIndexCandleModel.source,
+        )
+
+
+class OfficialSecurityMicrostructureRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def upsert(
+        self, rows: list[OfficialSecurityMicrostructure]
+    ) -> list[OfficialSecurityMicrostructureModel]:
+        models: list[OfficialSecurityMicrostructureModel] = []
+        for row in rows:
+            model = self._get_one(
+                row.symbol,
+                row.trade_date,
+                row.timeframe,
+                row.source,
+            )
+            if model is None:
+                model = _official_security_microstructure_to_model(row)
+                self.session.add(model)
+            else:
+                model.source_url = row.source_url
+                model.data_available_time = _official_microstructure_available_time(row)
+                _merge_microstructure_fields(model, row)
+                model.raw = dict(row.raw or {})
+            models.append(model)
+        self.session.flush()
+        return models
+
+    def list(
+        self,
+        *,
+        symbol: str | None = None,
+        timeframe: str = "1d",
+        source: str | None = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
+    ) -> list[OfficialSecurityMicrostructureModel]:
+        statement = self._base_select(
+            symbol=symbol,
+            timeframe=timeframe,
+            source=source,
+        )
+        if start_date is not None:
+            statement = statement.where(
+                OfficialSecurityMicrostructureModel.trade_date >= start_date
+            )
+        if end_date is not None:
+            statement = statement.where(
+                OfficialSecurityMicrostructureModel.trade_date <= end_date
+            )
+        return list(self.session.scalars(statement))
+
+    def get_by_symbol_and_date_range(
+        self,
+        *,
+        symbol: str,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        timeframe: str = "1d",
+        source: str | None = None,
+    ) -> list[OfficialSecurityMicrostructureModel]:
+        return self.list(
+            symbol=symbol,
+            timeframe=timeframe,
+            source=source,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+    def history_as_of(
+        self,
+        *,
+        symbol: str,
+        as_of: date | datetime,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        timeframe: str = "1d",
+        source: str | None = None,
+    ) -> list[OfficialSecurityMicrostructureModel]:
+        statement = self._base_select(
+            symbol=symbol,
+            timeframe=timeframe,
+            source=source,
+        ).where(
+            OfficialSecurityMicrostructureModel.data_available_time
+            <= _as_of_time(as_of)
+        )
+        if start_date is not None:
+            statement = statement.where(
+                OfficialSecurityMicrostructureModel.trade_date >= start_date
+            )
+        if end_date is not None:
+            statement = statement.where(
+                OfficialSecurityMicrostructureModel.trade_date <= end_date
+            )
+        return list(self.session.scalars(statement))
+
+    def latest_as_of(
+        self,
+        *,
+        symbol: str,
+        as_of: date | datetime,
+        timeframe: str = "1d",
+        source: str | None = None,
+    ) -> OfficialSecurityMicrostructureModel | None:
+        statement = (
+            self._base_select(
+                symbol=symbol,
+                timeframe=timeframe,
+                source=source,
+            )
+            .where(
+                OfficialSecurityMicrostructureModel.data_available_time
+                <= _as_of_time(as_of)
+            )
+            .order_by(None)
+            .order_by(
+                OfficialSecurityMicrostructureModel.trade_date.desc(),
+                OfficialSecurityMicrostructureModel.data_available_time.desc(),
+                OfficialSecurityMicrostructureModel.source,
+            )
+            .limit(1)
+        )
+        return self.session.scalar(statement)
+
+    def _get_one(
+        self,
+        symbol: str,
+        trade_date: date,
+        timeframe: str,
+        source: str,
+    ) -> OfficialSecurityMicrostructureModel | None:
+        statement = select(OfficialSecurityMicrostructureModel).where(
+            OfficialSecurityMicrostructureModel.symbol == symbol.upper(),
+            OfficialSecurityMicrostructureModel.timeframe == timeframe,
+            OfficialSecurityMicrostructureModel.trade_date == trade_date,
+            OfficialSecurityMicrostructureModel.source == source,
+        )
+        return self.session.scalar(statement)
+
+    @staticmethod
+    def _base_select(
+        *,
+        symbol: str | None,
+        timeframe: str,
+        source: str | None,
+    ) -> Select[tuple[OfficialSecurityMicrostructureModel]]:
+        statement = select(OfficialSecurityMicrostructureModel).where(
+            OfficialSecurityMicrostructureModel.timeframe == timeframe
+        )
+        if symbol is not None:
+            statement = statement.where(
+                OfficialSecurityMicrostructureModel.symbol == symbol.upper()
+            )
+        if source is not None:
+            statement = statement.where(
+                OfficialSecurityMicrostructureModel.source == source
+            )
+        return statement.order_by(
+            OfficialSecurityMicrostructureModel.symbol,
+            OfficialSecurityMicrostructureModel.trade_date,
+            OfficialSecurityMicrostructureModel.source,
         )
 
 
@@ -3153,6 +3321,114 @@ def _official_index_family(value: str) -> str:
         normalized = "volatility"
     if normalized not in {"benchmark", "sector", "volatility", "other"}:
         raise ValueError(f"Unsupported official index family: {value!r}")
+    return normalized
+
+
+def _official_security_microstructure_to_model(
+    row: OfficialSecurityMicrostructure,
+) -> OfficialSecurityMicrostructureModel:
+    return OfficialSecurityMicrostructureModel(
+        symbol=row.symbol.upper(),
+        timeframe=row.timeframe,
+        trade_date=row.trade_date,
+        source=row.source,
+        source_url=row.source_url,
+        data_available_time=_official_microstructure_available_time(row),
+        delivery_quantity=row.delivery_quantity,
+        delivery_percentage=row.delivery_percentage,
+        price_band_percent=row.price_band_percent,
+        upper_circuit_price=row.upper_circuit_price,
+        lower_circuit_price=row.lower_circuit_price,
+        circuit_status=_official_circuit_status(row.circuit_status)
+        if row.circuit_status is not None
+        else None,
+        circuit_hit=row.circuit_hit,
+        impact_cost_bps=row.impact_cost_bps,
+        impact_cost_source_kind=_official_impact_cost_kind(
+            row.impact_cost_source_kind
+        ),
+        impact_cost_proxy_name=row.impact_cost_proxy_name,
+        average_trade_value=row.average_trade_value,
+        turnover=row.turnover,
+        raw=dict(row.raw or {}),
+    )
+
+
+def _merge_microstructure_fields(
+    model: OfficialSecurityMicrostructureModel,
+    row: OfficialSecurityMicrostructure,
+) -> None:
+    for field_name in (
+        "delivery_quantity",
+        "delivery_percentage",
+        "price_band_percent",
+        "upper_circuit_price",
+        "lower_circuit_price",
+        "circuit_hit",
+        "impact_cost_bps",
+        "impact_cost_proxy_name",
+        "average_trade_value",
+        "turnover",
+    ):
+        value = getattr(row, field_name)
+        if value is not None:
+            setattr(model, field_name, value)
+    if row.circuit_status is not None:
+        model.circuit_status = _official_circuit_status(row.circuit_status)
+    if (
+        row.impact_cost_source_kind != "unavailable"
+        or row.impact_cost_bps is not None
+        or row.impact_cost_proxy_name is not None
+    ):
+        model.impact_cost_source_kind = _official_impact_cost_kind(
+            row.impact_cost_source_kind
+        )
+
+
+def _official_microstructure_available_time(
+    row: OfficialSecurityMicrostructure,
+) -> datetime:
+    if row.data_available_time is not None:
+        if row.data_available_time.tzinfo is None:
+            return row.data_available_time.replace(tzinfo=timezone.utc)
+        return row.data_available_time
+    return datetime.combine(row.trade_date, time(18, 0), tzinfo=timezone.utc)
+
+
+def _official_impact_cost_kind(value: str) -> str:
+    normalized = value.strip().lower().replace("-", "_").replace(" ", "_")
+    if normalized in {"official", "proxy", "unavailable"}:
+        return normalized
+    raise ValueError(f"Unsupported impact cost source kind: {value!r}")
+
+
+def _official_circuit_status(value: str) -> str:
+    normalized = value.strip().lower().replace("-", "_").replace(" ", "_")
+    aliases = {
+        "upper": "upper_circuit",
+        "upper_band": "upper_circuit",
+        "upper_price_band": "upper_circuit",
+        "lower": "lower_circuit",
+        "lower_band": "lower_circuit",
+        "lower_price_band": "lower_circuit",
+        "no_circuit": "none",
+        "normal": "none",
+        "not_hit": "none",
+        "na": "unknown",
+        "n_a": "unknown",
+    }
+    normalized = aliases.get(normalized, normalized)
+    if normalized not in {
+        "none",
+        "upper_circuit",
+        "lower_circuit",
+        "near_upper",
+        "near_lower",
+        "no_band",
+        "unknown",
+        "other",
+    }:
+        raise ValueError(f"Unsupported circuit status: {value!r}")
     return normalized
 
 

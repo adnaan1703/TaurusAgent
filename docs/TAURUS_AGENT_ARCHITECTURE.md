@@ -269,6 +269,17 @@ are available through `make import-official-index-data` and
 table; M85 is responsible for joining these official rows into
 market-relative, sector-relative, and volatility-regime scoring.
 
+M84 added official microstructure/tradability reference storage for future v2B
+work: `official_security_microstructure` stores symbol/date keyed delivery
+quantity/percentage, price-band or circuit-hit fields, average trade value,
+turnover, and impact-cost fields whose source kind is explicitly labeled
+`official`, `proxy`, or `unavailable`. Rows also keep source, source URL,
+source-row metadata, timeframe, and `data_available_time`. Import and readiness
+commands are available through `make import-official-microstructure-data` and
+`make check-official-microstructure-readiness`. Current v1/v2A profiles do not
+read this table; M85 is responsible for joining these official delivery,
+circuit, and tradability rows into v2B scoring.
+
 The shared service is DB-free and behavior-preserving for the first
 implementation sequence. Runtime profile selection is currently implemented for
 `GraphAwareScoreStrategy` and `TechnicalAnalystAgent`; migration of

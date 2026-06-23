@@ -93,6 +93,8 @@ make profile-update-corpus PROFILE_ID=client-a PROFILE_CORPUS_INR=500000
 make import-market-data
 make import-official-index-data OFFICIAL_INDEX_CSV=/path/to/index.csv
 make check-official-index-readiness
+make import-official-microstructure-data OFFICIAL_MICROSTRUCTURE_CSV=/path/to/security-wise.csv
+make check-official-microstructure-readiness OFFICIAL_MICROSTRUCTURE_SYMBOLS=INFY,TCS
 make import-screener CSV=/path/to/screener.csv
 make import-taurus-graph DATA_DIR=configs/taurus_data
 make compute-graph-stats AS_OF=YYYY-MM-DD
@@ -210,6 +212,42 @@ Equivalent direct CLI commands:
 ```bash
 DATABASE_URL="$DATABASE_URL" PYTHONPATH=packages:. uv run python scripts/import_official_index_data.py import --csv /path/to/nifty50.csv --index-symbol NIFTY_50 --index-name "Nifty 50" --index-family benchmark
 DATABASE_URL="$DATABASE_URL" PYTHONPATH=packages:. uv run python scripts/import_official_index_data.py readiness --sector-symbols NIFTY_IT --output artifacts/technical_validation/official_index_readiness.json
+```
+
+Official delivery, circuit, and tradability data:
+
+```bash
+make import-official-microstructure-data OFFICIAL_MICROSTRUCTURE_CSV=/path/to/security-wise.csv
+make import-official-microstructure-data OFFICIAL_MICROSTRUCTURE_CSV=/path/to/impact-proxy.csv OFFICIAL_MICROSTRUCTURE_IMPACT_COST_SOURCE_KIND=proxy OFFICIAL_MICROSTRUCTURE_IMPACT_COST_PROXY_NAME=avg_trade_value_proxy
+make check-official-microstructure-readiness OFFICIAL_MICROSTRUCTURE_SYMBOLS=INFY,TCS
+```
+
+`make import-official-microstructure-data` accepts CSV rows with columns such
+as `symbol`, `trade_date`, `delivery_quantity`, `delivery_percentage`,
+`price_band_percent`, `upper_circuit_price`, `lower_circuit_price`,
+`circuit_status`, `circuit_hit`, `impact_cost_bps`,
+`impact_cost_source_kind`, `impact_cost_proxy_name`, `average_trade_value`,
+`turnover`, `source`, `source_url`, `timeframe`, and
+`data_available_time`. Impact-cost fallback rows must set
+`impact_cost_source_kind=proxy` and name `impact_cost_proxy_name`; official
+impact-cost rows should use `impact_cost_source_kind=official`. Rows are stored
+in `official_security_microstructure` with source-row metadata and
+availability timestamps. The repository as-of accessors filter by
+`data_available_time` so future official microstructure rows cannot leak into
+historical validation.
+
+`make check-official-microstructure-readiness` writes
+`artifacts/technical_validation/official_microstructure_readiness.json` by
+default and returns non-zero when required delivery, circuit, or tradability
+history is missing for the requested `OFFICIAL_MICROSTRUCTURE_SYMBOLS`.
+Readiness defaults to all three families; narrow a check with
+`OFFICIAL_MICROSTRUCTURE_REQUIRED_FAMILIES=delivery,circuit`.
+
+Equivalent direct CLI commands:
+
+```bash
+DATABASE_URL="$DATABASE_URL" PYTHONPATH=packages:. uv run python scripts/import_official_microstructure_data.py import --csv /path/to/security-wise.csv
+DATABASE_URL="$DATABASE_URL" PYTHONPATH=packages:. uv run python scripts/import_official_microstructure_data.py readiness --symbols INFY,TCS --output artifacts/technical_validation/official_microstructure_readiness.json
 ```
 
 Technical validation:

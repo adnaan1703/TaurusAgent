@@ -288,7 +288,7 @@ removed during docs cleanup. Use Git history for detailed historical plans.
 | M71 | Done | Replaced the static company SVG with a Reagraph-backed full main-content explorer shell, toolbar search/status/edge-type/camera/refresh controls, node and edge inspection, edge evidence/stats detail loading, focused JSDOM Reagraph tests, and approval-rule cleanup inspection. |
 | M72 | Done | Added explicit selected-node one-hop expansion in the Reagraph inspector, duplicate-free local node/edge merging, per-node expansion loading/error/truncation state, reset-on-refresh/filter behavior, focused React coverage, and approval-rule cleanup inspection. |
 | M73 | Done | Ran focused graph API/repository tests, React graph tests, React production build, the full backend suite, and browser QA; refreshed graph explorer operator/developer docs; fixed a Reagraph expansion focus regression found during visual QA; confirmed approval-rule cleanup was not needed; and closed the M70-M73 sequence. |
-| M74-M86 plan document | Done | Created the flat technical layer overhaul plan and handoff covering v1 baselines, OHLCV v2A indicators, cross-sectional context, deterministic scoring, opt-in strategy and analyst wiring, API/UI visibility, historical validation reports, official index/VIX/delivery/circuit ingestion, v2B scoring, and evidence-gated promotion. Implementation is complete through M83. |
+| M74-M86 plan document | Done | Created the flat technical layer overhaul plan and handoff covering v1 baselines, OHLCV v2A indicators, cross-sectional context, deterministic scoring, opt-in strategy and analyst wiring, API/UI visibility, historical validation reports, official index/VIX/delivery/circuit ingestion, v2B scoring, and evidence-gated promotion. Implementation is complete through M84. |
 | M74 | Done | Added focused v1 technical-layer characterization coverage for analyst-rule metadata, SMA-spread availability and precision, graph-aware ranked-candidate payloads, allocation score calibration, and current base analyst LLM numeric ownership; documented the validation output contract for later M81-M82 evidence reports. |
 | M75 | Done | Added pure OHLCV indicator primitives and opt-in `technical_ohlcv_v2` feature snapshots while preserving v1 defaults and graph-aware v1 scoring behavior. |
 | M76 | Done | Added the pure DB-free universe technical context builder with deterministic cross-sectional ranks, percentiles, z-scores, missing-feature maps, availability counts, and JSON-friendly universe metadata without changing v1 runtime behavior. |
@@ -299,6 +299,7 @@ removed during docs cleanup. Use Git history for detailed historical plans.
 | M81 | Done | Added the project-local historical validation command, data-readiness artifacts, comparable v1/v2 backtest profiles, and deeper-history guidance while preserving canonical paper-loop defaults. |
 | M82 | Done | Added deterministic technical-agent predictive reports, full-system backtest reports, expanded validation CSVs, an operator Markdown report, and a conservative promotion gate that reports `promote`, `keep_opt_in`, or `defer` without changing v1 defaults or promoting v2. |
 | M83 | Done | Added official benchmark, sector-index, and India VIX ingestion contracts, CSV import/readiness commands, as-of repository access, and focused no-lookahead coverage for future v2B use without wiring official data into v2A scoring. |
+| M84 | Done | Added official security-wise delivery, circuit/price-band, and tradability ingestion contracts, CSV import/readiness commands, as-of repository access, impact-cost proxy labeling, and focused no-lookahead coverage for future v2B use without wiring official microstructure into v2A scoring. |
 
 ## Completed Graph Explorer Sequence
 
@@ -329,7 +330,7 @@ up, and documented; do not automatically begin later scope.
 | 81 | M81 | Done | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Add the historical validation command and data-readiness checks for v1/v2 comparisons. |
 | 82 | M82 | Done | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Generate technical-agent and full-system validation reports with a conservative promotion gate. |
 | 83 | M83 | Done | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Ingest official benchmark, sector-index, and India VIX data for v2B. |
-| 84 | M84 | Planned | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Ingest official delivery, circuit, and tradability data for v2B. |
+| 84 | M84 | Done | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Ingest official delivery, circuit, and tradability data for v2B. |
 | 85 | M85 | Planned | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Add the opt-in official-data `technical_official_v2b` profile and v2B validation. |
 | 86 | M86 | Planned | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Make the evidence-backed promotion or keep-opt-in decision and close the sequence. |
 
@@ -343,6 +344,34 @@ This completed sequence was executed in order as separate milestone work.
 | 67 | M67 | Done | `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md` | Add the DB-free shared `TechnicalSignalService` foundation without runtime wiring. |
 | 68 | M68 | Done | `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md` | Route `TechnicalAnalystAgent` and `GraphAwareScoreStrategy` through the shared service without behavior drift. |
 | 69 | M69 | Done | `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md` | Run final regression, refresh architecture/deep-dive docs for implemented behavior, and close the sequence. |
+
+### M84 Completion Summary
+
+- Assumptions made: M84 should create official microstructure ingestion and
+  readiness contracts only, leaving `technical_ohlcv_v2`,
+  `graph_aware_score_v2`, `technical_rule_v1`, `graph_aware_score_v1`,
+  `make validate-technical-v2`, and `make paper-loop-kite` scoring behavior
+  unchanged until M85; security-wise delivery and circuit data should be
+  symbol/date keyed; readiness should require an explicit symbol list through
+  `OFFICIAL_MICROSTRUCTURE_SYMBOLS`; and impact-cost fallback rows must be
+  labeled with `impact_cost_source_kind=proxy` plus a named
+  `impact_cost_proxy_name` when official impact-cost data is unavailable.
+- Mocks created: `tests/unit/test_official_microstructure_data.py` creates
+  deterministic delivery, circuit/price-band, tradability, and impact-cost
+  proxy fixtures plus temporary official microstructure CSVs.
+- Mocks used: The focused tests use the project-local Postgres test fixture and
+  deterministic in-test official microstructure rows only; no M84 data is used
+  for v2A scoring or allocation.
+- Verification: `uv run pytest tests/unit/test_official_microstructure_data.py`
+  passed with 5 tests; `uv run pytest tests/unit/test_config.py
+  tests/unit/test_dashboard_observability.py
+  tests/unit/test_official_microstructure_data.py` passed with 34 tests;
+  `make migrate` passed; `make lint` passed; and
+  `uv run pytest tests/unit/test_migrations.py` passed with 3 tests.
+  Approval-rule cleanup found no accidental Taurus-specific global approvals
+  after the `# END MY CUSTOM ADDITION` marker; the project-local
+  `.codex/rules/default.rules` was updated locally with the two M84 Make
+  targets.
 
 ### M83 Completion Summary
 

@@ -385,10 +385,12 @@ React debugging tables. These copies are additive evidence for operators; they
 do not change candidate-score formulas or allocation ordering.
 
 M83 added official benchmark, sector-index, and India VIX ingestion/readiness
-contracts for future v2B scoring. Those rows are not consumed by
-`graph_aware_score_v2`, allocation calibration, candidate scoring, or quantity
-sizing until a later explicit v2B milestone wires them into
-`TechnicalSignalService`.
+contracts for future v2B scoring. M84 added official delivery, circuit,
+price-band, and tradability ingestion/readiness contracts, including explicit
+impact-cost source-kind labels for official, proxy, or unavailable data. Those
+rows are not consumed by `graph_aware_score_v2`, allocation calibration,
+candidate scoring, or quantity sizing until a later explicit v2B milestone
+wires them into `TechnicalSignalService`.
 
 Allocation impact:
 

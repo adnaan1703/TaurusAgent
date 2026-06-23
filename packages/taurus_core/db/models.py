@@ -7,6 +7,7 @@ from sqlalchemy import (
     CheckConstraint,
     JSON,
     BigInteger,
+    Boolean,
     Date,
     DateTime,
     ForeignKey,
@@ -182,6 +183,91 @@ class OfficialIndexCandleModel(Base):
         nullable=False,
         default=utc_now,
     )
+    raw: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc_now,
+        onupdate=utc_now,
+    )
+
+
+class OfficialSecurityMicrostructureModel(Base):
+    __tablename__ = "official_security_microstructure"
+    __table_args__ = (
+        UniqueConstraint(
+            "symbol",
+            "timeframe",
+            "trade_date",
+            "source",
+            name="uq_off_micro_symbol_time_date_source",
+        ),
+        CheckConstraint(
+            "impact_cost_source_kind IN ('official', 'proxy', 'unavailable')",
+            name="ck_off_micro_impact_kind",
+        ),
+        CheckConstraint(
+            "circuit_status IS NULL OR circuit_status IN "
+            "('none', 'upper_circuit', 'lower_circuit', 'near_upper', "
+            "'near_lower', 'no_band', 'unknown', 'other')",
+            name="ck_off_micro_circuit_status",
+        ),
+        Index(
+            "ix_off_micro_symbol_time_date",
+            "symbol",
+            "timeframe",
+            "trade_date",
+        ),
+        Index(
+            "ix_off_micro_symbol_available_time",
+            "symbol",
+            "timeframe",
+            "data_available_time",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    symbol: Mapped[str] = mapped_column(String(32), nullable=False)
+    timeframe: Mapped[str] = mapped_column(String(8), nullable=False, default="1d")
+    trade_date: Mapped[date] = mapped_column(Date, nullable=False)
+    source: Mapped[str] = mapped_column(String(128), nullable=False)
+    source_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    data_available_time: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc_now,
+    )
+    delivery_quantity: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    delivery_percentage: Mapped[Decimal | None] = mapped_column(
+        Numeric(18, 8), nullable=True
+    )
+    price_band_percent: Mapped[Decimal | None] = mapped_column(
+        Numeric(18, 8), nullable=True
+    )
+    upper_circuit_price: Mapped[Decimal | None] = mapped_column(
+        Numeric(18, 4), nullable=True
+    )
+    lower_circuit_price: Mapped[Decimal | None] = mapped_column(
+        Numeric(18, 4), nullable=True
+    )
+    circuit_status: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    circuit_hit: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    impact_cost_bps: Mapped[Decimal | None] = mapped_column(
+        Numeric(18, 8), nullable=True
+    )
+    impact_cost_source_kind: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="unavailable"
+    )
+    impact_cost_proxy_name: Mapped[str | None] = mapped_column(
+        String(128), nullable=True
+    )
+    average_trade_value: Mapped[Decimal | None] = mapped_column(
+        Numeric(24, 4), nullable=True
+    )
+    turnover: Mapped[Decimal | None] = mapped_column(Numeric(24, 4), nullable=True)
     raw: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utc_now

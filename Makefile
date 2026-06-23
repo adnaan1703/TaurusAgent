@@ -1,4 +1,4 @@
-.PHONY: setup setup-ui dev-up dev-down api ui build-ui test-ui dashboard migrate profile-list profile-create profile-archive profile-update-corpus backtest-mock validate-technical-v2 import-mock-news import-screener import-market-data import-official-index-data check-official-index-readiness import-taurus-graph compute-graph-stats project-neo4j-graph sync-halal-stocks kite-login-url kite-exchange-token kite-sync-instruments import-kite-candles kite-ltp-smoke run-analysts-mock debate-mock trader-proposal-mock risk-review-mock final-approval-mock paper-once-mock paper-loop-once paper-loop-start paper-loop-kite position-monitor paper-loop-dashboard alert-smoke alert-test-telegram replay-decision backup-local backup-db restore-local taurus-smoke llm-smoke test lint
+.PHONY: setup setup-ui dev-up dev-down api ui build-ui test-ui dashboard migrate profile-list profile-create profile-archive profile-update-corpus backtest-mock validate-technical-v2 import-mock-news import-screener import-market-data import-official-index-data check-official-index-readiness import-official-microstructure-data check-official-microstructure-readiness import-taurus-graph compute-graph-stats project-neo4j-graph sync-halal-stocks kite-login-url kite-exchange-token kite-sync-instruments import-kite-candles kite-ltp-smoke run-analysts-mock debate-mock trader-proposal-mock risk-review-mock final-approval-mock paper-once-mock paper-loop-once paper-loop-start paper-loop-kite position-monitor paper-loop-dashboard alert-smoke alert-test-telegram replay-decision backup-local backup-db restore-local taurus-smoke llm-smoke test lint
 
 UV ?= uv
 PNPM ?= pnpm
@@ -91,6 +91,17 @@ OFFICIAL_INDEX_VOLATILITY_SYMBOLS ?= INDIA_VIX
 OFFICIAL_INDEX_START_DATE ?=
 OFFICIAL_INDEX_END_DATE ?=
 OFFICIAL_INDEX_READINESS_OUTPUT ?= artifacts/technical_validation/official_index_readiness.json
+OFFICIAL_MICROSTRUCTURE_CSV ?=
+OFFICIAL_MICROSTRUCTURE_SOURCE ?= nse_security_wise_csv
+OFFICIAL_MICROSTRUCTURE_SOURCE_URL ?=
+OFFICIAL_MICROSTRUCTURE_TIMEFRAME ?= 1d
+OFFICIAL_MICROSTRUCTURE_IMPACT_COST_SOURCE_KIND ?= unavailable
+OFFICIAL_MICROSTRUCTURE_IMPACT_COST_PROXY_NAME ?=
+OFFICIAL_MICROSTRUCTURE_SYMBOLS ?=
+OFFICIAL_MICROSTRUCTURE_REQUIRED_FAMILIES ?= delivery,circuit,tradability
+OFFICIAL_MICROSTRUCTURE_START_DATE ?=
+OFFICIAL_MICROSTRUCTURE_END_DATE ?=
+OFFICIAL_MICROSTRUCTURE_READINESS_OUTPUT ?= artifacts/technical_validation/official_microstructure_readiness.json
 
 setup:
 	$(UV) sync --dev
@@ -163,6 +174,12 @@ import-official-index-data:
 
 check-official-index-readiness:
 	DATABASE_URL="$(DATABASE_URL)" OFFICIAL_INDEX_BENCHMARK_SYMBOLS="$(OFFICIAL_INDEX_BENCHMARK_SYMBOLS)" OFFICIAL_INDEX_SECTOR_SYMBOLS="$(OFFICIAL_INDEX_SECTOR_SYMBOLS)" OFFICIAL_INDEX_VOLATILITY_SYMBOLS="$(OFFICIAL_INDEX_VOLATILITY_SYMBOLS)" OFFICIAL_INDEX_START_DATE="$(OFFICIAL_INDEX_START_DATE)" OFFICIAL_INDEX_END_DATE="$(OFFICIAL_INDEX_END_DATE)" OFFICIAL_INDEX_TIMEFRAME="$(OFFICIAL_INDEX_TIMEFRAME)" OFFICIAL_INDEX_READINESS_OUTPUT="$(OFFICIAL_INDEX_READINESS_OUTPUT)" PYTHONPATH=packages:. $(UV) run python scripts/import_official_index_data.py readiness
+
+import-official-microstructure-data:
+	DATABASE_URL="$(DATABASE_URL)" OFFICIAL_MICROSTRUCTURE_CSV="$(OFFICIAL_MICROSTRUCTURE_CSV)" OFFICIAL_MICROSTRUCTURE_SOURCE="$(OFFICIAL_MICROSTRUCTURE_SOURCE)" OFFICIAL_MICROSTRUCTURE_SOURCE_URL="$(OFFICIAL_MICROSTRUCTURE_SOURCE_URL)" OFFICIAL_MICROSTRUCTURE_TIMEFRAME="$(OFFICIAL_MICROSTRUCTURE_TIMEFRAME)" OFFICIAL_MICROSTRUCTURE_IMPACT_COST_SOURCE_KIND="$(OFFICIAL_MICROSTRUCTURE_IMPACT_COST_SOURCE_KIND)" OFFICIAL_MICROSTRUCTURE_IMPACT_COST_PROXY_NAME="$(OFFICIAL_MICROSTRUCTURE_IMPACT_COST_PROXY_NAME)" PYTHONPATH=packages:. $(UV) run python scripts/import_official_microstructure_data.py import
+
+check-official-microstructure-readiness:
+	DATABASE_URL="$(DATABASE_URL)" OFFICIAL_MICROSTRUCTURE_SYMBOLS="$(OFFICIAL_MICROSTRUCTURE_SYMBOLS)" OFFICIAL_MICROSTRUCTURE_REQUIRED_FAMILIES="$(OFFICIAL_MICROSTRUCTURE_REQUIRED_FAMILIES)" OFFICIAL_MICROSTRUCTURE_START_DATE="$(OFFICIAL_MICROSTRUCTURE_START_DATE)" OFFICIAL_MICROSTRUCTURE_END_DATE="$(OFFICIAL_MICROSTRUCTURE_END_DATE)" OFFICIAL_MICROSTRUCTURE_TIMEFRAME="$(OFFICIAL_MICROSTRUCTURE_TIMEFRAME)" OFFICIAL_MICROSTRUCTURE_READINESS_OUTPUT="$(OFFICIAL_MICROSTRUCTURE_READINESS_OUTPUT)" PYTHONPATH=packages:. $(UV) run python scripts/import_official_microstructure_data.py readiness
 
 import-taurus-graph:
 	DATABASE_URL="$(DATABASE_URL)" DATA_DIR="$(DATA_DIR)" PYTHONPATH=packages:. $(UV) run python scripts/import_taurus_graph.py

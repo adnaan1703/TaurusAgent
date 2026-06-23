@@ -5,10 +5,11 @@ Last updated: 2026-06-23
 ## Current Status
 
 - Current milestone: None.
-- Last completed milestone: M83 Official Index, Sector, And India VIX Data
-  Ingestion.
+- Last completed milestone: M84 Official Delivery, Circuit, And Tradability
+  Data Ingestion.
 - Planning completed: M74-M86 technical layer overhaul sequence.
-- Implementation state: M74, M75, M76, M77, M78, M79, M80, M81, M82, and M83 are complete. The
+- Implementation state: M74, M75, M76, M77, M78, M79, M80, M81, M82, M83,
+  and M84 are complete. The
   canonical/default runtime remains behavior-preserving:
   `TechnicalAnalystAgent` uses `technical_rule_v1` unless the analyst runner is
   explicitly passed `technical_ohlcv_v2`, and `GraphAwareScoreStrategy` uses the
@@ -64,9 +65,24 @@ Last updated: 2026-06-23
   imports CSVs, and `make check-official-index-readiness` emits explicit v2B
   readiness failures for missing benchmark, sector, or volatility history. M83
   did not wire official data into `technical_ohlcv_v2`, `graph_aware_score_v2`,
-  `make validate-technical-v2`, or canonical paper-loop scoring.
-- Next recommended milestone: M84 official delivery, circuit, and tradability
-  data ingestion.
+  `make validate-technical-v2`, or canonical paper-loop scoring. M84 added
+  `official_security_microstructure`,
+  `OfficialSecurityMicrostructureRepository`,
+  `packages/taurus_core/data/official_microstructure.py`, and
+  `scripts/import_official_microstructure_data.py` for security-wise delivery,
+  circuit/price-band, and tradability rows. Rows track symbol, trade date,
+  timeframe, source, source URL, source-row metadata, `data_available_time`,
+  delivery quantity/percentage, circuit status/history fields, average trade
+  value, turnover, and impact-cost fields with explicit `official`, `proxy`, or
+  `unavailable` source-kind labels. Repository `latest_as_of()` and
+  `history_as_of()` filter by availability time to avoid lookahead.
+  `make import-official-microstructure-data` imports CSVs, and
+  `make check-official-microstructure-readiness` emits explicit v2B readiness
+  failures for missing delivery, circuit, or tradability families. M84 did not
+  wire official microstructure data into `technical_ohlcv_v2`,
+  `graph_aware_score_v2`, `make validate-technical-v2`, or canonical
+  paper-loop scoring.
+- Next recommended milestone: M85 v2B official-data technical profile.
 - Thread model requirement from the user: each milestone worker thread should
   use GPT 5.5 with xhigh thinking.
 - Commit policy from the user: do not commit anything unless explicitly asked.
@@ -84,6 +100,7 @@ Last updated: 2026-06-23
 - `packages/taurus_core/features/store.py`
 - `packages/taurus_core/features/technical.py`
 - `packages/taurus_core/data/official_indices.py`
+- `packages/taurus_core/data/official_microstructure.py`
 - `packages/taurus_core/domain/official_market_data.py`
 - `packages/taurus_core/agents/technical_analyst.py`
 - `packages/taurus_core/strategies/graph_aware.py`
@@ -127,7 +144,7 @@ sequence is:
 - M81: historical validation command and data readiness. Done.
 - M82: technical validation reports and conservative gate. Done.
 - M83: official index, sector, and India VIX data ingestion. Done.
-- M84: official delivery, circuit, and tradability data ingestion.
+- M84: official delivery, circuit, and tradability data ingestion. Done.
 - M85: v2B official-data technical profile.
 - M86: promotion decision, regression, docs, and cleanup.
 
@@ -160,9 +177,10 @@ sequence is:
 - M80 visibility is additive only: v2A metadata may be absent on legacy v1 runs,
   and API/UI/replay consumers must omit it cleanly instead of treating it as
   required.
-- v2B official relative-strength/regime/microstructure features wait for M84
-  ingestion and M85 scoring. M83 official benchmark, sector-index, and India
-  VIX history is available as an ingestion/readiness contract only.
+- v2B official relative-strength/regime/microstructure features wait for M85
+  scoring. M83 official benchmark, sector-index, and India VIX history plus
+  M84 official delivery, circuit, and tradability history are available as
+  ingestion/readiness contracts only.
 - Validation must prove both technical-agent predictive quality and full-system
   historical backtest behavior before promotion.
 - M82 reports allocation behavior from the backtest layer as an explicit proxy;
