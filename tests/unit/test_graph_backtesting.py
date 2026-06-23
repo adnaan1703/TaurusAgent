@@ -1,10 +1,16 @@
 from __future__ import annotations
 
+import json
 from datetime import date, timedelta
 from decimal import Decimal
 from pathlib import Path
 
 from scripts.migrate import run_migrations
+from scripts.validate_technical_v2 import (
+    ValidationRequest,
+    build_data_readiness,
+    run_validation,
+)
 from taurus_core.backtesting import (
     BacktestConfig,
     BacktestEngine,
@@ -278,6 +284,78 @@ def test_graph_aware_backtest_summarizes_performance_by_edge_type(
     assert grouped["peer_momentum"]["hit_rate"] == 1.0
 
 
+def test_technical_validation_readiness_reports_insufficient_history(
+    tmp_path: Path,
+) -> None:
+    settings = _settings_for_temp_db(tmp_path)
+    run_migrations(settings)
+    session_factory = build_session_factory(settings)
+    symbols = ("VALA", "VALB")
+    with session_factory() as session:
+        _seed_instruments(session, symbols)
+        CandleRepository(session).upsert(_candles("VALA", [100, 101, 102, 103]))
+        CandleRepository(session).upsert(_candles("VALB", [100, 101, 102, 103]))
+        session.commit()
+
+    request = _validation_request(
+        tmp_path,
+        symbols=symbols,
+        warmup_days=4,
+        evaluation_days=3,
+    )
+    with session_factory() as session:
+        readiness = build_data_readiness(session, request)
+
+    assert readiness.status == "insufficient_data"
+    assert readiness.artifact["window"]["required_common_candle_count"] == 8
+    assert readiness.artifact["window"]["missing_common_candle_count"] == 4
+    assert readiness.artifact["next_actions"]
+
+
+def test_technical_validation_runs_comparable_profiles_with_shared_window(
+    tmp_path: Path,
+) -> None:
+    settings = _settings_for_temp_db(tmp_path)
+    run_migrations(settings)
+    session_factory = build_session_factory(settings)
+    symbols = ("VTA", "VTB")
+    with session_factory() as session:
+        _seed_instruments(session, symbols)
+        CandleRepository(session).upsert(_candles("VTA", list(range(100, 142))))
+        CandleRepository(session).upsert(_candles("VTB", list(range(120, 162))))
+        session.commit()
+
+    request = _validation_request(
+        tmp_path,
+        symbols=symbols,
+        warmup_days=30,
+        evaluation_days=3,
+    )
+    outcome = run_validation(settings=settings, request=request)
+
+    assert outcome.status == "complete"
+    manifest = json.loads(
+        (outcome.artifact_dir / "validation_manifest.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert manifest["profile_run_count"] == 4
+    assert manifest["window"]["selected_scoring_start_date"] == "2024-02-09"
+    assert manifest["window"]["selected_evaluation_end_date"] == "2024-02-11"
+    profile_runs = json.loads(
+        (outcome.artifact_dir / "profile_runs.json").read_text(encoding="utf-8")
+    )
+    assert {run["profile_name"] for run in profile_runs} == {
+        "graph_aware_score_v1",
+        "graph_aware_score_v1_technical_only",
+        "graph_aware_score_v2",
+        "graph_aware_score_v2_technical_only",
+    }
+    assert {run["start_date"] for run in profile_runs} == {"2024-02-09"}
+    assert {run["end_date"] for run in profile_runs} == {"2024-02-11"}
+    assert (outcome.artifact_dir / "profile_comparison_matrix.csv").exists()
+
+
 def _settings_for_temp_db(tmp_path: Path) -> Settings:
     return Settings()
 
@@ -447,4 +525,30 @@ def _feature_snapshot(
             "return_20d": Decimal("0"),
         },
         rows=(),
+    )
+
+
+def _validation_request(
+    tmp_path: Path,
+    *,
+    symbols: tuple[str, ...],
+    warmup_days: int,
+    evaluation_days: int,
+) -> ValidationRequest:
+    return ValidationRequest(
+        symbols=tuple(sorted(symbols)),
+        universe_source="manual_symbols",
+        universe_path=None,
+        mode="standard",
+        validation_years=1,
+        evaluation_days=evaluation_days,
+        warmup_days=warmup_days,
+        timeframe="1d",
+        artifact_root=tmp_path / "technical_validation",
+        initial_capital_inr=Decimal("10000"),
+        max_open_positions=2,
+        portfolio_breadth=2,
+        rebalance_every_days=2,
+        cost_bps=Decimal("0"),
+        slippage_bps=Decimal("0"),
     )

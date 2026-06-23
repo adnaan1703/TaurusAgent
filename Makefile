@@ -1,4 +1,4 @@
-.PHONY: setup setup-ui dev-up dev-down api ui build-ui test-ui dashboard migrate profile-list profile-create profile-archive profile-update-corpus backtest-mock import-mock-news import-screener import-market-data import-taurus-graph compute-graph-stats project-neo4j-graph sync-halal-stocks kite-login-url kite-exchange-token kite-sync-instruments import-kite-candles kite-ltp-smoke run-analysts-mock debate-mock trader-proposal-mock risk-review-mock final-approval-mock paper-once-mock paper-loop-once paper-loop-start paper-loop-kite position-monitor paper-loop-dashboard alert-smoke alert-test-telegram replay-decision backup-local backup-db restore-local taurus-smoke llm-smoke test lint
+.PHONY: setup setup-ui dev-up dev-down api ui build-ui test-ui dashboard migrate profile-list profile-create profile-archive profile-update-corpus backtest-mock validate-technical-v2 import-mock-news import-screener import-market-data import-taurus-graph compute-graph-stats project-neo4j-graph sync-halal-stocks kite-login-url kite-exchange-token kite-sync-instruments import-kite-candles kite-ltp-smoke run-analysts-mock debate-mock trader-proposal-mock risk-review-mock final-approval-mock paper-once-mock paper-loop-once paper-loop-start paper-loop-kite position-monitor paper-loop-dashboard alert-smoke alert-test-telegram replay-decision backup-local backup-db restore-local taurus-smoke llm-smoke test lint
 
 UV ?= uv
 PNPM ?= pnpm
@@ -66,6 +66,17 @@ PAPER_PROFILE_ID ?= $(if $(PROFILE_ID),$(PROFILE_ID),$(TAURUS_PROFILE_ID))
 PROFILE_DISPLAY_NAME ?= Client A
 PROFILE_CORPUS_INR ?= 250000
 PROFILE_CURRENCY ?= INR
+TECHNICAL_VALIDATION_MODE ?= standard
+TECHNICAL_VALIDATION_UNIVERSE ?= $(if $(TAURUS_TARGET_MARKET_UNIVERSE_PATH),$(TAURUS_TARGET_MARKET_UNIVERSE_PATH),$(TAURUS_MARKET_DATA_UNIVERSE_PATH))
+TECHNICAL_VALIDATION_SYMBOLS ?=
+TECHNICAL_VALIDATION_ARTIFACT_ROOT ?= artifacts/technical_validation
+TECHNICAL_VALIDATION_STRICT_INSUFFICIENT ?= false
+TECHNICAL_VALIDATION_INITIAL_CAPITAL_INR ?= $(TAURUS_INITIAL_CAPITAL_INR)
+TECHNICAL_VALIDATION_MAX_OPEN_POSITIONS ?= $(TAURUS_MAX_OPEN_POSITIONS)
+TECHNICAL_VALIDATION_PORTFOLIO_BREADTH ?= $(TAURUS_BACKTEST_TARGET_POSITIONS)
+TECHNICAL_VALIDATION_REBALANCE_EVERY_DAYS ?= 21
+TECHNICAL_VALIDATION_COST_BPS ?= 10
+TECHNICAL_VALIDATION_SLIPPAGE_BPS ?= $(TAURUS_PAPER_SLIPPAGE_BPS)
 
 setup:
 	$(UV) sync --dev
@@ -121,6 +132,9 @@ profile-update-corpus:
 
 backtest-mock:
 	DATABASE_URL="$(DATABASE_URL)" STRATEGY="$(STRATEGY)" PYTHONPATH=packages:. $(UV) run python scripts/run_backtest.py
+
+validate-technical-v2:
+	DATABASE_URL="$(DATABASE_URL)" TECHNICAL_VALIDATION_MODE="$(TECHNICAL_VALIDATION_MODE)" TECHNICAL_VALIDATION_UNIVERSE="$(TECHNICAL_VALIDATION_UNIVERSE)" TECHNICAL_VALIDATION_SYMBOLS="$(TECHNICAL_VALIDATION_SYMBOLS)" TECHNICAL_VALIDATION_ARTIFACT_ROOT="$(TECHNICAL_VALIDATION_ARTIFACT_ROOT)" TECHNICAL_VALIDATION_INITIAL_CAPITAL_INR="$(TECHNICAL_VALIDATION_INITIAL_CAPITAL_INR)" TECHNICAL_VALIDATION_MAX_OPEN_POSITIONS="$(TECHNICAL_VALIDATION_MAX_OPEN_POSITIONS)" TECHNICAL_VALIDATION_PORTFOLIO_BREADTH="$(TECHNICAL_VALIDATION_PORTFOLIO_BREADTH)" TECHNICAL_VALIDATION_REBALANCE_EVERY_DAYS="$(TECHNICAL_VALIDATION_REBALANCE_EVERY_DAYS)" TECHNICAL_VALIDATION_COST_BPS="$(TECHNICAL_VALIDATION_COST_BPS)" TECHNICAL_VALIDATION_SLIPPAGE_BPS="$(TECHNICAL_VALIDATION_SLIPPAGE_BPS)" TECHNICAL_VALIDATION_STRICT_INSUFFICIENT="$(TECHNICAL_VALIDATION_STRICT_INSUFFICIENT)" PYTHONPATH=packages:. $(UV) run python scripts/validate_technical_v2.py
 
 import-mock-news:
 	DATABASE_URL="$(DATABASE_URL)" PYTHONPATH=packages:. $(UV) run python scripts/import_mock_news.py

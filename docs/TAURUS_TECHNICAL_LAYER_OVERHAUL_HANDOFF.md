@@ -5,10 +5,10 @@ Last updated: 2026-06-23
 ## Current Status
 
 - Current milestone: None.
-- Last completed milestone: M80 V2A Artifact, API, Replay, And React
-  Visibility.
+- Last completed milestone: M81 Historical Validation Command And Data
+  Readiness.
 - Planning completed: M74-M86 technical layer overhaul sequence.
-- Implementation state: M74, M75, M76, M77, M78, M79, and M80 are complete. The
+- Implementation state: M74, M75, M76, M77, M78, M79, M80, and M81 are complete. The
   canonical/default runtime remains behavior-preserving:
   `TechnicalAnalystAgent` uses `technical_rule_v1` unless the analyst runner is
   explicitly passed `technical_ohlcv_v2`, and `GraphAwareScoreStrategy` uses the
@@ -40,9 +40,18 @@ Last updated: 2026-06-23
   across strategy ranked candidates, strategy signals, selection/allocation
   rows, analyst-report API payloads, decision-trail input stages, replay stages,
   and compact React debugging panels. It did not change scoring formulas,
-  validation logic, official-data ingestion, or promotion.
-- Next recommended milestone: M81 historical validation command and data
-  readiness.
+  validation logic, official-data ingestion, or promotion. M81 added
+  `make validate-technical-v2` and `scripts/validate_technical_v2.py`; the
+  command verifies local `daily_candles` common coverage for the selected
+  validation universe, defaults to a 3-year evaluation window after a
+  252-trading-day warm-up, supports a 5-year strong mode, writes deterministic
+  artifacts under `artifacts/technical_validation/<run_id>/`, and runs the
+  comparable v1/v2 graph-aware plus technical-only backtest profiles when local
+  coverage is sufficient. It reports actionable deeper Kite import guidance
+  when coverage is short and does not promote v2 or change canonical paper-loop
+  defaults.
+- Next recommended milestone: M82 technical validation reports and conservative
+  gate.
 - Thread model requirement from the user: each milestone worker thread should
   use GPT 5.5 with xhigh thinking.
 - Commit policy from the user: do not commit anything unless explicitly asked.
@@ -98,7 +107,7 @@ sequence is:
 - M78: opt-in `graph_aware_score_v2` strategy runtime profile. Done.
 - M79: `TechnicalAnalystAgent` v2A deterministic numeric wiring. Done.
 - M80: v2A artifact, API, replay, and React visibility. Done.
-- M81: historical validation command and data readiness.
+- M81: historical validation command and data readiness. Done.
 - M82: technical validation reports and conservative gate.
 - M83: official index, sector, and India VIX data ingestion.
 - M84: official delivery, circuit, and tradability data ingestion.

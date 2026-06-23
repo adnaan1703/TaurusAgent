@@ -24,6 +24,9 @@ class BacktestConfig:
     slippage_bps: Decimal = Decimal("5")
     timeframe: str = "1d"
     graph_enabled: bool = False
+    symbols: tuple[str, ...] = ()
+    start_date: date | None = None
+    end_date: date | None = None
 
     def __post_init__(self) -> None:
         if self.initial_capital_inr <= 0:
@@ -46,6 +49,15 @@ class BacktestConfig:
             raise ValueError("slippage_bps cannot be negative")
         if self.strategy_type == "graph_aware_score" and not self.graph_enabled:
             object.__setattr__(self, "graph_enabled", True)
+        if self.start_date is not None and self.end_date is not None:
+            if self.start_date > self.end_date:
+                raise ValueError("start_date must be on or before end_date")
+        if self.symbols:
+            object.__setattr__(
+                self,
+                "symbols",
+                tuple(sorted({symbol.upper() for symbol in self.symbols})),
+            )
 
     @property
     def effective_portfolio_breadth(self) -> int:

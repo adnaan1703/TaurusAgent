@@ -360,6 +360,7 @@ db.sqlite3-journal
 taurus.db
 taurus.db-*
 backups/
+artifacts/technical_validation/
 
 # Flask stuff:
 instance/

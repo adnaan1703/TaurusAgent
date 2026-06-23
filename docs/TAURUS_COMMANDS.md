@@ -1,6 +1,6 @@
 # Taurus Command Reference
 
-Last updated: 2026-06-22
+Last updated: 2026-06-23
 
 This file lists active Taurus commands and project-local Codex approval policy.
 Historical milestone command logs were removed during docs cleanup; use Git
@@ -69,6 +69,7 @@ make test-ui
 make build-ui
 make taurus-smoke
 make llm-smoke
+make validate-technical-v2
 ```
 
 Local services:
@@ -175,6 +176,37 @@ make kite-sync-instruments
 make import-kite-candles
 make kite-ltp-smoke
 ```
+
+Technical validation:
+
+```bash
+make validate-technical-v2
+make validate-technical-v2 TECHNICAL_VALIDATION_MODE=strong
+make validate-technical-v2 TECHNICAL_VALIDATION_SYMBOLS=INFY,TCS
+```
+
+`make validate-technical-v2` writes deterministic machine-readable artifacts
+under `artifacts/technical_validation/<run_id>/`. The standard mode validates a
+3-year evaluation window after a 252-trading-day indicator warm-up. The strong
+mode uses a 5-year evaluation window with the same warm-up. The command compares
+`graph_aware_score_v1`, v1 with graph contribution weight set to zero,
+`graph_aware_score_v2`, and v2A with graph contribution weight set to zero on
+the same symbols, dates, costs, slippage, NAV, rebalance cadence, and position
+limits when local `daily_candles` coverage is sufficient.
+
+If coverage is insufficient, the command still writes `data_readiness.json` and
+`validation_manifest.json`, prints the missing common-candle count, and names a
+deeper Kite import command such as
+`TAURUS_MARKET_DATA_LOOKBACK_DAYS=1434 make import-kite-candles`. Set
+`TECHNICAL_VALIDATION_STRICT_INSUFFICIENT=true` when automation should treat
+short coverage as a non-zero exit. Useful overrides include
+`TECHNICAL_VALIDATION_UNIVERSE=configs/market_data/nifty_50_shariah.yaml`,
+`TECHNICAL_VALIDATION_ARTIFACT_ROOT=...`,
+`TECHNICAL_VALIDATION_INITIAL_CAPITAL_INR=...`,
+`TECHNICAL_VALIDATION_MAX_OPEN_POSITIONS=...`,
+`TECHNICAL_VALIDATION_PORTFOLIO_BREADTH=...`,
+`TECHNICAL_VALIDATION_COST_BPS=...`, and
+`TECHNICAL_VALIDATION_SLIPPAGE_BPS=...`.
 
 Paper workflow:
 

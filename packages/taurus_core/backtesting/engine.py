@@ -75,9 +75,23 @@ class BacktestEngine:
     def run(self) -> BacktestResult:
         candles_by_symbol = self._load_candles()
         if not candles_by_symbol:
+            if self.config.symbols:
+                symbols_text = ", ".join(self.config.symbols)
+                raise ValueError(
+                    "No daily candles are available for the configured backtest "
+                    f"symbols: {symbols_text}. Run make import-market-data first."
+                )
             raise ValueError(
                 "No daily candles are available. Run make import-market-data first."
             )
+
+        if self.config.symbols:
+            missing_symbols = sorted(set(self.config.symbols) - set(candles_by_symbol))
+            if missing_symbols:
+                raise ValueError(
+                    "Missing daily candles for configured backtest symbols: "
+                    f"{', '.join(missing_symbols)}."
+                )
 
         symbols = sorted(candles_by_symbol)
         candles_by_date = {
@@ -390,11 +404,16 @@ class BacktestEngine:
 
     def _load_candles(self) -> dict[str, list[DailyCandle]]:
         instruments = InstrumentRepository(self.session).list(active_only=True)
+        requested_symbols = set(self.config.symbols)
         candle_repo = CandleRepository(self.session)
         candles_by_symbol: dict[str, list[DailyCandle]] = {}
         for instrument in instruments:
+            if requested_symbols and instrument.symbol not in requested_symbols:
+                continue
             candle_models = candle_repo.get_by_symbol_and_date_range(
                 symbol=instrument.symbol,
+                start_date=self.config.start_date,
+                end_date=self.config.end_date,
                 timeframe=self.config.timeframe,
             )
             if candle_models:
@@ -644,6 +663,13 @@ class BacktestEngine:
             "slippage_bps": str(self.config.slippage_bps),
             "timeframe": self.config.timeframe,
             "graph_enabled": self.config.graph_enabled,
+            "symbols": list(self.config.symbols),
+            "start_date": self.config.start_date.isoformat()
+            if self.config.start_date is not None
+            else None,
+            "end_date": self.config.end_date.isoformat()
+            if self.config.end_date is not None
+            else None,
             "strategy_type": self.config.strategy_type,
             "strategy_config_path": self.config.strategy_config_path,
             "strategy_parameters": _json_safe(dict(self.config.strategy_parameters)),
