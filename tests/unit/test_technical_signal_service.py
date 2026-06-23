@@ -7,6 +7,11 @@ from decimal import Decimal
 import pytest
 
 from taurus_core.features.store import FeatureSnapshot
+from taurus_core.features.technical_context import (
+    HIGHER_IS_BETTER,
+    LOWER_IS_BETTER,
+    build_universe_technical_context,
+)
 from taurus_core.features.technical_signal import (
     TechnicalBacktestSignal,
     TechnicalSignalService,
@@ -187,6 +192,112 @@ def test_signal_results_are_immutable() -> None:
         result.score = Decimal("1")  # type: ignore[misc]
     with pytest.raises(TypeError):
         result.components["raw"] = Decimal("1")  # type: ignore[index]
+
+
+def test_universe_technical_context_ranks_ties_and_missing_features() -> None:
+    context = build_universe_technical_context(
+        {
+            "aaa": _feature_snapshot(
+                "AAA",
+                values={
+                    "return_63d": Decimal("0.10000000"),
+                    "volatility_20": Decimal("0.20000000"),
+                },
+            ),
+            "BBB": _feature_snapshot(
+                "BBB",
+                values={
+                    "return_63d": Decimal("0.05000000"),
+                    "volatility_20": Decimal("0.10000000"),
+                    "turnover_z_score_20": Decimal("1.00000000"),
+                },
+            ),
+            "CCC": _feature_snapshot(
+                "CCC",
+                values={
+                    "return_63d": Decimal("0.05000000"),
+                    "turnover_z_score_20": Decimal("2.00000000"),
+                },
+            ),
+            "DDD": _feature_snapshot(
+                "DDD",
+                values={
+                    "volatility_20": Decimal("0.10000000"),
+                    "turnover_z_score_20": Decimal("2.00000000"),
+                },
+            ),
+        },
+        feature_names=("return_63d", "volatility_20", "turnover_z_score_20"),
+        rank_directions={
+            "return_63d": HIGHER_IS_BETTER,
+            "volatility_20": LOWER_IS_BETTER,
+            "turnover_z_score_20": HIGHER_IS_BETTER,
+        },
+    )
+
+    assert context.profile_name == "technical_ohlcv_v2"
+    assert context.as_of_date == date(2024, 1, 12)
+    assert context.universe_size == 4
+    assert context.symbols == ("AAA", "BBB", "CCC", "DDD")
+    assert context.symbols_by_feature["return_63d"] == ("AAA", "BBB", "CCC")
+    assert context.missing_symbols_by_feature["return_63d"] == ("DDD",)
+    assert context.missing_symbols_by_feature["volatility_20"] == ("CCC",)
+    assert context.missing_symbols_by_feature["turnover_z_score_20"] == ("AAA",)
+    assert context.for_symbol("ddd").missing_features == ("return_63d",)
+
+    aaa_return = context.feature_for_symbol("AAA", "return_63d")
+    bbb_return = context.feature_for_symbol("BBB", "return_63d")
+    ccc_return = context.feature_for_symbol("CCC", "return_63d")
+    assert aaa_return is not None
+    assert bbb_return is not None
+    assert ccc_return is not None
+    assert aaa_return.rank == 1
+    assert aaa_return.percentile == Decimal("1.00000000")
+    assert aaa_return.directional_z_score == Decimal("1.41421356")
+    assert bbb_return.rank == 2
+    assert bbb_return.percentile == Decimal("0.25000000")
+    assert bbb_return.directional_z_score == Decimal("-0.70710678")
+    assert ccc_return.rank == 2
+    assert ccc_return.percentile == Decimal("0.25000000")
+    assert ccc_return.directional_z_score == Decimal("-0.70710678")
+
+    bbb_volatility = context.feature_for_symbol("BBB", "volatility_20")
+    ddd_volatility = context.feature_for_symbol("DDD", "volatility_20")
+    aaa_volatility = context.feature_for_symbol("AAA", "volatility_20")
+    assert bbb_volatility is not None
+    assert ddd_volatility is not None
+    assert aaa_volatility is not None
+    assert bbb_volatility.rank == 1
+    assert ddd_volatility.rank == 1
+    assert aaa_volatility.rank == 3
+    assert bbb_volatility.directional_z_score == Decimal("0.70710678")
+    assert aaa_volatility.directional_z_score == Decimal("-1.41421356")
+    assert context.metadata["eligible_symbol_count_by_feature"] == {
+        "return_63d": 3,
+        "volatility_20": 3,
+        "turnover_z_score_20": 3,
+    }
+    assert context.metadata["rank_direction_by_feature"]["volatility_20"] == LOWER_IS_BETTER
+
+
+def test_universe_technical_context_small_universe_is_neutral() -> None:
+    context = build_universe_technical_context(
+        {
+            "AAA": _feature_snapshot(
+                "AAA",
+                values={"return_63d": Decimal("0.10000000")},
+            )
+        },
+        feature_names=("return_63d",),
+    )
+
+    feature = context.feature_for_symbol("AAA", "return_63d")
+
+    assert feature is not None
+    assert feature.rank == 1
+    assert feature.percentile == Decimal("0.50000000")
+    assert feature.z_score == Decimal("0E-8")
+    assert feature.directional_z_score == Decimal("0E-8")
 
 
 def _feature_snapshot(

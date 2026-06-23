@@ -153,7 +153,7 @@ removed during docs cleanup. Use Git history for detailed historical plans.
 - M74 baseline characterization and validation-contract work is complete:
   focused tests now pin current `technical_rule_v1`, `sma_spread`,
   `graph_aware_score_v1` ranking payload, allocation score calibration, and
-  current `BaseAnalystAgent` LLM numeric ownership behavior. M76-M86 technical
+  current `BaseAnalystAgent` LLM numeric ownership behavior. M77-M86 technical
   layer overhaul implementation remains planned.
 - M75 OHLCV indicator primitive expansion is complete: pure Decimal-based
   primitives now cover MACD, ADX/+DI/-DI, Bollinger bands, breakout distances,
@@ -162,6 +162,11 @@ removed during docs cleanup. Use Git history for detailed historical plans.
   keeps `technical_v1` defaults unchanged while `technical_feature_version:
   technical_ohlcv_v2` opts into the full v2A OHLCV feature suite for future
   wiring milestones.
+- M76 universe technical context work is complete: a pure DB-free context
+  builder now converts `features_by_symbol` into deterministic cross-sectional
+  ranks, percentiles, z-scores, missing-feature maps, availability counts, and
+  JSON-friendly universe metadata for later v2A scoring without changing v1
+  analyst or strategy runtime behavior.
 
 ## Standing Safety Rules
 
@@ -258,7 +263,7 @@ up, and documented; do not automatically begin later scope.
 |---:|---|---|---|---|
 | 74 | M74 | Done | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Pin current technical, analyst, strategy, and allocation score behavior and define the validation evidence contract. |
 | 75 | M75 | Done | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Add the full opt-in OHLCV indicator primitive and feature snapshot suite for v2A. |
-| 76 | M76 | Planned | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Add DB-free universe technical context and cross-sectional normalization without market/sector proxies. |
+| 76 | M76 | Done | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Add DB-free universe technical context and cross-sectional normalization without market/sector proxies. |
 | 77 | M77 | Planned | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Add the deterministic `technical_ohlcv_v2` alpha/risk/tradability/confidence scoring profile. |
 | 78 | M78 | Planned | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Add opt-in `graph_aware_score_v2` strategy wiring while preserving v1 behavior. |
 | 79 | M79 | Planned | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Wire `TechnicalAnalystAgent` to v2A with deterministic numeric ownership and optional universe context. |
@@ -280,6 +285,19 @@ This completed sequence was executed in order as separate milestone work.
 | 67 | M67 | Done | `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md` | Add the DB-free shared `TechnicalSignalService` foundation without runtime wiring. |
 | 68 | M68 | Done | `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md` | Route `TechnicalAnalystAgent` and `GraphAwareScoreStrategy` through the shared service without behavior drift. |
 | 69 | M69 | Done | `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md` | Run final regression, refresh architecture/deep-dive docs for implemented behavior, and close the sequence. |
+
+### M76 Completion Summary
+
+- Assumptions made: M76 should add only DB-free universe context and
+  cross-sectional normalization primitives, leaving `technical_rule_v1`,
+  `sma_spread`, `TechnicalAnalystAgent`, `GraphAwareScoreStrategy`, API/UI
+  payloads, validation commands, and official-data ingestion untouched; single
+  symbol contexts should emit neutral percentile and zero z-score rather than
+  bullish evidence; missing features should be explicit metadata for later
+  confidence/coverage handling rather than filled with neutral values.
+- Mocks created: None.
+- Mocks used: None; focused tests use deterministic in-memory
+  `FeatureSnapshot` fixtures only.
 
 ### M75 Completion Summary
 

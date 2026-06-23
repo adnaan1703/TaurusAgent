@@ -431,7 +431,7 @@ artifacts in `paper_runs.artifacts`.
 
 | Limitation | Impact |
 |---|---|
-| No runtime v2 technical scoring profile yet | `technical_ohlcv_v2` can generate richer OHLCV feature snapshots, but those features are not yet consumed by `TechnicalSignalService`, `TechnicalAnalystAgent`, or `GraphAwareScoreStrategy`. |
+| No runtime v2 technical scoring profile yet | `technical_ohlcv_v2` can generate richer OHLCV feature snapshots, and the DB-free universe context builder can normalize them cross-sectionally, but those features and ranks are not yet consumed by `TechnicalSignalService`, `TechnicalAnalystAgent`, or `GraphAwareScoreStrategy`. |
 | Shared analyst-rule scoring uses a fixed formula | Extra computed indicators are ignored unless a future `TechnicalSignalService` profile consumes them. |
 | Only the core wired paths use `TechnicalSignalService` | `TechnicalAnalystAgent` and `GraphAwareScoreStrategy` are migrated; `BlendedScoreStrategy` and `MovingAverageCrossoverStrategy` remain deferred. |
 | `feature_values` lookup is symbol-latest, not paper-run scoped | A persisted feature snapshot from another context can be selected if it is the latest for that symbol. |

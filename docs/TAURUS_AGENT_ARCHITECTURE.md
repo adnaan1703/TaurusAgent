@@ -225,6 +225,13 @@ paths:
   compatibility method delegates SMA-spread scoring to
   `TechnicalSignalService.score_sma_spread()`.
 
+`build_universe_technical_context()` in
+`packages/taurus_core/features/technical_context.py` is now available for later
+v2A work. It is DB-free and converts `features_by_symbol` into
+cross-sectional ranks, percentiles, z-scores, missing-feature maps,
+availability counts, and universe metadata. It is not wired into
+`technical_rule_v1` or `graph_aware_score_v1`.
+
 The shared service is DB-free and behavior-preserving for the first
 implementation sequence. Richer technical profiles, strategy-configurable
 profiles, and migration of `BlendedScoreStrategy` or

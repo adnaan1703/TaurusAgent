@@ -6,6 +6,7 @@ from pathlib import Path
 
 from taurus_core.domain.market_data import DailyCandle
 from taurus_core.features.store import FeatureSnapshot
+from taurus_core.features.technical_context import build_universe_technical_context
 from taurus_core.strategies.blended_score import BlendedScoreStrategy
 from taurus_core.strategies.config import load_strategy_config
 from taurus_core.strategies.graph_aware import GraphAwareScoreStrategy
@@ -153,6 +154,48 @@ def test_graph_aware_technical_score_quantizes_sma_spread() -> None:
     )
 
     assert score == Decimal("0.12345679")
+
+
+def test_graph_aware_v1_ranking_stays_sma_spread_driven_with_universe_context() -> None:
+    strategy = GraphAwareScoreStrategy(
+        name="graph_aware_v1_context_guard",
+        parameters={"fast_window": 3, "slow_window": 5, "min_combined_score": "-1"},
+    )
+    features = {
+        "AAA": _feature_snapshot(
+            "AAA",
+            {
+                "sma_3": Decimal("115"),
+                "sma_5": Decimal("100"),
+                "return_20d": Decimal("0.01"),
+                "return_63d": Decimal("0.01"),
+            },
+        ),
+        "BBB": _feature_snapshot(
+            "BBB",
+            {
+                "sma_3": Decimal("110"),
+                "sma_5": Decimal("100"),
+                "return_20d": Decimal("0.01"),
+                "return_63d": Decimal("0.20"),
+            },
+        ),
+    }
+
+    context = build_universe_technical_context(features, feature_names=("return_63d",))
+    rankings = strategy.rank_universe(
+        trade_date=date(2024, 1, 10),
+        features_by_symbol=features,
+        current_positions=set(),
+    )
+
+    assert context.feature_for_symbol("BBB", "return_63d").rank == 1
+    assert [ranking.symbol for ranking in rankings if ranking.is_eligible] == ["AAA", "BBB"]
+    assert [ranking.raw_strategy_score for ranking in rankings if ranking.is_eligible] == [
+        Decimal("0.15000000"),
+        Decimal("0.10000000"),
+    ]
+    assert rankings[0].metadata["technical_score"] == "0.15000000"
 
 
 def test_mock_momentum_legacy_selection_uses_explicit_cap_only() -> None:
