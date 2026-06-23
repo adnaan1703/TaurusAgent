@@ -153,7 +153,7 @@ removed during docs cleanup. Use Git history for detailed historical plans.
 - M74 baseline characterization and validation-contract work is complete:
   focused tests now pin current `technical_rule_v1`, `sma_spread`,
   `graph_aware_score_v1` ranking payload, allocation score calibration, and
-  current `BaseAnalystAgent` LLM numeric ownership behavior. M79-M86 technical
+  current `BaseAnalystAgent` LLM numeric ownership behavior. M80-M86 technical
   layer overhaul implementation remains planned.
 - M75 OHLCV indicator primitive expansion is complete: pure Decimal-based
   primitives now cover MACD, ADX/+DI/-DI, Bollinger bands, breakout distances,
@@ -179,7 +179,16 @@ removed during docs cleanup. Use Git history for detailed historical plans.
   can rank through the v2A OHLCV composite while preserving v1 SMA-spread
   behavior and existing raw strategy score paths, and the money-management
   policy maps `graph_aware_score_v2` to `active_strategy` without making it
-  canonical. M79-M86 technical layer overhaul implementation remains planned.
+  canonical.
+- M79 `TechnicalAnalystAgent` v2A deterministic numeric wiring is complete:
+  `TechnicalAnalystAgent` now stays on `technical_rule_v1` by default while
+  the opt-in `graph_aware_score_v2` profile passes `technical_ohlcv_v2`
+  feature snapshots and universe technical context into the analyst runner;
+  v2 reports store deterministic `TechnicalSignalService.score_ohlcv_v2()`
+  score/confidence/stance, expose alpha/risk/tradability/confidence/top
+  contributors in `AnalystScoreMetadata.technical_v2`, and retain latest
+  `backtest_signals` only as audit metadata. M80-M86 technical layer overhaul
+  implementation remains planned.
 
 ## Standing Safety Rules
 
@@ -257,6 +266,7 @@ removed during docs cleanup. Use Git history for detailed historical plans.
 | M76 | Done | Added the pure DB-free universe technical context builder with deterministic cross-sectional ranks, percentiles, z-scores, missing-feature maps, availability counts, and JSON-friendly universe metadata without changing v1 runtime behavior. |
 | M77 | Done | Added the pure DB-free `technical_ohlcv_v2` scoring profile in `TechnicalSignalService`, exposing typed alpha/risk/tradability/confidence/composite outputs with coverage, contributors, missing-feature metadata, and focused tests while preserving v1 runtime behavior. |
 | M78 | Done | Added opt-in `graph_aware_score_v2` strategy wiring that selects the v2A OHLCV technical profile, carries nested technical metadata in ranking/signal payloads, preserves v1 behavior, and maps the v2 strategy to `active_strategy` without changing canonical defaults. |
+| M79 | Done | Wired `TechnicalAnalystAgent` to the opt-in v2A OHLCV profile with deterministic score/confidence ownership, optional universe context from the paper strategy stage, symbol-local fallback metadata, and v2 score metadata while preserving v1 defaults. |
 
 ## Completed Graph Explorer Sequence
 
@@ -282,7 +292,7 @@ up, and documented; do not automatically begin later scope.
 | 76 | M76 | Done | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Add DB-free universe technical context and cross-sectional normalization without market/sector proxies. |
 | 77 | M77 | Done | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Add the deterministic `technical_ohlcv_v2` alpha/risk/tradability/confidence scoring profile. |
 | 78 | M78 | Done | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Add opt-in `graph_aware_score_v2` strategy wiring while preserving v1 behavior. |
-| 79 | M79 | Planned | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Wire `TechnicalAnalystAgent` to v2A with deterministic numeric ownership and optional universe context. |
+| 79 | M79 | Done | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Wire `TechnicalAnalystAgent` to v2A with deterministic numeric ownership and optional universe context. |
 | 80 | M80 | Planned | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Surface v2A technical vectors in artifacts, API, replay, and React debugging views. |
 | 81 | M81 | Planned | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Add the historical validation command and data-readiness checks for v1/v2 comparisons. |
 | 82 | M82 | Planned | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Generate technical-agent and full-system validation reports with a conservative promotion gate. |
@@ -301,6 +311,30 @@ This completed sequence was executed in order as separate milestone work.
 | 67 | M67 | Done | `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md` | Add the DB-free shared `TechnicalSignalService` foundation without runtime wiring. |
 | 68 | M68 | Done | `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md` | Route `TechnicalAnalystAgent` and `GraphAwareScoreStrategy` through the shared service without behavior drift. |
 | 69 | M69 | Done | `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md` | Run final regression, refresh architecture/deep-dive docs for implemented behavior, and close the sequence. |
+
+### M79 Completion Summary
+
+- Assumptions made: M79 should use `technical_analyst_profile:
+  technical_ohlcv_v2` in the opt-in `graph_aware_score_v2` strategy config
+  while keeping all default/manual analyst runs on `technical_rule_v1`; the
+  paper strategy stage can pass its in-memory v2 feature snapshots and DB-free
+  universe context explicitly to `run_analyst_suite()`; v2
+  `AnalystReport.score`, `confidence`, and `stance` must be reset from
+  deterministic `TechnicalSignalService.score_ohlcv_v2()` output after LLM
+  narrative generation; latest `backtest_signals` remain audit metadata only
+  for v2 and no API/UI/React surfacing belongs in this milestone; no
+  project-local approval cleanup was needed because the global rules file had
+  no entries after the `# END MY CUSTOM ADDITION` marker.
+- Mocks created: `LongHistoryFakeKiteMarketDataProvider` in
+  `tests/unit/test_paper_runs.py` to exercise the 756-candle
+  `graph_aware_score_v2` paper-run path.
+- Mocks used: Existing `FakeLLMProvider`, `NumericOwningLLMProvider`,
+  deterministic in-memory `FeatureSnapshot` fixtures, DB-free
+  `build_universe_technical_context()` context, and existing paper graph
+  fixtures.
+- Verification: `uv run pytest tests/unit/test_analyst_agents.py
+  tests/unit/test_technical_signal_service.py tests/unit/test_paper_runs.py`
+  passed with 58 tests.
 
 ### M78 Completion Summary
 

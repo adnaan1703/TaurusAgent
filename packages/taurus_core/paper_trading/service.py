@@ -42,7 +42,12 @@ from taurus_core.domain.market_data import DailyCandle
 from taurus_core.execution.costs import IndiaPaperCostModel
 from taurus_core.execution.order_router import ExecutionRouter
 from taurus_core.execution.schemas import NextOpenSettlementSummary, PaperAccount, PaperOrder
-from taurus_core.features.store import TechnicalFeatureService
+from taurus_core.features.store import FeatureSnapshot, TechnicalFeatureService
+from taurus_core.features.technical_context import (
+    UniverseTechnicalContext,
+    build_universe_technical_context,
+)
+from taurus_core.features.technical_signal import ANALYST_RULE_PROFILE, OHLCV_V2_PROFILE
 from taurus_core.graph.preflight import assert_graph_ready_for_paper
 from taurus_core.intelligence.mock_news_provider import MockNewsProvider
 from taurus_core.llm import LLMProvider, build_llm_provider
@@ -163,6 +168,23 @@ class PaperRunSymbolScope:
             "open_position_symbols": list(self.open_position_symbols),
             "pending_next_open_order_symbols": list(self.pending_next_open_order_symbols),
         }
+
+
+@dataclass(frozen=True, slots=True)
+class StrategySummaryResult:
+    summary: dict[str, object]
+    technical_analyst_profile: str
+    technical_feature_snapshots: dict[str, FeatureSnapshot]
+    universe_technical_context: UniverseTechnicalContext | None
+
+    def get(self, key: str, default: object | None = None) -> object | None:
+        return self.summary.get(key, default)
+
+    def __getitem__(self, key: str) -> object:
+        return self.summary[key]
+
+    def __setitem__(self, key: str, value: object) -> None:
+        self.summary[key] = value
 
 
 class PaperRunService:
@@ -378,7 +400,7 @@ class PaperRunService:
                 stage="strategy",
                 symbols=strategy_scope_symbols,
             )
-            strategy_summary = self._generate_strategy_summary(
+            strategy_result = self._generate_strategy_summary(
                 symbols=strategy_scope_symbols,
                 requested_symbols=requested_symbols,
                 pre_settlement_pending_order_symbols=pending_next_open_order_symbols,
@@ -386,6 +408,7 @@ class PaperRunService:
                 universe=run.universe,
                 strategy_config_path=strategy_config_path,
             )
+            strategy_summary = strategy_result.summary
             self._emit_progress(
                 "paper.run.setup_completed",
                 run_id=run.run_id,
@@ -500,6 +523,9 @@ class PaperRunService:
                     succeeded_count=len(succeeded_symbols),
                     failed_count=len(failed_symbols),
                     llm_provider=llm_provider,
+                    technical_profile=strategy_result.technical_analyst_profile,
+                    technical_feature_snapshots=strategy_result.technical_feature_snapshots,
+                    universe_technical_context=strategy_result.universe_technical_context,
                 )
                 analysis_by_symbol[symbol] = analysis
                 artifacts["analysis"][symbol] = _analysis_artifact_from_result(
@@ -945,6 +971,9 @@ class PaperRunService:
         succeeded_count: int = 0,
         failed_count: int = 0,
         llm_provider: LLMProvider | None = None,
+        technical_profile: str = ANALYST_RULE_PROFILE,
+        technical_feature_snapshots: dict[str, FeatureSnapshot] | None = None,
+        universe_technical_context: UniverseTechnicalContext | None = None,
     ) -> PaperSymbolAnalysis:
         symbol = symbol.upper()
         with bound_trace_context(run_id=run_id):
@@ -960,6 +989,9 @@ class PaperRunService:
             symbol_index=symbol_index,
             succeeded_count=succeeded_count,
             failed_count=failed_count,
+            technical_profile=technical_profile,
+            technical_feature_snapshots=technical_feature_snapshots,
+            universe_technical_context=universe_technical_context,
         )
         debate = self._run_symbol_research_debate(
             symbol=symbol,
@@ -1071,6 +1103,9 @@ class PaperRunService:
         symbol_index: int,
         succeeded_count: int,
         failed_count: int,
+        technical_profile: str,
+        technical_feature_snapshots: dict[str, FeatureSnapshot] | None,
+        universe_technical_context: UniverseTechnicalContext | None,
     ) -> list[AnalystReport]:
         self._emit_symbol_stage_started(
             run_id=run_id,
@@ -1091,6 +1126,9 @@ class PaperRunService:
                 portfolio_id=self.settings.taurus_paper_portfolio_id,
                 llm_provider=llm_provider,
                 enabled_analysts=enabled_analysts,
+                technical_profile=technical_profile,
+                technical_feature_snapshots=technical_feature_snapshots,
+                universe_technical_context=universe_technical_context,
             )
 
     def _run_symbol_research_debate(
@@ -1857,10 +1895,11 @@ class PaperRunService:
         pending_next_open_order_symbols: list[str] | None = None,
         universe: PaperRunUniverse | None,
         strategy_config_path: str | Path | None,
-    ) -> dict[str, object]:
+    ) -> StrategySummaryResult:
         path = strategy_config_path or DEFAULT_STRATEGY_CONFIG_PATH
         strategy_config = load_strategy_config(path)
         strategy = build_strategy(strategy_config)
+        technical_analyst_profile = _technical_analyst_profile(strategy_config.parameters)
         current_positions = self._open_position_symbols()
         run_scope_symbols = _normalize_symbols(symbols)
         requested_for_metadata = _normalize_symbols(requested_symbols or symbols)
@@ -1888,7 +1927,7 @@ class PaperRunService:
         strategy_input_symbol_set = set(strategy_input_symbols)
         with self.session_factory() as session:
             instruments = InstrumentRepository(session).list(active_only=True)
-            snapshots = {}
+            snapshots: dict[str, FeatureSnapshot] = {}
             for instrument in instruments:
                 symbol = instrument.symbol.upper()
                 if symbol not in strategy_input_symbol_set:
@@ -1904,12 +1943,22 @@ class PaperRunService:
                 if snapshot is not None:
                     snapshots[symbol] = snapshot
 
+        universe_technical_context = (
+            build_universe_technical_context(snapshots)
+            if technical_analyst_profile == OHLCV_V2_PROFILE and snapshots
+            else None
+        )
+        technical_feature_snapshots = (
+            dict(snapshots) if technical_analyst_profile == OHLCV_V2_PROFILE else {}
+        )
         trade_dates = [snapshot.as_of_date for snapshot in snapshots.values()]
         if not trade_dates:
-            return {
+            return StrategySummaryResult(
+                summary={
                 "strategy_name": strategy_config.strategy_name,
                 "strategy_config_path": str(strategy_config.source_path),
                 "strategy_type": strategy_config.strategy_type,
+                "technical_analyst_profile": technical_analyst_profile,
                 "legacy_target_limit": strategy_config.target_positions
                 or self.settings.taurus_max_open_positions,
                 "targets": [],
@@ -1947,7 +1996,11 @@ class PaperRunService:
                     universe=universe,
                     select_targets_with_graph_called=False,
                 ),
-            }
+                },
+                technical_analyst_profile=technical_analyst_profile,
+                technical_feature_snapshots=technical_feature_snapshots,
+                universe_technical_context=universe_technical_context,
+            )
 
         trade_date = max(trade_dates)
         graph_signals_by_symbol: dict[str, GraphBacktestSignal] = {}
@@ -1968,20 +2021,26 @@ class PaperRunService:
         legacy_target_limit = (
             strategy_config.target_positions or self.settings.taurus_max_open_positions
         )
-        rankings = strategy.rank_universe(
-            trade_date=trade_date,
-            features_by_symbol=snapshots,
-            current_positions=current_positions,
-            graph_signals_by_symbol=graph_signals_by_symbol,
-        )
+        rank_kwargs: dict[str, object] = {
+            "trade_date": trade_date,
+            "features_by_symbol": snapshots,
+            "current_positions": current_positions,
+            "graph_signals_by_symbol": graph_signals_by_symbol,
+        }
+        if _strategy_accepts_universe_context(strategy):
+            rank_kwargs["universe_technical_context"] = universe_technical_context
+        rankings = strategy.rank_universe(**rank_kwargs)
         if select_targets_with_graph_called:
-            targets, signals = select_targets_with_graph(
-                trade_date=trade_date,
-                features_by_symbol=snapshots,
-                current_positions=current_positions,
-                graph_signals_by_symbol=graph_signals_by_symbol,
-                target_limit=legacy_target_limit,
-            )
+            target_kwargs: dict[str, object] = {
+                "trade_date": trade_date,
+                "features_by_symbol": snapshots,
+                "current_positions": current_positions,
+                "graph_signals_by_symbol": graph_signals_by_symbol,
+                "target_limit": legacy_target_limit,
+            }
+            if _strategy_accepts_universe_context(strategy):
+                target_kwargs["universe_technical_context"] = universe_technical_context
+            targets, signals = select_targets_with_graph(**target_kwargs)
         else:
             targets, signals = strategy.select_targets(
                 trade_date=trade_date,
@@ -2000,10 +2059,12 @@ class PaperRunService:
             for ranking in rankings
             if ranking.raw_strategy_score is not None
         }
-        return {
+        return StrategySummaryResult(
+            summary={
             "strategy_name": strategy_config.strategy_name,
             "strategy_config_path": str(strategy_config.source_path),
             "strategy_type": strategy_config.strategy_type,
+            "technical_analyst_profile": technical_analyst_profile,
             "legacy_target_limit": legacy_target_limit,
             "targets": selected_symbols,
             "signals": [
@@ -2054,7 +2115,11 @@ class PaperRunService:
                 universe=universe,
                 select_targets_with_graph_called=select_targets_with_graph_called,
             ),
-        }
+            },
+            technical_analyst_profile=technical_analyst_profile,
+            technical_feature_snapshots=technical_feature_snapshots,
+            universe_technical_context=universe_technical_context,
+        )
 
     def _generate_money_management_summary(self) -> dict[str, object] | None:
         if not self.settings.taurus_money_management_enabled:
@@ -2940,6 +3005,20 @@ def _manual_universe(*, provider: str, symbols: list[str]) -> PaperRunUniverse:
         selected_symbol_count=len(symbols),
         symbols=list(symbols),
     )
+
+
+def _technical_analyst_profile(strategy_parameters: dict[str, object]) -> str:
+    value = strategy_parameters.get("technical_analyst_profile")
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    value = strategy_parameters.get("technical_profile")
+    if value == OHLCV_V2_PROFILE:
+        return OHLCV_V2_PROFILE
+    return ANALYST_RULE_PROFILE
+
+
+def _strategy_accepts_universe_context(strategy: object) -> bool:
+    return getattr(strategy, "technical_profile", None) == OHLCV_V2_PROFILE
 
 
 def _graph_profile_enabled(

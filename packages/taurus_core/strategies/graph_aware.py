@@ -221,6 +221,7 @@ class GraphAwareScoreStrategy:
         current_positions: set[str],
         graph_signals_by_symbol: Mapping[str, Any],
         target_limit: int | None = None,
+        universe_technical_context: UniverseTechnicalContext | None = None,
     ) -> tuple[set[str], list[StrategySignal]]:
         graph_by_symbol = {key.upper(): value for key, value in graph_signals_by_symbol.items()}
         rankings = self.rank_universe(
@@ -228,6 +229,7 @@ class GraphAwareScoreStrategy:
             features_by_symbol=features_by_symbol,
             current_positions=current_positions,
             graph_signals_by_symbol=graph_by_symbol,
+            universe_technical_context=universe_technical_context,
         )
         targets = ranked_symbols(rankings, target_limit=target_limit)
         score_by_symbol = {

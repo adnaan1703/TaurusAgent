@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -42,6 +42,7 @@ class AnalystScoreMetadata(BaseModel):
     calibrated_score: Decimal | None = Field(default=None, ge=Decimal("0"), le=Decimal("100"))
     score_source: str = Field(min_length=1)
     notes: tuple[str, ...] = Field(default_factory=tuple)
+    technical_v2: dict[str, Any] = Field(default_factory=dict)
 
 
 class AnalystReport(BaseModel):

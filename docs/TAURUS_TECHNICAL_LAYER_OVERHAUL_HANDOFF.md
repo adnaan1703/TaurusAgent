@@ -5,13 +5,14 @@ Last updated: 2026-06-23
 ## Current Status
 
 - Current milestone: None.
-- Last completed milestone: M78 Opt-In `GraphAwareScoreStrategy` V2A Runtime
-  Profile.
+- Last completed milestone: M79 `TechnicalAnalystAgent` V2A Deterministic
+  Numeric Wiring.
 - Planning completed: M74-M86 technical layer overhaul sequence.
-- Implementation state: M74, M75, M76, M77, and M78 are complete. The current runtime remains
-  behavior-preserving: `TechnicalAnalystAgent` uses `technical_rule_v1`, and
-  `GraphAwareScoreStrategy` uses the SMA-spread profile for
-  `graph_aware_score_v1`. M75 added pure OHLCV indicator primitives and an
+- Implementation state: M74, M75, M76, M77, M78, and M79 are complete. The
+  canonical/default runtime remains behavior-preserving:
+  `TechnicalAnalystAgent` uses `technical_rule_v1` unless the analyst runner is
+  explicitly passed `technical_ohlcv_v2`, and `GraphAwareScoreStrategy` uses the
+  SMA-spread profile for `graph_aware_score_v1`. M75 added pure OHLCV indicator primitives and an
   opt-in `technical_ohlcv_v2` `TechnicalFeatureService` suite. M76 added the
   pure DB-free `build_universe_technical_context()` path for cross-sectional
   ranks, percentiles, z-scores, missing-feature visibility, availability
@@ -27,9 +28,18 @@ Last updated: 2026-06-23
   payloads, and the `active_strategy` money-management mapping. It did not
   change `graph_aware_score_v1`, `make paper-loop-kite` defaults,
   `TechnicalAnalystAgent`, API/UI surfaces, validation commands, or
-  official-data ingestion.
-- Next recommended milestone: M79 `TechnicalAnalystAgent` v2A deterministic
-  numeric wiring.
+  official-data ingestion. M79 added the profile-gated technical analyst v2A
+  path: `configs/strategies/graph_aware_score_v2.yaml` sets
+  `technical_analyst_profile: technical_ohlcv_v2`, `PaperRunService` passes the
+  strategy stage's in-memory v2 `FeatureSnapshot` objects and optional
+  `UniverseTechnicalContext` into `run_analyst_suite()`, and
+  `TechnicalAnalystAgent` stores deterministic v2 score/confidence/stance from
+  `TechnicalSignalService.score_ohlcv_v2()` while preserving LLM narrative
+  generation. Latest `backtest_signals` no longer override v2 analyst score;
+  they are retained only as audit metadata. M79 did not add API/UI/React
+  surfacing, validation commands, official-data ingestion, or promotion.
+- Next recommended milestone: M80 v2A artifact, API, replay, and React
+  visibility.
 - Thread model requirement from the user: each milestone worker thread should
   use GPT 5.5 with xhigh thinking.
 - Commit policy from the user: do not commit anything unless explicitly asked.
@@ -83,7 +93,7 @@ sequence is:
 - M76: universe technical context and cross-sectional normalization. Done.
 - M77: `TechnicalSignalService` v2A scoring profile. Done.
 - M78: opt-in `graph_aware_score_v2` strategy runtime profile. Done.
-- M79: `TechnicalAnalystAgent` v2A deterministic numeric wiring.
+- M79: `TechnicalAnalystAgent` v2A deterministic numeric wiring. Done.
 - M80: v2A artifact, API, replay, and React visibility.
 - M81: historical validation command and data readiness.
 - M82: technical validation reports and conservative gate.
@@ -115,6 +125,9 @@ sequence is:
 - v2A may use full OHLCV plus universe cross-sectional ranks, but must not use
   local market/sector proxies for official market-relative or sector-relative
   scoring.
+- v2A technical analyst score/confidence are deterministic when the analyst
+  profile is `technical_ohlcv_v2`; LLM output may provide narrative, key
+  points, and risks but must not own stored v2 score/confidence.
 - v2B official relative-strength/regime/microstructure features wait for M83
   and M84 ingestion.
 - Validation must prove both technical-agent predictive quality and full-system

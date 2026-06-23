@@ -11,5 +11,6 @@ parameters:
   min_return_20d: -1
   min_graph_confidence: 0
   require_graph_signal: false
+  technical_analyst_profile: technical_ohlcv_v2
   technical_profile: technical_ohlcv_v2
   technical_feature_version: technical_ohlcv_v2

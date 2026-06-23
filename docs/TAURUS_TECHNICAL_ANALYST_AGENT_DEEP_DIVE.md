@@ -62,11 +62,26 @@ report and one `GraphAnalystAgent` report.
 
 ## Inputs
 
-The direct method call is:
+The default direct method call is:
 
 ```python
 TechnicalAnalystAgent.run(symbol=symbol, run_id=run_id)
 ```
+
+M79 added optional profile-gated inputs for v2A:
+
+```python
+TechnicalAnalystAgent.run(
+    symbol=symbol,
+    run_id=run_id,
+    technical_profile="technical_ohlcv_v2",
+    feature_snapshot=snapshot,
+    universe_technical_context=context,
+)
+```
+
+If those optional arguments are omitted, the analyst keeps the legacy
+`technical_rule_v1` behavior.
 
 The agent also receives these constructor dependencies:
 
@@ -76,6 +91,9 @@ The agent also receives these constructor dependencies:
 | `llm_provider` | `build_llm_provider(settings)` | Produces the final structured analyst report JSON. |
 | `symbol` | Paper run / analyst suite | Stock being analyzed. |
 | `run_id` | Paper run | Durable lineage for the generated analyst report. |
+| `technical_profile` | Analyst runner / paper strategy profile | Defaults to `technical_rule_v1`; opt-in `technical_ohlcv_v2` selects v2A scoring. |
+| `feature_snapshot` | Paper strategy stage or direct caller | Optional in-memory v2A snapshot so the analyst can reuse strategy-built features. |
+| `universe_technical_context` | Paper strategy stage or direct caller | Optional DB-free cross-sectional context for v2A scoring. |
 
 ## Database Tables Read
 
@@ -87,7 +105,7 @@ several tables inside it.
 | `instruments` | `run_analyst_suite()` | Confirms the symbol exists before analysts run. |
 | `feature_values` | `TechnicalAnalystAgent._persisted_feature_snapshot()` | Optional precomputed technical feature snapshots. |
 | `daily_candles` | `TechnicalAnalystAgent._latest_feature_snapshot()` | Source OHLCV history when no persisted feature snapshot is available. |
-| `backtest_signals` | `TechnicalAnalystAgent._latest_signal()` | Optional latest strategy signal that can override feature-based technical scoring. |
+| `backtest_signals` | `TechnicalAnalystAgent._latest_signal()` | Optional latest strategy signal that can override v1 scoring; v2 stores it only as audit metadata. |
 
 Important nuance: both `feature_values` and `backtest_signals` lookups are
 symbol-based. The current `TechnicalAnalystAgent` does not filter these lookups
@@ -152,14 +170,17 @@ turnover z-score, and 63/126/252-day volatility-adjusted returns. The canonical
 `graph_aware_score_v1` strategy does not set this parameter, so current paper
 loop behavior remains on the v1 feature set. The opt-in
 `graph_aware_score_v2` strategy sets both `technical_feature_version:
-technical_ohlcv_v2` and `technical_profile: technical_ohlcv_v2`, but that
-changes only the strategy ranking path, not this analyst.
+technical_ohlcv_v2`, `technical_profile: technical_ohlcv_v2`, and
+`technical_analyst_profile: technical_ohlcv_v2`, which wires both the strategy
+ranking path and the technical analyst path into v2A when that strategy config
+is explicitly selected.
 
 ## Score Calculation
 
 The deterministic technical score is computed before the LLM report is created.
-`TechnicalAnalystAgent` owns the database reads and snapshot selection, then
-passes a `FeatureSnapshot | None` plus an optional `TechnicalBacktestSignal` to
+For the default `technical_rule_v1` profile, `TechnicalAnalystAgent` owns the
+database reads and snapshot selection, then passes a `FeatureSnapshot | None`
+plus an optional `TechnicalBacktestSignal` to
 `TechnicalSignalService.score_analyst_rule()`.
 
 `TechnicalSignalService` returns a DB-free `TechnicalSignalResult` containing
@@ -222,6 +243,52 @@ It penalizes:
 | `ema_12` below `ema_26` | Bearish trend |
 | RSI below 50 | Weak momentum |
 | Higher volatility | Larger penalty |
+
+### If The V2A Profile Is Selected
+
+If the analyst profile is `technical_ohlcv_v2`, the agent calls:
+
+```python
+TechnicalSignalService.score_ohlcv_v2(
+    snapshot,
+    universe_context=universe_technical_context,
+    symbol=symbol,
+)
+```
+
+The returned deterministic composite score and confidence become the stored
+`AnalystReport.score`, `AnalystReport.confidence`, and stance. The LLM still
+receives deterministic context and can write narrative `key_points` and
+`risks`, but its numeric score and confidence are overwritten before the report
+is stored.
+
+The v2 report metadata is additive:
+
+```text
+AnalystScoreMetadata.technical_v2
+  profile_name
+  alpha_score
+  risk_score
+  tradability_score
+  confidence
+  composite_score
+  coverage
+  components
+  top_contributors
+  missing_features
+  metadata
+```
+
+When the paper strategy stage has already built full-universe v2 snapshots, it
+passes those snapshots plus `UniverseTechnicalContext` into the analyst runner.
+Manual or symbol-local v2 calls still work without universe context; in that
+case the v2 scorer falls back to raw symbol features, records
+`universe_context_available=false`, and emits lower confidence.
+
+Latest `backtest_signals` do not override v2 score or confidence. If present,
+the latest signal is stored only under
+`technical_v2.latest_backtest_signal_audit` with
+`score_override_applied=false`.
 
 ## Key Points and Risks
 
@@ -297,6 +364,10 @@ Implementation note: the current code builds a `fallback` object, but
 LLM provider fails. Provider failure raises `LLMProviderError`, and the analyst
 suite stores no partial report for that run/symbol.
 
+For `technical_ohlcv_v2`, the agent calls `_build_report()` for narrative
+generation and then resets stored score, confidence, stance, model version, and
+score metadata to the deterministic v2 result.
+
 ## Output Shape
 
 The output is an `AnalystReport` with this shape:
@@ -325,7 +396,8 @@ The output is an `AnalystReport` with this shape:
 |---|---|---|---|
 | `FeatureSnapshot` | In memory | `TechnicalFeatureService.build_snapshot()` | Contains computed indicator values. Not automatically persisted by `TechnicalAnalystAgent`. |
 | `FeatureValue` rows | In memory from feature service; persisted by backtesting paths | `TechnicalFeatureService.build_snapshot()` plus caller | Backtests persist these into `feature_values`; paper analyst fallback does not. |
-| `TechnicalSignalResult` | In memory | `TechnicalSignalService.score_analyst_rule()` | DB-free deterministic score, confidence, key-point, source, and metadata contract copied into the report. |
+| `TechnicalSignalResult` | In memory | `TechnicalSignalService.score_analyst_rule()` | DB-free deterministic v1 score, confidence, key-point, source, and metadata contract copied into the report. |
+| `TechnicalOhlcvSignalResult` | In memory | `TechnicalSignalService.score_ohlcv_v2()` | DB-free deterministic v2 alpha/risk/tradability/confidence/composite contract copied into `score_metadata.technical_v2`. |
 | Technical analyst report | `analyst_reports` table | `AnalystReportRepository.replace_for_run_symbol()` | Durable per-run, per-symbol agent output. |
 | Full report payload | `analyst_reports.payload` JSON | Repository conversion | Stores the full serialized `AnalystReport`. |
 | Per-symbol analysis artifact | `paper_runs.artifacts["analysis"][symbol]` | `PaperRunService` | Stores report ids, analyst roster, debate id, proposal id, proposal action, and finalization status. |
@@ -434,11 +506,11 @@ artifacts in `paper_runs.artifacts`.
 
 | Limitation | Impact |
 |---|---|
-| No `TechnicalAnalystAgent` v2 wiring yet | `technical_ohlcv_v2` can generate richer OHLCV feature snapshots, the DB-free universe context builder can normalize them cross-sectionally, and `TechnicalSignalService.score_ohlcv_v2()` can produce typed alpha/risk/tradability/confidence/composite outputs. M78 wires that profile into the opt-in `graph_aware_score_v2` strategy, but this analyst still uses `technical_rule_v1` until the M79 profile-gated analyst work. |
+| V2A analyst visibility is still payload-only | M79 wires deterministic v2A score/confidence and metadata into `AnalystReport`, but dedicated API, replay, and React debugging views remain planned for M80. |
 | Shared analyst-rule scoring uses a fixed formula | Extra computed indicators are ignored unless a future `TechnicalSignalService` profile consumes them. |
 | Only the core wired paths use `TechnicalSignalService` | `TechnicalAnalystAgent` and `GraphAwareScoreStrategy` are migrated; `BlendedScoreStrategy` and `MovingAverageCrossoverStrategy` remain deferred. |
-| `feature_values` lookup is symbol-latest, not paper-run scoped | A persisted feature snapshot from another context can be selected if it is the latest for that symbol. |
-| `backtest_signals` lookup is symbol-latest, not paper-run scoped | A latest backtest signal can override feature-based scoring regardless of current paper run lineage. |
+| `feature_values` lookup is symbol-latest, not paper-run scoped | A persisted feature snapshot from another context can be selected if it is the latest for that symbol. V2 analyst calls filter persisted snapshots to `technical_ohlcv_v2` and otherwise rebuild from candles or use the caller-provided snapshot. |
+| `backtest_signals` lookup is symbol-latest, not paper-run scoped | A latest backtest signal can still override default v1 scoring regardless of current paper run lineage. V2 keeps the latest signal only as audit metadata. |
 | Fallback report is not used on LLM provider failure | Provider failure aborts the analyst suite for the symbol instead of storing a deterministic fallback report. |
 
 ## Shared Technical Signal Service
@@ -458,8 +530,8 @@ The implemented scopes are:
 - `score_ohlcv_v2()` adds the opt-in OHLCV-only v2A scoring profile with
   alpha, risk, tradability, confidence, composite score, coverage,
   top-contributor, missing-feature, source, and metadata outputs. It is called
-  by the opt-in `graph_aware_score_v2` strategy and is not called by this agent
-  until the M79 profile-gated wiring milestone.
+  by the opt-in `graph_aware_score_v2` strategy and, after M79, by
+  `TechnicalAnalystAgent` when `technical_profile="technical_ohlcv_v2"`.
 
 Future technical experiments should add or select profiles in
 `TechnicalSignalService` instead of embedding new scoring formulas directly in

@@ -172,6 +172,7 @@ def test_graph_aware_v2_config_selects_ohlcv_profile_and_feature_version() -> No
     assert config.strategy_name == "graph_aware_score_v2"
     assert config.strategy_type == "graph_aware_score"
     assert config.lookback_days == 756
+    assert config.parameters["technical_analyst_profile"] == OHLCV_V2_PROFILE
     assert config.parameters["technical_profile"] == OHLCV_V2_PROFILE
     assert config.parameters["technical_feature_version"] == TECHNICAL_OHLCV_V2_FEATURE_VERSION
     assert feature_service.feature_version == TECHNICAL_OHLCV_V2_FEATURE_VERSION

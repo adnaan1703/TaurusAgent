@@ -45,6 +45,7 @@ from taurus_core.execution.schemas import (
     paper_fill_id,
     paper_order_id,
 )
+from taurus_core.features.technical_signal import OHLCV_V2_PROFILE
 from taurus_core.paper_trading.schemas import PaperRun, PaperRunUniverse, paper_run_id
 from taurus_core.paper_trading.service import (
     ANALYSIS_STAGE_NAMES,
@@ -1015,6 +1016,85 @@ def test_graph_enabled_kite_paper_run_uses_graph_roster_strategy_and_risk(
     assert risk_review is not None
     hard_rules = {row["rule"] for row in risk_review.hard_rule_results}
     assert "graph_correlated_cluster_concentration" in hard_rules
+
+
+def test_graph_aware_v2_paper_run_passes_universe_context_to_technical_analyst(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings = _settings_for_temp_db(
+        tmp_path,
+        enabled_analysts="technical,graph",
+        graph_enabled=True,
+        graph_risk_enabled=True,
+        paper_analysis_scope="full_universe",
+    )
+    _seed_paper_graph_fixture(settings)
+
+    class LongHistoryFakeKiteMarketDataProvider(FakeKiteMarketDataProvider):
+        def get_daily_candles(self, symbol: str):
+            symbols = [instrument.symbol for instrument in TEST_INSTRUMENTS]
+            symbol_index = symbols.index(symbol.upper())
+            return build_test_candles_for_symbol(
+                symbol=symbol.upper(),
+                symbol_index=symbol_index,
+                candle_count=756,
+                source="kite:historical:NSE",
+            )
+
+    monkeypatch.setattr(
+        "taurus_core.paper_trading.service.build_market_data_provider",
+        lambda settings: LongHistoryFakeKiteMarketDataProvider(),
+    )
+    latest_candle_date = LongHistoryFakeKiteMarketDataProvider().get_daily_candles("INFY")[
+        -1
+    ].trade_date
+    with build_session_factory(settings)() as session:
+        GraphRepository(session).upsert_edge_stats(
+            edge_key="peer:INFY:RELIANCE",
+            window="60d",
+            as_of_date=latest_candle_date,
+            sample_size=60,
+            raw_correlation=Decimal("0.8200"),
+            residual_correlation=Decimal("0.7600"),
+            lead_lag_score=Decimal("0.4200"),
+            stability_score=Decimal("0.9000"),
+        )
+        session.commit()
+
+    run = PaperRunService(settings).run_once(
+        symbols=["INFY", "RELIANCE"],
+        strategy_config_path="configs/strategies/graph_aware_score_v2.yaml",
+    )
+    strategy = run.artifacts["strategy"]
+
+    assert run.status == "COMPLETED"
+    assert strategy["strategy_name"] == "graph_aware_score_v2"
+    assert strategy["technical_analyst_profile"] == OHLCV_V2_PROFILE
+    assert strategy["feature_snapshot_count"] >= 2
+
+    session_factory = build_session_factory(settings)
+    with session_factory() as session:
+        report_models = list(
+            session.scalars(
+                select(AnalystReportModel).where(
+                    AnalystReportModel.agent_name == "TechnicalAnalystAgent"
+                )
+            )
+        )
+
+    assert report_models
+    for report_model in report_models:
+        payload = report_model.payload
+        score_metadata = payload["score_metadata"]
+        technical_v2 = score_metadata["technical_v2"]
+        assert payload["model_version"] == OHLCV_V2_PROFILE
+        assert Decimal(str(payload["score"])) == Decimal(technical_v2["composite_score"])
+        assert Decimal(str(payload["confidence"])) == Decimal(technical_v2["confidence"])
+        assert technical_v2["metadata"]["universe_context_available"] is True
+        assert technical_v2["metadata"]["symbol_context_available"] is True
+        assert technical_v2["metadata"]["universe_size"] >= 2
+        assert technical_v2["top_contributors"]
 
 
 def test_graph_enabled_money_management_run_adds_active_allocation_metadata(

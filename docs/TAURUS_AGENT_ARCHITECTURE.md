@@ -217,9 +217,14 @@ paths:
 
 - `TechnicalAnalystAgent` still owns database lookups, feature snapshot
   selection, latest `backtest_signals` lookup, LLM context construction, and
-  report persistence, but it delegates analyst-rule score, confidence, source
-  IDs, and key-point selection to
-  `TechnicalSignalService.score_analyst_rule()`.
+  report persistence. The default `technical_rule_v1` profile delegates
+  analyst-rule score, confidence, source IDs, and key-point selection to
+  `TechnicalSignalService.score_analyst_rule()`. The opt-in
+  `technical_ohlcv_v2` analyst profile uses
+  `TechnicalSignalService.score_ohlcv_v2()` and stores deterministic v2
+  score/confidence/stance plus alpha/risk/tradability metadata while allowing
+  the LLM to provide narrative only. Latest `backtest_signals` remain v1 score
+  inputs and v2 audit metadata only.
 - `GraphAwareScoreStrategy` still owns graph-aware filtering, ranking,
   target selection, and strategy signal payloads, but its `_technical_score()`
   compatibility method delegates SMA-spread scoring to
@@ -244,12 +249,13 @@ v2A scoring profile. It consumes a `FeatureSnapshot` plus optional
 `UniverseTechnicalContext` and returns typed alpha, risk, tradability,
 confidence, composite score, coverage, top-contributor, missing-feature, source,
 and metadata fields. It is wired into the opt-in `graph_aware_score_v2`
-strategy profile and remains unwired for `TechnicalAnalystAgent` until M79.
+strategy profile and into `TechnicalAnalystAgent` when the analyst profile is
+`technical_ohlcv_v2`.
 
 The shared service is DB-free and behavior-preserving for the first
-implementation sequence. Runtime profile selection is currently implemented
-only for `GraphAwareScoreStrategy`; migration of `BlendedScoreStrategy` or
-`MovingAverageCrossoverStrategy` remains deferred in
+implementation sequence. Runtime profile selection is currently implemented for
+`GraphAwareScoreStrategy` and `TechnicalAnalystAgent`; migration of
+`BlendedScoreStrategy` or `MovingAverageCrossoverStrategy` remains deferred in
 `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md`.
 
 ## Portfolio Plan Artifact

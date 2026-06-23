@@ -17,6 +17,9 @@ from taurus_core.agents.schemas import AnalystReport
 from taurus_core.agents.sentiment_analyst import SentimentAnalystAgent
 from taurus_core.agents.technical_analyst import TechnicalAnalystAgent
 from taurus_core.db.repositories import AnalystReportRepository, InstrumentRepository
+from taurus_core.features.store import FeatureSnapshot
+from taurus_core.features.technical_context import UniverseTechnicalContext
+from taurus_core.features.technical_signal import ANALYST_RULE_PROFILE
 from taurus_core.llm.base import LLMProvider
 from taurus_core.logging import get_logger
 from taurus_core.observability.metrics import record_agent_run, record_graph_agent_failure
@@ -42,6 +45,9 @@ def run_analyst_suite(
     run_id: str = DEFAULT_ANALYST_RUN_ID,
     portfolio_id: str = DEFAULT_PROFILE_ID,
     enabled_analysts: str | Sequence[str] | None = None,
+    technical_profile: str = ANALYST_RULE_PROFILE,
+    technical_feature_snapshots: dict[str, FeatureSnapshot] | None = None,
+    universe_technical_context: UniverseTechnicalContext | None = None,
 ) -> list[AnalystReport]:
     symbol = symbol.upper()
     profile_id = validate_profile_id(portfolio_id)
@@ -59,9 +65,19 @@ def run_analyst_suite(
     for agent in agents:
         started_at = time.perf_counter()
         try:
-            report = agent.run(symbol=symbol, run_id=run_id).model_copy(
-                update={"portfolio_id": profile_id}
-            )
+            if isinstance(agent, TechnicalAnalystAgent):
+                feature_snapshot = (technical_feature_snapshots or {}).get(symbol)
+                report = agent.run(
+                    symbol=symbol,
+                    run_id=run_id,
+                    technical_profile=technical_profile,
+                    feature_snapshot=feature_snapshot,
+                    universe_technical_context=universe_technical_context,
+                ).model_copy(update={"portfolio_id": profile_id})
+            else:
+                report = agent.run(symbol=symbol, run_id=run_id).model_copy(
+                    update={"portfolio_id": profile_id}
+                )
         except Exception as exc:
             if isinstance(agent, GraphAnalystAgent):
                 record_graph_agent_failure(
