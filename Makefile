@@ -1,4 +1,4 @@
-.PHONY: setup setup-ui dev-up dev-down api ui build-ui test-ui dashboard migrate profile-list profile-create profile-archive profile-update-corpus backtest-mock validate-technical-v2 import-mock-news import-screener import-market-data import-taurus-graph compute-graph-stats project-neo4j-graph sync-halal-stocks kite-login-url kite-exchange-token kite-sync-instruments import-kite-candles kite-ltp-smoke run-analysts-mock debate-mock trader-proposal-mock risk-review-mock final-approval-mock paper-once-mock paper-loop-once paper-loop-start paper-loop-kite position-monitor paper-loop-dashboard alert-smoke alert-test-telegram replay-decision backup-local backup-db restore-local taurus-smoke llm-smoke test lint
+.PHONY: setup setup-ui dev-up dev-down api ui build-ui test-ui dashboard migrate profile-list profile-create profile-archive profile-update-corpus backtest-mock validate-technical-v2 import-mock-news import-screener import-market-data import-official-index-data check-official-index-readiness import-taurus-graph compute-graph-stats project-neo4j-graph sync-halal-stocks kite-login-url kite-exchange-token kite-sync-instruments import-kite-candles kite-ltp-smoke run-analysts-mock debate-mock trader-proposal-mock risk-review-mock final-approval-mock paper-once-mock paper-loop-once paper-loop-start paper-loop-kite position-monitor paper-loop-dashboard alert-smoke alert-test-telegram replay-decision backup-local backup-db restore-local taurus-smoke llm-smoke test lint
 
 UV ?= uv
 PNPM ?= pnpm
@@ -78,6 +78,19 @@ TECHNICAL_VALIDATION_PORTFOLIO_BREADTH ?= $(TAURUS_BACKTEST_TARGET_POSITIONS)
 TECHNICAL_VALIDATION_REBALANCE_EVERY_DAYS ?= 21
 TECHNICAL_VALIDATION_COST_BPS ?= 10
 TECHNICAL_VALIDATION_SLIPPAGE_BPS ?= $(TAURUS_PAPER_SLIPPAGE_BPS)
+OFFICIAL_INDEX_CSV ?=
+OFFICIAL_INDEX_SYMBOL ?=
+OFFICIAL_INDEX_NAME ?=
+OFFICIAL_INDEX_FAMILY ?=
+OFFICIAL_INDEX_SOURCE ?= nse_official_index_csv
+OFFICIAL_INDEX_SOURCE_URL ?=
+OFFICIAL_INDEX_TIMEFRAME ?= 1d
+OFFICIAL_INDEX_BENCHMARK_SYMBOLS ?= NIFTY_50
+OFFICIAL_INDEX_SECTOR_SYMBOLS ?=
+OFFICIAL_INDEX_VOLATILITY_SYMBOLS ?= INDIA_VIX
+OFFICIAL_INDEX_START_DATE ?=
+OFFICIAL_INDEX_END_DATE ?=
+OFFICIAL_INDEX_READINESS_OUTPUT ?= artifacts/technical_validation/official_index_readiness.json
 
 setup:
 	$(UV) sync --dev
@@ -144,6 +157,12 @@ import-screener:
 	DATABASE_URL="$(DATABASE_URL)" CSV="$(CSV)" PYTHONPATH=packages:. $(UV) run python scripts/import_screener.py
 
 import-market-data: import-kite-candles
+
+import-official-index-data:
+	DATABASE_URL="$(DATABASE_URL)" OFFICIAL_INDEX_CSV="$(OFFICIAL_INDEX_CSV)" OFFICIAL_INDEX_SYMBOL="$(OFFICIAL_INDEX_SYMBOL)" OFFICIAL_INDEX_NAME="$(OFFICIAL_INDEX_NAME)" OFFICIAL_INDEX_FAMILY="$(OFFICIAL_INDEX_FAMILY)" OFFICIAL_INDEX_SOURCE="$(OFFICIAL_INDEX_SOURCE)" OFFICIAL_INDEX_SOURCE_URL="$(OFFICIAL_INDEX_SOURCE_URL)" OFFICIAL_INDEX_TIMEFRAME="$(OFFICIAL_INDEX_TIMEFRAME)" PYTHONPATH=packages:. $(UV) run python scripts/import_official_index_data.py import
+
+check-official-index-readiness:
+	DATABASE_URL="$(DATABASE_URL)" OFFICIAL_INDEX_BENCHMARK_SYMBOLS="$(OFFICIAL_INDEX_BENCHMARK_SYMBOLS)" OFFICIAL_INDEX_SECTOR_SYMBOLS="$(OFFICIAL_INDEX_SECTOR_SYMBOLS)" OFFICIAL_INDEX_VOLATILITY_SYMBOLS="$(OFFICIAL_INDEX_VOLATILITY_SYMBOLS)" OFFICIAL_INDEX_START_DATE="$(OFFICIAL_INDEX_START_DATE)" OFFICIAL_INDEX_END_DATE="$(OFFICIAL_INDEX_END_DATE)" OFFICIAL_INDEX_TIMEFRAME="$(OFFICIAL_INDEX_TIMEFRAME)" OFFICIAL_INDEX_READINESS_OUTPUT="$(OFFICIAL_INDEX_READINESS_OUTPUT)" PYTHONPATH=packages:. $(UV) run python scripts/import_official_index_data.py readiness
 
 import-taurus-graph:
 	DATABASE_URL="$(DATABASE_URL)" DATA_DIR="$(DATA_DIR)" PYTHONPATH=packages:. $(UV) run python scripts/import_taurus_graph.py

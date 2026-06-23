@@ -6,9 +6,9 @@ tables created during the migration to Kite-backed market data and paper runs.
 
 ## Summary
 
-- Active application tables: 38
+- Active application tables: 39
 - Legacy mock archive tables: 11
-- Total tables: 49
+- Total tables: 50
 
 ## Market Data and Instruments
 
@@ -17,6 +17,7 @@ tables created during the migration to Kite-backed market data and paper runs.
 | `instruments` | Canonical securities/instruments by symbol, exchange, segment, currency, lot size, tick size, and active flag. |
 | `instrument_provider_mappings` | Mapping from Taurus symbols to provider-specific identifiers, mainly Kite instrument tokens and provider symbols. |
 | `daily_candles` | Kite OHLCV daily candles by symbol, timeframe, and trade date. This is the main price-history table. |
+| `official_index_candles` | Official benchmark, sector-index, and India VIX OHLC history by index identifier, family, timeframe, trade date, source, and data availability time for future v2B technical features. |
 | `market_price_snapshots` | Point-in-time/latest quote snapshots from a market data provider. |
 | `portfolio_snapshots` | Aggregate portfolio value snapshots: cash, holdings value, and total value by date. |
 

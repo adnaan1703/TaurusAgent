@@ -131,6 +131,69 @@ class DailyCandleModel(Base):
     )
 
 
+class OfficialIndexCandleModel(Base):
+    __tablename__ = "official_index_candles"
+    __table_args__ = (
+        UniqueConstraint(
+            "index_symbol",
+            "timeframe",
+            "trade_date",
+            "source",
+            name="uq_official_index_candles_symbol_timeframe_date_source",
+        ),
+        CheckConstraint(
+            "index_family IN ('benchmark', 'sector', 'volatility', 'other')",
+            name="ck_official_index_candles_family",
+        ),
+        Index(
+            "ix_official_index_candles_symbol_timeframe_date",
+            "index_symbol",
+            "timeframe",
+            "trade_date",
+        ),
+        Index(
+            "ix_official_index_candles_family_symbol_date",
+            "index_family",
+            "index_symbol",
+            "trade_date",
+        ),
+        Index(
+            "ix_official_index_candles_symbol_available_time",
+            "index_symbol",
+            "timeframe",
+            "data_available_time",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    index_symbol: Mapped[str] = mapped_column(String(64), nullable=False)
+    index_name: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+    index_family: Mapped[str] = mapped_column(String(32), nullable=False)
+    timeframe: Mapped[str] = mapped_column(String(8), nullable=False, default="1d")
+    trade_date: Mapped[date] = mapped_column(Date, nullable=False)
+    open: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
+    high: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
+    low: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
+    close: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
+    source: Mapped[str] = mapped_column(String(128), nullable=False)
+    source_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    data_available_time: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc_now,
+    )
+    raw: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc_now,
+        onupdate=utc_now,
+    )
+
+
 class InstrumentProviderMappingModel(Base):
     __tablename__ = "instrument_provider_mappings"
     __table_args__ = (

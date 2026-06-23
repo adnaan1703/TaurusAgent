@@ -384,6 +384,12 @@ selection rows, allocation ledger rows, replay strategy/allocation stages, and
 React debugging tables. These copies are additive evidence for operators; they
 do not change candidate-score formulas or allocation ordering.
 
+M83 added official benchmark, sector-index, and India VIX ingestion/readiness
+contracts for future v2B scoring. Those rows are not consumed by
+`graph_aware_score_v2`, allocation calibration, candidate scoring, or quantity
+sizing until a later explicit v2B milestone wires them into
+`TechnicalSignalService`.
+
 Allocation impact:
 
 - maps to `active_strategy`

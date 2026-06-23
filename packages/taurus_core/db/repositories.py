@@ -36,6 +36,7 @@ from taurus_core.db.models import (
     InstrumentProviderMappingModel,
     InstrumentModel,
     MarketPriceSnapshotModel,
+    OfficialIndexCandleModel,
     PaperRunModel,
     PaperAccountModel,
     PaperFillModel,
@@ -50,6 +51,7 @@ from taurus_core.db.models import (
 )
 from taurus_core.domain.instruments import Instrument
 from taurus_core.domain.market_data import DailyCandle, MarketPriceSnapshot
+from taurus_core.domain.official_market_data import OfficialIndexCandle
 from taurus_core.intelligence.documents import NewsEvent, RawDocument, SentimentScore
 from taurus_core.agents.schemas import AnalystReport
 from taurus_core.research.schemas import DebateReport, TraderProposal
@@ -202,6 +204,167 @@ class CandleRepository:
         if symbol is not None:
             statement = statement.where(DailyCandleModel.symbol == symbol.upper())
         return statement.order_by(DailyCandleModel.symbol, DailyCandleModel.trade_date)
+
+
+class OfficialIndexCandleRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def upsert(
+        self, candles: list[OfficialIndexCandle]
+    ) -> list[OfficialIndexCandleModel]:
+        models: list[OfficialIndexCandleModel] = []
+        for candle in candles:
+            model = self._get_one(
+                candle.index_symbol,
+                candle.trade_date,
+                candle.timeframe,
+                candle.source,
+            )
+            if model is None:
+                model = _official_index_candle_to_model(candle)
+                self.session.add(model)
+            else:
+                model.index_name = candle.index_name
+                model.index_family = _official_index_family(candle.index_family)
+                model.open = candle.open
+                model.high = candle.high
+                model.low = candle.low
+                model.close = candle.close
+                model.source_url = candle.source_url
+                model.data_available_time = _official_index_available_time(candle)
+                model.raw = dict(candle.raw or {})
+            models.append(model)
+        self.session.flush()
+        return models
+
+    def list(
+        self,
+        *,
+        index_symbol: str | None = None,
+        index_family: str | None = None,
+        timeframe: str = "1d",
+        source: str | None = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
+    ) -> list[OfficialIndexCandleModel]:
+        statement = self._base_select(
+            index_symbol=index_symbol,
+            timeframe=timeframe,
+            source=source,
+        )
+        if index_family is not None:
+            statement = statement.where(
+                OfficialIndexCandleModel.index_family
+                == _official_index_family(index_family)
+            )
+        if start_date is not None:
+            statement = statement.where(OfficialIndexCandleModel.trade_date >= start_date)
+        if end_date is not None:
+            statement = statement.where(OfficialIndexCandleModel.trade_date <= end_date)
+        return list(self.session.scalars(statement))
+
+    def get_by_index_and_date_range(
+        self,
+        *,
+        index_symbol: str,
+        index_family: str | None = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        timeframe: str = "1d",
+        source: str | None = None,
+    ) -> list[OfficialIndexCandleModel]:
+        return self.list(
+            index_symbol=index_symbol,
+            index_family=index_family,
+            timeframe=timeframe,
+            source=source,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+    def history_as_of(
+        self,
+        *,
+        index_symbol: str,
+        as_of: date | datetime,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        timeframe: str = "1d",
+        source: str | None = None,
+    ) -> list[OfficialIndexCandleModel]:
+        statement = self._base_select(
+            index_symbol=index_symbol,
+            timeframe=timeframe,
+            source=source,
+        ).where(OfficialIndexCandleModel.data_available_time <= _as_of_time(as_of))
+        if start_date is not None:
+            statement = statement.where(OfficialIndexCandleModel.trade_date >= start_date)
+        if end_date is not None:
+            statement = statement.where(OfficialIndexCandleModel.trade_date <= end_date)
+        return list(self.session.scalars(statement))
+
+    def latest_as_of(
+        self,
+        *,
+        index_symbol: str,
+        as_of: date | datetime,
+        timeframe: str = "1d",
+        source: str | None = None,
+    ) -> OfficialIndexCandleModel | None:
+        statement = (
+            self._base_select(
+                index_symbol=index_symbol,
+                timeframe=timeframe,
+                source=source,
+            )
+            .where(OfficialIndexCandleModel.data_available_time <= _as_of_time(as_of))
+            .order_by(None)
+            .order_by(
+                OfficialIndexCandleModel.trade_date.desc(),
+                OfficialIndexCandleModel.data_available_time.desc(),
+                OfficialIndexCandleModel.source,
+            )
+            .limit(1)
+        )
+        return self.session.scalar(statement)
+
+    def _get_one(
+        self,
+        index_symbol: str,
+        trade_date: date,
+        timeframe: str,
+        source: str,
+    ) -> OfficialIndexCandleModel | None:
+        statement = select(OfficialIndexCandleModel).where(
+            OfficialIndexCandleModel.index_symbol == index_symbol.upper(),
+            OfficialIndexCandleModel.timeframe == timeframe,
+            OfficialIndexCandleModel.trade_date == trade_date,
+            OfficialIndexCandleModel.source == source,
+        )
+        return self.session.scalar(statement)
+
+    @staticmethod
+    def _base_select(
+        *,
+        index_symbol: str | None,
+        timeframe: str,
+        source: str | None,
+    ) -> Select[tuple[OfficialIndexCandleModel]]:
+        statement = select(OfficialIndexCandleModel).where(
+            OfficialIndexCandleModel.timeframe == timeframe
+        )
+        if index_symbol is not None:
+            statement = statement.where(
+                OfficialIndexCandleModel.index_symbol == index_symbol.upper()
+            )
+        if source is not None:
+            statement = statement.where(OfficialIndexCandleModel.source == source)
+        return statement.order_by(
+            OfficialIndexCandleModel.index_symbol,
+            OfficialIndexCandleModel.trade_date,
+            OfficialIndexCandleModel.source,
+        )
 
 
 class InstrumentProviderMappingRepository:
@@ -2950,6 +3113,55 @@ def _candle_available_time(candle: DailyCandle) -> datetime:
             return candle.data_available_time.replace(tzinfo=timezone.utc)
         return candle.data_available_time
     return datetime.combine(candle.trade_date, time(18, 0), tzinfo=timezone.utc)
+
+
+def _official_index_candle_to_model(
+    candle: OfficialIndexCandle,
+) -> OfficialIndexCandleModel:
+    return OfficialIndexCandleModel(
+        index_symbol=candle.index_symbol.upper(),
+        index_name=candle.index_name,
+        index_family=_official_index_family(candle.index_family),
+        timeframe=candle.timeframe,
+        trade_date=candle.trade_date,
+        open=candle.open,
+        high=candle.high,
+        low=candle.low,
+        close=candle.close,
+        source=candle.source,
+        source_url=candle.source_url,
+        data_available_time=_official_index_available_time(candle),
+        raw=dict(candle.raw or {}),
+    )
+
+
+def _official_index_available_time(candle: OfficialIndexCandle) -> datetime:
+    if candle.data_available_time is not None:
+        if candle.data_available_time.tzinfo is None:
+            return candle.data_available_time.replace(tzinfo=timezone.utc)
+        return candle.data_available_time
+    return datetime.combine(candle.trade_date, time(18, 0), tzinfo=timezone.utc)
+
+
+def _official_index_family(value: str) -> str:
+    normalized = value.strip().lower().replace("-", "_").replace(" ", "_")
+    if normalized in {"bench", "benchmark_index", "market", "broad_market"}:
+        normalized = "benchmark"
+    elif normalized in {"sector_index", "sectoral"}:
+        normalized = "sector"
+    elif normalized in {"vix", "india_vix", "volatility_index"}:
+        normalized = "volatility"
+    if normalized not in {"benchmark", "sector", "volatility", "other"}:
+        raise ValueError(f"Unsupported official index family: {value!r}")
+    return normalized
+
+
+def _as_of_time(value: date | datetime) -> datetime:
+    if isinstance(value, datetime):
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value
+    return datetime.combine(value, time.min, tzinfo=timezone.utc)
 
 
 def _raw_document_to_model(document: RawDocument) -> RawDocumentModel:

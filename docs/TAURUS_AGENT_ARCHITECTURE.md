@@ -260,6 +260,15 @@ strategy/allocation stages can all expose the same compact vector. The vector is
 for debugging and traceability only; M80 does not change scoring formulas,
 allocation calibration, validation gates, or default v1 behavior.
 
+M83 added official market/regime reference storage for future v2B work:
+`official_index_candles` stores benchmark index, sector-index, and India VIX
+OHLC history with source, source URL, index identifier, family, timeframe, raw
+source-row metadata, and `data_available_time`. Import and readiness commands
+are available through `make import-official-index-data` and
+`make check-official-index-readiness`. Current v1/v2A profiles do not read this
+table; M85 is responsible for joining these official rows into
+market-relative, sector-relative, and volatility-regime scoring.
+
 The shared service is DB-free and behavior-preserving for the first
 implementation sequence. Runtime profile selection is currently implemented for
 `GraphAwareScoreStrategy` and `TechnicalAnalystAgent`; migration of

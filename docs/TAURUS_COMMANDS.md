@@ -91,6 +91,8 @@ make profile-create PROFILE_ID=client-a PROFILE_DISPLAY_NAME="Client A" PROFILE_
 make profile-archive PROFILE_ID=client-a
 make profile-update-corpus PROFILE_ID=client-a PROFILE_CORPUS_INR=500000
 make import-market-data
+make import-official-index-data OFFICIAL_INDEX_CSV=/path/to/index.csv
+make check-official-index-readiness
 make import-screener CSV=/path/to/screener.csv
 make import-taurus-graph DATA_DIR=configs/taurus_data
 make compute-graph-stats AS_OF=YYYY-MM-DD
@@ -175,6 +177,39 @@ make kite-exchange-token REQUEST_TOKEN=<request_token_from_redirect_url>
 make kite-sync-instruments
 make import-kite-candles
 make kite-ltp-smoke
+```
+
+Official index and India VIX data:
+
+```bash
+make import-official-index-data OFFICIAL_INDEX_CSV=/path/to/nifty50.csv OFFICIAL_INDEX_SYMBOL=NIFTY_50 OFFICIAL_INDEX_NAME="Nifty 50" OFFICIAL_INDEX_FAMILY=benchmark
+make import-official-index-data OFFICIAL_INDEX_CSV=/path/to/nifty-it.csv OFFICIAL_INDEX_SYMBOL=NIFTY_IT OFFICIAL_INDEX_NAME="Nifty IT" OFFICIAL_INDEX_FAMILY=sector
+make import-official-index-data OFFICIAL_INDEX_CSV=/path/to/india-vix.csv OFFICIAL_INDEX_SYMBOL=INDIA_VIX OFFICIAL_INDEX_NAME="India VIX" OFFICIAL_INDEX_FAMILY=volatility
+make check-official-index-readiness OFFICIAL_INDEX_SECTOR_SYMBOLS=NIFTY_IT
+```
+
+`make import-official-index-data` accepts CSV rows with columns such as
+`index_symbol`, `index_name`, `index_family`, `trade_date`, `open`, `high`,
+`low`, `close`, `source`, `source_url`, `timeframe`, and
+`data_available_time`. If the symbol, name, family, source, or timeframe are
+not present in the CSV, the `OFFICIAL_INDEX_*` Make variables provide them.
+Rows are stored in `official_index_candles` with source-row metadata and
+availability timestamps. The repository as-of accessors filter by
+`data_available_time` so future official rows cannot leak into historical
+validation.
+
+`make check-official-index-readiness` writes
+`artifacts/technical_validation/official_index_readiness.json` by default and
+returns non-zero when required official benchmark, sector-index, or India VIX
+history is missing. Defaults require `NIFTY_50` and `INDIA_VIX`; sector indexes
+are required only when `OFFICIAL_INDEX_SECTOR_SYMBOLS` is set, for example
+`OFFICIAL_INDEX_SECTOR_SYMBOLS=NIFTY_IT,NIFTY_BANK`.
+
+Equivalent direct CLI commands:
+
+```bash
+DATABASE_URL="$DATABASE_URL" PYTHONPATH=packages:. uv run python scripts/import_official_index_data.py import --csv /path/to/nifty50.csv --index-symbol NIFTY_50 --index-name "Nifty 50" --index-family benchmark
+DATABASE_URL="$DATABASE_URL" PYTHONPATH=packages:. uv run python scripts/import_official_index_data.py readiness --sector-symbols NIFTY_IT --output artifacts/technical_validation/official_index_readiness.json
 ```
 
 Technical validation:

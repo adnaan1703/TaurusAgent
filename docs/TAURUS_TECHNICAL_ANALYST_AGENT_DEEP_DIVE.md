@@ -106,6 +106,7 @@ several tables inside it.
 | `feature_values` | `TechnicalAnalystAgent._persisted_feature_snapshot()` | Optional precomputed technical feature snapshots. |
 | `daily_candles` | `TechnicalAnalystAgent._latest_feature_snapshot()` | Source OHLCV history when no persisted feature snapshot is available. |
 | `backtest_signals` | `TechnicalAnalystAgent._latest_signal()` | Optional latest strategy signal that can override v1 scoring; v2 stores it only as audit metadata. |
+| `official_index_candles` | Not read by current profiles | M83 stores official benchmark, sector-index, and India VIX history for future v2B market-relative/sector-relative/regime features. |
 
 Important nuance: both `feature_values` and `backtest_signals` lookups are
 symbol-based. The current `TechnicalAnalystAgent` does not filter these lookups
@@ -296,6 +297,11 @@ returns `score_metadata`, the decision trail includes v2 analyst metadata in
 its analyst-report stage, and React renders a compact v2 panel with profile,
 composite score, confidence, alpha/risk/tradability, top contributors, and
 missing-feature warnings when the payload exists.
+
+M83 added official index/VIX storage and readiness checks, but
+`technical_ohlcv_v2` remains OHLCV-only. `TechnicalAnalystAgent` will not read
+`official_index_candles` until a later v2B scoring milestone explicitly wires
+official market-relative, sector-relative, and volatility-regime features.
 
 ## Key Points and Risks
 
