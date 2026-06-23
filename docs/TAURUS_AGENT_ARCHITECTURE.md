@@ -223,26 +223,33 @@ paths:
 - `GraphAwareScoreStrategy` still owns graph-aware filtering, ranking,
   target selection, and strategy signal payloads, but its `_technical_score()`
   compatibility method delegates SMA-spread scoring to
-  `TechnicalSignalService.score_sma_spread()`.
+  `TechnicalSignalService.score_sma_spread()` for `graph_aware_score_v1`.
+  The opt-in `graph_aware_score_v2` strategy profile selects
+  `TechnicalSignalService.score_ohlcv_v2()`, builds the universe technical
+  context once per ranking call, and carries nested alpha/risk/tradability,
+  confidence, composite, coverage, contributor, and missing-feature metadata
+  while preserving the existing `technical_score`, `raw_strategy_score`, and
+  `strategy_score_by_symbol` paths.
 
 `build_universe_technical_context()` in
 `packages/taurus_core/features/technical_context.py` is now available for later
 v2A work. It is DB-free and converts `features_by_symbol` into
 cross-sectional ranks, percentiles, z-scores, missing-feature maps,
 availability counts, and universe metadata. It is not wired into
-`technical_rule_v1` or `graph_aware_score_v1`.
+`technical_rule_v1` or `graph_aware_score_v1`; it is consumed by the opt-in
+`graph_aware_score_v2` strategy profile.
 
 `TechnicalSignalService.score_ohlcv_v2()` is also available as a pure DB-free
 v2A scoring profile. It consumes a `FeatureSnapshot` plus optional
 `UniverseTechnicalContext` and returns typed alpha, risk, tradability,
 confidence, composite score, coverage, top-contributor, missing-feature, source,
-and metadata fields. It is not wired into `TechnicalAnalystAgent` or
-`GraphAwareScoreStrategy` until the later opt-in runtime milestones.
+and metadata fields. It is wired into the opt-in `graph_aware_score_v2`
+strategy profile and remains unwired for `TechnicalAnalystAgent` until M79.
 
 The shared service is DB-free and behavior-preserving for the first
-implementation sequence. Runtime profile selection, strategy-configurable
-profiles, and migration of `BlendedScoreStrategy` or
-`MovingAverageCrossoverStrategy` remain deferred in
+implementation sequence. Runtime profile selection is currently implemented
+only for `GraphAwareScoreStrategy`; migration of `BlendedScoreStrategy` or
+`MovingAverageCrossoverStrategy` remains deferred in
 `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md`.
 
 ## Portfolio Plan Artifact

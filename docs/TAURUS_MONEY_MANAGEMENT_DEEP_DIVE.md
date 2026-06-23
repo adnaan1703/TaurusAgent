@@ -258,6 +258,8 @@ strategy_mappings:
     sleeve_id: core_shariah
   - strategy_name: graph_aware_score_v1
     sleeve_id: active_strategy
+  - strategy_name: graph_aware_score_v2
+    sleeve_id: active_strategy
   - strategy_name: moving_average_crossover_v1
     sleeve_id: active_strategy
   - strategy_name: blended_score_v1
@@ -313,8 +315,7 @@ technical_score = (SMA_10 / SMA_30) - 1
 
 `GraphAwareScoreStrategy` computes that value through
 `TechnicalSignalService.score_sma_spread()`, preserving the existing SMA-spread
-formula and `technical_score` payload key while keeping richer technical
-profiles deferred.
+formula and `technical_score` payload key for v1.
 
 Combined score:
 
@@ -347,6 +348,42 @@ Allocation impact:
 - maps to `active_strategy`
 - raw strategy score contributes 30% of allocation candidate score
 - rank is used as a tie-breaker after allocation candidate score
+
+### `graph_aware_score_v2`
+
+Config: `configs/strategies/graph_aware_score_v2.yaml`
+
+Implementation: `GraphAwareScoreStrategy`
+
+This is an opt-in M78 strategy profile, not the canonical Kite paper-loop
+default. Run it only by explicitly selecting:
+
+```text
+STRATEGY=configs/strategies/graph_aware_score_v2.yaml
+```
+
+The v2 profile keeps graph behavior equivalent to v1 but sets:
+
+```text
+technical_profile = technical_ohlcv_v2
+technical_feature_version = technical_ohlcv_v2
+lookback_days = 756
+```
+
+`GraphAwareScoreStrategy` builds or receives one universe technical context per
+ranking call, then uses `TechnicalSignalService.score_ohlcv_v2()` to produce
+the strategy-compatible technical composite. Ranking and signal payloads keep
+the existing `technical_score`, `raw_strategy_score`, and
+`strategy_score_by_symbol` paths, and add nested v2 metadata with alpha, risk,
+tradability, confidence, composite, coverage, top contributors, and missing
+features.
+
+Allocation impact:
+
+- maps to `active_strategy`
+- raw composite strategy score contributes through the existing strategy-score
+  calibration and 30% allocation candidate-score component
+- remains opt-in until a later evidence-backed promotion decision
 
 ### `moving_average_crossover_v1`
 

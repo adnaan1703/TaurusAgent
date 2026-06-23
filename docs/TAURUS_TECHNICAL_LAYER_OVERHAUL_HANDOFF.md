@@ -5,9 +5,10 @@ Last updated: 2026-06-23
 ## Current Status
 
 - Current milestone: None.
-- Last completed milestone: M77 `TechnicalSignalService` V2A Scoring Profile.
+- Last completed milestone: M78 Opt-In `GraphAwareScoreStrategy` V2A Runtime
+  Profile.
 - Planning completed: M74-M86 technical layer overhaul sequence.
-- Implementation state: M74, M75, M76, and M77 are complete. The current runtime remains
+- Implementation state: M74, M75, M76, M77, and M78 are complete. The current runtime remains
   behavior-preserving: `TechnicalAnalystAgent` uses `technical_rule_v1`, and
   `GraphAwareScoreStrategy` uses the SMA-spread profile for
   `graph_aware_score_v1`. M75 added pure OHLCV indicator primitives and an
@@ -20,8 +21,15 @@ Last updated: 2026-06-23
   composite score, coverage, top contributors, missing-feature visibility, and
   JSON-friendly metadata. It did not add analyst wiring, strategy wiring,
   API/UI changes, validation commands, or official-data ingestion.
-- Next recommended milestone: M78 opt-in `graph_aware_score_v2` strategy
-  runtime profile.
+  M78 added the opt-in `graph_aware_score_v2` strategy config and profile-gated
+  `GraphAwareScoreStrategy` wiring, including once-per-ranking-call universe
+  technical context, v2 composite scoring, nested v2 metadata on ranking/signal
+  payloads, and the `active_strategy` money-management mapping. It did not
+  change `graph_aware_score_v1`, `make paper-loop-kite` defaults,
+  `TechnicalAnalystAgent`, API/UI surfaces, validation commands, or
+  official-data ingestion.
+- Next recommended milestone: M79 `TechnicalAnalystAgent` v2A deterministic
+  numeric wiring.
 - Thread model requirement from the user: each milestone worker thread should
   use GPT 5.5 with xhigh thinking.
 - Commit policy from the user: do not commit anything unless explicitly asked.
@@ -35,12 +43,14 @@ Last updated: 2026-06-23
 - `docs/TAURUS_MONEY_MANAGEMENT_DEEP_DIVE.md`
 - `/Users/adnaan/Downloads/deep-research-report.md`
 - `packages/taurus_core/features/technical_signal.py`
+- `packages/taurus_core/features/technical_context.py`
 - `packages/taurus_core/features/store.py`
 - `packages/taurus_core/features/technical.py`
 - `packages/taurus_core/agents/technical_analyst.py`
 - `packages/taurus_core/strategies/graph_aware.py`
 - `packages/taurus_core/portfolio/score_semantics.py`
 - `configs/strategies/graph_aware_score_v1.yaml`
+- `configs/strategies/graph_aware_score_v2.yaml`
 - `configs/portfolio/money_management_v1.yaml`
 
 ## Worker Thread Instructions
@@ -72,7 +82,7 @@ sequence is:
 - M75: OHLCV indicator primitive expansion. Done.
 - M76: universe technical context and cross-sectional normalization. Done.
 - M77: `TechnicalSignalService` v2A scoring profile. Done.
-- M78: opt-in `graph_aware_score_v2` strategy runtime profile.
+- M78: opt-in `graph_aware_score_v2` strategy runtime profile. Done.
 - M79: `TechnicalAnalystAgent` v2A deterministic numeric wiring.
 - M80: v2A artifact, API, replay, and React visibility.
 - M81: historical validation command and data readiness.
@@ -100,7 +110,8 @@ sequence is:
 ## Known Boundaries
 
 - `graph_aware_score_v1` remains canonical until M86 or a later explicit user
-  instruction changes it.
+  instruction changes it. `graph_aware_score_v2` is opt-in only via
+  `STRATEGY=configs/strategies/graph_aware_score_v2.yaml`.
 - v2A may use full OHLCV plus universe cross-sectional ranks, but must not use
   local market/sector proxies for official market-relative or sector-relative
   scoring.

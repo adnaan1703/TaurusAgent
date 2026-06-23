@@ -150,7 +150,10 @@ MACD, ADX/+DI/-DI, Bollinger bands, 20/50/252-day breakout distances,
 52-week-high distance, ATR percent, traded value, average traded value,
 turnover z-score, and 63/126/252-day volatility-adjusted returns. The canonical
 `graph_aware_score_v1` strategy does not set this parameter, so current paper
-loop behavior remains on the v1 feature set.
+loop behavior remains on the v1 feature set. The opt-in
+`graph_aware_score_v2` strategy sets both `technical_feature_version:
+technical_ohlcv_v2` and `technical_profile: technical_ohlcv_v2`, but that
+changes only the strategy ranking path, not this analyst.
 
 ## Score Calculation
 
@@ -431,7 +434,7 @@ artifacts in `paper_runs.artifacts`.
 
 | Limitation | Impact |
 |---|---|
-| No runtime v2 technical wiring yet | `technical_ohlcv_v2` can generate richer OHLCV feature snapshots, the DB-free universe context builder can normalize them cross-sectionally, and `TechnicalSignalService.score_ohlcv_v2()` can produce typed alpha/risk/tradability/confidence/composite outputs, but the v2 profile is not yet consumed by `TechnicalAnalystAgent` or `GraphAwareScoreStrategy`. |
+| No `TechnicalAnalystAgent` v2 wiring yet | `technical_ohlcv_v2` can generate richer OHLCV feature snapshots, the DB-free universe context builder can normalize them cross-sectionally, and `TechnicalSignalService.score_ohlcv_v2()` can produce typed alpha/risk/tradability/confidence/composite outputs. M78 wires that profile into the opt-in `graph_aware_score_v2` strategy, but this analyst still uses `technical_rule_v1` until the M79 profile-gated analyst work. |
 | Shared analyst-rule scoring uses a fixed formula | Extra computed indicators are ignored unless a future `TechnicalSignalService` profile consumes them. |
 | Only the core wired paths use `TechnicalSignalService` | `TechnicalAnalystAgent` and `GraphAwareScoreStrategy` are migrated; `BlendedScoreStrategy` and `MovingAverageCrossoverStrategy` remain deferred. |
 | `feature_values` lookup is symbol-latest, not paper-run scoped | A persisted feature snapshot from another context can be selected if it is the latest for that symbol. |
@@ -454,8 +457,9 @@ The implemented scopes are:
   `GraphAwareScoreStrategy._technical_score()`.
 - `score_ohlcv_v2()` adds the opt-in OHLCV-only v2A scoring profile with
   alpha, risk, tradability, confidence, composite score, coverage,
-  top-contributor, missing-feature, source, and metadata outputs. It is not
-  called by this agent until a later profile-gated wiring milestone.
+  top-contributor, missing-feature, source, and metadata outputs. It is called
+  by the opt-in `graph_aware_score_v2` strategy and is not called by this agent
+  until the M79 profile-gated wiring milestone.
 
 Future technical experiments should add or select profiles in
 `TechnicalSignalService` instead of embedding new scoring formulas directly in

@@ -1,11 +1,22 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 from typing import Any, Mapping
 
 from taurus_core.features.store import FeatureSnapshot
-from taurus_core.features.technical_signal import TechnicalSignalService
+from taurus_core.features.technical_context import (
+    UniverseTechnicalContext,
+    build_universe_technical_context,
+)
+from taurus_core.features.technical_signal import (
+    OHLCV_V2_PROFILE,
+    SMA_SPREAD_PROFILE,
+    TechnicalOhlcvSignalResult,
+    TechnicalSignalResult,
+    TechnicalSignalService,
+)
 from taurus_core.strategies.base import (
     SignalExplanation,
     StrategyRanking,
@@ -17,6 +28,14 @@ from taurus_core.strategies.base import (
 
 SCORE_VALUE = Decimal("0.00000001")
 ZERO = Decimal("0")
+SUPPORTED_TECHNICAL_PROFILES = {SMA_SPREAD_PROFILE, OHLCV_V2_PROFILE}
+
+
+@dataclass(frozen=True, slots=True)
+class _TechnicalScoreResult:
+    profile_name: str
+    score: Decimal | None
+    signal_result: TechnicalSignalResult | TechnicalOhlcvSignalResult | None = None
 
 
 class GraphAwareScoreStrategy:
@@ -35,6 +54,9 @@ class GraphAwareScoreStrategy:
         self.min_return_20d = decimal_param(parameters, "min_return_20d", "-1")
         self.min_graph_confidence = decimal_param(parameters, "min_graph_confidence", "0")
         self.require_graph_signal = bool(parameters.get("require_graph_signal", False))
+        self.technical_profile = str(parameters.get("technical_profile", SMA_SPREAD_PROFILE))
+        if self.technical_profile not in SUPPORTED_TECHNICAL_PROFILES:
+            raise ValueError(f"Unsupported technical_profile: {self.technical_profile}")
         if self.fast_window >= self.slow_window:
             raise ValueError("fast_window must be smaller than slow_window")
         self._technical_signal_service = TechnicalSignalService()
@@ -66,15 +88,37 @@ class GraphAwareScoreStrategy:
         features_by_symbol: dict[str, FeatureSnapshot],
         current_positions: set[str],
         graph_signals_by_symbol: Mapping[str, Any] | None = None,
+        universe_technical_context: UniverseTechnicalContext | None = None,
     ) -> list[StrategyRanking]:
         graph_by_symbol = {
             key.upper(): value for key, value in (graph_signals_by_symbol or {}).items()
         }
-        eligible: list[tuple[str, Decimal, FeatureSnapshot, Any | None, list[str]]] = []
+        technical_context = self._universe_technical_context(
+            features_by_symbol,
+            universe_technical_context=universe_technical_context,
+        )
+        eligible: list[
+            tuple[
+                str,
+                Decimal,
+                FeatureSnapshot,
+                Any | None,
+                _TechnicalScoreResult,
+                list[str],
+            ]
+        ] = []
         ineligible: list[StrategyRanking] = []
         for symbol, snapshot in features_by_symbol.items():
             graph_signal = graph_by_symbol.get(symbol.upper())
-            score = self._combined_score(snapshot=snapshot, graph_signal=graph_signal)
+            technical_result = self._technical_signal(
+                snapshot,
+                universe_context=technical_context,
+            )
+            score = self._combined_score(
+                snapshot=snapshot,
+                graph_signal=graph_signal,
+                technical_result=technical_result,
+            )
             if score is None:
                 ineligible.append(
                     self._ranking(
@@ -86,6 +130,7 @@ class GraphAwareScoreStrategy:
                         eligibility_status="ineligible",
                         snapshot=snapshot,
                         graph_signal=graph_signal,
+                        technical_result=technical_result,
                         reasons=["Missing technical features or required graph signal"],
                     )
                 )
@@ -98,6 +143,7 @@ class GraphAwareScoreStrategy:
                         score,
                         snapshot,
                         graph_signal,
+                        technical_result,
                         [
                             "Graph-aware score passed filters",
                             f"return_20d={return_20d}",
@@ -115,6 +161,7 @@ class GraphAwareScoreStrategy:
                         eligibility_status="ineligible",
                         snapshot=snapshot,
                         graph_signal=graph_signal,
+                        technical_result=technical_result,
                         reasons=[
                             f"combined_score={score}",
                             f"return_20d={return_20d}",
@@ -134,9 +181,17 @@ class GraphAwareScoreStrategy:
                 eligibility_status="eligible",
                 snapshot=snapshot,
                 graph_signal=graph_signal,
+                technical_result=technical_result,
                 reasons=[*reasons, f"combined_score={score}"],
             )
-            for index, (symbol, score, snapshot, graph_signal, reasons) in enumerate(
+            for index, (
+                symbol,
+                score,
+                snapshot,
+                graph_signal,
+                technical_result,
+                reasons,
+            ) in enumerate(
                 ranked,
                 start=1,
             )
@@ -152,6 +207,7 @@ class GraphAwareScoreStrategy:
                     eligibility_status="ineligible",
                     snapshot=None,
                     graph_signal=graph_by_symbol.get(symbol.upper()),
+                    technical_result=None,
                     reasons=["Missing feature snapshot for current position"],
                 )
             )
@@ -179,6 +235,7 @@ class GraphAwareScoreStrategy:
             for ranking in rankings
             if ranking.raw_strategy_score is not None
         }
+        ranking_by_symbol = {ranking.symbol: ranking for ranking in rankings}
         return targets, self._signals(
             trade_date=trade_date,
             targets=targets,
@@ -186,6 +243,7 @@ class GraphAwareScoreStrategy:
             features_by_symbol=features_by_symbol,
             score_by_symbol=score_by_symbol,
             graph_signals_by_symbol=graph_by_symbol,
+            ranking_by_symbol=ranking_by_symbol,
         )
 
     def _combined_score(
@@ -193,8 +251,13 @@ class GraphAwareScoreStrategy:
         *,
         snapshot: FeatureSnapshot,
         graph_signal: Any | None,
+        technical_result: _TechnicalScoreResult | None = None,
     ) -> Decimal | None:
-        technical_score = self._technical_score(snapshot)
+        technical_score = (
+            technical_result.score
+            if technical_result is not None
+            else self._technical_score(snapshot)
+        )
         if technical_score is None:
             return None
         if graph_signal is None:
@@ -208,15 +271,57 @@ class GraphAwareScoreStrategy:
         combined = (technical_score * self.technical_weight) + (graph_score * self.graph_weight)
         return combined.quantize(SCORE_VALUE)
 
-    def _technical_score(self, snapshot: FeatureSnapshot) -> Decimal | None:
+    def _technical_score(
+        self,
+        snapshot: FeatureSnapshot,
+        *,
+        universe_context: UniverseTechnicalContext | None = None,
+    ) -> Decimal | None:
+        return self._technical_signal(
+            snapshot,
+            universe_context=universe_context,
+        ).score
+
+    def _technical_signal(
+        self,
+        snapshot: FeatureSnapshot,
+        *,
+        universe_context: UniverseTechnicalContext | None = None,
+    ) -> _TechnicalScoreResult:
+        if self.technical_profile == OHLCV_V2_PROFILE:
+            result = self._technical_signal_service.score_ohlcv_v2(
+                snapshot,
+                universe_context=universe_context,
+                symbol=snapshot.symbol,
+            )
+            return _TechnicalScoreResult(
+                profile_name=result.profile_name,
+                score=result.score if result.available else None,
+                signal_result=result,
+            )
+
         result = self._technical_signal_service.score_sma_spread(
             snapshot,
             fast_window=self.fast_window,
             slow_window=self.slow_window,
         )
-        if not result.available:
+        return _TechnicalScoreResult(
+            profile_name=result.profile_name,
+            score=result.score if result.available else None,
+            signal_result=result,
+        )
+
+    def _universe_technical_context(
+        self,
+        features_by_symbol: dict[str, FeatureSnapshot],
+        *,
+        universe_technical_context: UniverseTechnicalContext | None,
+    ) -> UniverseTechnicalContext | None:
+        if self.technical_profile != OHLCV_V2_PROFILE:
             return None
-        return result.score
+        if universe_technical_context is not None:
+            return universe_technical_context
+        return build_universe_technical_context(features_by_symbol)
 
     def _signals(
         self,
@@ -227,12 +332,14 @@ class GraphAwareScoreStrategy:
         features_by_symbol: dict[str, FeatureSnapshot],
         score_by_symbol: dict[str, Decimal],
         graph_signals_by_symbol: Mapping[str, Any],
+        ranking_by_symbol: Mapping[str, StrategyRanking],
     ) -> list[StrategySignal]:
         signals: list[StrategySignal] = []
         for symbol in sorted(targets | current_positions):
             snapshot = features_by_symbol.get(symbol)
             score = score_by_symbol.get(symbol, ZERO)
             graph_signal = graph_signals_by_symbol.get(symbol.upper())
+            ranking = ranking_by_symbol.get(symbol)
             if symbol in targets and symbol not in current_positions:
                 signals.append(
                     self._signal(
@@ -242,6 +349,7 @@ class GraphAwareScoreStrategy:
                         score=score,
                         snapshot=snapshot,
                         graph_signal=graph_signal,
+                        ranking=ranking,
                         reason="Graph-aware score ranked inside target set",
                     )
                 )
@@ -254,6 +362,7 @@ class GraphAwareScoreStrategy:
                         score=score,
                         snapshot=snapshot,
                         graph_signal=graph_signal,
+                        ranking=ranking,
                         reason="Graph-aware score no longer selected by legacy target cap",
                     )
                 )
@@ -270,10 +379,11 @@ class GraphAwareScoreStrategy:
         eligibility_status: str,
         snapshot: FeatureSnapshot | None,
         graph_signal: Any | None,
+        technical_result: _TechnicalScoreResult | None,
         reasons: list[str],
     ) -> StrategyRanking:
         snapshot_id = snapshot.snapshot_id if snapshot is not None else ""
-        technical_score = self._technical_score(snapshot) if snapshot is not None else None
+        technical_score = technical_result.score if technical_result is not None else None
         graph_score = graph_signal.score if graph_signal is not None else ZERO
         graph_confidence = graph_signal.confidence if graph_signal is not None else ZERO
         edge_types = graph_signal.edge_types if graph_signal is not None else ()
@@ -284,6 +394,9 @@ class GraphAwareScoreStrategy:
             "technical_score": str(technical_score) if technical_score is not None else "0",
             "graph_signal": graph_signal.to_dict() if graph_signal is not None else None,
         }
+        technical_v2 = _technical_v2_metadata(technical_result)
+        if technical_v2 is not None:
+            metadata["technical_v2"] = technical_v2
         if edge_types:
             metadata["graph_edge_types"] = list(edge_types)
         return StrategyRanking(
@@ -319,10 +432,12 @@ class GraphAwareScoreStrategy:
         score: Decimal,
         snapshot: FeatureSnapshot | None,
         graph_signal: Any | None,
+        ranking: StrategyRanking | None,
         reason: str,
     ) -> StrategySignal:
         snapshot_id = snapshot.snapshot_id if snapshot is not None else ""
-        technical_score = self._technical_score(snapshot) if snapshot is not None else None
+        metadata = dict(ranking.metadata) if ranking is not None else {}
+        technical_score = metadata.get("technical_score", "0")
         graph_score = graph_signal.score if graph_signal is not None else ZERO
         graph_confidence = graph_signal.confidence if graph_signal is not None else ZERO
         edge_types = graph_signal.edge_types if graph_signal is not None else ()
@@ -341,13 +456,14 @@ class GraphAwareScoreStrategy:
             f"return_20d < {self.min_return_20d}",
             f"graph_confidence < {self.min_graph_confidence}",
         ]
-        metadata = {
-            "strategy_type": "graph_aware_score",
-            "technical_weight": str(self.technical_weight),
-            "graph_weight": str(self.graph_weight),
-            "technical_score": str(technical_score) if technical_score is not None else "0",
-            "graph_signal": graph_signal.to_dict() if graph_signal is not None else None,
-        }
+        if not metadata:
+            metadata = {
+                "strategy_type": "graph_aware_score",
+                "technical_weight": str(self.technical_weight),
+                "graph_weight": str(self.graph_weight),
+                "technical_score": str(technical_score),
+                "graph_signal": graph_signal.to_dict() if graph_signal is not None else None,
+            }
         return StrategySignal(
             trade_date=trade_date,
             symbol=symbol,
@@ -361,3 +477,26 @@ class GraphAwareScoreStrategy:
                 metadata=metadata,
             ),
         )
+
+
+def _technical_v2_metadata(
+    technical_result: _TechnicalScoreResult | None,
+) -> dict[str, object] | None:
+    if not isinstance(technical_result, _TechnicalScoreResult):
+        return None
+    signal_result = technical_result.signal_result
+    if not isinstance(signal_result, TechnicalOhlcvSignalResult):
+        return None
+    return {
+        "profile_name": signal_result.profile_name,
+        "alpha_score": str(signal_result.alpha_score),
+        "risk_score": str(signal_result.risk_score),
+        "tradability_score": str(signal_result.tradability_score),
+        "confidence": str(signal_result.confidence),
+        "composite_score": str(signal_result.composite_score),
+        "coverage": str(signal_result.coverage),
+        "top_contributors": [dict(contributor) for contributor in signal_result.top_contributors],
+        "missing_features": list(signal_result.missing_features),
+        "score_source": signal_result.score_source,
+        "metadata": dict(signal_result.metadata),
+    }
