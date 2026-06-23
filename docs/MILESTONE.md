@@ -1,6 +1,6 @@
 # Taurus Milestone Tracker
 
-Last updated: 2026-06-22
+Last updated: 2026-06-23
 
 This is the active tracker for Taurus milestone work. Keep it concise and keep
 current operator detail in the usage and command docs.
@@ -29,6 +29,10 @@ current operator detail in the usage and command docs.
   `TechnicalSignalService` refactor and regression sequence.
 - `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_HANDOFF.md`: sequence closeout handoff
   for the completed M66-M69 technical signal service sequence.
+- `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md`: planned M74-M86 technical
+  indicator, scoring, validation, official-data, and promotion sequence.
+- `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_HANDOFF.md`: current handoff for the
+  planned M74-M86 technical layer overhaul sequence.
 - `docs/agent_improvement_plans/LLM_AGENT_SYSTEM_PROMPTS_BACKLOG.md`: deferred
   prompt backlog for optional analyst upgrades.
 
@@ -146,6 +150,12 @@ removed during docs cleanup. Use Git history for detailed historical plans.
   loading/error/truncation state, and reset expansion state when initial
   neighborhoods refresh. M73 final regression, operator docs, browser QA, and
   graph explorer sequence closeout are complete.
+- M74-M86 technical layer overhaul planning is complete: the sequence will
+  preserve `graph_aware_score_v1` and `technical_rule_v1` as compatibility
+  baselines, add opt-in OHLCV and official-data technical profiles, validate
+  technical-agent predictive quality and full-system historical backtest
+  behavior, and promote only after a conservative evidence gate. No
+  implementation work has started.
 
 ## Standing Safety Rules
 
@@ -217,6 +227,7 @@ removed during docs cleanup. Use Git history for detailed historical plans.
 | M71 | Done | Replaced the static company SVG with a Reagraph-backed full main-content explorer shell, toolbar search/status/edge-type/camera/refresh controls, node and edge inspection, edge evidence/stats detail loading, focused JSDOM Reagraph tests, and approval-rule cleanup inspection. |
 | M72 | Done | Added explicit selected-node one-hop expansion in the Reagraph inspector, duplicate-free local node/edge merging, per-node expansion loading/error/truncation state, reset-on-refresh/filter behavior, focused React coverage, and approval-rule cleanup inspection. |
 | M73 | Done | Ran focused graph API/repository tests, React graph tests, React production build, the full backend suite, and browser QA; refreshed graph explorer operator/developer docs; fixed a Reagraph expansion focus regression found during visual QA; confirmed approval-rule cleanup was not needed; and closed the M70-M73 sequence. |
+| M74-M86 plan document | Done | Created the flat technical layer overhaul plan and handoff covering v1 baselines, OHLCV v2A indicators, cross-sectional context, deterministic scoring, opt-in strategy and analyst wiring, API/UI visibility, historical validation reports, official index/VIX/delivery/circuit ingestion, v2B scoring, and evidence-gated promotion. Implementation remains planned and no implementation work was done. |
 
 ## Completed Graph Explorer Sequence
 
@@ -229,6 +240,28 @@ This completed sequence was executed in order as separate milestone work.
 | 72 | M72 | Done | `docs/TAURUS_GRAPH_EXPLORER_PLAN.md` | Added explicit one-hop node expansion, graph-state merging, and truncation visibility. |
 | 73 | M73 | Done | `docs/TAURUS_GRAPH_EXPLORER_PLAN.md` | Ran regression, updated operator docs, performed visual QA, fixed the expansion focus regression, and closed the sequence. |
 
+## Planned Technical Layer Overhaul Sequence
+
+This planned sequence must be executed one milestone at a time in separate
+fresh-context work. Stop after each milestone is complete, verified, cleaned
+up, and documented; do not automatically begin later scope.
+
+| Order | Milestone | Status | Plan | Purpose |
+|---:|---|---|---|---|
+| 74 | M74 | Planned | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Pin current technical, analyst, strategy, and allocation score behavior and define the validation evidence contract. |
+| 75 | M75 | Planned | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Add the full opt-in OHLCV indicator primitive and feature snapshot suite for v2A. |
+| 76 | M76 | Planned | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Add DB-free universe technical context and cross-sectional normalization without market/sector proxies. |
+| 77 | M77 | Planned | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Add the deterministic `technical_ohlcv_v2` alpha/risk/tradability/confidence scoring profile. |
+| 78 | M78 | Planned | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Add opt-in `graph_aware_score_v2` strategy wiring while preserving v1 behavior. |
+| 79 | M79 | Planned | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Wire `TechnicalAnalystAgent` to v2A with deterministic numeric ownership and optional universe context. |
+| 80 | M80 | Planned | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Surface v2A technical vectors in artifacts, API, replay, and React debugging views. |
+| 81 | M81 | Planned | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Add the historical validation command and data-readiness checks for v1/v2 comparisons. |
+| 82 | M82 | Planned | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Generate technical-agent and full-system validation reports with a conservative promotion gate. |
+| 83 | M83 | Planned | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Ingest official benchmark, sector-index, and India VIX data for v2B. |
+| 84 | M84 | Planned | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Ingest official delivery, circuit, and tradability data for v2B. |
+| 85 | M85 | Planned | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Add the opt-in official-data `technical_official_v2b` profile and v2B validation. |
+| 86 | M86 | Planned | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Make the evidence-backed promotion or keep-opt-in decision and close the sequence. |
+
 ## Completed Technical Signal Service Sequence
 
 This completed sequence was executed in order as separate milestone work.
@@ -239,6 +272,21 @@ This completed sequence was executed in order as separate milestone work.
 | 67 | M67 | Done | `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md` | Add the DB-free shared `TechnicalSignalService` foundation without runtime wiring. |
 | 68 | M68 | Done | `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md` | Route `TechnicalAnalystAgent` and `GraphAwareScoreStrategy` through the shared service without behavior drift. |
 | 69 | M69 | Done | `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md` | Run final regression, refresh architecture/deep-dive docs for implemented behavior, and close the sequence. |
+
+### M74-M86 Plan Document Completion Summary
+
+- Assumptions made: The overhaul should preserve `graph_aware_score_v1` and
+  `technical_rule_v1` as compatibility baselines; v2A should use full OHLCV
+  indicators plus universe cross-sectional ranks but no local market/sector
+  proxies; v2B should wait for official index, sector, India VIX, delivery,
+  circuit, and tradability ingestion; `TechnicalAnalystAgent` v2 numeric score
+  and confidence should be deterministic; prior `backtest_signals` should not
+  override v2 technical scoring; promotion should require both technical-agent
+  predictive evidence and full-system historical backtest evidence; each
+  milestone should run in a separate GPT 5.5 xhigh thread; no implementation
+  work was done in this planning task.
+- Mocks created: None.
+- Mocks used: None.
 
 ### M73 Completion Summary
 
