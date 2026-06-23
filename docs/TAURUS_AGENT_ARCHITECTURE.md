@@ -232,8 +232,15 @@ cross-sectional ranks, percentiles, z-scores, missing-feature maps,
 availability counts, and universe metadata. It is not wired into
 `technical_rule_v1` or `graph_aware_score_v1`.
 
+`TechnicalSignalService.score_ohlcv_v2()` is also available as a pure DB-free
+v2A scoring profile. It consumes a `FeatureSnapshot` plus optional
+`UniverseTechnicalContext` and returns typed alpha, risk, tradability,
+confidence, composite score, coverage, top-contributor, missing-feature, source,
+and metadata fields. It is not wired into `TechnicalAnalystAgent` or
+`GraphAwareScoreStrategy` until the later opt-in runtime milestones.
+
 The shared service is DB-free and behavior-preserving for the first
-implementation sequence. Richer technical profiles, strategy-configurable
+implementation sequence. Runtime profile selection, strategy-configurable
 profiles, and migration of `BlendedScoreStrategy` or
 `MovingAverageCrossoverStrategy` remain deferred in
 `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md`.

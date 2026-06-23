@@ -184,14 +184,125 @@ def test_sma_spread_quantizes_like_graph_aware_strategy() -> None:
     assert result.metadata["score_precision"] == Decimal("0.00000001")
 
 
+def test_score_ohlcv_v2_uses_full_ohlcv_suite_and_universe_context() -> None:
+    service = TechnicalSignalService()
+    snapshots = {
+        "AAA": _feature_snapshot("AAA", values=_ohlcv_v2_values("strong")),
+        "BBB": _feature_snapshot("BBB", values=_ohlcv_v2_values("neutral")),
+        "CCC": _feature_snapshot("CCC", values=_ohlcv_v2_values("weak")),
+    }
+    context = build_universe_technical_context(snapshots)
+
+    result = service.score_ohlcv_v2(
+        snapshots["AAA"],
+        universe_context=context,
+        top_contributor_limit=5,
+    )
+
+    assert result.profile_name == "technical_ohlcv_v2"
+    assert result.available is True
+    assert result.score_source == "technical_ohlcv_v2"
+    assert result.score == result.composite_score
+    assert result.raw_score == result.composite_score
+    assert result.source_ids == ("fs-AAA",)
+    assert result.coverage == Decimal("1.0000")
+    assert result.missing_features == ()
+    assert result.alpha_score > Decimal("0.5000")
+    assert result.risk_score > Decimal("0.5000")
+    assert result.tradability_score > Decimal("0.5000")
+    assert result.composite_score > Decimal("0.5000")
+    assert result.confidence >= Decimal("0.9000")
+    assert len(result.top_contributors) == 5
+    assert all("contribution" in contributor for contributor in result.top_contributors)
+    assert any(
+        contributor["source"] == "universe_context"
+        for contributor in result.top_contributors
+    )
+    assert result.components["alpha_score"] == result.alpha_score
+    assert result.components["risk_score"] == result.risk_score
+    assert result.components["tradability_score"] == result.tradability_score
+    assert "alpha.vol_adjusted_return_126d.score" in result.components
+    assert "risk.atr_percent_14.score" in result.components
+    assert "tradability.avg_traded_value_20.score" in result.components
+    assert result.metadata["family_weights"] == {
+        "alpha": "0.65",
+        "risk": "0.20",
+        "tradability": "0.15",
+    }
+    assert result.metadata["universe_context_available"] is True
+    assert result.metadata["symbol_context_available"] is True
+    assert result.metadata["universe_size"] == 3
+    assert result.metadata["missing_context_features"] == []
+
+
+def test_score_ohlcv_v2_degrades_confidence_when_features_and_context_are_missing() -> None:
+    service = TechnicalSignalService()
+    snapshot = _feature_snapshot(
+        "AAA",
+        values={
+            "return_20d": Decimal("0.05000000"),
+            "ema_12": Decimal("105.00000000"),
+            "ema_26": Decimal("100.00000000"),
+            "rsi_14": Decimal("60.00000000"),
+            "volatility_20": Decimal("0.03000000"),
+        },
+    )
+
+    result = service.score_ohlcv_v2(snapshot)
+
+    assert result.available is True
+    assert result.coverage == Decimal("0.1667")
+    assert result.confidence < Decimal("0.5000")
+    assert result.composite_score > Decimal("0.0000")
+    assert "return_252d" in result.missing_features
+    assert "turnover" in result.missing_features
+    assert result.metadata["universe_context_available"] is False
+    assert result.metadata["symbol_context_available"] is False
+    assert result.metadata["available_feature_count"] == 5
+    assert "return_63d" in result.metadata["missing_context_features"]
+    assert "turnover_z_score_20" in result.metadata["missing_context_features"]
+    assert result.components["coverage"] == Decimal("0.1667")
+    assert result.components["tradability_feature_quality"] == Decimal("0.0000")
+    assert all(
+        contributor["source"] != "universe_context"
+        for contributor in result.top_contributors
+    )
+
+
+def test_score_ohlcv_v2_without_snapshot_is_unavailable() -> None:
+    service = TechnicalSignalService()
+
+    result = service.score_ohlcv_v2(None, symbol="WIPRO")
+
+    assert result.profile_name == "technical_ohlcv_v2"
+    assert result.available is False
+    assert result.score == Decimal("0.0000")
+    assert result.confidence == Decimal("0.0000")
+    assert result.coverage == Decimal("0.0000")
+    assert len(result.missing_features) == 30
+    assert result.source_ids == ("technical:none",)
+    assert result.metadata["symbol"] == "WIPRO"
+    assert result.metadata["unavailable_reason"] == "missing_feature_snapshot"
+
+
 def test_signal_results_are_immutable() -> None:
     service = TechnicalSignalService()
     result = service.score_analyst_rule(None, None, symbol="WIPRO")
+    v2_result = service.score_ohlcv_v2(
+        _feature_snapshot("AAA", values=_ohlcv_v2_values("strong")),
+    )
 
     with pytest.raises(FrozenInstanceError):
         result.score = Decimal("1")  # type: ignore[misc]
     with pytest.raises(TypeError):
         result.components["raw"] = Decimal("1")  # type: ignore[index]
+    with pytest.raises(FrozenInstanceError):
+        v2_result.composite_score = Decimal("1")  # type: ignore[misc]
+    with pytest.raises(TypeError):
+        v2_result.components["raw"] = Decimal("1")  # type: ignore[index]
+    with pytest.raises(TypeError):
+        v2_result.top_contributors[0]["feature"] = "BBB"  # type: ignore[index]
+
 
 
 def test_universe_technical_context_ranks_ties_and_missing_features() -> None:
@@ -314,3 +425,108 @@ def _feature_snapshot(
         values=values,
         rows=(),
     )
+
+
+def _ohlcv_v2_values(profile: str) -> dict[str, Decimal]:
+    values_by_profile = {
+        "strong": {
+            "return_20d": "0.05000000",
+            "return_63d": "0.14000000",
+            "return_126d": "0.22000000",
+            "return_252d": "0.34000000",
+            "vol_adjusted_return_63d": "2.00000000",
+            "vol_adjusted_return_126d": "2.50000000",
+            "vol_adjusted_return_252d": "3.00000000",
+            "ema_12": "110.00000000",
+            "ema_26": "100.00000000",
+            "macd_histogram_12_26_9": "1.50000000",
+            "adx_14": "35.00000000",
+            "plus_di_14": "35.00000000",
+            "minus_di_14": "12.00000000",
+            "rsi_14": "62.00000000",
+            "bollinger_percent_b_20": "0.65000000",
+            "bollinger_bandwidth_20": "0.08000000",
+            "breakout_high_distance_20d": "0.02000000",
+            "breakout_high_distance_50d": "0.04000000",
+            "breakout_high_distance_252d": "0.03000000",
+            "distance_from_52w_high": "-0.03000000",
+            "atr_percent_14": "0.01500000",
+            "volatility_20": "0.01500000",
+            "volatility_63": "0.01800000",
+            "volatility_126": "0.02000000",
+            "volatility_252": "0.02200000",
+            "volume_z_score_20": "1.50000000",
+            "turnover": "10000000.00000000",
+            "avg_traded_value_20": "9000000.00000000",
+            "avg_traded_value_63": "8000000.00000000",
+            "turnover_z_score_20": "1.20000000",
+        },
+        "neutral": {
+            "return_20d": "0.01000000",
+            "return_63d": "0.04000000",
+            "return_126d": "0.08000000",
+            "return_252d": "0.12000000",
+            "vol_adjusted_return_63d": "0.60000000",
+            "vol_adjusted_return_126d": "0.70000000",
+            "vol_adjusted_return_252d": "0.80000000",
+            "ema_12": "102.00000000",
+            "ema_26": "100.00000000",
+            "macd_histogram_12_26_9": "0.20000000",
+            "adx_14": "22.00000000",
+            "plus_di_14": "25.00000000",
+            "minus_di_14": "20.00000000",
+            "rsi_14": "52.00000000",
+            "bollinger_percent_b_20": "0.52000000",
+            "bollinger_bandwidth_20": "0.12000000",
+            "breakout_high_distance_20d": "-0.01000000",
+            "breakout_high_distance_50d": "-0.03000000",
+            "breakout_high_distance_252d": "-0.08000000",
+            "distance_from_52w_high": "-0.12000000",
+            "atr_percent_14": "0.02500000",
+            "volatility_20": "0.02500000",
+            "volatility_63": "0.02800000",
+            "volatility_126": "0.03000000",
+            "volatility_252": "0.03200000",
+            "volume_z_score_20": "0.20000000",
+            "turnover": "5000000.00000000",
+            "avg_traded_value_20": "5000000.00000000",
+            "avg_traded_value_63": "4800000.00000000",
+            "turnover_z_score_20": "0.10000000",
+        },
+        "weak": {
+            "return_20d": "-0.04000000",
+            "return_63d": "-0.08000000",
+            "return_126d": "-0.12000000",
+            "return_252d": "-0.20000000",
+            "vol_adjusted_return_63d": "-0.80000000",
+            "vol_adjusted_return_126d": "-1.00000000",
+            "vol_adjusted_return_252d": "-1.20000000",
+            "ema_12": "95.00000000",
+            "ema_26": "100.00000000",
+            "macd_histogram_12_26_9": "-0.80000000",
+            "adx_14": "18.00000000",
+            "plus_di_14": "15.00000000",
+            "minus_di_14": "32.00000000",
+            "rsi_14": "38.00000000",
+            "bollinger_percent_b_20": "0.20000000",
+            "bollinger_bandwidth_20": "0.22000000",
+            "breakout_high_distance_20d": "-0.08000000",
+            "breakout_high_distance_50d": "-0.12000000",
+            "breakout_high_distance_252d": "-0.25000000",
+            "distance_from_52w_high": "-0.35000000",
+            "atr_percent_14": "0.04500000",
+            "volatility_20": "0.05000000",
+            "volatility_63": "0.05200000",
+            "volatility_126": "0.05500000",
+            "volatility_252": "0.06000000",
+            "volume_z_score_20": "-1.00000000",
+            "turnover": "1000000.00000000",
+            "avg_traded_value_20": "1200000.00000000",
+            "avg_traded_value_63": "1300000.00000000",
+            "turnover_z_score_20": "-0.80000000",
+        },
+    }
+    return {
+        feature_name: Decimal(value)
+        for feature_name, value in values_by_profile[profile].items()
+    }

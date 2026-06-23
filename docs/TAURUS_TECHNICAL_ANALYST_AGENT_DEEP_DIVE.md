@@ -431,7 +431,7 @@ artifacts in `paper_runs.artifacts`.
 
 | Limitation | Impact |
 |---|---|
-| No runtime v2 technical scoring profile yet | `technical_ohlcv_v2` can generate richer OHLCV feature snapshots, and the DB-free universe context builder can normalize them cross-sectionally, but those features and ranks are not yet consumed by `TechnicalSignalService`, `TechnicalAnalystAgent`, or `GraphAwareScoreStrategy`. |
+| No runtime v2 technical wiring yet | `technical_ohlcv_v2` can generate richer OHLCV feature snapshots, the DB-free universe context builder can normalize them cross-sectionally, and `TechnicalSignalService.score_ohlcv_v2()` can produce typed alpha/risk/tradability/confidence/composite outputs, but the v2 profile is not yet consumed by `TechnicalAnalystAgent` or `GraphAwareScoreStrategy`. |
 | Shared analyst-rule scoring uses a fixed formula | Extra computed indicators are ignored unless a future `TechnicalSignalService` profile consumes them. |
 | Only the core wired paths use `TechnicalSignalService` | `TechnicalAnalystAgent` and `GraphAwareScoreStrategy` are migrated; `BlendedScoreStrategy` and `MovingAverageCrossoverStrategy` remain deferred. |
 | `feature_values` lookup is symbol-latest, not paper-run scoped | A persisted feature snapshot from another context can be selected if it is the latest for that symbol. |
@@ -452,6 +452,10 @@ The implemented scopes are:
   points, source IDs, and score source.
 - `score_sma_spread()` reproduces the graph-aware SMA-spread score used by
   `GraphAwareScoreStrategy._technical_score()`.
+- `score_ohlcv_v2()` adds the opt-in OHLCV-only v2A scoring profile with
+  alpha, risk, tradability, confidence, composite score, coverage,
+  top-contributor, missing-feature, source, and metadata outputs. It is not
+  called by this agent until a later profile-gated wiring milestone.
 
 Future technical experiments should add or select profiles in
 `TechnicalSignalService` instead of embedding new scoring formulas directly in

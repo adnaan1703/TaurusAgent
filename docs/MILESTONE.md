@@ -153,7 +153,7 @@ removed during docs cleanup. Use Git history for detailed historical plans.
 - M74 baseline characterization and validation-contract work is complete:
   focused tests now pin current `technical_rule_v1`, `sma_spread`,
   `graph_aware_score_v1` ranking payload, allocation score calibration, and
-  current `BaseAnalystAgent` LLM numeric ownership behavior. M77-M86 technical
+  current `BaseAnalystAgent` LLM numeric ownership behavior. M78-M86 technical
   layer overhaul implementation remains planned.
 - M75 OHLCV indicator primitive expansion is complete: pure Decimal-based
   primitives now cover MACD, ADX/+DI/-DI, Bollinger bands, breakout distances,
@@ -167,6 +167,12 @@ removed during docs cleanup. Use Git history for detailed historical plans.
   ranks, percentiles, z-scores, missing-feature maps, availability counts, and
   JSON-friendly universe metadata for later v2A scoring without changing v1
   analyst or strategy runtime behavior.
+- M77 `TechnicalSignalService` v2A scoring work is complete: the pure DB-free
+  `technical_ohlcv_v2` profile now turns OHLCV feature snapshots plus optional
+  universe context into typed alpha, risk, tradability, confidence, composite
+  score, coverage, contributor, missing-feature, source, and metadata outputs
+  without wiring v2 into `TechnicalAnalystAgent`, `GraphAwareScoreStrategy`,
+  API/UI payloads, validation commands, or official-data ingestion.
 
 ## Standing Safety Rules
 
@@ -241,6 +247,8 @@ removed during docs cleanup. Use Git history for detailed historical plans.
 | M74-M86 plan document | Done | Created the flat technical layer overhaul plan and handoff covering v1 baselines, OHLCV v2A indicators, cross-sectional context, deterministic scoring, opt-in strategy and analyst wiring, API/UI visibility, historical validation reports, official index/VIX/delivery/circuit ingestion, v2B scoring, and evidence-gated promotion. Implementation remains planned and no implementation work was done. |
 | M74 | Done | Added focused v1 technical-layer characterization coverage for analyst-rule metadata, SMA-spread availability and precision, graph-aware ranked-candidate payloads, allocation score calibration, and current base analyst LLM numeric ownership; documented the validation output contract for later M81-M82 evidence reports. |
 | M75 | Done | Added pure OHLCV indicator primitives and opt-in `technical_ohlcv_v2` feature snapshots while preserving v1 defaults and graph-aware v1 scoring behavior. |
+| M76 | Done | Added the pure DB-free universe technical context builder with deterministic cross-sectional ranks, percentiles, z-scores, missing-feature maps, availability counts, and JSON-friendly universe metadata without changing v1 runtime behavior. |
+| M77 | Done | Added the pure DB-free `technical_ohlcv_v2` scoring profile in `TechnicalSignalService`, exposing typed alpha/risk/tradability/confidence/composite outputs with coverage, contributors, missing-feature metadata, and focused tests while preserving v1 runtime behavior. |
 
 ## Completed Graph Explorer Sequence
 
@@ -264,7 +272,7 @@ up, and documented; do not automatically begin later scope.
 | 74 | M74 | Done | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Pin current technical, analyst, strategy, and allocation score behavior and define the validation evidence contract. |
 | 75 | M75 | Done | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Add the full opt-in OHLCV indicator primitive and feature snapshot suite for v2A. |
 | 76 | M76 | Done | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Add DB-free universe technical context and cross-sectional normalization without market/sector proxies. |
-| 77 | M77 | Planned | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Add the deterministic `technical_ohlcv_v2` alpha/risk/tradability/confidence scoring profile. |
+| 77 | M77 | Done | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Add the deterministic `technical_ohlcv_v2` alpha/risk/tradability/confidence scoring profile. |
 | 78 | M78 | Planned | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Add opt-in `graph_aware_score_v2` strategy wiring while preserving v1 behavior. |
 | 79 | M79 | Planned | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Wire `TechnicalAnalystAgent` to v2A with deterministic numeric ownership and optional universe context. |
 | 80 | M80 | Planned | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Surface v2A technical vectors in artifacts, API, replay, and React debugging views. |
@@ -285,6 +293,24 @@ This completed sequence was executed in order as separate milestone work.
 | 67 | M67 | Done | `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md` | Add the DB-free shared `TechnicalSignalService` foundation without runtime wiring. |
 | 68 | M68 | Done | `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md` | Route `TechnicalAnalystAgent` and `GraphAwareScoreStrategy` through the shared service without behavior drift. |
 | 69 | M69 | Done | `docs/TAURUS_TECHNICAL_SIGNAL_SERVICE_PLAN.md` | Run final regression, refresh architecture/deep-dive docs for implemented behavior, and close the sequence. |
+
+### M77 Completion Summary
+
+- Assumptions made: M77 should add only the pure DB-free
+  `technical_ohlcv_v2` scoring profile and typed result contract; v1
+  `technical_rule_v1`, `sma_spread`, `TechnicalAnalystAgent`,
+  `GraphAwareScoreStrategy`, API/UI payloads, validation commands, and
+  official-data ingestion should remain unchanged; OHLCV-only tradability should
+  use turnover and average traded value proxies until official delivery,
+  circuit, VIX, impact-cost, market-relative, and sector-relative data arrive in
+  later milestones; missing features and missing universe context should reduce
+  coverage/confidence rather than becoming bullish or bearish evidence; no
+  project-local approval cleanup was needed because the global rules file had
+  no entries after the `# END MY CUSTOM ADDITION` marker.
+- Mocks created: None.
+- Mocks used: None; focused tests use deterministic in-memory
+  `FeatureSnapshot` fixtures and DB-free `build_universe_technical_context()`
+  context only.
 
 ### M76 Completion Summary
 

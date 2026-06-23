@@ -5,20 +5,23 @@ Last updated: 2026-06-23
 ## Current Status
 
 - Current milestone: None.
-- Last completed milestone: M76 Universe Technical Context And Cross-Sectional
-  Normalization.
+- Last completed milestone: M77 `TechnicalSignalService` V2A Scoring Profile.
 - Planning completed: M74-M86 technical layer overhaul sequence.
-- Implementation state: M74, M75, and M76 are complete. The current runtime remains
+- Implementation state: M74, M75, M76, and M77 are complete. The current runtime remains
   behavior-preserving: `TechnicalAnalystAgent` uses `technical_rule_v1`, and
   `GraphAwareScoreStrategy` uses the SMA-spread profile for
   `graph_aware_score_v1`. M75 added pure OHLCV indicator primitives and an
   opt-in `technical_ohlcv_v2` `TechnicalFeatureService` suite. M76 added the
   pure DB-free `build_universe_technical_context()` path for cross-sectional
   ranks, percentiles, z-scores, missing-feature visibility, availability
-  counts, and universe metadata, but did not add v2 scoring, analyst wiring,
-  strategy wiring, API/UI changes, validation commands, or official-data
-  ingestion.
-- Next recommended milestone: M77 `TechnicalSignalService` v2A scoring profile.
+  counts, and universe metadata. M77 added the pure DB-free
+  `TechnicalSignalService.score_ohlcv_v2()` profile and typed
+  `TechnicalOhlcvSignalResult` with alpha/risk/tradability/confidence,
+  composite score, coverage, top contributors, missing-feature visibility, and
+  JSON-friendly metadata. It did not add analyst wiring, strategy wiring,
+  API/UI changes, validation commands, or official-data ingestion.
+- Next recommended milestone: M78 opt-in `graph_aware_score_v2` strategy
+  runtime profile.
 - Thread model requirement from the user: each milestone worker thread should
   use GPT 5.5 with xhigh thinking.
 - Commit policy from the user: do not commit anything unless explicitly asked.
@@ -68,7 +71,7 @@ sequence is:
 - M74: baseline, evidence contract, and validation design. Done.
 - M75: OHLCV indicator primitive expansion. Done.
 - M76: universe technical context and cross-sectional normalization. Done.
-- M77: `TechnicalSignalService` v2A scoring profile.
+- M77: `TechnicalSignalService` v2A scoring profile. Done.
 - M78: opt-in `graph_aware_score_v2` strategy runtime profile.
 - M79: `TechnicalAnalystAgent` v2A deterministic numeric wiring.
 - M80: v2A artifact, API, replay, and React visibility.

@@ -15,6 +15,7 @@ from taurus_core.features.store import (
 )
 from taurus_core.features.technical_signal import (
     TechnicalBacktestSignal,
+    TechnicalOhlcvSignalResult,
     TechnicalSignalResult,
     TechnicalSignalService,
 )
@@ -29,6 +30,7 @@ __all__ = [
     "TechnicalBacktestSignal",
     "TechnicalFeatureContext",
     "TechnicalFeatureService",
+    "TechnicalOhlcvSignalResult",
     "TechnicalSignalResult",
     "TechnicalSignalService",
     "TechnicalSymbolContext",
