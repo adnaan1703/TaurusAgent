@@ -13,11 +13,16 @@ from experiments.parametric.errors import ExperimentSpecError
 from experiments.parametric.metrics import MetricDefinition, default_metric_registry
 from experiments.parametric.spec import DEFAULT_MAX_VARIANTS, ExperimentSpec
 
+TRADING_DAYS_PER_YEAR = 252
+
 
 @dataclass(frozen=True, slots=True)
 class FoldPlan:
     fold_id: str
     mode: str
+    index: int
+    evaluation_days: int | None = None
+    evaluation_end_offset_days: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -31,6 +36,8 @@ class PlannedOutputPaths:
 class VariantPlan:
     variant_id: str
     fingerprint: str
+    variant_index: int
+    work_unit_index: int
     overrides: Mapping[str, object]
     fold: FoldPlan
     output_paths: PlannedOutputPaths
@@ -51,7 +58,7 @@ class ExperimentPlan:
 
     @property
     def variant_count(self) -> int:
-        return len(self.variants)
+        return len({variant.variant_id for variant in self.variants})
 
     @property
     def fold_count(self) -> int:
@@ -59,7 +66,7 @@ class ExperimentPlan:
 
     @property
     def total_work_units(self) -> int:
-        return self.variant_count
+        return len(self.variants)
 
     @property
     def metric_ids(self) -> tuple[str, ...]:
@@ -103,16 +110,17 @@ def expand_experiment(
     spec_fingerprint = _fingerprint({"spec": spec.model_dump(mode="json")})
     run_id = f"{spec.experiment_id}-{spec_fingerprint[:12]}"
     variants: list[VariantPlan] = []
+    work_unit_index = 0
     for index, overrides in enumerate(combinations, start=1):
+        fingerprint = variant_fingerprint(
+            adapter_id=spec.adapter,
+            base_request=spec.base_request.model_dump(mode="json"),
+            overrides=overrides,
+            metric_ids=spec.metrics,
+        )
+        variant_id = f"variant-{index:03d}-{fingerprint[:8]}"
         for fold in folds:
-            fingerprint = variant_fingerprint(
-                adapter_id=spec.adapter,
-                base_request=spec.base_request.model_dump(mode="json"),
-                overrides=overrides,
-                fold=fold,
-                metric_ids=spec.metrics,
-            )
-            variant_id = f"variant-{index:03d}-{fingerprint[:8]}"
+            work_unit_index += 1
             variant_dir = (
                 resolved_output_root
                 / run_id
@@ -124,6 +132,8 @@ def expand_experiment(
                 VariantPlan(
                     variant_id=variant_id,
                     fingerprint=fingerprint,
+                    variant_index=index,
+                    work_unit_index=work_unit_index,
                     overrides=overrides,
                     fold=fold,
                     output_paths=PlannedOutputPaths(
@@ -152,14 +162,12 @@ def variant_fingerprint(
     adapter_id: str,
     base_request: Mapping[str, object],
     overrides: Mapping[str, object],
-    fold: FoldPlan,
     metric_ids: tuple[str, ...],
 ) -> str:
     payload = {
         "adapter": adapter_id,
         "base_request": base_request,
         "overrides": overrides,
-        "fold": {"fold_id": fold.fold_id, "mode": fold.mode},
         "metric_ids": sorted(metric_ids),
     }
     return _fingerprint(payload)
@@ -206,9 +214,33 @@ def _validate_family_weights(
 
 
 def _folds(spec: ExperimentSpec) -> tuple[FoldPlan, ...]:
-    if spec.folds.mode != "single_window":
-        raise ExperimentSpecError(f"Unsupported folds.mode {spec.folds.mode!r}.")
-    return (FoldPlan(fold_id="single_window", mode="single_window"),)
+    if spec.folds.mode == "single_window":
+        return (FoldPlan(fold_id="single_window", mode="single_window", index=1),)
+    if spec.folds.mode == "v2a_yearly":
+        return (
+            FoldPlan(
+                fold_id="fold_1",
+                mode="v2a_yearly",
+                index=1,
+                evaluation_days=TRADING_DAYS_PER_YEAR,
+                evaluation_end_offset_days=TRADING_DAYS_PER_YEAR * 2,
+            ),
+            FoldPlan(
+                fold_id="fold_2",
+                mode="v2a_yearly",
+                index=2,
+                evaluation_days=TRADING_DAYS_PER_YEAR,
+                evaluation_end_offset_days=TRADING_DAYS_PER_YEAR,
+            ),
+            FoldPlan(
+                fold_id="fold_3",
+                mode="v2a_yearly",
+                index=3,
+                evaluation_days=TRADING_DAYS_PER_YEAR,
+                evaluation_end_offset_days=0,
+            ),
+        )
+    raise ExperimentSpecError(f"Unsupported folds.mode {spec.folds.mode!r}.")
 
 
 def _fingerprint(payload: Mapping[str, object]) -> str:

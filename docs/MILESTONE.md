@@ -271,8 +271,14 @@ removed during docs cleanup. Use Git history for detailed historical plans.
   `technical_validation_v2a` adapter for single-window specs, inject generated
   v2A validation profiles, include canonical v1/current-v2A baselines, extract
   named metrics, compute deltas versus both baselines, and write aggregate plus
-  per-variant CSV/JSON artifacts under the selected run output root. M93
-  walk-forward folds, progress, and bounded parallel execution remain planned.
+  per-variant CSV/JSON artifacts under the selected run output root.
+- M93 walk-forward folds, progress, and bounded parallel execution are
+  complete: specs now support explicit `single_window` smoke/debug mode and
+  default `v2a_yearly` three-fold yearly walk-forward mode, dry-run and
+  non-dry-run output report fold x variant work units, the CLI uses the shared
+  `parametric-experiment` progress reporter, non-dry-run execution supports
+  explicit bounded `PARAMETRIC_JOBS`, and multi-fold run CSVs include
+  `variant_aggregate` stability rows.
 
 ## Standing Safety Rules
 
@@ -417,7 +423,7 @@ up, and documented; do not automatically begin later scope.
 | 90 | M90 | Done | `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md` | Added the generic YAML matrix runner core, dry-run expansion, CLI, Make wrapper, smoke spec, and ignored run-output location. |
 | 91 | M91 | Done | `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md` | Add config-driven v2A scoring parameters while preserving current v1 and v2A defaults. |
 | 92 | M92 | Done | `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md` | Connected generated v2A variants to the existing technical validation pipeline and emitted CSV/JSON result artifacts. |
-| 93 | M93 | Planned | `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md` | Add walk-forward folds, fold x variant progress, and bounded parallel execution. |
+| 93 | M93 | Done | `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md` | Added walk-forward folds, fold x variant progress, and bounded parallel execution. |
 | 94 | M94 | Planned | `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md` | Add risk-calibration and full-feature v2A specs, refine smoke coverage, and update operator command docs. |
 | 95 | M95 | Planned | `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md` | Run final regression, refresh docs and handoff, and close the harness sequence. |
 
@@ -527,6 +533,30 @@ up, and documented; do not automatically begin later scope.
   plus per-variant validation artifacts. `make lint` passed. Approval-rule cleanup inspected
   `/Users/adnaan/.codex/rules/default.rules` and found no Taurus-specific
   global approvals after the user's `# END MY CUSTOM ADDITION` marker.
+
+### M93 Completion Summary
+
+- Assumptions made: Omitted `folds` should now mean the default v2A
+  three-year walk-forward shape, while the checked-in smoke spec should remain
+  explicit `single_window`; yearly folds should use one 252-trading-day
+  evaluation window with offsets of 504, 252, and 0 trading days from the most
+  recent common validation date; aggregate stability rows should summarize only
+  generated variant rows, leaving canonical v1/current-v2A baseline rows as
+  per-fold comparisons; explicit `PARAMETRIC_JOBS` should bound worker count
+  without CPU auto-detection.
+- Mocks created: None.
+- Mocks used: Unit tests monkeypatched `run_validation()` in
+  `tests/unit/test_parametric_experiments.py` to verify fold metadata,
+  aggregate stability rows, and `jobs=2` execution without requiring seeded
+  full database validation data.
+- Verification: `uv run pytest tests/unit/test_parametric_experiments.py
+  tests/unit/test_progress.py` passed with 26 tests.
+  `TAURUS_PROGRESS=plain PARAMETRIC_DRY_RUN=true make parametric-experiment
+  EXPERIMENT_SPEC=experiments/specs/v2a_smoke.yaml` passed and printed
+  fold/variant progress plus 2 variants, 1 fold, and 2 total work units without
+  creating run outputs. `make lint` passed. Approval-rule cleanup inspected
+  `/Users/adnaan/.codex/rules/default.rules` and found no entries after the
+  user's `# END MY CUSTOM ADDITION` marker.
 
 ### M87 Completion Summary
 

@@ -8,7 +8,7 @@ below is a standalone milestone intended to be executed in a separate Codex
 thread. Stop after completing and documenting the current milestone; do not
 automatically continue to the next milestone.
 
-Status: M92 implementation is complete; M93-M95 remain planned. The sequence
+Status: M93 implementation is complete; M94-M95 remain planned. The sequence
 below uses flat milestone IDs M89-M95 and keeps `graph_aware_score_v1`
 canonical. The harness is for offline paper/backtest experimentation only; it
 must not promote v2A, change `make paper-loop-kite` defaults, or affect live
@@ -402,6 +402,8 @@ Completion summary requirements:
 - Mocks used
 
 ## M93 - Walk-Forward Folds, Progress, And Bounded Parallelism
+
+Status: Done.
 
 Purpose: make larger sweeps scientifically safer and operationally visible.
 

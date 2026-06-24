@@ -116,6 +116,7 @@ class ValidationRequest:
     rebalance_every_days: int
     cost_bps: Decimal
     slippage_bps: Decimal
+    evaluation_end_offset_days: int = 0
     strict_insufficient_data: bool = False
     include_v2b: bool = False
     report_root: Path = Path("docs/reports/technical_validation")
@@ -396,8 +397,14 @@ def build_data_readiness(
 
     selected_dates: tuple[date, ...] = ()
     status = "insufficient_data"
-    if len(common_dates) >= request.required_candle_count:
-        selected_dates = tuple(common_dates[-request.required_candle_count :])
+    if len(common_dates) >= request.required_candle_count + request.evaluation_end_offset_days:
+        end_index = (
+            len(common_dates) - request.evaluation_end_offset_days
+            if request.evaluation_end_offset_days
+            else len(common_dates)
+        )
+        start_index = end_index - request.required_candle_count
+        selected_dates = tuple(common_dates[start_index:end_index])
         status = "sufficient"
 
     missing_symbols = [
@@ -405,7 +412,8 @@ def build_data_readiness(
         for row in coverage_rows
         if not row["active_instrument"] or row["candle_count"] == 0
     ]
-    common_missing_count = max(0, request.required_candle_count - len(common_dates))
+    required_common_count = request.required_candle_count + request.evaluation_end_offset_days
+    common_missing_count = max(0, required_common_count - len(common_dates))
     artifact: dict[str, object] = {
         "artifact_version": ARTIFACT_VERSION,
         "status": status,
@@ -419,8 +427,10 @@ def build_data_readiness(
             "mode": request.mode,
             "validation_years": request.validation_years,
             "evaluation_trading_days": request.evaluation_days,
+            "evaluation_end_offset_trading_days": request.evaluation_end_offset_days,
             "warmup_trading_days": request.warmup_days,
             "required_common_candle_count": request.required_candle_count,
+            "required_common_candle_count_with_offset": required_common_count,
             "common_candle_count": len(common_dates),
             "common_start_date": common_dates[0].isoformat()
             if common_dates
@@ -584,6 +594,7 @@ def request_from_args(
         rebalance_every_days=int(args.rebalance_every_days),
         cost_bps=cost_bps,
         slippage_bps=slippage_bps,
+        evaluation_end_offset_days=0,
         strict_insufficient_data=bool(args.strict_insufficient_data),
         include_v2b=bool(args.include_v2b),
         report_root=Path(args.report_root),
@@ -1171,6 +1182,7 @@ def _manifest(
             "mode": request.mode,
             "validation_years": request.validation_years,
             "evaluation_trading_days": request.evaluation_days,
+            "evaluation_end_offset_trading_days": request.evaluation_end_offset_days,
             "warmup_trading_days": request.warmup_days,
             "timeframe": request.timeframe,
             "initial_capital_inr": str(request.initial_capital_inr),
@@ -2439,6 +2451,7 @@ def _stable_validation_run_id(
         "mode": request.mode,
         "validation_years": request.validation_years,
         "evaluation_days": request.evaluation_days,
+        "evaluation_end_offset_days": request.evaluation_end_offset_days,
         "warmup_days": request.warmup_days,
         "timeframe": request.timeframe,
         "initial_capital_inr": str(request.initial_capital_inr),

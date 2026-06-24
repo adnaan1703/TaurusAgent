@@ -7,9 +7,12 @@ from pathlib import Path
 from typing import Sequence
 
 from experiments.parametric.errors import ExperimentSpecError
-from experiments.parametric.expansion import expand_experiment
-from experiments.parametric.loader import load_experiment_spec
-from experiments.parametric.runner import DryRunSummary, execute_experiment
+from experiments.parametric.runner import (
+    DryRunSummary,
+    execute_experiment_plan,
+    prepare_experiment_plan,
+)
+from taurus_core.ops.progress import create_progress_reporter, emit_progress
 
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
@@ -54,28 +57,43 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 2
     output_root = Path(args.output_root) if args.output_root else None
     try:
-        spec = load_experiment_spec(args.spec)
-        plan = expand_experiment(
-            spec,
-            jobs=args.jobs,
-            max_variants=args.max_variants,
-            output_root=output_root,
-        )
-    except ExperimentSpecError as exc:
-        print(f"error: {exc}", file=sys.stderr)
-        return 2
-
-    if args.dry_run:
-        print(DryRunSummary(plan=plan).render())
-        return 0
-
-    try:
-        outcome = execute_experiment(
-            args.spec,
-            jobs=args.jobs,
-            max_variants=args.max_variants,
-            output_root=output_root,
-        )
+        with create_progress_reporter("parametric-experiment") as progress:
+            plan = prepare_experiment_plan(
+                args.spec,
+                jobs=args.jobs,
+                max_variants=args.max_variants,
+                output_root=output_root,
+                progress=progress,
+            )
+            if args.dry_run:
+                for variant in plan.variants:
+                    emit_progress(
+                        progress,
+                        "parametric.work_unit_completed",
+                        stage="expansion",
+                        variant_id=variant.variant_id,
+                        fold_id=variant.fold.fold_id,
+                        current=variant.work_unit_index,
+                        total=plan.total_work_units,
+                        completed=variant.work_unit_index,
+                    )
+                emit_progress(
+                    progress,
+                    "parametric.stage_started",
+                    stage="result_writing",
+                    completed=plan.total_work_units,
+                    total=plan.total_work_units,
+                )
+                print(DryRunSummary(plan=plan).render())
+                emit_progress(
+                    progress,
+                    "parametric.completed",
+                    stage="result_writing",
+                    completed=plan.total_work_units,
+                    total=plan.total_work_units,
+                )
+                return 0
+            outcome = execute_experiment_plan(plan, progress=progress)
     except ExperimentSpecError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
@@ -85,6 +103,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     print(f"manifest={outcome.manifest_path}")
     print(f"status={outcome.status}")
     print(f"variant_count={outcome.variant_count}")
+    print(f"total_work_units={plan.total_work_units}")
     return 0
 
 

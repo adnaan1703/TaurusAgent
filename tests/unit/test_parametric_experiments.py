@@ -43,6 +43,23 @@ def test_v2a_smoke_spec_expands_without_creating_outputs(tmp_path: Path) -> None
     assert str(output_root) in rendered
 
 
+def test_default_v2a_yearly_folds_expand_to_fold_work_units(tmp_path: Path) -> None:
+    raw = _base_spec()
+    raw.pop("folds")
+    plan = expand_experiment(
+        parse_experiment_spec(raw),
+        output_root=tmp_path / "runs",
+    )
+
+    assert plan.variant_count == 1
+    assert plan.fold_count == 3
+    assert plan.total_work_units == 3
+    assert [fold.fold_id for fold in plan.folds] == ["fold_1", "fold_2", "fold_3"]
+    assert [fold.evaluation_days for fold in plan.folds] == [252, 252, 252]
+    assert [fold.evaluation_end_offset_days for fold in plan.folds] == [504, 252, 0]
+    assert len({variant.variant_id for variant in plan.variants}) == 1
+
+
 def test_invalid_yaml_fails_before_expansion(tmp_path: Path) -> None:
     spec_path = tmp_path / "bad.yaml"
     spec_path.write_text("schema_version: [\n", encoding="utf-8")
@@ -203,15 +220,157 @@ def test_v2a_adapter_writes_manifest_csv_and_metric_deltas(
     assert manifest["variants"][0]["output_paths"]["manifest"].endswith("manifest.json")
 
 
-def test_v2a_adapter_rejects_parallel_execution_before_m93(tmp_path: Path) -> None:
+def test_v2a_adapter_writes_fold_aggregate_rows(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    raw = _base_spec()
+    raw.pop("folds")
+    plan = expand_experiment(
+        parse_experiment_spec(raw),
+        output_root=tmp_path / "runs",
+    )
+
+    def fake_run_validation(*, settings, request, profiles, progress=None):
+        artifact_dir = request.artifact_root / f"techval-fake-{request.evaluation_end_offset_days}"
+        artifact_dir.mkdir(parents=True)
+        request.report_root.mkdir(parents=True)
+        variant_profile = next(
+            profile
+            for profile in profiles
+            if profile.profile_name.startswith("graph_aware_score_v2a_")
+        )
+        variant_return_by_offset = {
+            504: 0.11,
+            252: 0.15,
+            0: 0.19,
+        }
+        variant_total_return = variant_return_by_offset[
+            request.evaluation_end_offset_days
+        ]
+        system_profiles = [
+            _system_profile("graph_aware_score_v1", total_return=0.10, drawdown=-0.10),
+            _system_profile("graph_aware_score_v2", total_return=0.12, drawdown=-0.09),
+            _system_profile(
+                variant_profile.profile_name,
+                total_return=variant_total_return,
+                drawdown=-0.08,
+            ),
+        ]
+        technical_report = {
+            "checks": [
+                _rank_check("technical_rule_v1", 0.01),
+                _rank_check("technical_ohlcv_v2", 0.02),
+                _rank_check(variant_profile.profile_name, 0.05),
+            ],
+            "profiles": [],
+        }
+        system_report = {"profiles": system_profiles}
+        promotion_gate = {"decision": "keep_opt_in", "checks": []}
+        _write_json(artifact_dir / "technical_agent_predictive_report.json", technical_report)
+        _write_json(artifact_dir / "system_backtest_report.json", system_report)
+        _write_json(artifact_dir / "promotion_gate.json", promotion_gate)
+        _write_json(artifact_dir / "validation_manifest.json", {"run_id": artifact_dir.name})
+        return ValidationOutcome(
+            run_id=artifact_dir.name,
+            artifact_dir=artifact_dir,
+            status="complete",
+            manifest={"run_id": artifact_dir.name},
+            report_path=request.report_root / f"{artifact_dir.name}.md",
+            promotion_decision="keep_opt_in",
+        )
+
+    monkeypatch.setattr(
+        "experiments.parametric.technical_validation_v2a.run_validation",
+        fake_run_validation,
+    )
+
+    outcome = run_technical_validation_v2a(plan, settings=Settings())
+
+    rows = list(csv.DictReader(outcome.comparison_csv_path.open(encoding="utf-8")))
+    aggregate_row = next(row for row in rows if row["profile_role"] == "variant_aggregate")
+    assert aggregate_row["fold_id"] == "aggregate"
+    assert aggregate_row["fold_count"] == "3"
+    assert aggregate_row["system.total_return"] == "0.15"
+    assert aggregate_row["system.total_return.fold_min"] == "0.11"
+    assert aggregate_row["system.total_return.fold_max"] == "0.19"
+    assert aggregate_row["system.total_return.fold_mean"] == "0.15"
+    assert aggregate_row["system.total_return.fold_stddev"] == "0.03265986"
+
+    manifest = json.loads(outcome.manifest_path.read_text(encoding="utf-8"))
+    assert manifest["variant_count"] == 1
+    assert manifest["fold_count"] == 3
+    assert manifest["total_work_units"] == 3
+    assert [fold["fold_id"] for fold in manifest["folds"]] == [
+        "fold_1",
+        "fold_2",
+        "fold_3",
+    ]
+
+
+def test_v2a_adapter_supports_bounded_parallel_execution(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     plan = expand_experiment(
         parse_experiment_spec(_base_spec()),
         jobs=2,
         output_root=tmp_path / "runs",
     )
+    calls = []
 
-    with pytest.raises(ExperimentSpecError, match="jobs=1"):
-        run_technical_validation_v2a(plan, settings=Settings())
+    def fake_run_validation(*, settings, request, profiles, progress=None):
+        calls.append(request.cost_bps)
+        artifact_dir = request.artifact_root / f"techval-fake-{request.cost_bps}"
+        artifact_dir.mkdir(parents=True)
+        request.report_root.mkdir(parents=True)
+        variant_profile = next(
+            profile
+            for profile in profiles
+            if profile.profile_name.startswith("graph_aware_score_v2a_")
+        )
+        system_profiles = [
+            _system_profile("graph_aware_score_v1", total_return=0.10, drawdown=-0.10),
+            _system_profile("graph_aware_score_v2", total_return=0.12, drawdown=-0.09),
+            _system_profile(variant_profile.profile_name, total_return=0.15, drawdown=-0.08),
+        ]
+        technical_report = {
+            "checks": [
+                _rank_check("technical_rule_v1", 0.01),
+                _rank_check("technical_ohlcv_v2", 0.02),
+                _rank_check(variant_profile.profile_name, 0.05),
+            ],
+            "profiles": [],
+        }
+        _write_json(
+            artifact_dir / "technical_agent_predictive_report.json",
+            technical_report,
+        )
+        _write_json(artifact_dir / "system_backtest_report.json", {"profiles": system_profiles})
+        _write_json(
+            artifact_dir / "promotion_gate.json",
+            {"decision": "keep_opt_in", "checks": []},
+        )
+        _write_json(artifact_dir / "validation_manifest.json", {"run_id": artifact_dir.name})
+        return ValidationOutcome(
+            run_id=artifact_dir.name,
+            artifact_dir=artifact_dir,
+            status="complete",
+            manifest={"run_id": artifact_dir.name},
+            report_path=request.report_root / f"{artifact_dir.name}.md",
+            promotion_decision="keep_opt_in",
+        )
+
+    monkeypatch.setattr(
+        "experiments.parametric.technical_validation_v2a.run_validation",
+        fake_run_validation,
+    )
+
+    outcome = run_technical_validation_v2a(plan, settings=Settings())
+
+    assert outcome.status == "complete"
+    assert sorted(calls) == [Decimal("10")]
+    assert outcome.variant_count == 1
 
 
 def _base_spec(*, sort_matrix: bool = False) -> dict[str, object]:

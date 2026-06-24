@@ -191,6 +191,56 @@ def test_technical_validation_progress_opt_out_suppresses_terminal_output() -> N
     assert stream.getvalue() == ""
 
 
+def test_parametric_experiment_progress_line_includes_fold_variant_and_eta() -> None:
+    line = format_plain_progress_line(
+        "parametric-experiment",
+        "parametric.work_unit_progress",
+        {
+            "stage": "backtests",
+            "variant_id": "variant-001-abcdef12",
+            "fold_id": "fold_2",
+            "current": 5,
+            "total": 9,
+            "completed": 4,
+        },
+        elapsed_seconds=40,
+        eta_seconds=50,
+    )
+
+    assert line is not None
+    assert "parametric-experiment" in line
+    assert "stage=backtests" in line
+    assert "fold=fold_2" in line
+    assert "variant=variant-001-abcdef12" in line
+    assert "unit=5/9" in line
+    assert "progress=4/9" in line
+    assert "percent=44.4" in line
+    assert "elapsed=40s" in line
+    assert "eta=50s" in line
+
+
+def test_parametric_experiment_progress_opt_out_suppresses_terminal_output() -> None:
+    stream = io.StringIO()
+
+    with create_progress_reporter(
+        "parametric-experiment",
+        env={"TAURUS_PROGRESS": "false"},
+        stream=stream,
+    ) as progress:
+        progress(
+            "parametric.work_unit_progress",
+            {
+                "stage": "readiness",
+                "variant_id": "variant-001-abcdef12",
+                "fold_id": "fold_1",
+                "current": 1,
+                "total": 3,
+            },
+        )
+
+    assert stream.getvalue() == ""
+
+
 def test_auto_progress_uses_plain_stderr_for_non_tty_stream() -> None:
     stream = io.StringIO()
 

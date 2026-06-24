@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import csv
 import json
+import math
 import subprocess
 from collections.abc import Mapping, Sequence
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
+from threading import Lock
 from typing import Any
 
 from experiments.parametric.errors import ExperimentSpecError
@@ -25,6 +28,7 @@ from scripts.validate_technical_v2 import (
 from taurus_core.config import Settings, get_settings
 from taurus_core.data.universe import load_market_data_universe
 from taurus_core.features.technical_params import DEFAULT_OHLCV_V2_SCORING_PARAMS
+from taurus_core.ops.progress import ProgressEventCallback, emit_progress
 from taurus_core.strategies.graph_aware import OHLCV_V2_SCORING_PARAMS_KEY
 
 ARTIFACT_VERSION = "parametric_experiment_v1"
@@ -84,72 +88,53 @@ class ParametricExecutionOutcome:
     variant_count: int
 
 
+@dataclass(frozen=True, slots=True)
+class _VariantExecutionResult:
+    index: int
+    rows: list[dict[str, object]]
+    manifest: dict[str, object]
+
+
 def run_technical_validation_v2a(
     plan: ExperimentPlan,
     *,
     settings: Settings | None = None,
+    progress: ProgressEventCallback | None = None,
 ) -> ParametricExecutionOutcome:
     if plan.adapter.adapter_id != ADAPTER_ID:
         raise ExperimentSpecError(
             f"Adapter runner {ADAPTER_ID!r} cannot execute {plan.adapter.adapter_id!r}."
         )
-    if plan.jobs != 1:
-        raise ExperimentSpecError(
-            "Non-dry-run technical_validation_v2a execution supports jobs=1 until M93."
-        )
 
     resolved_settings = settings or get_settings()
     run_dir = plan.output_root / plan.run_id
     run_dir.mkdir(parents=True, exist_ok=True)
+    progress_lock = Lock()
+
+    def progress_emit(event: str, **payload: object) -> None:
+        with progress_lock:
+            emit_progress(progress, event, **payload)
+
+    results = _execute_variants(
+        plan=plan,
+        settings=resolved_settings,
+        progress_emit=progress_emit,
+    )
     all_rows: list[dict[str, object]] = []
     variant_manifests: list[dict[str, object]] = []
-
-    for variant in plan.variants:
-        variant.output_paths.variant_dir.mkdir(parents=True, exist_ok=True)
-        request = _validation_request_for_variant(
-            base_request=plan.spec.base_request,
-            variant=variant,
-            settings=resolved_settings,
-        )
-        profiles = _validation_profiles_for_variant(plan, variant)
-        outcome = run_validation(
-            settings=resolved_settings,
-            request=request,
-            profiles=profiles,
-        )
-        technical_report = _read_json(
-            outcome.artifact_dir / "technical_agent_predictive_report.json"
-        )
-        system_report = _read_json(outcome.artifact_dir / "system_backtest_report.json")
-        promotion_gate = _read_json(outcome.artifact_dir / "promotion_gate.json")
-        rows = _comparison_rows(
-            plan=plan,
-            variant=variant,
-            profiles=profiles,
-            outcome=outcome,
-            technical_report=technical_report,
-            system_report=system_report,
-        )
-        _write_comparison_csv(
-            variant.output_paths.comparison_csv_path,
-            rows,
-            metric_ids=plan.metric_ids,
-        )
-        variant_manifest = _variant_manifest(
-            plan=plan,
-            variant=variant,
-            request=request,
-            profiles=profiles,
-            outcome=outcome,
-            rows=rows,
-            promotion_gate=promotion_gate,
-        )
-        _write_json(variant.output_paths.manifest_path, variant_manifest)
-        all_rows.extend(rows)
-        variant_manifests.append(variant_manifest)
+    for result in sorted(results, key=lambda item: item.index):
+        all_rows.extend(result.rows)
+        variant_manifests.append(result.manifest)
+    all_rows.extend(_aggregate_fold_rows(all_rows, metric_ids=plan.metric_ids))
 
     comparison_csv_path = run_dir / "comparison.csv"
     manifest_path = run_dir / "manifest.json"
+    progress_emit(
+        "parametric.stage_started",
+        stage="result_writing",
+        completed=plan.total_work_units,
+        total=plan.total_work_units,
+    )
     _write_comparison_csv(comparison_csv_path, all_rows, metric_ids=plan.metric_ids)
     status = (
         "complete"
@@ -169,6 +154,12 @@ def run_technical_validation_v2a(
             status=status,
         ),
     )
+    progress_emit(
+        "parametric.completed",
+        stage="result_writing",
+        completed=plan.total_work_units,
+        total=plan.total_work_units,
+    )
     return ParametricExecutionOutcome(
         run_id=plan.run_id,
         run_dir=run_dir,
@@ -176,6 +167,210 @@ def run_technical_validation_v2a(
         comparison_csv_path=comparison_csv_path,
         status=status,
         variant_count=plan.variant_count,
+    )
+
+
+def _execute_variants(
+    *,
+    plan: ExperimentPlan,
+    settings: Settings,
+    progress_emit,
+) -> list[_VariantExecutionResult]:
+    if plan.jobs == 1:
+        return [
+            _execute_variant(
+                plan=plan,
+                variant=variant,
+                settings=settings,
+                progress_emit=progress_emit,
+            )
+            for variant in plan.variants
+        ]
+
+    futures = {}
+    with ThreadPoolExecutor(max_workers=plan.jobs) as executor:
+        for variant in plan.variants:
+            future = executor.submit(
+                _execute_variant,
+                plan=plan,
+                variant=variant,
+                settings=settings,
+                progress_emit=progress_emit,
+            )
+            futures[future] = variant
+        results: list[_VariantExecutionResult] = []
+        for future in as_completed(futures):
+            variant = futures[future]
+            try:
+                results.append(future.result())
+            except BaseException as exc:
+                for pending in futures:
+                    if pending is not future:
+                        pending.cancel()
+                raise ExperimentSpecError(
+                    "Experiment work unit failed "
+                    f"variant_id={variant.variant_id} fold_id={variant.fold.fold_id}: {exc}"
+                ) from exc
+    return results
+
+
+def _execute_variant(
+    *,
+    plan: ExperimentPlan,
+    variant: VariantPlan,
+    settings: Settings,
+    progress_emit,
+) -> _VariantExecutionResult:
+    try:
+        variant.output_paths.variant_dir.mkdir(parents=True, exist_ok=True)
+        request = _validation_request_for_variant(
+            base_request=plan.spec.base_request,
+            variant=variant,
+            settings=settings,
+        )
+        profiles = _validation_profiles_for_variant(plan, variant)
+        _emit_work_progress(
+            progress_emit,
+            "parametric.work_unit_started",
+            variant=variant,
+            total=plan.total_work_units,
+            stage="readiness",
+        )
+        outcome = run_validation(
+            settings=settings,
+            request=request,
+            profiles=profiles,
+            progress=_validation_progress_adapter(
+                progress_emit,
+                variant=variant,
+                total=plan.total_work_units,
+            ),
+        )
+        _emit_work_progress(
+            progress_emit,
+            "parametric.work_unit_progress",
+            variant=variant,
+            total=plan.total_work_units,
+            stage="metric_extraction",
+        )
+        technical_report = _read_json(
+            outcome.artifact_dir / "technical_agent_predictive_report.json"
+        )
+        system_report = _read_json(outcome.artifact_dir / "system_backtest_report.json")
+        promotion_gate = _read_json(outcome.artifact_dir / "promotion_gate.json")
+        rows = _comparison_rows(
+            plan=plan,
+            variant=variant,
+            profiles=profiles,
+            outcome=outcome,
+            technical_report=technical_report,
+            system_report=system_report,
+        )
+        _emit_work_progress(
+            progress_emit,
+            "parametric.work_unit_progress",
+            variant=variant,
+            total=plan.total_work_units,
+            stage="result_writing",
+        )
+        _write_comparison_csv(
+            variant.output_paths.comparison_csv_path,
+            rows,
+            metric_ids=plan.metric_ids,
+        )
+        variant_manifest = _variant_manifest(
+            plan=plan,
+            variant=variant,
+            request=request,
+            profiles=profiles,
+            outcome=outcome,
+            rows=rows,
+            promotion_gate=promotion_gate,
+        )
+        _write_json(variant.output_paths.manifest_path, variant_manifest)
+        _emit_work_progress(
+            progress_emit,
+            "parametric.work_unit_completed",
+            variant=variant,
+            total=plan.total_work_units,
+            stage="result_writing",
+        )
+        return _VariantExecutionResult(
+            index=variant.work_unit_index,
+            rows=rows,
+            manifest=variant_manifest,
+        )
+    except BaseException as exc:
+        _emit_work_progress(
+            progress_emit,
+            "parametric.work_unit_failed",
+            variant=variant,
+            total=plan.total_work_units,
+            stage="failed",
+            error_type=exc.__class__.__name__,
+            message=str(exc),
+        )
+        raise ExperimentSpecError(
+            "Experiment work unit failed "
+            f"variant_id={variant.variant_id} fold_id={variant.fold.fold_id}: {exc}"
+        ) from exc
+
+
+def _validation_progress_adapter(
+    progress_emit,
+    *,
+    variant: VariantPlan,
+    total: int,
+):
+    def _progress(event: str, payload: Mapping[str, object]) -> None:
+        stage = _stage_for_validation_event(event)
+        if stage is None:
+            return
+        _emit_work_progress(
+            progress_emit,
+            "parametric.work_unit_progress",
+            variant=variant,
+            total=total,
+            stage=stage,
+            profile_name=payload.get("profile_name", ""),
+        )
+
+    return _progress
+
+
+def _stage_for_validation_event(event: str) -> str | None:
+    if ".readiness" in event:
+        return "readiness"
+    if ".backtest" in event:
+        return "backtests"
+    if event == "technical_validation.reports_started":
+        return "metric_extraction"
+    return None
+
+
+def _emit_work_progress(
+    progress_emit,
+    event: str,
+    *,
+    variant: VariantPlan,
+    total: int,
+    stage: str,
+    **extra: object,
+) -> None:
+    completed = (
+        variant.work_unit_index
+        if event == "parametric.work_unit_completed"
+        else max(variant.work_unit_index - 1, 0)
+    )
+    progress_emit(
+        event,
+        stage=stage,
+        variant_id=variant.variant_id,
+        fold_id=variant.fold.fold_id,
+        current=variant.work_unit_index,
+        total=total,
+        completed=completed,
+        **extra,
     )
 
 
@@ -197,6 +392,9 @@ def _validation_request_for_variant(
         if base_request.evaluation_days is not None
         else validation_years * TRADING_DAYS_PER_YEAR
     )
+    if variant.fold.evaluation_days is not None:
+        evaluation_days = variant.fold.evaluation_days
+        validation_years = max(1, math.ceil(evaluation_days / TRADING_DAYS_PER_YEAR))
     warmup_days = int(backtest_overrides.get("warmup_days", base_request.warmup_days))
     symbols, universe_source, universe_path = _resolve_symbols(
         base_request=base_request,
@@ -242,6 +440,7 @@ def _validation_request_for_variant(
         slippage_bps=Decimal(
             str(backtest_overrides.get("slippage_bps", base_request.slippage_bps))
         ),
+        evaluation_end_offset_days=variant.fold.evaluation_end_offset_days,
         strict_insufficient_data=base_request.strict_insufficient_data,
         include_v2b=False,
         report_root=base_request.report_root
@@ -358,11 +557,13 @@ def _comparison_rows(
             "variant_id": variant.variant_id,
             "variant_fingerprint": variant.fingerprint,
             "fold_id": variant.fold.fold_id,
+            "fold_mode": variant.fold.mode,
             "profile_name": profile.profile_name,
             "profile_role": _profile_role(profile.profile_name, variant),
             "validation_run_id": outcome.run_id,
             "validation_status": outcome.status,
             "promotion_decision": outcome.promotion_decision,
+            "fold_count": "",
             "overrides": json.dumps(
                 _json_safe(dict(variant.overrides)),
                 sort_keys=True,
@@ -499,7 +700,13 @@ def _variant_manifest(
         "adapter": plan.adapter.adapter_id,
         "spec_fingerprint": plan.spec_fingerprint,
         "git_commit": _git_commit(),
-        "fold": {"fold_id": variant.fold.fold_id, "mode": variant.fold.mode},
+        "fold": {
+            "fold_id": variant.fold.fold_id,
+            "mode": variant.fold.mode,
+            "index": variant.fold.index,
+            "evaluation_days": variant.fold.evaluation_days,
+            "evaluation_end_offset_days": variant.fold.evaluation_end_offset_days,
+        },
         "metric_ids": list(plan.metric_ids),
         "baseline_profile_names": [
             profile.profile_name
@@ -511,6 +718,7 @@ def _variant_manifest(
             "mode": request.mode,
             "validation_years": request.validation_years,
             "evaluation_days": request.evaluation_days,
+            "evaluation_end_offset_days": request.evaluation_end_offset_days,
             "warmup_days": request.warmup_days,
             "symbols": list(request.symbols),
             "portfolio_breadth": request.portfolio_breadth,
@@ -592,10 +800,105 @@ def _run_manifest(
         ],
         "variant_count": plan.variant_count,
         "fold_count": plan.fold_count,
+        "total_work_units": plan.total_work_units,
         "jobs": plan.jobs,
         "max_variants": plan.max_variants,
+        "folds": [
+            {
+                "fold_id": fold.fold_id,
+                "mode": fold.mode,
+                "index": fold.index,
+                "evaluation_days": fold.evaluation_days,
+                "evaluation_end_offset_days": fold.evaluation_end_offset_days,
+            }
+            for fold in plan.folds
+        ],
         "variants": list(variant_manifests),
     }
+
+
+def _aggregate_fold_rows(
+    rows: Sequence[Mapping[str, object]],
+    *,
+    metric_ids: Sequence[str],
+) -> list[dict[str, object]]:
+    grouped: dict[tuple[str, str, str], list[Mapping[str, object]]] = {}
+    for row in rows:
+        if row.get("profile_role") != "variant":
+            continue
+        key = (
+            str(row.get("variant_id", "")),
+            str(row.get("variant_fingerprint", "")),
+            str(row.get("profile_name", "")),
+        )
+        grouped.setdefault(key, []).append(row)
+
+    aggregate_rows: list[dict[str, object]] = []
+    for (_variant_id, _fingerprint, _profile_name), fold_rows in sorted(grouped.items()):
+        if len(fold_rows) < 2:
+            continue
+        first = fold_rows[0]
+        aggregate: dict[str, object] = {
+            "experiment_id": first.get("experiment_id", ""),
+            "run_id": first.get("run_id", ""),
+            "variant_id": first.get("variant_id", ""),
+            "variant_fingerprint": first.get("variant_fingerprint", ""),
+            "fold_id": "aggregate",
+            "fold_mode": first.get("fold_mode", ""),
+            "profile_name": first.get("profile_name", ""),
+            "profile_role": "variant_aggregate",
+            "validation_run_id": "",
+            "validation_status": _aggregate_status(fold_rows),
+            "promotion_decision": "",
+            "fold_count": len(fold_rows),
+            "overrides": first.get("overrides", ""),
+        }
+        for metric_id in metric_ids:
+            values = [_numeric(row.get(metric_id)) for row in fold_rows]
+            numeric_values = [value for value in values if value is not None]
+            deltas_v1 = [
+                _numeric(row.get(f"{metric_id}.delta_vs_v1")) for row in fold_rows
+            ]
+            deltas_v2a = [
+                _numeric(row.get(f"{metric_id}.delta_vs_current_v2a"))
+                for row in fold_rows
+            ]
+            aggregate[metric_id] = _mean(numeric_values)
+            aggregate[f"{metric_id}.delta_vs_v1"] = _mean(
+                [value for value in deltas_v1 if value is not None]
+            )
+            aggregate[f"{metric_id}.delta_vs_current_v2a"] = _mean(
+                [value for value in deltas_v2a if value is not None]
+            )
+            aggregate[f"{metric_id}.fold_min"] = (
+                min(numeric_values) if numeric_values else None
+            )
+            aggregate[f"{metric_id}.fold_max"] = (
+                max(numeric_values) if numeric_values else None
+            )
+            aggregate[f"{metric_id}.fold_mean"] = _mean(numeric_values)
+            aggregate[f"{metric_id}.fold_stddev"] = _stddev(numeric_values)
+        aggregate_rows.append(aggregate)
+    return aggregate_rows
+
+
+def _aggregate_status(rows: Sequence[Mapping[str, object]]) -> str:
+    statuses = {str(row.get("validation_status", "")) for row in rows}
+    return "complete" if statuses == {"complete"} else "completed_with_validation_gaps"
+
+
+def _mean(values: Sequence[float]) -> float | None:
+    if not values:
+        return None
+    return round(sum(values) / len(values), 8)
+
+
+def _stddev(values: Sequence[float]) -> float | None:
+    if not values:
+        return None
+    mean = sum(values) / len(values)
+    variance = sum((value - mean) ** 2 for value in values) / len(values)
+    return round(math.sqrt(variance), 8)
 
 
 def _backtest_overrides(overrides: Mapping[str, object]) -> dict[str, object]:
@@ -647,11 +950,13 @@ def _write_comparison_csv(
         "variant_id",
         "variant_fingerprint",
         "fold_id",
+        "fold_mode",
         "profile_name",
         "profile_role",
         "validation_run_id",
         "validation_status",
         "promotion_decision",
+        "fold_count",
         "overrides",
     ]
     for metric_id in metric_ids:
@@ -660,6 +965,10 @@ def _write_comparison_csv(
                 metric_id,
                 f"{metric_id}.delta_vs_v1",
                 f"{metric_id}.delta_vs_current_v2a",
+                f"{metric_id}.fold_min",
+                f"{metric_id}.fold_max",
+                f"{metric_id}.fold_mean",
+                f"{metric_id}.fold_stddev",
             ]
         )
     path.parent.mkdir(parents=True, exist_ok=True)

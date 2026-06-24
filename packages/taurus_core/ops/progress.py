@@ -76,6 +76,8 @@ def format_rich_progress_snapshot(
         return _paper_loop_snapshot(command, event, payload)
     if command == "validate-technical-v2":
         return _technical_validation_snapshot(event, payload)
+    if command == "parametric-experiment":
+        return _parametric_experiment_snapshot(event, payload)
     return _generic_snapshot(command, event, payload)
 
 
@@ -584,6 +586,60 @@ def _technical_validation_snapshot(
             f"stage=complete status={status}",
             1,
             1,
+        )
+    return None
+
+
+def _parametric_experiment_snapshot(
+    event: str,
+    payload: Mapping[str, object],
+) -> ProgressSnapshot | None:
+    if event in {"parametric.stage_started", "parametric.stage_completed"}:
+        stage = _string(payload, "stage", "setup")
+        completed = _int(payload, "completed", 0)
+        total = _int(payload, "total", 1)
+        return ProgressSnapshot(
+            "parametric-experiment",
+            f"stage={stage}",
+            completed,
+            max(total, 1),
+        )
+    if event in {
+        "parametric.work_unit_started",
+        "parametric.work_unit_progress",
+        "parametric.work_unit_completed",
+        "parametric.work_unit_failed",
+    }:
+        stage = _string(payload, "stage", "work")
+        variant = _string(payload, "variant_id", "-")
+        fold = _string(payload, "fold_id", "-")
+        current = _int(payload, "current", 0)
+        total = _int(payload, "total", 0)
+        completed = _int(
+            payload,
+            "completed",
+            current if event.endswith("completed") else max(current - 1, 0),
+        )
+        profile = _string(payload, "profile_name", "")
+        profile_details = f" profile={profile}" if profile else ""
+        error_type = _string(payload, "error_type", "")
+        error_details = f" error_type={error_type}" if error_type else ""
+        return ProgressSnapshot(
+            "parametric-experiment",
+            f"stage={stage} fold={fold} variant={variant} "
+            f"unit={current}/{total}{profile_details}{error_details}",
+            completed,
+            total,
+        )
+    if event == "parametric.completed":
+        stage = _string(payload, "stage", "complete")
+        total = _int(payload, "total", 0)
+        completed = _int(payload, "completed", total)
+        return ProgressSnapshot(
+            "parametric-experiment",
+            f"stage={stage} completed=true",
+            completed,
+            total,
         )
     return None
 

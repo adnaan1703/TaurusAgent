@@ -5,8 +5,8 @@ Last updated: 2026-06-24
 ## Current Status
 
 - Current milestone: None.
-- Last completed milestone: M92 Technical Validation Adapter And Result
-  Artifacts.
+- Last completed milestone: M93 Walk-Forward Folds, Progress, And Bounded
+  Parallelism.
 - Planning completed: `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md`.
 - Implementation state: M89, M90, M91, and M92 are complete. Current v2A scoring family
   weights, top-contributor output, validation profile list, validation CSV
@@ -34,9 +34,16 @@ Last updated: 2026-06-24
   `ValidationRequest`, each single-window variant runs through
   `run_validation()` with canonical v1/current-v2A baselines, and aggregate
   plus per-variant comparison CSV/manifest JSON artifacts are written under
-  `experiments/runs/<run_id>/` or the selected `PARAMETRIC_OUTPUT_ROOT`.
-- Next recommended milestone: M93 Walk-Forward Folds, Progress, And Bounded
-  Parallelism.
+  `experiments/runs/<run_id>/` or the selected `PARAMETRIC_OUTPUT_ROOT`. M93
+  added fold-aware expansion with explicit `single_window` smoke/debug mode and
+  default `v2a_yearly` mode for three chronological yearly folds across the
+  standard three-year validation window. The adapter now runs each fold x
+  variant work unit with explicit bounded `--jobs` parallelism, wraps CLI
+  execution in `create_progress_reporter("parametric-experiment")`, translates
+  validation readiness/backtest/report events into fold/variant progress
+  stages, writes fold metadata into CSV/JSON outputs, and adds
+  `variant_aggregate` stability rows for multi-fold CSVs.
+- Next recommended milestone: M94 Checked-In v2A Specs And Operator Docs.
 - Canonical runtime state: `graph_aware_score_v1` remains the default
   `make paper-loop-kite` strategy; `graph_aware_score_v2` remains opt-in; v2B
   is out of scope for this sequence.
@@ -87,7 +94,7 @@ sequence is:
 - M90: generic parametric runner core and smoke dry-run spec. Done.
 - M91: config-driven v2A scoring parameters. Done.
 - M92: technical validation adapter and result artifacts. Done.
-- M93: walk-forward folds, progress, and bounded parallelism. Planned.
+- M93: walk-forward folds, progress, and bounded parallelism. Done.
 - M94: risk-calibration/full-feature v2A specs and operator docs. Planned.
 - M95: final regression, cleanup, and fresh-context closeout. Planned.
 
@@ -115,5 +122,7 @@ sequence is:
 - Default max expanded variant count is 500.
 - Default parallelism is `--jobs 1`.
 - Progress main unit is fold x variant.
+- Omitted `folds` default to `v2a_yearly`; explicit `folds.mode:
+  single_window` remains the smoke/debug mode.
 - No ML-ready feature/label dataset export belongs in this sequence; preserve
   provenance for a later ML-specific plan.

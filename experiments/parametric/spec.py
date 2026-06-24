@@ -95,7 +95,7 @@ class VariantsSpec(_StrictModel):
 
 
 class FoldsSpec(_StrictModel):
-    mode: Literal["single_window"] = "single_window"
+    mode: Literal["single_window", "v2a_yearly"] = "v2a_yearly"
 
 
 class ExecutionSpec(_StrictModel):
@@ -139,4 +139,3 @@ class ExperimentSpec(_StrictModel):
         if len(set(metrics)) != len(metrics):
             raise ValueError("metrics must not contain duplicates")
         return metrics
-

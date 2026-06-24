@@ -24,6 +24,9 @@ redraws one terminal line instead of printing a line for every progress event:
   percent, elapsed time, and ETA.
 - `make validate-technical-v2`: validation stage, current readiness symbol,
   compact backtest profile label, percent, elapsed time, and ETA.
+- `make parametric-experiment`: spec loading, expansion, readiness, backtest,
+  metric extraction, and result-writing stages with current fold, variant,
+  fold x variant counts, percent, elapsed time, and ETA.
 - `make paper-loop-kite`: iteration, run ID, setup stage, analyzed symbols,
   current symbol pipeline stage, succeeded/failed counts, elapsed time, and
   approximate ETA.
@@ -336,6 +339,7 @@ Parametric experiments:
 
 ```bash
 PARAMETRIC_DRY_RUN=true make parametric-experiment EXPERIMENT_SPEC=experiments/specs/v2a_smoke.yaml
+TAURUS_PROGRESS=plain PARAMETRIC_DRY_RUN=true make parametric-experiment EXPERIMENT_SPEC=experiments/specs/v2a_smoke.yaml
 PARAMETRIC_DRY_RUN=true make parametric-experiment EXPERIMENT_SPEC=experiments/specs/v2a_smoke.yaml PARAMETRIC_OUTPUT_ROOT=/tmp/taurus-parametric-plan
 PARAMETRIC_DRY_RUN=false make parametric-experiment EXPERIMENT_SPEC=experiments/specs/v2a_smoke.yaml PARAMETRIC_OUTPUT_ROOT=/tmp/taurus-parametric-smoke
 ```
@@ -343,30 +347,40 @@ PARAMETRIC_DRY_RUN=false make parametric-experiment EXPERIMENT_SPEC=experiments/
 `make parametric-experiment` validates a declarative YAML experiment spec.
 Dry-run mode prints the expanded variant count, fold count, total work units,
 metric IDs, stable variant fingerprints, and planned output paths without
-creating `experiments/runs/` or writing to the database. Non-dry-run execution
-currently supports the `technical_validation_v2a` adapter for single-window
-v2A smoke experiments. It runs generated v2A validation profiles through the
-existing technical validation/backtest stack, automatically includes canonical
+creating `experiments/runs/` or writing to the database. Progress uses
+`TAURUS_PROGRESS=auto/plain/false`; the main progress unit is fold x variant.
+Non-dry-run execution supports the `technical_validation_v2a` adapter for
+single-window smoke/debug specs and default `v2a_yearly` walk-forward specs. It
+runs generated v2A validation profiles through the existing technical
+validation/backtest stack, automatically includes canonical
 `graph_aware_score_v1` and current `graph_aware_score_v2` baselines, extracts
 the requested named metrics, and writes raw values plus numeric deltas versus
 both baselines.
+
+Specs with `folds.mode: single_window` run one validation window and are useful
+for smoke checks. When `folds` is omitted, the default `v2a_yearly` mode runs
+three chronological yearly folds across the current standard three-year
+validation window: `fold_1` is the oldest year, `fold_2` the middle year, and
+`fold_3` the latest year.
 
 Use `EXPERIMENT_SPEC=...` to choose the YAML spec. Use `PARAMETRIC_JOBS`,
 `PARAMETRIC_MAX_VARIANTS`, and `PARAMETRIC_OUTPUT_ROOT` to pass through the CLI
 `--jobs`, `--max-variants`, and `--output-root` controls. Matrices default to a
 maximum of 500 expanded variants; larger sweeps must explicitly raise
-`PARAMETRIC_MAX_VARIANTS` or set `execution.max_variants` in the spec. Until
-the M93 fold/progress/parallelism milestone, non-dry-run execution requires
-`PARAMETRIC_JOBS=1`.
+`PARAMETRIC_MAX_VARIANTS` or set `execution.max_variants` in the spec.
+`PARAMETRIC_JOBS` is explicit bounded parallelism and defaults to `1`; Taurus
+does not auto-detect CPU count for experiment workers.
 
 Generated run outputs belong under `experiments/runs/<run_id>/` by default,
 which is ignored; checked-in specs live under `experiments/specs/` and harness
 source lives under `experiments/parametric/`. Each non-dry-run execution writes
 an aggregate `comparison.csv` and `manifest.json` at the run root plus
 per-variant `comparison.csv`, `manifest.json`, technical validation artifacts,
-and operator Markdown reports under `variants/<fingerprint>/single_window/`.
-`promotion_gate.json` remains report-only and does not promote v2A, v2B, or
-change canonical paper-loop defaults.
+and operator Markdown reports under `variants/<fingerprint>/<fold_id>/`.
+Multi-fold aggregate CSVs include `variant_aggregate` rows with fold count,
+mean metric/delta values, and fold min/max/mean/stddev stability columns for
+generated variant rows. `promotion_gate.json` remains report-only and does not
+promote v2A, v2B, or change canonical paper-loop defaults.
 
 M91 allows the spec schema and the opt-in
 `graph_aware_score_v2` strategy path to use the same v2A scoring override
