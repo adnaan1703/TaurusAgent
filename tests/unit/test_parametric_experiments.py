@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import csv
+import json
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
@@ -9,6 +12,11 @@ from experiments.parametric.errors import ExperimentSpecError
 from experiments.parametric.expansion import expand_experiment
 from experiments.parametric.loader import load_experiment_spec, parse_experiment_spec
 from experiments.parametric.runner import dry_run_summary
+from experiments.parametric.technical_validation_v2a import (
+    run_technical_validation_v2a,
+)
+from scripts.validate_technical_v2 import ValidationOutcome
+from taurus_core.config import Settings
 
 
 def test_v2a_smoke_spec_expands_without_creating_outputs(tmp_path: Path) -> None:
@@ -104,6 +112,108 @@ def test_variant_fingerprint_is_stable_for_same_semantics(tmp_path: Path) -> Non
     assert first_plan.variants[0].fingerprint == second_plan.variants[0].fingerprint
 
 
+def test_v2a_adapter_writes_manifest_csv_and_metric_deltas(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    raw = _base_spec()
+    raw["variants"] = {
+        "matrix": {
+            "backtest.cost_bps": ["12"],
+            "family_weights.alpha": ["0.65"],
+            "family_weights.risk": ["0.20"],
+            "family_weights.tradability": ["0.15"],
+        }
+    }
+    plan = expand_experiment(
+        parse_experiment_spec(raw),
+        output_root=tmp_path / "runs",
+    )
+    calls = []
+
+    def fake_run_validation(*, settings, request, profiles, progress=None):
+        calls.append((request, profiles))
+        artifact_dir = request.artifact_root / "techval-fake"
+        artifact_dir.mkdir(parents=True)
+        request.report_root.mkdir(parents=True)
+        variant_profile = next(
+            profile
+            for profile in profiles
+            if profile.profile_name.startswith("graph_aware_score_v2a_")
+        )
+        system_profiles = [
+            _system_profile("graph_aware_score_v1", total_return=0.10, drawdown=-0.10),
+            _system_profile("graph_aware_score_v2", total_return=0.12, drawdown=-0.09),
+            _system_profile(variant_profile.profile_name, total_return=0.15, drawdown=-0.08),
+        ]
+        technical_report = {
+            "checks": [
+                _rank_check("technical_rule_v1", 0.01),
+                _rank_check("technical_ohlcv_v2", 0.02),
+                _rank_check(variant_profile.profile_name, 0.05),
+            ],
+            "profiles": [],
+        }
+        system_report = {"profiles": system_profiles}
+        promotion_gate = {"decision": "keep_opt_in", "checks": []}
+        _write_json(artifact_dir / "technical_agent_predictive_report.json", technical_report)
+        _write_json(artifact_dir / "system_backtest_report.json", system_report)
+        _write_json(artifact_dir / "promotion_gate.json", promotion_gate)
+        _write_json(artifact_dir / "validation_manifest.json", {"run_id": "techval-fake"})
+        return ValidationOutcome(
+            run_id="techval-fake",
+            artifact_dir=artifact_dir,
+            status="complete",
+            manifest={"run_id": "techval-fake"},
+            report_path=request.report_root / "techval-fake.md",
+            promotion_decision="keep_opt_in",
+        )
+
+    monkeypatch.setattr(
+        "experiments.parametric.technical_validation_v2a.run_validation",
+        fake_run_validation,
+    )
+
+    outcome = run_technical_validation_v2a(plan, settings=Settings())
+
+    assert outcome.status == "complete"
+    assert calls
+    request, profiles = calls[0]
+    assert request.cost_bps == Decimal("12")
+    assert [profile.profile_name for profile in profiles[:2]] == [
+        "graph_aware_score_v1",
+        "graph_aware_score_v2",
+    ]
+    variant_profile = profiles[2]
+    assert "technical_ohlcv_v2_params" in variant_profile.strategy_parameters
+
+    rows = list(csv.DictReader(outcome.comparison_csv_path.open(encoding="utf-8")))
+    assert len(rows) == 3
+    variant_row = next(row for row in rows if row["profile_role"] == "variant")
+    assert variant_row["system.total_return"] == "0.15"
+    assert variant_row["system.total_return.delta_vs_v1"] == "0.05"
+    assert variant_row["system.total_return.delta_vs_current_v2a"] == "0.03"
+    assert variant_row["rank.21d.rank_correlation"] == "0.05"
+    assert variant_row["rank.21d.rank_correlation.delta_vs_current_v2a"] == "0.03"
+
+    manifest = json.loads(outcome.manifest_path.read_text(encoding="utf-8"))
+    assert manifest["run_id"] == plan.run_id
+    assert manifest["output_paths"]["comparison_csv"] == str(outcome.comparison_csv_path)
+    assert manifest["variants"][0]["validation"]["promotion_gate_report_only"] is True
+    assert manifest["variants"][0]["output_paths"]["manifest"].endswith("manifest.json")
+
+
+def test_v2a_adapter_rejects_parallel_execution_before_m93(tmp_path: Path) -> None:
+    plan = expand_experiment(
+        parse_experiment_spec(_base_spec()),
+        jobs=2,
+        output_root=tmp_path / "runs",
+    )
+
+    with pytest.raises(ExperimentSpecError, match="jobs=1"):
+        run_technical_validation_v2a(plan, settings=Settings())
+
+
 def _base_spec(*, sort_matrix: bool = False) -> dict[str, object]:
     matrix = {
         "family_weights.alpha": ["0.65"],
@@ -140,3 +250,34 @@ def _base_spec(*, sort_matrix: bool = False) -> dict[str, object]:
         ],
     }
 
+
+def _system_profile(
+    profile_name: str,
+    *,
+    total_return: float,
+    drawdown: float,
+) -> dict[str, object]:
+    return {
+        "profile_name": profile_name,
+        "metrics": {
+            "total_return": total_return,
+            "max_drawdown": drawdown,
+        },
+        "cash_utilization": {},
+        "allocation_candidate_score_behavior": {},
+        "rejected_or_trimmed_candidate_counts": {},
+    }
+
+
+def _rank_check(profile_name: str, rank_correlation: float) -> dict[str, object]:
+    return {
+        "profile_name": profile_name,
+        "horizon_days": 21,
+        "rank_correlation": rank_correlation,
+        "top_bottom_decile_spread": None,
+        "hit_rate": None,
+    }
+
+
+def _write_json(path: Path, payload: object) -> None:
+    path.write_text(json.dumps(payload), encoding="utf-8")

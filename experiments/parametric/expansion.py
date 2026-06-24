@@ -44,6 +44,7 @@ class ExperimentPlan:
     folds: tuple[FoldPlan, ...]
     variants: tuple[VariantPlan, ...]
     output_root: Path
+    run_id: str
     spec_fingerprint: str
     jobs: int
     max_variants: int
@@ -100,6 +101,7 @@ def expand_experiment(
     folds = _folds(spec)
     resolved_output_root = Path(output_root) if output_root is not None else spec.output.root
     spec_fingerprint = _fingerprint({"spec": spec.model_dump(mode="json")})
+    run_id = f"{spec.experiment_id}-{spec_fingerprint[:12]}"
     variants: list[VariantPlan] = []
     for index, overrides in enumerate(combinations, start=1):
         for fold in folds:
@@ -113,8 +115,7 @@ def expand_experiment(
             variant_id = f"variant-{index:03d}-{fingerprint[:8]}"
             variant_dir = (
                 resolved_output_root
-                / spec.experiment_id
-                / spec_fingerprint[:12]
+                / run_id
                 / "variants"
                 / fingerprint
                 / fold.fold_id
@@ -139,6 +140,7 @@ def expand_experiment(
         folds=folds,
         variants=tuple(variants),
         output_root=resolved_output_root,
+        run_id=run_id,
         spec_fingerprint=spec_fingerprint,
         jobs=resolved_jobs,
         max_variants=variant_limit,
@@ -230,4 +232,3 @@ def _json_safe(value: object) -> object:
     if isinstance(value, list):
         return [_json_safe(item) for item in value]
     return value
-

@@ -8,7 +8,7 @@ below is a standalone milestone intended to be executed in a separate Codex
 thread. Stop after completing and documenting the current milestone; do not
 automatically continue to the next milestone.
 
-Status: M91 implementation is complete; M92-M95 remain planned. The sequence
+Status: M92 implementation is complete; M93-M95 remain planned. The sequence
 below uses flat milestone IDs M89-M95 and keeps `graph_aware_score_v1`
 canonical. The harness is for offline paper/backtest experimentation only; it
 must not promote v2A, change `make paper-loop-kite` defaults, or affect live
@@ -352,6 +352,8 @@ Completion summary requirements:
 - Mocks used
 
 ## M92 - Technical Validation Adapter And Result Artifacts
+
+Status: Done.
 
 Purpose: connect generated variants to the existing validation/report stack and
 emit comparable CSV/JSON experiment outputs.

@@ -5,9 +5,10 @@ Last updated: 2026-06-24
 ## Current Status
 
 - Current milestone: None.
-- Last completed milestone: M91 Config-Driven v2A Scoring Parameters.
+- Last completed milestone: M92 Technical Validation Adapter And Result
+  Artifacts.
 - Planning completed: `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md`.
-- Implementation state: M89, M90, and M91 are complete. Current v2A scoring family
+- Implementation state: M89, M90, M91, and M92 are complete. Current v2A scoring family
   weights, top-contributor output, validation profile list, validation CSV
   headers, and technical-validation progress behavior are pinned by
   characterization tests. M90 added the side-effect-free
@@ -27,10 +28,15 @@ Last updated: 2026-06-24
   scoring params. `GraphAwareScoreStrategy` now parses the nested
   `technical_ohlcv_v2_params` strategy parameter only for
   `technical_profile: technical_ohlcv_v2`; v1 and v2B defaults remain
-  unchanged. The parametric dry-run allowlist uses the same v2A parameter names
-  but still does not execute validation variants.
-- Next recommended milestone: M92 Technical Validation Adapter And Result
-  Artifacts.
+  unchanged. The parametric allowlist uses the same v2A parameter names. M92
+  added non-dry-run `technical_validation_v2a` execution: generated v2A
+  profiles inject `technical_ohlcv_v2_params`, backtest overrides map onto
+  `ValidationRequest`, each single-window variant runs through
+  `run_validation()` with canonical v1/current-v2A baselines, and aggregate
+  plus per-variant comparison CSV/manifest JSON artifacts are written under
+  `experiments/runs/<run_id>/` or the selected `PARAMETRIC_OUTPUT_ROOT`.
+- Next recommended milestone: M93 Walk-Forward Folds, Progress, And Bounded
+  Parallelism.
 - Canonical runtime state: `graph_aware_score_v1` remains the default
   `make paper-loop-kite` strategy; `graph_aware_score_v2` remains opt-in; v2B
   is out of scope for this sequence.
@@ -80,7 +86,7 @@ sequence is:
 - M89: harness contract and baseline characterization. Done.
 - M90: generic parametric runner core and smoke dry-run spec. Done.
 - M91: config-driven v2A scoring parameters. Done.
-- M92: technical validation adapter and result artifacts. Planned.
+- M92: technical validation adapter and result artifacts. Done.
 - M93: walk-forward folds, progress, and bounded parallelism. Planned.
 - M94: risk-calibration/full-feature v2A specs and operator docs. Planned.
 - M95: final regression, cleanup, and fresh-context closeout. Planned.

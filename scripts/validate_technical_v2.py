@@ -167,10 +167,18 @@ class ValidationOutcome:
     promotion_decision: str | None = None
 
 
+@dataclass(frozen=True, slots=True)
+class _TechnicalEvaluationProfile:
+    report_profile_name: str
+    technical_profile: str
+    ohlcv_scoring_params: Mapping[str, object] | None
+
+
 def run_validation(
     *,
     settings: Settings,
     request: ValidationRequest,
+    profiles: Sequence[ValidationProfile] | None = None,
     progress: ProgressEventCallback | None = None,
 ) -> ValidationOutcome:
     if not request.symbols:
@@ -183,7 +191,11 @@ def run_validation(
     with session_factory() as session:
         readiness = build_data_readiness(session, request, progress=progress)
 
-    profiles = validation_profiles(include_v2b=request.include_v2b)
+    profiles = tuple(profiles) if profiles is not None else validation_profiles(
+        include_v2b=request.include_v2b
+    )
+    if not profiles:
+        raise ValueError("Validation requires at least one profile.")
     run_id = _stable_validation_run_id(
         request=request,
         readiness=readiness,
@@ -241,6 +253,7 @@ def run_validation(
             session=session,
             request=request,
             readiness=readiness,
+            profiles=profiles,
         )
         system_report = _system_backtest_report(
             session=session,
@@ -654,11 +667,73 @@ def _profile_run_artifact(
     }
 
 
+def _technical_evaluation_profiles(
+    profiles: Sequence[ValidationProfile],
+) -> tuple[_TechnicalEvaluationProfile, ...]:
+    evaluations: list[_TechnicalEvaluationProfile] = []
+    seen: set[tuple[str, str, str]] = set()
+    for profile in profiles:
+        technical_profile = _technical_scoring_profile(profile)
+        report_profile_name = _technical_report_profile_name(profile)
+        ohlcv_scoring_params = (
+            _ohlcv_scoring_params(profile)
+            if technical_profile == OHLCV_V2_PROFILE
+            else None
+        )
+        fingerprint = json.dumps(
+            _json_safe(ohlcv_scoring_params or {}),
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        key = (report_profile_name, technical_profile, fingerprint)
+        if key in seen:
+            continue
+        seen.add(key)
+        evaluations.append(
+            _TechnicalEvaluationProfile(
+                report_profile_name=report_profile_name,
+                technical_profile=technical_profile,
+                ohlcv_scoring_params=ohlcv_scoring_params,
+            )
+        )
+    return tuple(evaluations)
+
+
+def _technical_report_profile_name(profile: ValidationProfile) -> str:
+    return TECHNICAL_PROFILE_FOR_STRATEGY.get(profile.profile_name, profile.profile_name)
+
+
+def _technical_scoring_profile(profile: ValidationProfile) -> str:
+    known_profile = TECHNICAL_PROFILE_FOR_STRATEGY.get(profile.profile_name)
+    if known_profile is not None:
+        return known_profile
+    raw_profile = profile.strategy_parameters.get(
+        "technical_profile",
+        profile.strategy_parameters.get("technical_analyst_profile", ""),
+    )
+    technical_profile = str(raw_profile or "").strip()
+    if technical_profile in {OHLCV_V2_PROFILE, OFFICIAL_V2B_PROFILE}:
+        return technical_profile
+    return ANALYST_RULE_PROFILE
+
+
+def _ohlcv_scoring_params(
+    profile: ValidationProfile,
+) -> Mapping[str, object] | None:
+    raw_params = profile.strategy_parameters.get("technical_ohlcv_v2_params")
+    if raw_params is None:
+        return None
+    if not isinstance(raw_params, Mapping):
+        raise ValueError("technical_ohlcv_v2_params must be a mapping.")
+    return raw_params
+
+
 def _technical_agent_predictive_report(
     *,
     session: Session,
     request: ValidationRequest,
     readiness: DataReadiness,
+    profiles: Sequence[ValidationProfile],
 ) -> dict[str, object]:
     base_report: dict[str, object] = {
         "artifact_version": ARTIFACT_VERSION,
@@ -689,18 +764,27 @@ def _technical_agent_predictive_report(
         ]
         return base_report
 
+    evaluations = _technical_evaluation_profiles(profiles)
     candles_by_symbol = _load_validation_candles(session, request, readiness)
     observations_by_profile: dict[str, list[dict[str, object]]] = defaultdict(list)
     signal_service = TechnicalSignalService()
     feature_services = {
-        ANALYST_RULE_PROFILE: TechnicalFeatureService(),
-        OHLCV_V2_PROFILE: TechnicalFeatureService.ohlcv_v2(),
+        evaluation.report_profile_name: TechnicalFeatureService.ohlcv_v2()
+        if evaluation.technical_profile in {OHLCV_V2_PROFILE, OFFICIAL_V2B_PROFILE}
+        else TechnicalFeatureService()
+        for evaluation in evaluations
     }
-    if request.include_v2b:
-        feature_services[OFFICIAL_V2B_PROFILE] = TechnicalFeatureService.ohlcv_v2()
     v2b_config = (
-        load_strategy_config(V2B_STRATEGY_PATH) if request.include_v2b else None
+        load_strategy_config(V2B_STRATEGY_PATH)
+        if any(
+            evaluation.technical_profile == OFFICIAL_V2B_PROFILE
+            for evaluation in evaluations
+        )
+        else None
     )
+    evaluation_by_report_name = {
+        evaluation.report_profile_name: evaluation for evaluation in evaluations
+    }
     scoring_start_index = request.warmup_days + 1
     for date_index, scoring_date in enumerate(readiness.selected_dates):
         if date_index < scoring_start_index:
@@ -716,16 +800,40 @@ def _technical_agent_predictive_report(
             )
             for profile_name, feature_service in feature_services.items()
         }
-        v2_context = build_universe_technical_context(
-            snapshots_by_profile[OHLCV_V2_PROFILE],
-            as_of_date=scoring_date,
+        v2_context_snapshots = next(
+            (
+                snapshots_by_profile[evaluation.report_profile_name]
+                for evaluation in evaluations
+                if evaluation.technical_profile
+                in {OHLCV_V2_PROFILE, OFFICIAL_V2B_PROFILE}
+            ),
+            {},
+        )
+        v2_context = (
+            build_universe_technical_context(
+                v2_context_snapshots,
+                as_of_date=scoring_date,
+            )
+            if v2_context_snapshots
+            else None
         )
         v2b_official_context = None
-        if request.include_v2b and v2b_config is not None:
+        official_evaluation = next(
+            (
+                evaluation
+                for evaluation in evaluations
+                if evaluation.technical_profile == OFFICIAL_V2B_PROFILE
+            ),
+            None,
+        )
+        if official_evaluation is not None and v2b_config is not None:
+            official_snapshots = snapshots_by_profile[
+                official_evaluation.report_profile_name
+            ]
             v2b_official_context = official_context_with_snapshot_returns(
                 build_official_technical_context(
                     session,
-                    symbols=tuple(snapshots_by_profile[OFFICIAL_V2B_PROFILE]),
+                    symbols=tuple(official_snapshots),
                     as_of=scoring_date,
                     benchmark_index_symbol=_official_benchmark_index_symbol(
                         v2b_config.parameters
@@ -743,14 +851,13 @@ def _technical_agent_predictive_report(
                 ),
                 {
                     symbol: snapshot.get("return_20d")
-                    for symbol, snapshot in snapshots_by_profile[
-                        OFFICIAL_V2B_PROFILE
-                    ].items()
+                    for symbol, snapshot in official_snapshots.items()
                 },
             )
         for profile_name, snapshots in snapshots_by_profile.items():
+            evaluation = evaluation_by_report_name[profile_name]
             for symbol, snapshot in snapshots.items():
-                if profile_name == OFFICIAL_V2B_PROFILE:
+                if evaluation.technical_profile == OFFICIAL_V2B_PROFILE:
                     result = signal_service.score_official_v2b(
                         snapshot,
                         universe_context=v2_context,
@@ -764,11 +871,12 @@ def _technical_agent_predictive_report(
                     vector_present = bool(result.top_contributors)
                     missing_features = tuple(result.missing_features)
                     components = dict(result.components)
-                elif profile_name == OHLCV_V2_PROFILE:
+                elif evaluation.technical_profile == OHLCV_V2_PROFILE:
                     result = signal_service.score_ohlcv_v2(
                         snapshot,
                         universe_context=v2_context,
                         symbol=symbol,
+                        scoring_params=evaluation.ohlcv_scoring_params,
                     )
                     score = result.score if result.available else None
                     confidence = result.confidence
@@ -827,10 +935,16 @@ def _technical_agent_predictive_report(
 
     checks: list[dict[str, object]] = []
     profiles: list[dict[str, object]] = []
-    for profile_name in feature_services:
-        observations = observations_by_profile.get(profile_name, [])
-        checks.extend(_prediction_checks(profile_name, observations))
-        profiles.append(_technical_profile_summary(profile_name, observations))
+    for evaluation in evaluations:
+        observations = observations_by_profile.get(evaluation.report_profile_name, [])
+        checks.extend(_prediction_checks(evaluation.report_profile_name, observations))
+        profiles.append(
+            _technical_profile_summary(
+                evaluation.report_profile_name,
+                observations,
+                technical_profile=evaluation.technical_profile,
+            )
+        )
 
     return {
         **base_report,
@@ -1234,6 +1348,8 @@ def _prediction_checks(
 def _technical_profile_summary(
     profile_name: str,
     observations: Sequence[Mapping[str, object]],
+    *,
+    technical_profile: str | None = None,
 ) -> dict[str, object]:
     scored = [row for row in observations if row.get("score") is not None]
     coverage_values = [_float(row["coverage"]) for row in scored]
@@ -1270,7 +1386,8 @@ def _technical_profile_summary(
             "average_contributor_count": _mean_float(contributor_counts),
             "summary": (
                 "v2 vector/contributor evidence present"
-                if profile_name in {OHLCV_V2_PROFILE, OFFICIAL_V2B_PROFILE}
+                if (technical_profile or profile_name)
+                in {OHLCV_V2_PROFILE, OFFICIAL_V2B_PROFILE}
                 else "v1 scalar score with deterministic components/key points"
             ),
         },
@@ -1800,7 +1917,7 @@ def _write_comparison_matrix(
             run = runs_by_profile.get(profile.profile_name, {})
             system = system_by_profile.get(profile.profile_name, {})
             metrics = _metrics(system)
-            technical_profile = TECHNICAL_PROFILE_FOR_STRATEGY[profile.profile_name]
+            technical_profile = _technical_report_profile_name(profile)
             technical_check = technical_checks.get((technical_profile, 21), {})
             status = "pass" if readiness.sufficient and run else "not_applicable"
             writer.writerow(

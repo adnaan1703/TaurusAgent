@@ -258,16 +258,21 @@ removed during docs cleanup. Use Git history for detailed historical plans.
   side-effect-free YAML dry-run runner shell under `experiments/parametric/`, a
   checked-in `experiments/specs/v2a_smoke.yaml`, the
   `scripts/run_parametric_experiment.py` CLI, `make parametric-experiment`, and
-  ignored generated output space under `experiments/runs/`. Real validation
-  execution and result artifacts remain planned for M92.
+  ignored generated output space under `experiments/runs/`.
 - M91 config-driven v2A scoring parameters are complete: Taurus now has typed
   serializable `OhlcvV2ScoringParams` defaults for the current v2A family
   weights, feature weights, transform scales, context weights, confidence
   weights, guardrails, and score compression. `TechnicalSignalService` accepts
   explicit optional v2A params, `GraphAwareScoreStrategy` threads nested
   `technical_ohlcv_v2_params` only for the opt-in `technical_ohlcv_v2`
-  profile, and v1/current-v2A defaults remain behavior-compatible. M92
-  validation adapter execution and result artifacts remain planned.
+  profile, and v1/current-v2A defaults remain behavior-compatible.
+- M92 technical validation adapter and result artifacts are complete:
+  non-dry-run `make parametric-experiment` can execute the
+  `technical_validation_v2a` adapter for single-window specs, inject generated
+  v2A validation profiles, include canonical v1/current-v2A baselines, extract
+  named metrics, compute deltas versus both baselines, and write aggregate plus
+  per-variant CSV/JSON artifacts under the selected run output root. M93
+  walk-forward folds, progress, and bounded parallel execution remain planned.
 
 ## Standing Safety Rules
 
@@ -411,7 +416,7 @@ up, and documented; do not automatically begin later scope.
 | 89 | M89 | Done | `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md` | Pinned current validation, v2A scoring, metrics, and progress contracts before adding the harness. |
 | 90 | M90 | Done | `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md` | Added the generic YAML matrix runner core, dry-run expansion, CLI, Make wrapper, smoke spec, and ignored run-output location. |
 | 91 | M91 | Done | `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md` | Add config-driven v2A scoring parameters while preserving current v1 and v2A defaults. |
-| 92 | M92 | Planned | `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md` | Connect generated v2A variants to the existing technical validation pipeline and emit CSV/JSON result artifacts. |
+| 92 | M92 | Done | `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md` | Connected generated v2A variants to the existing technical validation pipeline and emitted CSV/JSON result artifacts. |
 | 93 | M93 | Planned | `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md` | Add walk-forward folds, fold x variant progress, and bounded parallel execution. |
 | 94 | M94 | Planned | `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md` | Add risk-calibration and full-feature v2A specs, refine smoke coverage, and update operator command docs. |
 | 95 | M95 | Planned | `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md` | Run final regression, refresh docs and handoff, and close the harness sequence. |
@@ -494,6 +499,32 @@ up, and documented; do not automatically begin later scope.
   `uv run pytest tests/unit/test_technical_signal_service.py
   tests/unit/test_strategy_ranking.py tests/unit/test_parametric_experiments.py`
   passed with 38 tests. Approval-rule cleanup inspected
+  `/Users/adnaan/.codex/rules/default.rules` and found no Taurus-specific
+  global approvals after the user's `# END MY CUSTOM ADDITION` marker.
+
+### M92 Completion Summary
+
+- Assumptions made: M92 should execute only the existing single-window fold
+  shape; generated v2A profiles should be compared against canonical
+  `graph_aware_score_v1` and current `graph_aware_score_v2` under the same
+  variant-specific backtest request; non-dry-run `PARAMETRIC_JOBS` should
+  remain `1` until M93 adds bounded parallel execution; `promotion_gate.json`
+  should stay report-only and must not change canonical paper-loop defaults.
+- Mocks created: None.
+- Mocks used: Unit tests monkeypatched `run_validation()` in
+  `tests/unit/test_parametric_experiments.py` to verify adapter profile
+  construction, backtest override mapping, metric extraction, deltas, and
+  artifact writing without seeding a full database validation fixture.
+- Verification: `uv run pytest tests/unit/test_parametric_experiments.py`
+  passed with 10 tests. `uv run pytest
+  tests/unit/test_parametric_experiments.py tests/unit/test_graph_backtesting.py`
+  passed with 20 tests. `uv run pytest
+  tests/unit/test_technical_validation_contracts.py` passed with 2 tests.
+  `PARAMETRIC_DRY_RUN=false make parametric-experiment
+  EXPERIMENT_SPEC=experiments/specs/v2a_smoke.yaml
+  PARAMETRIC_OUTPUT_ROOT=/tmp/taurus-parametric-smoke` passed and produced run
+  `v2a_smoke-6a7b6db039e8` with aggregate `comparison.csv` and `manifest.json`
+  plus per-variant validation artifacts. `make lint` passed. Approval-rule cleanup inspected
   `/Users/adnaan/.codex/rules/default.rules` and found no Taurus-specific
   global approvals after the user's `# END MY CUSTOM ADDITION` marker.
 

@@ -9,7 +9,7 @@ from typing import Sequence
 from experiments.parametric.errors import ExperimentSpecError
 from experiments.parametric.expansion import expand_experiment
 from experiments.parametric.loader import load_experiment_spec
-from experiments.parametric.runner import DryRunSummary
+from experiments.parametric.runner import DryRunSummary, execute_experiment
 
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
@@ -69,12 +69,23 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(DryRunSummary(plan=plan).render())
         return 0
 
-    print(
-        "error: non-dry-run parametric execution is planned for M92; "
-        "rerun with --dry-run for the M90 runner shell.",
-        file=sys.stderr,
-    )
-    return 3
+    try:
+        outcome = execute_experiment(
+            args.spec,
+            jobs=args.jobs,
+            max_variants=args.max_variants,
+            output_root=output_root,
+        )
+    except ExperimentSpecError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    print(f"experiment_run_id={outcome.run_id}")
+    print(f"run_dir={outcome.run_dir}")
+    print(f"comparison_csv={outcome.comparison_csv_path}")
+    print(f"manifest={outcome.manifest_path}")
+    print(f"status={outcome.status}")
+    print(f"variant_count={outcome.variant_count}")
+    return 0
 
 
 def _bool_env(name: str) -> bool:
@@ -94,4 +105,3 @@ def _optional_int_env(name: str) -> int | None:
 
 if __name__ == "__main__":
     sys.exit(main())
-

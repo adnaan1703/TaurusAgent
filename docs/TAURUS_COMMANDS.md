@@ -1,6 +1,6 @@
 # Taurus Command Reference
 
-Last updated: 2026-06-23
+Last updated: 2026-06-24
 
 This file lists active Taurus commands and project-local Codex approval policy.
 Historical milestone command logs were removed during docs cleanup; use Git
@@ -337,22 +337,38 @@ Parametric experiments:
 ```bash
 PARAMETRIC_DRY_RUN=true make parametric-experiment EXPERIMENT_SPEC=experiments/specs/v2a_smoke.yaml
 PARAMETRIC_DRY_RUN=true make parametric-experiment EXPERIMENT_SPEC=experiments/specs/v2a_smoke.yaml PARAMETRIC_OUTPUT_ROOT=/tmp/taurus-parametric-plan
+PARAMETRIC_DRY_RUN=false make parametric-experiment EXPERIMENT_SPEC=experiments/specs/v2a_smoke.yaml PARAMETRIC_OUTPUT_ROOT=/tmp/taurus-parametric-smoke
 ```
 
-`make parametric-experiment` validates a declarative YAML experiment spec and,
-in M90, supports dry-run matrix expansion only. Dry-run mode prints the
-expanded variant count, fold count, total work units, metric IDs, stable
-variant fingerprints, and planned output paths without creating
-`experiments/runs/` or writing to the database. Generated future run outputs
-belong under `experiments/runs/`, which is ignored; checked-in specs live under
-`experiments/specs/` and harness source lives under `experiments/parametric/`.
+`make parametric-experiment` validates a declarative YAML experiment spec.
+Dry-run mode prints the expanded variant count, fold count, total work units,
+metric IDs, stable variant fingerprints, and planned output paths without
+creating `experiments/runs/` or writing to the database. Non-dry-run execution
+currently supports the `technical_validation_v2a` adapter for single-window
+v2A smoke experiments. It runs generated v2A validation profiles through the
+existing technical validation/backtest stack, automatically includes canonical
+`graph_aware_score_v1` and current `graph_aware_score_v2` baselines, extracts
+the requested named metrics, and writes raw values plus numeric deltas versus
+both baselines.
 
 Use `EXPERIMENT_SPEC=...` to choose the YAML spec. Use `PARAMETRIC_JOBS`,
 `PARAMETRIC_MAX_VARIANTS`, and `PARAMETRIC_OUTPUT_ROOT` to pass through the CLI
 `--jobs`, `--max-variants`, and `--output-root` controls. Matrices default to a
 maximum of 500 expanded variants; larger sweeps must explicitly raise
-`PARAMETRIC_MAX_VARIANTS` or set `execution.max_variants` in the spec.
-M91 allows the dry-run spec schema and the opt-in
+`PARAMETRIC_MAX_VARIANTS` or set `execution.max_variants` in the spec. Until
+the M93 fold/progress/parallelism milestone, non-dry-run execution requires
+`PARAMETRIC_JOBS=1`.
+
+Generated run outputs belong under `experiments/runs/<run_id>/` by default,
+which is ignored; checked-in specs live under `experiments/specs/` and harness
+source lives under `experiments/parametric/`. Each non-dry-run execution writes
+an aggregate `comparison.csv` and `manifest.json` at the run root plus
+per-variant `comparison.csv`, `manifest.json`, technical validation artifacts,
+and operator Markdown reports under `variants/<fingerprint>/single_window/`.
+`promotion_gate.json` remains report-only and does not promote v2A, v2B, or
+change canonical paper-loop defaults.
+
+M91 allows the spec schema and the opt-in
 `graph_aware_score_v2` strategy path to use the same v2A scoring override
 names, including `family_weights.*`, `<family>_weights.<feature>`,
 `<family>_transforms.<feature>.scale`, `context_weights.*`,
@@ -361,8 +377,6 @@ Runtime strategy configs pass those overrides under
 `technical_ohlcv_v2_params`, and they are parsed only when
 `technical_profile: technical_ohlcv_v2` is selected. Empty/default params keep
 current v2A scores unchanged, and v1 remains canonical.
-Non-dry-run execution is intentionally unavailable until the later validation
-adapter milestone.
 
 Paper workflow:
 
