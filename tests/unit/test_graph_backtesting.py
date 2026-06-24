@@ -339,7 +339,8 @@ def test_technical_validation_runs_comparable_profiles_with_shared_window(
             encoding="utf-8"
         )
     )
-    assert manifest["profile_run_count"] == 6
+    assert manifest["profile_run_count"] == 4
+    assert manifest["request"]["include_v2b"] is False
     assert manifest["window"]["selected_scoring_start_date"] == "2024-02-09"
     assert manifest["window"]["selected_evaluation_end_date"] == "2024-02-11"
     profile_runs = json.loads(
@@ -350,8 +351,6 @@ def test_technical_validation_runs_comparable_profiles_with_shared_window(
         "graph_aware_score_v1_technical_only",
         "graph_aware_score_v2",
         "graph_aware_score_v2_technical_only",
-        "graph_aware_score_v2b",
-        "graph_aware_score_v2b_technical_only",
     }
     assert {run["start_date"] for run in profile_runs} == {"2024-02-09"}
     assert {run["end_date"] for run in profile_runs} == {"2024-02-11"}
@@ -415,9 +414,6 @@ def test_technical_validation_writes_reports_and_conservative_gate(
         ("technical_ohlcv_v2", 5),
         ("technical_ohlcv_v2", 21),
         ("technical_ohlcv_v2", 63),
-        ("technical_official_v2b", 5),
-        ("technical_official_v2b", 21),
-        ("technical_official_v2b", 63),
     }
     assert any(
         row["profile_name"] == "technical_ohlcv_v2" and row["observation_count"] > 0

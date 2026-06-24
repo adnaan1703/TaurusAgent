@@ -1,6 +1,6 @@
 # Taurus Milestone Tracker
 
-Last updated: 2026-06-23
+Last updated: 2026-06-24
 
 This is the active tracker for Taurus milestone work. Keep it concise and keep
 current operator detail in the usage and command docs.
@@ -33,6 +33,9 @@ current operator detail in the usage and command docs.
   indicator, scoring, validation, official-data, and promotion sequence.
 - `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_HANDOFF.md`: current handoff for the
   planned M74-M86 technical layer overhaul sequence.
+- `docs/TAURUS_V2B_DATA_INGESTION_HANDOFF.md`: current v2B data-readiness
+  handoff covering completed v2B work, pending official-data inputs, source
+  candidates, import commands, readiness checks, and future ingestion work.
 - `docs/agent_improvement_plans/LLM_AGENT_SYSTEM_PROMPTS_BACKLOG.md`: deferred
   prompt backlog for optional analyst upgrades.
 
@@ -226,8 +229,10 @@ removed during docs cleanup. Use Git history for detailed historical plans.
   `technical_official_v2b` profile reuses v2A OHLCV features plus as-of
   official benchmark, sector-index, India VIX, delivery, circuit, and
   implementability context; `graph_aware_score_v2b` is registered for
-  strategy, analyst, backtest, paper-loop, money-management, and validation
-  use; v1 and v2A defaults remain unchanged and v2B is not canonical.
+  strategy, analyst, backtest, paper-loop, and money-management use; v2B
+  validation is available only through
+  `TECHNICAL_VALIDATION_INCLUDE_V2B=true` until official-data readiness exists;
+  v1 and v2A defaults remain unchanged and v2B is not canonical.
 - M86 promotion decision, regression, docs, and cleanup is complete: the fresh
   standard validation run `techval-748ec624a9fe1297` returned
   `status=insufficient_data` and `promotion_decision=defer` with 282 common
@@ -317,8 +322,8 @@ removed during docs cleanup. Use Git history for detailed historical plans.
 | M82 | Done | Added deterministic technical-agent predictive reports, full-system backtest reports, expanded validation CSVs, an operator Markdown report, and a conservative promotion gate that reports `promote`, `keep_opt_in`, or `defer` without changing v1 defaults or promoting v2. |
 | M83 | Done | Added official benchmark, sector-index, and India VIX ingestion contracts, CSV import/readiness commands, as-of repository access, and focused no-lookahead coverage for future v2B use without wiring official data into v2A scoring. |
 | M84 | Done | Added official security-wise delivery, circuit/price-band, and tradability ingestion contracts, CSV import/readiness commands, as-of repository access, impact-cost proxy labeling, and focused no-lookahead coverage for future v2B use without wiring official microstructure into v2A scoring. |
-| M85 | Done | Added the opt-in `technical_official_v2b` scoring profile, official as-of context builder, `graph_aware_score_v2b` config, analyst/strategy/backtest/paper-loop wiring, money-management mapping, v2B validation profile rows, focused official-data regressions, and docs while preserving v1/v2A defaults. |
-| M86 | Done | Ran the promotion validation gate, deferred promotion because local common candle coverage was insufficient for comparable v1/v2A/v2B evidence, kept v2A/v2B opt-in, refreshed operator docs, and closed the M74-M86 sequence. |
+| M85 | Done | Added the opt-in `technical_official_v2b` scoring profile, official as-of context builder, `graph_aware_score_v2b` config, analyst/strategy/backtest/paper-loop wiring, money-management mapping, focused official-data regressions, and docs while preserving v1/v2A defaults; v2B validation now requires `TECHNICAL_VALIDATION_INCLUDE_V2B=true` until official-data readiness exists. |
+| M86 | Done | Ran the promotion validation gate, deferred promotion because local common candle coverage was insufficient for comparable v1/v2A evidence, kept v2A/v2B opt-in, refreshed operator docs, and closed the M74-M86 sequence. |
 
 ## Completed Graph Explorer Sequence
 
@@ -398,8 +403,8 @@ This completed sequence was executed in order as separate milestone work.
   present only for symbols mapped to an official sector index; missing official
   context should make v2B unavailable instead of silently behaving like v2A;
   partial official coverage should lower confidence and surface missing
-  features; `make validate-technical-v2` should compare v1, v2A, and v2B but
-  leave promotion to M86.
+  features; `make validate-technical-v2` should keep v2B opt-in and leave
+  promotion to M86.
 - Mocks created: Deterministic in-test official benchmark, sector-index, India
   VIX, and security microstructure rows in
   `tests/unit/test_official_technical_context.py`, plus manual
@@ -414,7 +419,9 @@ This completed sequence was executed in order as separate milestone work.
   tests/unit/test_dashboard_observability.py` passed with 29 tests;
   `make test` passed with 436 tests and 1 skipped test; `make lint` passed;
   `make validate-technical-v2` exited 0 and wrote
-  `techval-748ec624a9fe1297` with v2B profile rows but deferred promotion
+  `techval-748ec624a9fe1297` with v2B profile rows at that time but deferred promotion;
+  current validation runs omit v2B unless
+  `TECHNICAL_VALIDATION_INCLUDE_V2B=true` is set.
   because local common candle coverage is 282 of 1009 required candles;
   `make migrate` completed with schema up to date.
 

@@ -91,14 +91,17 @@ Last updated: 2026-06-23
   penalties, and implementability/impact-cost evidence on top of v2A OHLCV.
   `configs/strategies/graph_aware_score_v2b.yaml` is opt-in only and is wired
   through strategy ranking/signals, `TechnicalAnalystAgent`, paper summaries,
-  backtesting, money-management mapping, and validation profile manifests.
-  Missing official context makes v2B unavailable and partial official coverage
-  lowers confidence. M85 did not promote v2B or change v1/v2A defaults. M86 ran
+  backtesting, and money-management mapping. V2B validation is disabled by
+  default until official-data readiness exists; set
+  `TECHNICAL_VALIDATION_INCLUDE_V2B=true` to include v2B profile rows in
+  `make validate-technical-v2`. Missing official context makes v2B unavailable
+  and partial official coverage lowers confidence. M85 did not promote v2B or
+  change v1/v2A defaults. M86 ran
   the standard validation command, produced run
   `techval-748ec624a9fe1297`, and deferred promotion because the local
   validation universe had only 282 common candles versus the 1009-candle
-  requirement. The M82 gate could not run comparable v1/v2A/v2B profile
-  backtests, 21-day rank evidence, or operational-safety profile-run checks.
+  requirement. The M82 gate could not run comparable v1/v2A profile backtests,
+  21-day rank evidence, or operational-safety profile-run checks.
   `graph_aware_score_v1` remains the canonical Kite paper-loop strategy, and
   `graph_aware_score_v2` / `graph_aware_score_v2b` remain explicit opt-ins.
 - Next recommended milestone: None. The M74-M86 sequence is closed; do not start
@@ -205,7 +208,11 @@ sequence is:
 - v2B official relative-strength/regime/microstructure scoring is implemented
   as opt-in only. Sector-relative evidence is present only for configured
   symbol-to-sector-index mappings; missing or stale official rows are surfaced
-  as missing features and lower coverage/confidence.
+  as missing features and lower coverage/confidence. Default
+  `make validate-technical-v2` runs exclude v2B until official index and
+  microstructure data are imported; use
+  `TECHNICAL_VALIDATION_INCLUDE_V2B=true make validate-technical-v2` only after
+  the v2B readiness checks pass.
 - Validation must prove both technical-agent predictive quality and full-system
   historical backtest behavior before promotion.
 - M82 reports allocation behavior from the backtest layer as an explicit proxy;

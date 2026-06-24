@@ -256,6 +256,7 @@ Technical validation:
 make validate-technical-v2
 make validate-technical-v2 TECHNICAL_VALIDATION_MODE=strong
 make validate-technical-v2 TECHNICAL_VALIDATION_SYMBOLS=INFY,TCS
+make validate-technical-v2 TECHNICAL_VALIDATION_INCLUDE_V2B=true
 make validate-technical-v2 TECHNICAL_VALIDATION_REPORT_ROOT=/tmp/taurus-tech-reports
 ```
 
@@ -270,12 +271,14 @@ is preferred.
 The standard mode validates a 3-year evaluation window after a 252-trading-day
 indicator warm-up. The strong mode uses a 5-year evaluation window with the
 same warm-up. The command compares `graph_aware_score_v1`, v1 with graph
-contribution weight set to zero, `graph_aware_score_v2`, v2A with graph
-contribution weight set to zero, `graph_aware_score_v2b`, and v2B with graph
+contribution weight set to zero, `graph_aware_score_v2`, and v2A with graph
 contribution weight set to zero on the same symbols, dates, costs, slippage,
 NAV, rebalance cadence, and position limits when local `daily_candles` coverage
-is sufficient. v2B official-data rows are opt-in validation evidence only; this
-command does not promote v2B.
+is sufficient. v2B is excluded by default until official index and
+microstructure data are ready. Re-enable v2B comparison explicitly with
+`TECHNICAL_VALIDATION_INCLUDE_V2B=true make validate-technical-v2`; that adds
+`graph_aware_score_v2b` and v2B with graph contribution weight set to zero.
+This command does not promote v2B.
 
 M82 report artifacts include:
 
@@ -290,8 +293,8 @@ M82 report artifacts include:
   counts, inferred sizing failures, and equity curve summaries.
 - `profile_comparison_matrix.csv` for cross-profile comparison.
 - `promotion_gate.json` with a conservative recommendation of `promote`,
-  `keep_opt_in`, or `defer`, plus the report-only
-  `official_candidate_profile` field for v2B.
+  `keep_opt_in`, or `defer`; the report marks v2B candidate validation as
+  disabled unless `TECHNICAL_VALIDATION_INCLUDE_V2B=true` is set.
 
 The promotion gate is report-only. It requires v2A to beat or tie v1 after
 costs, avoid material drawdown worsening, keep turnover controlled, show
@@ -313,7 +316,9 @@ short coverage as a non-zero exit. Useful overrides include
 `TECHNICAL_VALIDATION_MAX_OPEN_POSITIONS=...`,
 `TECHNICAL_VALIDATION_PORTFOLIO_BREADTH=...`,
 `TECHNICAL_VALIDATION_COST_BPS=...`, and
-`TECHNICAL_VALIDATION_SLIPPAGE_BPS=...`.
+`TECHNICAL_VALIDATION_SLIPPAGE_BPS=...`. After importing official v2B data,
+set `TECHNICAL_VALIDATION_INCLUDE_V2B=true` to include the official-data
+candidate in validation output.
 
 M86 used the standard validation mode and produced run
 `techval-748ec624a9fe1297` with `status=insufficient_data` and
@@ -321,7 +326,8 @@ M86 used the standard validation mode and produced run
 configured 17-symbol validation universe, versus 1009 required. Until a future
 complete validation passes the conservative gate, keep `graph_aware_score_v2`
 and `graph_aware_score_v2b` opt-in and leave `make paper-loop-kite` on the
-canonical v1 strategy.
+canonical v1 strategy. Current validation runs omit v2B by default until its
+official-data inputs are populated.
 
 Paper workflow:
 

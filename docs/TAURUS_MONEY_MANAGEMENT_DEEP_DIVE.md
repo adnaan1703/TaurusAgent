@@ -447,9 +447,12 @@ Allocation impact:
 
 M86 closeout did not change sleeve mappings or allocation formulas. The fresh
 standard validation run `techval-748ec624a9fe1297` had 282 common candles versus
-1009 required, so v1/v2A/v2B comparable backtests and rank evidence did not run.
-The canonical Kite paper loop therefore remains on `graph_aware_score_v1`, with
-v2A and v2B available only through explicit `STRATEGY=...` selection.
+1009 required, so comparable backtests and rank evidence did not run. Current
+`make validate-technical-v2` runs exclude v2B by default until official-data
+readiness exists; use `TECHNICAL_VALIDATION_INCLUDE_V2B=true` only after the
+official index and microstructure inputs are populated. The canonical Kite
+paper loop therefore remains on `graph_aware_score_v1`, with v2A and v2B
+available only through explicit `STRATEGY=...` selection.
 
 ### `moving_average_crossover_v1`
 

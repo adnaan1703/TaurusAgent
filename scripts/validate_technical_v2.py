@@ -112,6 +112,7 @@ class ValidationRequest:
     cost_bps: Decimal
     slippage_bps: Decimal
     strict_insufficient_data: bool = False
+    include_v2b: bool = False
     report_root: Path = Path("docs/reports/technical_validation")
 
     @property
@@ -174,7 +175,7 @@ def run_validation(
     with session_factory() as session:
         readiness = build_data_readiness(session, request)
 
-    profiles = validation_profiles()
+    profiles = validation_profiles(include_v2b=request.include_v2b)
     run_id = _stable_validation_run_id(
         request=request,
         readiness=readiness,
@@ -224,6 +225,7 @@ def run_validation(
         technical_report=technical_report,
         system_report=system_report,
         profile_runs=profile_runs,
+        include_v2b=request.include_v2b,
     )
     _write_json(
         artifact_dir / "technical_agent_predictive_report.json",
@@ -391,11 +393,10 @@ def build_data_readiness(
     )
 
 
-def validation_profiles() -> tuple[ValidationProfile, ...]:
+def validation_profiles(*, include_v2b: bool = False) -> tuple[ValidationProfile, ...]:
     v1 = load_strategy_config(V1_STRATEGY_PATH)
     v2 = load_strategy_config(V2_STRATEGY_PATH)
-    v2b = load_strategy_config(V2B_STRATEGY_PATH)
-    return (
+    profiles = [
         ValidationProfile(
             profile_name="graph_aware_score_v1",
             strategy_name=v1.strategy_name,
@@ -438,28 +439,35 @@ def validation_profiles() -> tuple[ValidationProfile, ...]:
                 "Backtest graph loading remains available, but ranking ignores graph score.",
             ),
         ),
-        ValidationProfile(
-            profile_name="graph_aware_score_v2b",
-            strategy_name=v2b.strategy_name,
-            strategy_type=v2b.strategy_type,
-            strategy_config_path=str(V2B_STRATEGY_PATH),
-            strategy_parameters=dict(v2b.parameters),
-            graph_contribution_enabled=True,
-            notes=("Opt-in v2B official-data graph-aware score profile.",),
-        ),
-        ValidationProfile(
-            profile_name="graph_aware_score_v2b_technical_only",
-            strategy_name="graph_aware_score_v2b_technical_only",
-            strategy_type=v2b.strategy_type,
-            strategy_config_path=str(V2B_STRATEGY_PATH),
-            strategy_parameters=_without_graph_contribution(v2b.parameters),
-            graph_contribution_enabled=False,
-            notes=(
-                "V2B official-data graph-aware strategy with graph contribution weight set to zero.",
-                "Backtest graph loading remains available, but ranking ignores graph score.",
-            ),
-        ),
-    )
+    ]
+    if include_v2b:
+        v2b = load_strategy_config(V2B_STRATEGY_PATH)
+        profiles.extend(
+            [
+                ValidationProfile(
+                    profile_name="graph_aware_score_v2b",
+                    strategy_name=v2b.strategy_name,
+                    strategy_type=v2b.strategy_type,
+                    strategy_config_path=str(V2B_STRATEGY_PATH),
+                    strategy_parameters=dict(v2b.parameters),
+                    graph_contribution_enabled=True,
+                    notes=("Opt-in v2B official-data graph-aware score profile.",),
+                ),
+                ValidationProfile(
+                    profile_name="graph_aware_score_v2b_technical_only",
+                    strategy_name="graph_aware_score_v2b_technical_only",
+                    strategy_type=v2b.strategy_type,
+                    strategy_config_path=str(V2B_STRATEGY_PATH),
+                    strategy_parameters=_without_graph_contribution(v2b.parameters),
+                    graph_contribution_enabled=False,
+                    notes=(
+                        "V2B official-data graph-aware strategy with graph contribution weight set to zero.",
+                        "Backtest graph loading remains available, but ranking ignores graph score.",
+                    ),
+                ),
+            ]
+        )
+    return tuple(profiles)
 
 
 def request_from_args(
@@ -506,6 +514,7 @@ def request_from_args(
         cost_bps=cost_bps,
         slippage_bps=slippage_bps,
         strict_insufficient_data=bool(args.strict_insufficient_data),
+        include_v2b=bool(args.include_v2b),
         report_root=Path(args.report_root),
     )
 
@@ -628,9 +637,12 @@ def _technical_agent_predictive_report(
     feature_services = {
         ANALYST_RULE_PROFILE: TechnicalFeatureService(),
         OHLCV_V2_PROFILE: TechnicalFeatureService.ohlcv_v2(),
-        OFFICIAL_V2B_PROFILE: TechnicalFeatureService.ohlcv_v2(),
     }
-    v2b_config = load_strategy_config(V2B_STRATEGY_PATH)
+    if request.include_v2b:
+        feature_services[OFFICIAL_V2B_PROFILE] = TechnicalFeatureService.ohlcv_v2()
+    v2b_config = (
+        load_strategy_config(V2B_STRATEGY_PATH) if request.include_v2b else None
+    )
     scoring_start_index = request.warmup_days + 1
     for date_index, scoring_date in enumerate(readiness.selected_dates):
         if date_index < scoring_start_index:
@@ -650,32 +662,34 @@ def _technical_agent_predictive_report(
             snapshots_by_profile[OHLCV_V2_PROFILE],
             as_of_date=scoring_date,
         )
-        v2b_official_context = official_context_with_snapshot_returns(
-            build_official_technical_context(
-                session,
-                symbols=tuple(snapshots_by_profile[OFFICIAL_V2B_PROFILE]),
-                as_of=scoring_date,
-                benchmark_index_symbol=_official_benchmark_index_symbol(
-                    v2b_config.parameters
+        v2b_official_context = None
+        if request.include_v2b and v2b_config is not None:
+            v2b_official_context = official_context_with_snapshot_returns(
+                build_official_technical_context(
+                    session,
+                    symbols=tuple(snapshots_by_profile[OFFICIAL_V2B_PROFILE]),
+                    as_of=scoring_date,
+                    benchmark_index_symbol=_official_benchmark_index_symbol(
+                        v2b_config.parameters
+                    ),
+                    volatility_index_symbol=_official_volatility_index_symbol(
+                        v2b_config.parameters
+                    ),
+                    sector_index_by_symbol=_official_sector_index_by_symbol(
+                        v2b_config.parameters
+                    ),
+                    index_timeframe=_official_index_timeframe(v2b_config.parameters),
+                    microstructure_timeframe=_official_microstructure_timeframe(
+                        v2b_config.parameters
+                    ),
                 ),
-                volatility_index_symbol=_official_volatility_index_symbol(
-                    v2b_config.parameters
-                ),
-                sector_index_by_symbol=_official_sector_index_by_symbol(
-                    v2b_config.parameters
-                ),
-                index_timeframe=_official_index_timeframe(v2b_config.parameters),
-                microstructure_timeframe=_official_microstructure_timeframe(
-                    v2b_config.parameters
-                ),
-            ),
-            {
-                symbol: snapshot.get("return_20d")
-                for symbol, snapshot in snapshots_by_profile[
-                    OFFICIAL_V2B_PROFILE
-                ].items()
-            },
-        )
+                {
+                    symbol: snapshot.get("return_20d")
+                    for symbol, snapshot in snapshots_by_profile[
+                        OFFICIAL_V2B_PROFILE
+                    ].items()
+                },
+            )
         for profile_name, snapshots in snapshots_by_profile.items():
             for symbol, snapshot in snapshots.items():
                 if profile_name == OFFICIAL_V2B_PROFILE:
@@ -755,11 +769,7 @@ def _technical_agent_predictive_report(
 
     checks: list[dict[str, object]] = []
     profiles: list[dict[str, object]] = []
-    for profile_name in (
-        ANALYST_RULE_PROFILE,
-        OHLCV_V2_PROFILE,
-        OFFICIAL_V2B_PROFILE,
-    ):
+    for profile_name in feature_services:
         observations = observations_by_profile.get(profile_name, [])
         checks.extend(_prediction_checks(profile_name, observations))
         profiles.append(_technical_profile_summary(profile_name, observations))
@@ -866,6 +876,7 @@ def _promotion_gate(
     technical_report: Mapping[str, object],
     system_report: Mapping[str, object],
     profile_runs: Sequence[Mapping[str, object]],
+    include_v2b: bool,
 ) -> dict[str, object]:
     checks: list[dict[str, object]] = []
     blockers: list[str] = []
@@ -935,7 +946,10 @@ def _promotion_gate(
         "decision": decision,
         "baseline_profile": BASELINE_PROFILE_NAME,
         "candidate_profile": CANDIDATE_PROFILE_NAME,
-        "official_candidate_profile": OFFICIAL_CANDIDATE_PROFILE_NAME,
+        "official_candidate_profile": OFFICIAL_CANDIDATE_PROFILE_NAME
+        if include_v2b
+        else None,
+        "official_candidate_validation_enabled": include_v2b,
         "checks": checks,
         "blocking_reasons": blockers,
         "promotion_policy": {
@@ -949,7 +963,11 @@ def _promotion_gate(
             "rank_rule": "v2A 21d rank correlation and top-vs-bottom spread must be non-negative.",
             "utilization_rule": "v2A must avoid lower allocation utilization or inferred sizing failures versus v1.",
         },
-        "note": "This gate reports a recommendation only; M85 does not promote v2B or change canonical defaults.",
+        "note": (
+            "This gate reports a recommendation only; v2B validation was explicitly enabled for this run."
+            if include_v2b
+            else "This gate reports a recommendation only; v2B validation is disabled by default until official-data readiness is available."
+        ),
     }
 
 
@@ -989,6 +1007,7 @@ def _manifest(
             "rebalance_every_days": request.rebalance_every_days,
             "cost_bps": str(request.cost_bps),
             "slippage_bps": str(request.slippage_bps),
+            "include_v2b": request.include_v2b,
             "report_root": str(request.report_root),
         },
         "universe": readiness.artifact["universe"],
@@ -2253,6 +2272,7 @@ def _stable_validation_run_id(
         "rebalance_every_days": request.rebalance_every_days,
         "cost_bps": str(request.cost_bps),
         "slippage_bps": str(request.slippage_bps),
+        "include_v2b": request.include_v2b,
         "readiness_status": readiness.status,
         "common_start_date": readiness.common_dates[0].isoformat()
         if readiness.common_dates
@@ -2523,6 +2543,15 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         action="store_true",
         default=_bool_env("TECHNICAL_VALIDATION_STRICT_INSUFFICIENT"),
         help="Exit non-zero when coverage is insufficient.",
+    )
+    parser.add_argument(
+        "--include-v2b",
+        action="store_true",
+        default=_bool_env("TECHNICAL_VALIDATION_INCLUDE_V2B"),
+        help=(
+            "Include graph_aware_score_v2b and v2B technical-only profiles. "
+            "Defaults off until official index and microstructure data are ready."
+        ),
     )
     return parser.parse_args(argv)
 

@@ -10,10 +10,12 @@ to the next milestone.
 
 Status: M74-M86 implementation is complete. M86 kept the v2A/v2B technical
 profiles opt-in because the standard local validation run did not have enough
-common candle coverage to compare v1, v2A, and v2B through the conservative M82
-promotion gate. The intended execution model was one fresh Codex thread per
-milestone, using GPT 5.5 with xhigh thinking, unless the user explicitly changed
-that instruction in the worker thread.
+common candle coverage to compare v1 and v2A through the conservative M82
+promotion gate. Current validation runs exclude v2B until official-data
+readiness exists; re-enable v2B explicitly with
+`TECHNICAL_VALIDATION_INCLUDE_V2B=true`. The intended execution model was one
+fresh Codex thread per milestone, using GPT 5.5 with xhigh thinking, unless the
+user explicitly changed that instruction in the worker thread.
 
 ## Target Behavior
 
@@ -894,7 +896,8 @@ Instructions:
 - Add `TechnicalSignalService.score_official_v2b(...)` or a profile parameter
   path that reuses `score_ohlcv_v2` with official-data extensions.
 - Add `graph_aware_score_v2b.yaml` as opt-in only.
-- Update validation profiles so v2B compares against v1 and v2A.
+- Add v2B validation support behind an explicit opt-in so v2B can compare
+  against v1 and v2A after official-data readiness exists.
 - Do not promote v2B as canonical in this milestone.
 
 Expected code shape:
@@ -977,6 +980,9 @@ Implemented behavior after M86:
 - `graph_aware_score_v2` and `graph_aware_score_v2b` remain selectable strategy
   configs and remain mapped to the `active_strategy` money-management sleeve,
   but neither profile is canonical.
+- `make validate-technical-v2` compares v1 and v2A by default. V2B validation
+  is off until official-data readiness exists; enable it explicitly with
+  `TECHNICAL_VALIDATION_INCLUDE_V2B=true make validate-technical-v2`.
 - No scoring formula, API payload, React surface, table schema, or paper-order
   routing changed in M86.
 
@@ -993,9 +999,10 @@ Validation evidence:
 - Gate blockers: insufficient data readiness, missing v1/v2A full-system
   backtest comparison, missing v2A 21-day rank evidence, and unavailable
   operational-safety profile-run evidence.
-- The manifest includes v1, v1 technical-only, v2A, v2A technical-only, v2B,
-  and v2B technical-only profile rows, but the comparable profile runs did not
-  execute because readiness failed.
+- Historical M86 manifests included v1, v1 technical-only, v2A,
+  v2A technical-only, v2B, and v2B technical-only profile rows, but current
+  validation runs exclude v2B rows unless
+  `TECHNICAL_VALIDATION_INCLUDE_V2B=true` is set.
 
 Deferred evidence before any future promotion:
 
@@ -1003,8 +1010,13 @@ Deferred evidence before any future promotion:
   `TAURUS_MARKET_DATA_LOOKBACK_DAYS=1434 make import-kite-candles`.
 - Rerun `make validate-technical-v2` in standard mode, and use strong mode only
   if local/Kite history supports the 5-year window.
-- Promote only after the M82 gate has complete v1 baseline, v2A candidate, and
-  v2B official-candidate evidence with no blocking failure.
+- Import official index/VIX and official microstructure data, pass the v2B
+  readiness checks, then rerun
+  `TECHNICAL_VALIDATION_INCLUDE_V2B=true make validate-technical-v2` when v2B
+  evidence is desired.
+- Promote only after the M82 gate has complete v1 baseline and v2A candidate
+  evidence with no blocking failure; treat v2B as a separate official-data
+  candidate until a future approved promotion milestone changes defaults.
 
 Verification:
 
