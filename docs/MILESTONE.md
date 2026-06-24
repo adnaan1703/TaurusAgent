@@ -254,7 +254,12 @@ removed during docs cleanup. Use Git history for detailed historical plans.
   adapter-first harness sequence is planned in
   `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md`, with a fresh-context
   handoff in `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_HANDOFF.md`.
-  Implementation has not started.
+- M90 generic parametric runner core is complete: Taurus now has a
+  side-effect-free YAML dry-run runner shell under `experiments/parametric/`, a
+  checked-in `experiments/specs/v2a_smoke.yaml`, the
+  `scripts/run_parametric_experiment.py` CLI, `make parametric-experiment`, and
+  ignored generated output space under `experiments/runs/`. Real validation
+  execution and result artifacts remain planned for M92.
 
 ## Standing Safety Rules
 
@@ -396,7 +401,7 @@ up, and documented; do not automatically begin later scope.
 | Order | Milestone | Status | Plan | Purpose |
 |---:|---|---|---|---|
 | 89 | M89 | Done | `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md` | Pinned current validation, v2A scoring, metrics, and progress contracts before adding the harness. |
-| 90 | M90 | Planned | `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md` | Add the generic YAML matrix runner core, dry-run expansion, CLI, Make wrapper, smoke spec, and ignored run-output location. |
+| 90 | M90 | Done | `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md` | Added the generic YAML matrix runner core, dry-run expansion, CLI, Make wrapper, smoke spec, and ignored run-output location. |
 | 91 | M91 | Planned | `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md` | Add config-driven v2A scoring parameters while preserving current v1 and v2A defaults. |
 | 92 | M92 | Planned | `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md` | Connect generated v2A variants to the existing technical validation pipeline and emit CSV/JSON result artifacts. |
 | 93 | M93 | Planned | `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md` | Add walk-forward folds, fold x variant progress, and bounded parallel execution. |
@@ -440,6 +445,28 @@ up, and documented; do not automatically begin later scope.
   Approval-rule cleanup inspected `/Users/adnaan/.codex/rules/default.rules`
   and found no Taurus-specific global approvals after the user's
   `# END MY CUSTOM ADDITION` marker.
+
+### M90 Completion Summary
+
+- Assumptions made: M90 should implement validation, expansion, fingerprinting,
+  CLI, Make, dry-run output planning, and docs only; real backtest/technical
+  validation execution, result CSV/JSON writing, progress integration, and
+  configurable v2A scoring remain for later milestones; family-weight matrix
+  entries should be validated after merging with current v2A defaults so every
+  expanded variant sums to `1`; `experiments/runs/` must not be created during
+  dry-run.
+- Mocks created: None.
+- Mocks used: Temporary pytest YAML specs and temporary output-root paths in
+  `tests/unit/test_parametric_experiments.py`.
+- Verification: `uv run pytest tests/unit/test_parametric_experiments.py`
+  passed with 8 tests. `PARAMETRIC_DRY_RUN=true make parametric-experiment
+  EXPERIMENT_SPEC=experiments/specs/v2a_smoke.yaml` passed and printed 2
+  variants, 1 fold, 2 total work units, the requested metric IDs, and planned
+  output paths without creating `experiments/runs/`. Approval-rule cleanup
+  inspected `/Users/adnaan/.codex/rules/default.rules` and found no
+  Taurus-specific global approvals after the user's
+  `# END MY CUSTOM ADDITION` marker; the project-local untracked
+  `.codex/rules/default.rules` was updated with `make parametric-experiment`.
 
 ### M87 Completion Summary
 

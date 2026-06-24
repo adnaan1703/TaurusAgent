@@ -1,4 +1,4 @@
-.PHONY: setup setup-ui dev-up dev-down api ui build-ui test-ui dashboard migrate profile-list profile-create profile-archive profile-update-corpus backtest-mock validate-technical-v2 import-mock-news import-screener import-market-data import-official-index-data check-official-index-readiness import-official-microstructure-data check-official-microstructure-readiness import-taurus-graph compute-graph-stats project-neo4j-graph sync-halal-stocks kite-login-url kite-exchange-token kite-sync-instruments import-kite-candles kite-ltp-smoke run-analysts-mock debate-mock trader-proposal-mock risk-review-mock final-approval-mock paper-once-mock paper-loop-once paper-loop-start paper-loop-kite position-monitor paper-loop-dashboard alert-smoke alert-test-telegram replay-decision backup-local backup-db restore-local taurus-smoke llm-smoke test lint
+.PHONY: setup setup-ui dev-up dev-down api ui build-ui test-ui dashboard migrate profile-list profile-create profile-archive profile-update-corpus backtest-mock validate-technical-v2 parametric-experiment import-mock-news import-screener import-market-data import-official-index-data check-official-index-readiness import-official-microstructure-data check-official-microstructure-readiness import-taurus-graph compute-graph-stats project-neo4j-graph sync-halal-stocks kite-login-url kite-exchange-token kite-sync-instruments import-kite-candles kite-ltp-smoke run-analysts-mock debate-mock trader-proposal-mock risk-review-mock final-approval-mock paper-once-mock paper-loop-once paper-loop-start paper-loop-kite position-monitor paper-loop-dashboard alert-smoke alert-test-telegram replay-decision backup-local backup-db restore-local taurus-smoke llm-smoke test lint
 
 UV ?= uv
 PNPM ?= pnpm
@@ -79,6 +79,11 @@ TECHNICAL_VALIDATION_REBALANCE_EVERY_DAYS ?= 21
 TECHNICAL_VALIDATION_COST_BPS ?= 10
 TECHNICAL_VALIDATION_SLIPPAGE_BPS ?= $(TAURUS_PAPER_SLIPPAGE_BPS)
 TECHNICAL_VALIDATION_INCLUDE_V2B ?= false
+EXPERIMENT_SPEC ?=
+PARAMETRIC_JOBS ?= 1
+PARAMETRIC_MAX_VARIANTS ?=
+PARAMETRIC_OUTPUT_ROOT ?=
+PARAMETRIC_DRY_RUN ?= false
 OFFICIAL_INDEX_CSV ?=
 OFFICIAL_INDEX_SYMBOL ?=
 OFFICIAL_INDEX_NAME ?=
@@ -161,6 +166,9 @@ backtest-mock:
 
 validate-technical-v2:
 	DATABASE_URL="$(DATABASE_URL)" TECHNICAL_VALIDATION_MODE="$(TECHNICAL_VALIDATION_MODE)" TECHNICAL_VALIDATION_UNIVERSE="$(TECHNICAL_VALIDATION_UNIVERSE)" TECHNICAL_VALIDATION_SYMBOLS="$(TECHNICAL_VALIDATION_SYMBOLS)" TECHNICAL_VALIDATION_ARTIFACT_ROOT="$(TECHNICAL_VALIDATION_ARTIFACT_ROOT)" TECHNICAL_VALIDATION_REPORT_ROOT="$(TECHNICAL_VALIDATION_REPORT_ROOT)" TECHNICAL_VALIDATION_INITIAL_CAPITAL_INR="$(TECHNICAL_VALIDATION_INITIAL_CAPITAL_INR)" TECHNICAL_VALIDATION_MAX_OPEN_POSITIONS="$(TECHNICAL_VALIDATION_MAX_OPEN_POSITIONS)" TECHNICAL_VALIDATION_PORTFOLIO_BREADTH="$(TECHNICAL_VALIDATION_PORTFOLIO_BREADTH)" TECHNICAL_VALIDATION_REBALANCE_EVERY_DAYS="$(TECHNICAL_VALIDATION_REBALANCE_EVERY_DAYS)" TECHNICAL_VALIDATION_COST_BPS="$(TECHNICAL_VALIDATION_COST_BPS)" TECHNICAL_VALIDATION_SLIPPAGE_BPS="$(TECHNICAL_VALIDATION_SLIPPAGE_BPS)" TECHNICAL_VALIDATION_STRICT_INSUFFICIENT="$(TECHNICAL_VALIDATION_STRICT_INSUFFICIENT)" TECHNICAL_VALIDATION_INCLUDE_V2B="$(TECHNICAL_VALIDATION_INCLUDE_V2B)" PYTHONPATH=packages:. $(UV) run python scripts/validate_technical_v2.py
+
+parametric-experiment:
+	DATABASE_URL="$(DATABASE_URL)" EXPERIMENT_SPEC="$(EXPERIMENT_SPEC)" PARAMETRIC_DRY_RUN="$(PARAMETRIC_DRY_RUN)" PYTHONPATH=packages:. $(UV) run python scripts/run_parametric_experiment.py --spec "$(EXPERIMENT_SPEC)" --jobs "$(PARAMETRIC_JOBS)" $(if $(PARAMETRIC_MAX_VARIANTS),--max-variants "$(PARAMETRIC_MAX_VARIANTS)",) $(if $(PARAMETRIC_OUTPUT_ROOT),--output-root "$(PARAMETRIC_OUTPUT_ROOT)",) $(if $(filter true True TRUE 1 yes YES on ON,$(PARAMETRIC_DRY_RUN)),--dry-run,)
 
 import-mock-news:
 	DATABASE_URL="$(DATABASE_URL)" PYTHONPATH=packages:. $(UV) run python scripts/import_mock_news.py

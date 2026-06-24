@@ -1,0 +1,34 @@
+schema_version: 1
+experiment_id: v2a_smoke
+adapter: technical_validation_v2a
+description: Minimal dry-run smoke matrix for opt-in v2A technical scoring.
+base_request:
+  mode: standard
+  symbols: [INFY, TCS]
+  validation_years: 3
+  warmup_days: 252
+  rebalance_every_days: 21
+  portfolio_breadth: 2
+  max_open_positions: 2
+  cost_bps: "10"
+  slippage_bps: "5"
+baselines:
+  include_v1: true
+  include_current_v2a: true
+variants:
+  matrix:
+    backtest.cost_bps: ["10", "12"]
+    family_weights.alpha: ["0.65"]
+    family_weights.risk: ["0.20"]
+    family_weights.tradability: ["0.15"]
+folds:
+  mode: single_window
+metrics:
+  - system.total_return
+  - system.max_drawdown
+  - rank.21d.rank_correlation
+execution:
+  jobs: 1
+  max_variants: 500
+output:
+  root: experiments/runs

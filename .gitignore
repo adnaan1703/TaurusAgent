@@ -362,6 +362,7 @@ taurus.db-*
 backups/
 artifacts/technical_validation/
 docs/reports/technical_validation/
+experiments/runs/
 
 # Flask stuff:
 instance/

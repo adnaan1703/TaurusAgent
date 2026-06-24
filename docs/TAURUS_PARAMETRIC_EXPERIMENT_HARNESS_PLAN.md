@@ -8,11 +8,11 @@ below is a standalone milestone intended to be executed in a separate Codex
 thread. Stop after completing and documenting the current milestone; do not
 automatically continue to the next milestone.
 
-Status: Planning only. No implementation work has started. The sequence below
-uses flat milestone IDs M89-M95 and keeps `graph_aware_score_v1` canonical.
-The harness is for offline paper/backtest experimentation only; it must not
-promote v2A, change `make paper-loop-kite` defaults, or affect live broker
-routing.
+Status: M90 implementation is complete; M91-M95 remain planned. The sequence
+below uses flat milestone IDs M89-M95 and keeps `graph_aware_score_v1`
+canonical. The harness is for offline paper/backtest experimentation only; it
+must not promote v2A, change `make paper-loop-kite` defaults, or affect live
+broker routing.
 
 ## Target Behavior
 
@@ -239,6 +239,8 @@ Completion summary requirements:
 - Mocks used
 
 ## M90 - Generic Parametric Runner Core
+
+Status: Done.
 
 Purpose: add the reusable experiment runner, YAML matrix parsing, strict
 validation, dry-run expansion, and output shell without touching v2A scoring.

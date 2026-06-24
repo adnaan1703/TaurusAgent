@@ -5,17 +5,21 @@ Last updated: 2026-06-24
 ## Current Status
 
 - Current milestone: None.
-- Last completed milestone: M89 Harness Contract And Baseline
-  Characterization.
+- Last completed milestone: M90 Generic Parametric Runner Core.
 - Planning completed: `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md`.
-- Implementation state: M89 is complete. Current v2A scoring family weights,
-  top-contributor output, validation profile list, validation CSV headers, and
-  technical-validation progress behavior are pinned by characterization tests.
-  The plan now includes the stable YAML experiment spec shape that M90-M92 must
-  implement. There is still no `experiments/parametric/` package, no
-  `scripts/run_parametric_experiment.py`, no `make parametric-experiment`
-  target, and no checked-in experiment specs yet.
-- Next recommended milestone: M90 Generic Parametric Runner Core.
+- Implementation state: M89 and M90 are complete. Current v2A scoring family
+  weights, top-contributor output, validation profile list, validation CSV
+  headers, and technical-validation progress behavior are pinned by
+  characterization tests. M90 added the side-effect-free
+  `experiments/parametric/` runner shell with Pydantic spec models, a PyYAML
+  loader, adapter and metric registries, Cartesian matrix expansion, strict
+  unknown-adapter/metric/override validation, family-weight sum validation,
+  stable variant fingerprints, dry-run output planning, the
+  `scripts/run_parametric_experiment.py` CLI, the `make parametric-experiment`
+  wrapper, ignored `experiments/runs/` generated outputs, and the checked-in
+  `experiments/specs/v2a_smoke.yaml` dry-run spec. Real validation execution
+  and result artifact writing remain planned for M92.
+- Next recommended milestone: M91 Config-Driven v2A Scoring Parameters.
 - Canonical runtime state: `graph_aware_score_v1` remains the default
   `make paper-loop-kite` strategy; `graph_aware_score_v2` remains opt-in; v2B
   is out of scope for this sequence.
@@ -63,7 +67,7 @@ The source of truth is the tracker table in `docs/MILESTONE.md`. The planned
 sequence is:
 
 - M89: harness contract and baseline characterization. Done.
-- M90: generic parametric runner core and smoke dry-run spec. Planned.
+- M90: generic parametric runner core and smoke dry-run spec. Done.
 - M91: config-driven v2A scoring parameters. Planned.
 - M92: technical validation adapter and result artifacts. Planned.
 - M93: walk-forward folds, progress, and bounded parallelism. Planned.

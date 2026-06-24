@@ -72,6 +72,7 @@ make build-ui
 make taurus-smoke
 make llm-smoke
 make validate-technical-v2
+make parametric-experiment
 ```
 
 Local services:
@@ -330,6 +331,29 @@ complete validation passes the conservative gate, keep `graph_aware_score_v2`
 and `graph_aware_score_v2b` opt-in and leave `make paper-loop-kite` on the
 canonical v1 strategy. Current validation runs omit v2B by default until its
 official-data inputs are populated.
+
+Parametric experiments:
+
+```bash
+PARAMETRIC_DRY_RUN=true make parametric-experiment EXPERIMENT_SPEC=experiments/specs/v2a_smoke.yaml
+PARAMETRIC_DRY_RUN=true make parametric-experiment EXPERIMENT_SPEC=experiments/specs/v2a_smoke.yaml PARAMETRIC_OUTPUT_ROOT=/tmp/taurus-parametric-plan
+```
+
+`make parametric-experiment` validates a declarative YAML experiment spec and,
+in M90, supports dry-run matrix expansion only. Dry-run mode prints the
+expanded variant count, fold count, total work units, metric IDs, stable
+variant fingerprints, and planned output paths without creating
+`experiments/runs/` or writing to the database. Generated future run outputs
+belong under `experiments/runs/`, which is ignored; checked-in specs live under
+`experiments/specs/` and harness source lives under `experiments/parametric/`.
+
+Use `EXPERIMENT_SPEC=...` to choose the YAML spec. Use `PARAMETRIC_JOBS`,
+`PARAMETRIC_MAX_VARIANTS`, and `PARAMETRIC_OUTPUT_ROOT` to pass through the CLI
+`--jobs`, `--max-variants`, and `--output-root` controls. Matrices default to a
+maximum of 500 expanded variants; larger sweeps must explicitly raise
+`PARAMETRIC_MAX_VARIANTS` or set `execution.max_variants` in the spec.
+Non-dry-run execution is intentionally unavailable until the later validation
+adapter milestone.
 
 Paper workflow:
 
