@@ -1,0 +1,66 @@
+schema_version: 1
+experiment_id: v2a_risk_calibration
+adapter: technical_validation_v2a
+description: Bounded first real sweep for opt-in v2A risk calibration.
+base_request:
+  mode: standard
+  universe: configs/market_data/nifty_50_shariah.yaml
+  validation_years: 3
+  warmup_days: 252
+  rebalance_every_days: 21
+  portfolio_breadth: 5
+  max_open_positions: 5
+  cost_bps: "10"
+  slippage_bps: "5"
+baselines:
+  include_v1: true
+  include_current_v2a: true
+variants:
+  matrix:
+    # Family weights are a single risk-tilted trio so every Cartesian variant
+    # remains valid; current v2A is included automatically as a baseline.
+    family_weights.alpha: ["0.60"]
+    family_weights.risk: ["0.25"]
+    family_weights.tradability: ["0.15"]
+
+    # Risk gates and candidate breadth are the main calibration knobs.
+    eligibility.min_risk_score_for_new_buys: ["-0.05", "0.05"]
+    eligibility.negative_risk_penalty: ["0.00", "0.15"]
+    eligibility.min_candidate_breadth_multiple: ["1.00", "1.25"]
+
+    # Compression stays report-only through the opt-in v2A variant path.
+    score_compression.mode: ["none", "tanh"]
+    score_compression.lower_bound: ["-0.75"]
+    score_compression.upper_bound: ["0.90"]
+
+    # Key momentum and volatility transform scales for bounded walk-forward
+    # sensitivity checks.
+    alpha_transforms.vol_adjusted_return_126d.scale: ["3.5", "4.5"]
+    alpha_transforms.return_63d.scale: ["0.18", "0.24"]
+    risk_transforms.atr_percent_14.scale: ["0.040", "0.055"]
+    risk_transforms.volatility_63.scale: ["0.040", "0.055"]
+folds:
+  mode: v2a_yearly
+metrics:
+  - system.total_return
+  - system.cagr
+  - system.sharpe
+  - system.sortino
+  - system.max_drawdown
+  - system.turnover
+  - system.win_rate
+  - system.average_cash_utilization_pct
+  - system.sizing_failure_count
+  - system.ranked_candidate_count
+  - system.eligible_candidate_count
+  - system.rejected_candidate_count
+  - system.trimmed_candidate_count
+  - rank.21d.rank_correlation
+  - rank.63d.rank_correlation
+  - rank.21d.top_bottom_decile_spread
+  - rank.63d.top_bottom_decile_spread
+execution:
+  jobs: 1
+  max_variants: 500
+output:
+  root: experiments/runs

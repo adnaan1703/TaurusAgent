@@ -279,6 +279,12 @@ removed during docs cleanup. Use Git history for detailed historical plans.
   `parametric-experiment` progress reporter, non-dry-run execution supports
   explicit bounded `PARAMETRIC_JOBS`, and multi-fold run CSVs include
   `variant_aggregate` stability rows.
+- M94 checked-in v2A specs and operator docs are complete: smoke remains the
+  quick 2-variant single-window verification path, risk calibration is the
+  recommended first real 256-variant three-fold sweep, full feature is a
+  deliberate 512-variant three-fold overnight template with an explicit cap,
+  and command/handoff docs describe dry-run guidance, progress controls, and
+  output locations.
 
 ## Standing Safety Rules
 
@@ -424,7 +430,7 @@ up, and documented; do not automatically begin later scope.
 | 91 | M91 | Done | `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md` | Add config-driven v2A scoring parameters while preserving current v1 and v2A defaults. |
 | 92 | M92 | Done | `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md` | Connected generated v2A variants to the existing technical validation pipeline and emitted CSV/JSON result artifacts. |
 | 93 | M93 | Done | `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md` | Added walk-forward folds, fold x variant progress, and bounded parallel execution. |
-| 94 | M94 | Planned | `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md` | Add risk-calibration and full-feature v2A specs, refine smoke coverage, and update operator command docs. |
+| 94 | M94 | Done | `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md` | Added risk-calibration and full-feature v2A specs, refined smoke coverage, and updated operator command docs. |
 | 95 | M95 | Planned | `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md` | Run final regression, refresh docs and handoff, and close the harness sequence. |
 
 ### M89-M95 Plan Document Completion Summary
@@ -557,6 +563,30 @@ up, and documented; do not automatically begin later scope.
   creating run outputs. `make lint` passed. Approval-rule cleanup inspected
   `/Users/adnaan/.codex/rules/default.rules` and found no entries after the
   user's `# END MY CUSTOM ADDITION` marker.
+
+### M94 Completion Summary
+
+- Assumptions made: The M94 scope is checked-in specs and operator
+  documentation only; `graph_aware_score_v1` remains canonical and v2A remains
+  opt-in; the existing Cartesian matrix cannot pair multiple family-weight
+  trios, so the risk-calibration spec uses one risk-tilted valid family-weight
+  trio while current v2A remains included as a baseline; the full-feature spec
+  should declare every v2A feature-weight and feature-transform path but widen
+  only a curated subset in the checked-in template so dry-run inspection stays
+  practical.
+- Mocks created: None.
+- Mocks used: None.
+- Verification: `PARAMETRIC_DRY_RUN=true make parametric-experiment
+  EXPERIMENT_SPEC=experiments/specs/v2a_smoke.yaml` passed with 2 variants, 1
+  fold, and 2 total work units. `PARAMETRIC_DRY_RUN=true make
+  parametric-experiment
+  EXPERIMENT_SPEC=experiments/specs/v2a_risk_calibration.yaml` passed with 256
+  variants, 3 folds, and 768 total work units.
+  `PARAMETRIC_DRY_RUN=true make parametric-experiment
+  EXPERIMENT_SPEC=experiments/specs/v2a_full_feature_sweep.yaml` passed with
+  512 variants, 3 folds, and 1536 total work units. Approval-rule cleanup
+  inspected `/Users/adnaan/.codex/rules/default.rules` and found no entries
+  after the user's `# END MY CUSTOM ADDITION` marker.
 
 ### M87 Completion Summary
 

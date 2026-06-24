@@ -1,7 +1,7 @@
 schema_version: 1
 experiment_id: v2a_smoke
 adapter: technical_validation_v2a
-description: Minimal dry-run smoke matrix for opt-in v2A technical scoring.
+description: Quick CLI, progress, and output smoke matrix for opt-in v2A technical scoring.
 base_request:
   mode: standard
   symbols: [INFY, TCS]
@@ -17,6 +17,7 @@ baselines:
   include_current_v2a: true
 variants:
   matrix:
+    # Keep this tiny: it is meant for fast dry-run and one-off output checks.
     backtest.cost_bps: ["10", "12"]
     family_weights.alpha: ["0.65"]
     family_weights.risk: ["0.20"]

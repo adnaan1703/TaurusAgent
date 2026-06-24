@@ -8,7 +8,7 @@ below is a standalone milestone intended to be executed in a separate Codex
 thread. Stop after completing and documenting the current milestone; do not
 automatically continue to the next milestone.
 
-Status: M93 implementation is complete; M94-M95 remain planned. The sequence
+Status: M94 implementation is complete; M95 remains planned. The sequence
 below uses flat milestone IDs M89-M95 and keeps `graph_aware_score_v1`
 canonical. The harness is for offline paper/backtest experimentation only; it
 must not promote v2A, change `make paper-loop-kite` defaults, or affect live
@@ -452,6 +452,8 @@ Completion summary requirements:
 
 ## M94 - Checked-In v2A Specs And Operator Docs
 
+Status: Done.
+
 Purpose: provide practical starting specs for smoke, bounded
 risk-calibration, and overnight full-feature experimentation.
 
@@ -501,6 +503,25 @@ Completion summary requirements:
 - Assumptions made
 - Mocks created
 - Mocks used
+
+M94 closeout:
+
+- `experiments/specs/v2a_smoke.yaml` remains the quick CLI/progress/output
+  smoke path with 2 variants, 1 `single_window` fold, and 2 total work units.
+- `experiments/specs/v2a_risk_calibration.yaml` is the recommended first real
+  sweep with 256 variants across 3 `v2a_yearly` folds and metrics covering
+  return, CAGR, Sharpe, Sortino, drawdown, turnover, win rate, cash
+  utilization, sizing failures, candidate breadth, 21d/63d rank IC, and
+  top-bottom spreads.
+- `experiments/specs/v2a_full_feature_sweep.yaml` declares every tunable v2A
+  feature-weight and feature-transform path, widens a curated subset to 512
+  variants across 3 folds, and carries an explicit
+  `execution.max_variants: 512` cap for deliberate overnight use after dry-run
+  inspection.
+- `docs/TAURUS_COMMANDS.md`, this plan, the handoff, and
+  `docs/MILESTONE.md` now describe the implemented spec workflow.
+- Required dry-run verification passed for smoke, risk calibration, and
+  full-feature specs.
 
 ## M95 - Final Regression, Cleanup, And Fresh-Context Closeout
 

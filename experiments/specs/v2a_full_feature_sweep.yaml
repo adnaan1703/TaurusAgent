@@ -1,0 +1,107 @@
+schema_version: 1
+experiment_id: v2a_full_feature_sweep
+adapter: technical_validation_v2a
+description: Broad opt-in v2A feature-weight and transform sweep for deliberate overnight use.
+base_request:
+  mode: standard
+  universe: configs/market_data/nifty_50_shariah.yaml
+  validation_years: 3
+  warmup_days: 252
+  rebalance_every_days: 21
+  portfolio_breadth: 5
+  max_open_positions: 5
+  cost_bps: "10"
+  slippage_bps: "5"
+baselines:
+  include_v1: true
+  include_current_v2a: true
+variants:
+  matrix:
+    # Deliberate overnight template. Dry-run this first, inspect expanded
+    # variants and output paths, then run non-dry-run with explicit jobs.
+    family_weights.alpha: ["0.65"]
+    family_weights.risk: ["0.20"]
+    family_weights.tradability: ["0.15"]
+
+    # Every tunable v2A feature weight is declared here. Most paths are pinned
+    # to current defaults; widen additional lists only after dry-run inspection.
+    alpha_weights.vol_adjusted_return_126d: ["0.14", "0.16"]
+    alpha_weights.vol_adjusted_return_252d: ["0.14"]
+    alpha_weights.return_126d: ["0.11"]
+    alpha_weights.return_63d: ["0.08", "0.10"]
+    alpha_weights.return_252d: ["0.08"]
+    alpha_weights.macd_histogram_12_26_9: ["0.09"]
+    alpha_weights.ema_spread_12_26: ["0.08"]
+    alpha_weights.adx_directional_strength_14: ["0.08"]
+    alpha_weights.breakout_high_distance_50d: ["0.06"]
+    alpha_weights.distance_from_52w_high: ["0.05"]
+    alpha_weights.rsi_14: ["0.05"]
+
+    risk_weights.atr_percent_14: ["0.18"]
+    risk_weights.volatility_20: ["0.16"]
+    risk_weights.volatility_63: ["0.12", "0.14"]
+    risk_weights.volatility_126: ["0.10"]
+    risk_weights.volatility_252: ["0.08"]
+    risk_weights.bollinger_bandwidth_20: ["0.10"]
+    risk_weights.minus_di_14: ["0.08"]
+    risk_weights.bollinger_percent_b_extension: ["0.08"]
+    risk_weights.return_20d_instability: ["0.08"]
+
+    tradability_weights.turnover: ["0.24"]
+    tradability_weights.avg_traded_value_20: ["0.22", "0.24"]
+    tradability_weights.avg_traded_value_63: ["0.20"]
+    tradability_weights.turnover_z_score_20: ["0.17"]
+    tradability_weights.volume_z_score_20: ["0.15"]
+
+    # Every tunable v2A transform scale is declared here.
+    alpha_transforms.vol_adjusted_return_126d.scale: ["3.5", "4.5"]
+    alpha_transforms.vol_adjusted_return_252d.scale: ["4"]
+    alpha_transforms.return_126d.scale: ["0.30"]
+    alpha_transforms.return_63d.scale: ["0.18", "0.24"]
+    alpha_transforms.return_252d.scale: ["0.45"]
+    alpha_transforms.macd_histogram_12_26_9.scale: ["1"]
+    alpha_transforms.ema_spread_12_26.scale: ["0.08"]
+    alpha_transforms.adx_directional_strength_14.scale: ["1"]
+    alpha_transforms.breakout_high_distance_50d.scale: ["0.10"]
+    alpha_transforms.distance_from_52w_high.scale: ["0.25"]
+    alpha_transforms.rsi_14.scale: ["25"]
+
+    risk_transforms.atr_percent_14.scale: ["0.040", "0.055"]
+    risk_transforms.volatility_20.scale: ["0.050"]
+    risk_transforms.volatility_63.scale: ["0.040", "0.055"]
+    risk_transforms.volatility_126.scale: ["0.045"]
+    risk_transforms.volatility_252.scale: ["0.045"]
+    risk_transforms.bollinger_bandwidth_20.scale: ["0.18"]
+    risk_transforms.minus_di_14.scale: ["45"]
+    risk_transforms.bollinger_percent_b_extension.scale: ["0.25"]
+    risk_transforms.return_20d_instability.scale: ["0.18"]
+
+    tradability_transforms.turnover.scale: ["1"]
+    tradability_transforms.avg_traded_value_20.scale: ["1"]
+    tradability_transforms.avg_traded_value_63.scale: ["1"]
+    tradability_transforms.turnover_z_score_20.scale: ["2.5", "3.5"]
+    tradability_transforms.volume_z_score_20.scale: ["3"]
+metrics:
+  - system.total_return
+  - system.cagr
+  - system.sharpe
+  - system.sortino
+  - system.max_drawdown
+  - system.turnover
+  - system.win_rate
+  - system.average_cash_utilization_pct
+  - system.sizing_failure_count
+  - system.ranked_candidate_count
+  - system.eligible_candidate_count
+  - rank.21d.rank_correlation
+  - rank.63d.rank_correlation
+  - rank.21d.top_bottom_decile_spread
+  - rank.63d.top_bottom_decile_spread
+execution:
+  jobs: 1
+  # This checked-in template intentionally expands beyond the default 500 cap.
+  # The explicit cap keeps dry-run/operator intent visible; widen with
+  # PARAMETRIC_MAX_VARIANTS only after inspecting the expanded plan.
+  max_variants: 512
+output:
+  root: experiments/runs

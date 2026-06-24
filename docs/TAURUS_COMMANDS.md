@@ -339,9 +339,12 @@ Parametric experiments:
 
 ```bash
 PARAMETRIC_DRY_RUN=true make parametric-experiment EXPERIMENT_SPEC=experiments/specs/v2a_smoke.yaml
+PARAMETRIC_DRY_RUN=true make parametric-experiment EXPERIMENT_SPEC=experiments/specs/v2a_risk_calibration.yaml
+PARAMETRIC_DRY_RUN=true make parametric-experiment EXPERIMENT_SPEC=experiments/specs/v2a_full_feature_sweep.yaml
 TAURUS_PROGRESS=plain PARAMETRIC_DRY_RUN=true make parametric-experiment EXPERIMENT_SPEC=experiments/specs/v2a_smoke.yaml
 PARAMETRIC_DRY_RUN=true make parametric-experiment EXPERIMENT_SPEC=experiments/specs/v2a_smoke.yaml PARAMETRIC_OUTPUT_ROOT=/tmp/taurus-parametric-plan
 PARAMETRIC_DRY_RUN=false make parametric-experiment EXPERIMENT_SPEC=experiments/specs/v2a_smoke.yaml PARAMETRIC_OUTPUT_ROOT=/tmp/taurus-parametric-smoke
+PARAMETRIC_DRY_RUN=false PARAMETRIC_JOBS=2 make parametric-experiment EXPERIMENT_SPEC=experiments/specs/v2a_risk_calibration.yaml PARAMETRIC_OUTPUT_ROOT=/tmp/taurus-parametric-risk
 ```
 
 `make parametric-experiment` validates a declarative YAML experiment spec.
@@ -358,10 +361,29 @@ the requested named metrics, and writes raw values plus numeric deltas versus
 both baselines.
 
 Specs with `folds.mode: single_window` run one validation window and are useful
-for smoke checks. When `folds` is omitted, the default `v2a_yearly` mode runs
-three chronological yearly folds across the current standard three-year
-validation window: `fold_1` is the oldest year, `fold_2` the middle year, and
-`fold_3` the latest year.
+for smoke checks. When `folds` is omitted, or when `folds.mode: v2a_yearly` is
+set explicitly, the default v2A walk-forward mode runs three chronological
+yearly folds across the current standard three-year validation window:
+`fold_1` is the oldest year, `fold_2` the middle year, and `fold_3` the latest
+year.
+
+Checked-in specs:
+
+- `experiments/specs/v2a_smoke.yaml`: two variants, one explicit
+  `single_window` fold, and a tiny metric set for quick CLI, progress, and
+  output verification.
+- `experiments/specs/v2a_risk_calibration.yaml`: the recommended first real
+  sweep. It runs 256 variants across three `v2a_yearly` folds with a bounded
+  grid over risk-tilted family weights, negative-risk gates, candidate-breadth
+  guardrails, score compression, momentum transform scales, volatility
+  transform scales, and return/risk/candidate-breadth/rank-IC metrics.
+- `experiments/specs/v2a_full_feature_sweep.yaml`: a deliberate overnight
+  template. It declares every tunable v2A feature-weight and feature-transform
+  path, widens a curated subset to 512 variants, and includes an explicit
+  `execution.max_variants: 512` cap so the above-default expansion is
+  intentional. Dry-run it before any non-dry-run execution; widen additional
+  matrix lists only with an explicit `PARAMETRIC_MAX_VARIANTS` or
+  `--max-variants` override.
 
 Use `EXPERIMENT_SPEC=...` to choose the YAML spec. Use `PARAMETRIC_JOBS`,
 `PARAMETRIC_MAX_VARIANTS`, and `PARAMETRIC_OUTPUT_ROOT` to pass through the CLI
@@ -369,7 +391,9 @@ Use `EXPERIMENT_SPEC=...` to choose the YAML spec. Use `PARAMETRIC_JOBS`,
 maximum of 500 expanded variants; larger sweeps must explicitly raise
 `PARAMETRIC_MAX_VARIANTS` or set `execution.max_variants` in the spec.
 `PARAMETRIC_JOBS` is explicit bounded parallelism and defaults to `1`; Taurus
-does not auto-detect CPU count for experiment workers.
+does not auto-detect CPU count for experiment workers. Use
+`TAURUS_PROGRESS=auto/plain/false` to select Rich/TTY progress, plain stderr
+progress, or no terminal progress.
 
 Generated run outputs belong under `experiments/runs/<run_id>/` by default,
 which is ignored; checked-in specs live under `experiments/specs/` and harness
