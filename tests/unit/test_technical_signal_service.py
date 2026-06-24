@@ -12,6 +12,7 @@ from taurus_core.features.technical_context import (
     LOWER_IS_BETTER,
     build_universe_technical_context,
 )
+from taurus_core.features.technical_params import DEFAULT_OHLCV_V2_SCORING_PARAMS
 from taurus_core.features.technical_signal import (
     OHLCV_V2_FAMILY_WEIGHTS,
     TechnicalBacktestSignal,
@@ -310,6 +311,106 @@ def test_score_ohlcv_v2_pins_default_family_weights_and_contributors() -> None:
             "universe_context",
         ),
     )
+
+
+def test_score_ohlcv_v2_explicit_default_params_match_no_param_behavior() -> None:
+    service = TechnicalSignalService()
+    snapshots = {
+        "AAA": _feature_snapshot("AAA", values=_ohlcv_v2_values("strong")),
+        "BBB": _feature_snapshot("BBB", values=_ohlcv_v2_values("neutral")),
+        "CCC": _feature_snapshot("CCC", values=_ohlcv_v2_values("weak")),
+    }
+    context = build_universe_technical_context(snapshots)
+
+    implicit = service.score_ohlcv_v2(snapshots["AAA"], universe_context=context)
+    explicit = service.score_ohlcv_v2(
+        snapshots["AAA"],
+        universe_context=context,
+        scoring_params=DEFAULT_OHLCV_V2_SCORING_PARAMS,
+    )
+
+    assert explicit.alpha_score == implicit.alpha_score
+    assert explicit.risk_score == implicit.risk_score
+    assert explicit.tradability_score == implicit.tradability_score
+    assert explicit.composite_score == implicit.composite_score
+    assert explicit.confidence == implicit.confidence
+    assert dict(explicit.components) == dict(implicit.components)
+    assert tuple(dict(item) for item in explicit.top_contributors) == tuple(
+        dict(item) for item in implicit.top_contributors
+    )
+    assert dict(explicit.metadata) == dict(implicit.metadata)
+
+
+def test_score_ohlcv_v2_params_adjust_transforms_family_weights_and_compression() -> (
+    None
+):
+    service = TechnicalSignalService()
+    snapshot = _feature_snapshot("AAA", values=_ohlcv_v2_values("strong"))
+    baseline = service.score_ohlcv_v2(snapshot)
+    transform_params = DEFAULT_OHLCV_V2_SCORING_PARAMS.with_overrides(
+        {"alpha_transforms.return_63d.scale": "0.05"}
+    )
+
+    transformed = service.score_ohlcv_v2(
+        snapshot,
+        scoring_params=transform_params,
+    )
+    compressed_risk_only = service.score_ohlcv_v2(
+        snapshot,
+        scoring_params=DEFAULT_OHLCV_V2_SCORING_PARAMS.with_overrides(
+            {
+                "family_weights.alpha": "0",
+                "family_weights.risk": "1",
+                "family_weights.tradability": "0",
+                "score_compression.mode": "linear",
+                "score_compression.lower_bound": "0",
+                "score_compression.upper_bound": "0.20",
+            }
+        ),
+    )
+
+    assert transformed.alpha_score > baseline.alpha_score
+    assert compressed_risk_only.components["composite_raw_score"] == (
+        compressed_risk_only.risk_score
+    )
+    assert compressed_risk_only.composite_score <= Decimal("0.2000")
+    assert compressed_risk_only.metadata["score_compression"]["mode"] == "linear"
+
+
+def test_score_ohlcv_v2_risk_guard_blocks_only_configured_new_buys() -> None:
+    service = TechnicalSignalService()
+    snapshot = _feature_snapshot("AAA", values=_ohlcv_v2_values("strong"))
+    params = DEFAULT_OHLCV_V2_SCORING_PARAMS.with_overrides(
+        {"eligibility.min_risk_score_for_new_buys": "0.95"}
+    )
+
+    blocked = service.score_ohlcv_v2(
+        snapshot,
+        scoring_params=params,
+        is_new_buy=True,
+    )
+    existing_position = service.score_ohlcv_v2(
+        snapshot,
+        scoring_params=params,
+        is_new_buy=False,
+    )
+
+    assert blocked.available is False
+    assert blocked.metadata["guardrail"]["blocked"] is True
+    assert blocked.metadata["guardrail"]["reasons"] == [
+        "risk_score_below_new_buy_minimum"
+    ]
+    assert existing_position.available is True
+
+
+def test_score_ohlcv_v2_unknown_param_names_fail_before_scoring() -> None:
+    service = TechnicalSignalService()
+
+    with pytest.raises(ValueError, match="Unknown v2A scoring parameter"):
+        service.score_ohlcv_v2(
+            _feature_snapshot("AAA", values=_ohlcv_v2_values("strong")),
+            scoring_params={"alpha_weights": {"not_real": "1"}},
+        )
 
 
 def test_score_ohlcv_v2_degrades_confidence_when_features_and_context_are_missing() -> (

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from decimal import Decimal
@@ -9,6 +10,10 @@ from typing import Mapping
 from taurus_core.features.store import (
     FeatureSnapshot,
     TECHNICAL_OHLCV_V2_FEATURE_VERSION,
+)
+from taurus_core.features.technical_params import (
+    DEFAULT_OHLCV_V2_SCORING_PARAMS,
+    OhlcvV2ScoringParams,
 )
 from taurus_core.features.technical_context import (
     DEFAULT_TECHNICAL_CONTEXT_FEATURES,
@@ -79,12 +84,8 @@ OHLCV_V2_TRADABILITY_FEATURES = (
     "turnover_z_score_20",
     "volume_z_score_20",
 )
-OHLCV_V2_FAMILY_WEIGHTS: Mapping[str, Decimal] = MappingProxyType(
-    {
-        "alpha": Decimal("0.65"),
-        "risk": Decimal("0.20"),
-        "tradability": Decimal("0.15"),
-    }
+OHLCV_V2_FAMILY_WEIGHTS: Mapping[str, Decimal] = (
+    DEFAULT_OHLCV_V2_SCORING_PARAMS.family_weights
 )
 
 
@@ -300,8 +301,13 @@ class TechnicalSignalService:
         *,
         universe_context: UniverseTechnicalContext | None = None,
         symbol: str | None = None,
+        scoring_params: OhlcvV2ScoringParams | Mapping[str, object] | None = None,
+        is_new_buy: bool = False,
+        candidate_breadth: int | None = None,
+        target_breadth: int | None = None,
         top_contributor_limit: int = OHLCV_V2_TOP_CONTRIBUTOR_LIMIT,
     ) -> TechnicalOhlcvSignalResult:
+        params = _resolve_ohlcv_v2_params(scoring_params)
         resolved_symbol = _ohlcv_symbol(snapshot=snapshot, symbol=symbol)
         if snapshot is None:
             return _empty_ohlcv_result(
@@ -323,9 +329,9 @@ class TechnicalSignalService:
             else None
         )
 
-        alpha_features = _alpha_contributors(values, symbol_context)
-        risk_features = _risk_contributors(values, symbol_context)
-        tradability_features = _tradability_contributors(values, symbol_context)
+        alpha_features = _alpha_contributors(values, symbol_context, params)
+        risk_features = _risk_contributors(values, symbol_context, params)
+        tradability_features = _tradability_contributors(values, symbol_context, params)
 
         alpha_score, alpha_components = _family_score("alpha", alpha_features)
         risk_score, risk_components = _family_score("risk", risk_features)
@@ -334,11 +340,31 @@ class TechnicalSignalService:
             tradability_features,
         )
         composite_raw = (
-            (alpha_score * OHLCV_V2_FAMILY_WEIGHTS["alpha"])
-            + (risk_score * OHLCV_V2_FAMILY_WEIGHTS["risk"])
-            + (tradability_score * OHLCV_V2_FAMILY_WEIGHTS["tradability"])
+            (alpha_score * params.family_weights["alpha"])
+            + (risk_score * params.family_weights["risk"])
+            + (tradability_score * params.family_weights["tradability"])
         )
-        composite_score = _bounded_score(composite_raw)
+        guardrail = _ohlcv_guardrail(
+            params,
+            risk_score=risk_score,
+            is_new_buy=is_new_buy,
+            candidate_breadth=candidate_breadth
+            if candidate_breadth is not None
+            else universe_context.universe_size
+            if universe_context is not None
+            else None,
+            target_breadth=target_breadth,
+        )
+        adjusted_composite_raw = _apply_negative_risk_penalty(
+            composite_raw,
+            risk_score=risk_score,
+            params=params,
+        )
+        compressed_composite_raw = _compress_ohlcv_score(
+            adjusted_composite_raw,
+            params=params,
+        )
+        composite_score = _bounded_score(compressed_composite_raw)
         lookback_quality = _lookback_quality(values)
         universe_breadth = _universe_breadth(universe_context)
         context_coverage = _context_coverage(symbol_context)
@@ -356,13 +382,15 @@ class TechnicalSignalService:
             context_coverage=context_coverage,
             family_agreement=family_agreement,
             tradability_quality=tradability_quality,
+            weights=params.confidence_weights,
         )
         composite_contributions = _composite_contributions(
             {
                 "alpha": alpha_features,
                 "risk": risk_features,
                 "tradability": tradability_features,
-            }
+            },
+            family_weights=params.family_weights,
         )
         components: dict[str, Decimal] = {
             "alpha_score": alpha_score,
@@ -380,13 +408,50 @@ class TechnicalSignalService:
             **risk_components,
             **tradability_components,
         }
+        if not params.is_default:
+            components.update(
+                _parameterized_ohlcv_components(
+                    params,
+                    composite_raw=composite_raw,
+                    adjusted_composite_raw=adjusted_composite_raw,
+                    compressed_composite_raw=compressed_composite_raw,
+                )
+            )
         top_contributors = _top_contributors(
             composite_contributions,
             limit=top_contributor_limit,
         )
+        metadata = {
+            "snapshot_id": snapshot.snapshot_id,
+            "symbol": resolved_symbol,
+            "feature_time": snapshot.feature_time.isoformat(),
+            "as_of_date": snapshot.as_of_date.isoformat(),
+            "score_precision": str(OHLCV_V2_SCORE_VALUE),
+            "component_precision": str(OHLCV_V2_COMPONENT_VALUE),
+            "required_feature_count": len(OHLCV_V2_REQUIRED_FEATURES),
+            "available_feature_count": len(OHLCV_V2_REQUIRED_FEATURES)
+            - len(missing_features),
+            "family_weights": {
+                family: str(weight) for family, weight in params.family_weights.items()
+            },
+            "universe_context_available": universe_context is not None,
+            "symbol_context_available": symbol_context is not None,
+            "universe_size": universe_context.universe_size
+            if universe_context is not None
+            else 0,
+            "missing_context_features": _missing_context_features(symbol_context),
+            "score_contract": (
+                "alpha, risk, and tradability scores are bounded [-1, 1]; "
+                "positive risk_score means lower measured OHLCV risk."
+            ),
+        }
+        if not params.is_default:
+            metadata["scoring_params"] = params.to_dict()
+            metadata["guardrail"] = guardrail
+            metadata["score_compression"] = params.score_compression.to_dict()
         return TechnicalOhlcvSignalResult(
             profile_name=OHLCV_V2_PROFILE,
-            available=bool(values),
+            available=bool(values) and not guardrail["blocked"],
             alpha_score=alpha_score,
             risk_score=risk_score,
             tradability_score=tradability_score,
@@ -398,31 +463,7 @@ class TechnicalSignalService:
             top_contributors=top_contributors,
             missing_features=missing_features,
             source_ids=(snapshot.snapshot_id,),
-            metadata={
-                "snapshot_id": snapshot.snapshot_id,
-                "symbol": resolved_symbol,
-                "feature_time": snapshot.feature_time.isoformat(),
-                "as_of_date": snapshot.as_of_date.isoformat(),
-                "score_precision": str(OHLCV_V2_SCORE_VALUE),
-                "component_precision": str(OHLCV_V2_COMPONENT_VALUE),
-                "required_feature_count": len(OHLCV_V2_REQUIRED_FEATURES),
-                "available_feature_count": len(OHLCV_V2_REQUIRED_FEATURES)
-                - len(missing_features),
-                "family_weights": {
-                    family: str(weight)
-                    for family, weight in OHLCV_V2_FAMILY_WEIGHTS.items()
-                },
-                "universe_context_available": universe_context is not None,
-                "symbol_context_available": symbol_context is not None,
-                "universe_size": universe_context.universe_size
-                if universe_context is not None
-                else 0,
-                "missing_context_features": _missing_context_features(symbol_context),
-                "score_contract": (
-                    "alpha, risk, and tradability scores are bounded [-1, 1]; "
-                    "positive risk_score means lower measured OHLCV risk."
-                ),
-            },
+            metadata=metadata,
         )
 
     def score_official_v2b(
@@ -515,7 +556,8 @@ class TechnicalSignalService:
                 "alpha": official_alpha_features,
                 "risk": official_risk_features,
                 "tradability": official_tradability_features,
-            }
+            },
+            family_weights=OHLCV_V2_FAMILY_WEIGHTS,
         )
         top_contributors = _official_top_contributors(
             official_contributions,
@@ -700,6 +742,131 @@ def _analyst_components(
         "rsi_component": ((rsi - Decimal("50")) / Decimal("50")) * Decimal("0.30"),
         "volatility_component": -(volatility * Decimal("0.75")),
     }
+
+
+def _resolve_ohlcv_v2_params(
+    scoring_params: OhlcvV2ScoringParams | Mapping[str, object] | None,
+) -> OhlcvV2ScoringParams:
+    if scoring_params is None:
+        return DEFAULT_OHLCV_V2_SCORING_PARAMS
+    if isinstance(scoring_params, OhlcvV2ScoringParams):
+        return scoring_params
+    if isinstance(scoring_params, Mapping):
+        return OhlcvV2ScoringParams.from_mapping(scoring_params)
+    raise TypeError("scoring_params must be OhlcvV2ScoringParams or a mapping.")
+
+
+def _ohlcv_guardrail(
+    params: OhlcvV2ScoringParams,
+    *,
+    risk_score: Decimal,
+    is_new_buy: bool,
+    candidate_breadth: int | None,
+    target_breadth: int | None,
+) -> dict[str, object]:
+    reasons: list[str] = []
+    eligibility = params.eligibility
+    if (
+        eligibility.min_risk_score_for_new_buys is not None
+        and is_new_buy
+        and risk_score < eligibility.min_risk_score_for_new_buys
+    ):
+        reasons.append("risk_score_below_new_buy_minimum")
+
+    required_candidate_breadth: Decimal | None = None
+    if (
+        eligibility.min_candidate_breadth_multiple is not None
+        and candidate_breadth is not None
+        and target_breadth is not None
+        and target_breadth > 0
+    ):
+        required_candidate_breadth = (
+            Decimal(target_breadth) * eligibility.min_candidate_breadth_multiple
+        )
+        if Decimal(candidate_breadth) < required_candidate_breadth:
+            reasons.append("candidate_breadth_below_minimum_multiple")
+
+    return {
+        "blocked": bool(reasons),
+        "reasons": reasons,
+        "is_new_buy": is_new_buy,
+        "risk_score": str(risk_score),
+        "min_risk_score_for_new_buys": (
+            str(eligibility.min_risk_score_for_new_buys)
+            if eligibility.min_risk_score_for_new_buys is not None
+            else None
+        ),
+        "candidate_breadth": candidate_breadth,
+        "target_breadth": target_breadth,
+        "min_candidate_breadth_multiple": (
+            str(eligibility.min_candidate_breadth_multiple)
+            if eligibility.min_candidate_breadth_multiple is not None
+            else None
+        ),
+        "required_candidate_breadth": (
+            str(required_candidate_breadth)
+            if required_candidate_breadth is not None
+            else None
+        ),
+    }
+
+
+def _apply_negative_risk_penalty(
+    composite_raw: Decimal,
+    *,
+    risk_score: Decimal,
+    params: OhlcvV2ScoringParams,
+) -> Decimal:
+    penalty = params.eligibility.negative_risk_penalty
+    if penalty <= ZERO or risk_score >= ZERO:
+        return composite_raw
+    return composite_raw - (abs(risk_score) * penalty)
+
+
+def _compress_ohlcv_score(
+    value: Decimal,
+    *,
+    params: OhlcvV2ScoringParams,
+) -> Decimal:
+    compression = params.score_compression
+    if compression.mode == "none":
+        return value
+    lower = compression.lower_bound
+    upper = compression.upper_bound
+    bounded_value = _bounded(value)
+    if compression.mode == "tanh":
+        bounded_value = Decimal(str(math.tanh(float(value))))
+    return lower + (((bounded_value + ONE) / Decimal("2")) * (upper - lower))
+
+
+def _parameterized_ohlcv_components(
+    params: OhlcvV2ScoringParams,
+    *,
+    composite_raw: Decimal,
+    adjusted_composite_raw: Decimal,
+    compressed_composite_raw: Decimal,
+) -> dict[str, Decimal]:
+    components = {
+        "composite_adjusted_raw_score": adjusted_composite_raw.quantize(
+            OHLCV_V2_COMPONENT_VALUE
+        ),
+        "composite_compressed_raw_score": compressed_composite_raw.quantize(
+            OHLCV_V2_COMPONENT_VALUE
+        ),
+    }
+    penalty = composite_raw - adjusted_composite_raw
+    if penalty != ZERO:
+        components["risk_negative_penalty"] = penalty.quantize(
+            OHLCV_V2_COMPONENT_VALUE
+        )
+    if params.score_compression.mode != "none":
+        components["score_compression.lower_bound"] = (
+            params.score_compression.lower_bound
+        )
+        components["score_compression.upper_bound"] = (
+            params.score_compression.upper_bound
+        )
+    return components
 
 
 def _empty_ohlcv_result(
@@ -1051,6 +1218,7 @@ def _ohlcv_symbol(*, snapshot: FeatureSnapshot | None, symbol: str | None) -> st
 def _alpha_contributors(
     values: Mapping[str, Decimal],
     symbol_context: TechnicalSymbolContext | None,
+    params: OhlcvV2ScoringParams,
 ) -> list[_ScoredFeature]:
     contributors = [
         _context_feature(
@@ -1059,8 +1227,11 @@ def _alpha_contributors(
             feature_name="vol_adjusted_return_126d",
             family="alpha",
             label="126-day volatility-adjusted momentum",
-            weight=Decimal("0.16"),
-            raw_transform=lambda value: _bounded(value / Decimal("4")),
+            weight=params.alpha_weights["vol_adjusted_return_126d"],
+            raw_transform=lambda value: _scaled_score(
+                value, params.alpha_transform_scales["vol_adjusted_return_126d"]
+            ),
+            context_weights=params.context_weights,
         ),
         _context_feature(
             values,
@@ -1068,8 +1239,11 @@ def _alpha_contributors(
             feature_name="vol_adjusted_return_252d",
             family="alpha",
             label="252-day volatility-adjusted momentum",
-            weight=Decimal("0.14"),
-            raw_transform=lambda value: _bounded(value / Decimal("4")),
+            weight=params.alpha_weights["vol_adjusted_return_252d"],
+            raw_transform=lambda value: _scaled_score(
+                value, params.alpha_transform_scales["vol_adjusted_return_252d"]
+            ),
+            context_weights=params.context_weights,
         ),
         _context_feature(
             values,
@@ -1077,8 +1251,11 @@ def _alpha_contributors(
             feature_name="return_126d",
             family="alpha",
             label="126-day absolute momentum",
-            weight=Decimal("0.11"),
-            raw_transform=lambda value: _bounded(value / Decimal("0.30")),
+            weight=params.alpha_weights["return_126d"],
+            raw_transform=lambda value: _scaled_score(
+                value, params.alpha_transform_scales["return_126d"]
+            ),
+            context_weights=params.context_weights,
         ),
         _context_feature(
             values,
@@ -1086,8 +1263,11 @@ def _alpha_contributors(
             feature_name="return_63d",
             family="alpha",
             label="63-day absolute momentum",
-            weight=Decimal("0.10"),
-            raw_transform=lambda value: _bounded(value / Decimal("0.20")),
+            weight=params.alpha_weights["return_63d"],
+            raw_transform=lambda value: _scaled_score(
+                value, params.alpha_transform_scales["return_63d"]
+            ),
+            context_weights=params.context_weights,
         ),
         _context_feature(
             values,
@@ -1095,8 +1275,11 @@ def _alpha_contributors(
             feature_name="return_252d",
             family="alpha",
             label="252-day absolute momentum",
-            weight=Decimal("0.08"),
-            raw_transform=lambda value: _bounded(value / Decimal("0.45")),
+            weight=params.alpha_weights["return_252d"],
+            raw_transform=lambda value: _scaled_score(
+                value, params.alpha_transform_scales["return_252d"]
+            ),
+            context_weights=params.context_weights,
         ),
         _context_feature(
             values,
@@ -1104,24 +1287,31 @@ def _alpha_contributors(
             feature_name="macd_histogram_12_26_9",
             family="alpha",
             label="MACD histogram",
-            weight=Decimal("0.09"),
-            raw_transform=lambda value: _bounded(value),
+            weight=params.alpha_weights["macd_histogram_12_26_9"],
+            raw_transform=lambda value: _scaled_score(
+                value, params.alpha_transform_scales["macd_histogram_12_26_9"]
+            ),
+            context_weights=params.context_weights,
         ),
         _derived_feature(
             feature_name="ema_spread_12_26",
             family="alpha",
             label="EMA 12/26 spread",
             value=_ema_spread(values),
-            weight=Decimal("0.08"),
-            raw_transform=lambda value: _bounded(value / Decimal("0.08")),
+            weight=params.alpha_weights["ema_spread_12_26"],
+            raw_transform=lambda value: _scaled_score(
+                value, params.alpha_transform_scales["ema_spread_12_26"]
+            ),
         ),
         _derived_feature(
             feature_name="adx_directional_strength_14",
             family="alpha",
             label="ADX-weighted directional trend",
             value=_adx_directional_strength(values),
-            weight=Decimal("0.08"),
-            raw_transform=lambda value: value,
+            weight=params.alpha_weights["adx_directional_strength_14"],
+            raw_transform=lambda value: _scaled_score(
+                value, params.alpha_transform_scales["adx_directional_strength_14"]
+            ),
         ),
         _context_feature(
             values,
@@ -1129,8 +1319,11 @@ def _alpha_contributors(
             feature_name="breakout_high_distance_50d",
             family="alpha",
             label="50-day breakout distance",
-            weight=Decimal("0.06"),
-            raw_transform=lambda value: _bounded(value / Decimal("0.10")),
+            weight=params.alpha_weights["breakout_high_distance_50d"],
+            raw_transform=lambda value: _scaled_score(
+                value, params.alpha_transform_scales["breakout_high_distance_50d"]
+            ),
+            context_weights=params.context_weights,
         ),
         _context_feature(
             values,
@@ -1138,8 +1331,12 @@ def _alpha_contributors(
             feature_name="distance_from_52w_high",
             family="alpha",
             label="Distance from 52-week high",
-            weight=Decimal("0.05"),
-            raw_transform=_distance_from_high_score,
+            weight=params.alpha_weights["distance_from_52w_high"],
+            raw_transform=lambda value: _distance_from_high_score(
+                value,
+                params.alpha_transform_scales["distance_from_52w_high"],
+            ),
+            context_weights=params.context_weights,
         ),
         _context_feature(
             values,
@@ -1147,10 +1344,14 @@ def _alpha_contributors(
             feature_name="rsi_14",
             family="alpha",
             label="RSI-14 momentum balance",
-            weight=Decimal("0.05"),
+            weight=params.alpha_weights["rsi_14"],
             raw_transform=lambda value: _bounded(
-                (value - Decimal("50")) / Decimal("25")
+                _safe_divide(
+                    value - Decimal("50"),
+                    params.alpha_transform_scales["rsi_14"],
+                )
             ),
+            context_weights=params.context_weights,
         ),
     ]
     return [contributor for contributor in contributors if contributor is not None]
@@ -1159,6 +1360,7 @@ def _alpha_contributors(
 def _risk_contributors(
     values: Mapping[str, Decimal],
     symbol_context: TechnicalSymbolContext | None,
+    params: OhlcvV2ScoringParams,
 ) -> list[_ScoredFeature]:
     contributors = [
         _context_feature(
@@ -1167,8 +1369,11 @@ def _risk_contributors(
             feature_name="atr_percent_14",
             family="risk",
             label="ATR percent risk",
-            weight=Decimal("0.18"),
-            raw_transform=lambda value: _lower_is_better_score(value, Decimal("0.045")),
+            weight=params.risk_weights["atr_percent_14"],
+            raw_transform=lambda value: _lower_is_better_score(
+                value, params.risk_transform_scales["atr_percent_14"]
+            ),
+            context_weights=params.context_weights,
         ),
         _context_feature(
             values,
@@ -1176,8 +1381,11 @@ def _risk_contributors(
             feature_name="volatility_20",
             family="risk",
             label="20-day realized volatility",
-            weight=Decimal("0.16"),
-            raw_transform=lambda value: _lower_is_better_score(value, Decimal("0.050")),
+            weight=params.risk_weights["volatility_20"],
+            raw_transform=lambda value: _lower_is_better_score(
+                value, params.risk_transform_scales["volatility_20"]
+            ),
+            context_weights=params.context_weights,
         ),
         _context_feature(
             values,
@@ -1185,8 +1393,11 @@ def _risk_contributors(
             feature_name="volatility_63",
             family="risk",
             label="63-day realized volatility",
-            weight=Decimal("0.14"),
-            raw_transform=lambda value: _lower_is_better_score(value, Decimal("0.045")),
+            weight=params.risk_weights["volatility_63"],
+            raw_transform=lambda value: _lower_is_better_score(
+                value, params.risk_transform_scales["volatility_63"]
+            ),
+            context_weights=params.context_weights,
         ),
         _context_feature(
             values,
@@ -1194,8 +1405,11 @@ def _risk_contributors(
             feature_name="volatility_126",
             family="risk",
             label="126-day realized volatility",
-            weight=Decimal("0.10"),
-            raw_transform=lambda value: _lower_is_better_score(value, Decimal("0.045")),
+            weight=params.risk_weights["volatility_126"],
+            raw_transform=lambda value: _lower_is_better_score(
+                value, params.risk_transform_scales["volatility_126"]
+            ),
+            context_weights=params.context_weights,
         ),
         _context_feature(
             values,
@@ -1203,8 +1417,11 @@ def _risk_contributors(
             feature_name="volatility_252",
             family="risk",
             label="252-day realized volatility",
-            weight=Decimal("0.08"),
-            raw_transform=lambda value: _lower_is_better_score(value, Decimal("0.045")),
+            weight=params.risk_weights["volatility_252"],
+            raw_transform=lambda value: _lower_is_better_score(
+                value, params.risk_transform_scales["volatility_252"]
+            ),
+            context_weights=params.context_weights,
         ),
         _context_feature(
             values,
@@ -1212,8 +1429,11 @@ def _risk_contributors(
             feature_name="bollinger_bandwidth_20",
             family="risk",
             label="Bollinger bandwidth risk",
-            weight=Decimal("0.10"),
-            raw_transform=lambda value: _lower_is_better_score(value, Decimal("0.18")),
+            weight=params.risk_weights["bollinger_bandwidth_20"],
+            raw_transform=lambda value: _lower_is_better_score(
+                value, params.risk_transform_scales["bollinger_bandwidth_20"]
+            ),
+            context_weights=params.context_weights,
         ),
         _context_feature(
             values,
@@ -1221,25 +1441,38 @@ def _risk_contributors(
             feature_name="minus_di_14",
             family="risk",
             label="Negative directional pressure",
-            weight=Decimal("0.08"),
-            raw_transform=lambda value: _lower_is_better_score(value, Decimal("45")),
+            weight=params.risk_weights["minus_di_14"],
+            raw_transform=lambda value: _lower_is_better_score(
+                value, params.risk_transform_scales["minus_di_14"]
+            ),
+            context_weights=params.context_weights,
         ),
         _derived_feature(
             feature_name="bollinger_percent_b_extension",
             family="risk",
             label="Bollinger percent-B extension",
             value=values.get("bollinger_percent_b_20"),
-            weight=Decimal("0.08"),
-            raw_transform=_bollinger_extension_score,
+            weight=params.risk_weights["bollinger_percent_b_extension"],
+            raw_transform=lambda value: _bollinger_extension_score(
+                value,
+                params.risk_transform_scales["bollinger_percent_b_extension"],
+            ),
         ),
         _derived_feature(
             feature_name="return_20d_instability",
             family="risk",
             label="20-day return instability",
             value=values.get("return_20d"),
-            weight=Decimal("0.08"),
+            weight=params.risk_weights["return_20d_instability"],
             raw_transform=lambda value: _bounded(
-                ONE - ((abs(value) / Decimal("0.18")) * 2)
+                ONE
+                - (
+                    _safe_divide(
+                        abs(value),
+                        params.risk_transform_scales["return_20d_instability"],
+                    )
+                    * 2
+                )
             ),
         ),
     ]
@@ -1249,6 +1482,7 @@ def _risk_contributors(
 def _tradability_contributors(
     values: Mapping[str, Decimal],
     symbol_context: TechnicalSymbolContext | None,
+    params: OhlcvV2ScoringParams,
 ) -> list[_ScoredFeature]:
     contributors = [
         _context_feature(
@@ -1257,8 +1491,9 @@ def _tradability_contributors(
             feature_name="turnover",
             family="tradability",
             label="Latest traded value proxy",
-            weight=Decimal("0.24"),
+            weight=params.tradability_weights["turnover"],
             raw_transform=lambda _value: ZERO,
+            context_weights=params.context_weights,
         ),
         _context_feature(
             values,
@@ -1266,8 +1501,9 @@ def _tradability_contributors(
             feature_name="avg_traded_value_20",
             family="tradability",
             label="20-day average traded value",
-            weight=Decimal("0.24"),
+            weight=params.tradability_weights["avg_traded_value_20"],
             raw_transform=lambda _value: ZERO,
+            context_weights=params.context_weights,
         ),
         _context_feature(
             values,
@@ -1275,8 +1511,9 @@ def _tradability_contributors(
             feature_name="avg_traded_value_63",
             family="tradability",
             label="63-day average traded value",
-            weight=Decimal("0.20"),
+            weight=params.tradability_weights["avg_traded_value_63"],
             raw_transform=lambda _value: ZERO,
+            context_weights=params.context_weights,
         ),
         _context_feature(
             values,
@@ -1284,8 +1521,11 @@ def _tradability_contributors(
             feature_name="turnover_z_score_20",
             family="tradability",
             label="20-day turnover z-score",
-            weight=Decimal("0.17"),
-            raw_transform=lambda value: _bounded(value / Decimal("3")),
+            weight=params.tradability_weights["turnover_z_score_20"],
+            raw_transform=lambda value: _scaled_score(
+                value, params.tradability_transform_scales["turnover_z_score_20"]
+            ),
+            context_weights=params.context_weights,
         ),
         _context_feature(
             values,
@@ -1293,8 +1533,11 @@ def _tradability_contributors(
             feature_name="volume_z_score_20",
             family="tradability",
             label="20-day volume z-score",
-            weight=Decimal("0.15"),
-            raw_transform=lambda value: _bounded(value / Decimal("3")),
+            weight=params.tradability_weights["volume_z_score_20"],
+            raw_transform=lambda value: _scaled_score(
+                value, params.tradability_transform_scales["volume_z_score_20"]
+            ),
+            context_weights=params.context_weights,
         ),
     ]
     return [contributor for contributor in contributors if contributor is not None]
@@ -1309,6 +1552,7 @@ def _context_feature(
     label: str,
     weight: Decimal,
     raw_transform: Callable[[Decimal], Decimal],
+    context_weights: Mapping[str, Decimal],
 ) -> _ScoredFeature | None:
     value = values.get(feature_name)
     if value is None:
@@ -1317,7 +1561,7 @@ def _context_feature(
         symbol_context.get(feature_name) if symbol_context is not None else None
     )
     if context_feature is not None:
-        score = _context_feature_score(context_feature)
+        score = _context_feature_score(context_feature, weights=context_weights)
         source = "universe_context"
     else:
         score = raw_transform(value)
@@ -1355,11 +1599,22 @@ def _derived_feature(
     )
 
 
-def _context_feature_score(context_feature: TechnicalFeatureContext) -> Decimal:
+def _context_feature_score(
+    context_feature: TechnicalFeatureContext,
+    *,
+    weights: Mapping[str, Decimal],
+) -> Decimal:
     z_component = _bounded(context_feature.directional_z_score / Decimal("2"))
     percentile_component = (context_feature.percentile - Decimal("0.5")) * Decimal("2")
+    total_weight = sum(weights.values(), ZERO)
+    if total_weight <= ZERO:
+        return ZERO
     return _bounded(
-        (z_component * Decimal("0.60")) + (percentile_component * Decimal("0.40"))
+        (
+            (z_component * weights["z_score"])
+            + (percentile_component * weights["percentile"])
+        )
+        / total_weight
     )
 
 
@@ -1393,13 +1648,15 @@ def _family_score(
 
 def _composite_contributions(
     features_by_family: Mapping[str, list[_ScoredFeature]],
+    *,
+    family_weights: Mapping[str, Decimal],
 ) -> list[tuple[_ScoredFeature, Decimal]]:
     contributions: list[tuple[_ScoredFeature, Decimal]] = []
     for family, contributors in features_by_family.items():
         if not contributors:
             continue
         total_weight = sum((contributor.weight for contributor in contributors), ZERO)
-        family_weight = OHLCV_V2_FAMILY_WEIGHTS[family]
+        family_weight = family_weights[family]
         for contributor in contributors:
             composite_contribution = (
                 contributor.score * contributor.weight / total_weight * family_weight
@@ -1536,15 +1793,19 @@ def _ohlcv_confidence(
     context_coverage: Decimal,
     family_agreement: Decimal,
     tradability_quality: Decimal,
+    weights: Mapping[str, Decimal],
 ) -> Decimal:
+    total_weight = sum(weights.values(), ZERO)
+    if total_weight <= ZERO:
+        return Decimal("0.0500")
     raw = (
-        (coverage * Decimal("0.35"))
-        + (lookback_quality * Decimal("0.20"))
-        + (universe_breadth * Decimal("0.15"))
-        + (context_coverage * Decimal("0.05"))
-        + (family_agreement * Decimal("0.15"))
-        + (tradability_quality * Decimal("0.10"))
-    )
+        (coverage * weights["coverage"])
+        + (lookback_quality * weights["lookback_quality"])
+        + (universe_breadth * weights["universe_breadth"])
+        + (context_coverage * weights["context_coverage"])
+        + (family_agreement * weights["family_agreement"])
+        + (tradability_quality * weights["tradability_quality"])
+    ) / total_weight
     return _clamp(raw, Decimal("0.0500"), Decimal("0.9500")).quantize(
         OHLCV_V2_SCORE_VALUE
     )
@@ -1581,8 +1842,8 @@ def _adx_directional_strength(values: Mapping[str, Decimal]) -> Decimal | None:
     return _bounded(direction * strength)
 
 
-def _distance_from_high_score(value: Decimal) -> Decimal:
-    return _bounded(ONE + (value / Decimal("0.25")))
+def _distance_from_high_score(value: Decimal, scale: Decimal) -> Decimal:
+    return _bounded(ONE + _safe_divide(value, scale))
 
 
 def _lower_is_better_score(value: Decimal, scale: Decimal) -> Decimal:
@@ -1591,14 +1852,24 @@ def _lower_is_better_score(value: Decimal, scale: Decimal) -> Decimal:
     return _bounded(ONE - ((value / scale) * Decimal("2")))
 
 
-def _bollinger_extension_score(value: Decimal) -> Decimal:
+def _bollinger_extension_score(value: Decimal, scale: Decimal) -> Decimal:
     return _bounded(
-        ONE - ((abs(value - Decimal("0.5")) / Decimal("0.25")) * Decimal("2"))
+        ONE - (_safe_divide(abs(value - Decimal("0.5")), scale) * Decimal("2"))
     )
 
 
 def _bounded_score(value: Decimal) -> Decimal:
     return _bounded(value).quantize(OHLCV_V2_SCORE_VALUE)
+
+
+def _scaled_score(value: Decimal, scale: Decimal) -> Decimal:
+    return _bounded(_safe_divide(value, scale))
+
+
+def _safe_divide(value: Decimal, denominator: Decimal) -> Decimal:
+    if denominator == ZERO:
+        return ZERO
+    return value / denominator
 
 
 def _bounded(value: Decimal) -> Decimal:

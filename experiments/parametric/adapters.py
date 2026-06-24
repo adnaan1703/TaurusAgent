@@ -5,6 +5,13 @@ from decimal import Decimal, InvalidOperation
 from typing import Mapping
 
 from experiments.parametric.errors import ExperimentSpecError
+from taurus_core.features.technical_params import (
+    DEFAULT_OHLCV_V2_SCORING_PARAMS,
+    OHLCV_V2_ALPHA_FEATURES,
+    OHLCV_V2_CONFIDENCE_COMPONENTS,
+    OHLCV_V2_RISK_FEATURES,
+    OHLCV_V2_TRADABILITY_FEATURES,
+)
 
 DECIMAL_ZERO = Decimal("0")
 DECIMAL_ONE = Decimal("1")
@@ -99,45 +106,10 @@ class AdapterRegistry:
         return tuple(sorted(self._adapters))
 
 
-ALPHA_FEATURES = (
-    "vol_adjusted_return_126d",
-    "vol_adjusted_return_252d",
-    "return_126d",
-    "return_63d",
-    "return_252d",
-    "macd_histogram_12_26_9",
-    "ema_spread_12_26",
-    "adx_directional_strength_14",
-    "breakout_high_distance_50d",
-    "distance_from_52w_high",
-    "rsi_14",
-)
-RISK_FEATURES = (
-    "atr_percent_14",
-    "volatility_20",
-    "volatility_63",
-    "volatility_126",
-    "volatility_252",
-    "bollinger_bandwidth_20",
-    "minus_di_14",
-    "bollinger_percent_b_extension",
-    "return_20d_instability",
-)
-TRADABILITY_FEATURES = (
-    "turnover",
-    "avg_traded_value_20",
-    "avg_traded_value_63",
-    "turnover_z_score_20",
-    "volume_z_score_20",
-)
-CONFIDENCE_COMPONENTS = (
-    "coverage",
-    "lookback_quality",
-    "universe_breadth",
-    "context_coverage",
-    "family_agreement",
-    "tradability_quality",
-)
+ALPHA_FEATURES = OHLCV_V2_ALPHA_FEATURES
+RISK_FEATURES = OHLCV_V2_RISK_FEATURES
+TRADABILITY_FEATURES = OHLCV_V2_TRADABILITY_FEATURES
+CONFIDENCE_COMPONENTS = OHLCV_V2_CONFIDENCE_COMPONENTS
 
 
 def default_adapter_registry() -> AdapterRegistry:
@@ -146,11 +118,7 @@ def default_adapter_registry() -> AdapterRegistry:
             "technical_validation_v2a": AdapterDefinition(
                 adapter_id="technical_validation_v2a",
                 override_parameters=_technical_validation_v2a_parameters(),
-                default_family_weights={
-                    "alpha": Decimal("0.65"),
-                    "risk": Decimal("0.20"),
-                    "tradability": Decimal("0.15"),
-                },
+                default_family_weights=DEFAULT_OHLCV_V2_SCORING_PARAMS.family_weights,
             )
         }
     )
@@ -295,4 +263,3 @@ def _bool(value: object, path: str) -> bool:
     if normalized in {"0", "false", "no", "off"}:
         return False
     raise ExperimentSpecError(f"Override {path} must be boolean-compatible.")
-

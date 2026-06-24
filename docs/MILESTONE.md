@@ -260,6 +260,14 @@ removed during docs cleanup. Use Git history for detailed historical plans.
   `scripts/run_parametric_experiment.py` CLI, `make parametric-experiment`, and
   ignored generated output space under `experiments/runs/`. Real validation
   execution and result artifacts remain planned for M92.
+- M91 config-driven v2A scoring parameters are complete: Taurus now has typed
+  serializable `OhlcvV2ScoringParams` defaults for the current v2A family
+  weights, feature weights, transform scales, context weights, confidence
+  weights, guardrails, and score compression. `TechnicalSignalService` accepts
+  explicit optional v2A params, `GraphAwareScoreStrategy` threads nested
+  `technical_ohlcv_v2_params` only for the opt-in `technical_ohlcv_v2`
+  profile, and v1/current-v2A defaults remain behavior-compatible. M92
+  validation adapter execution and result artifacts remain planned.
 
 ## Standing Safety Rules
 
@@ -402,7 +410,7 @@ up, and documented; do not automatically begin later scope.
 |---:|---|---|---|---|
 | 89 | M89 | Done | `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md` | Pinned current validation, v2A scoring, metrics, and progress contracts before adding the harness. |
 | 90 | M90 | Done | `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md` | Added the generic YAML matrix runner core, dry-run expansion, CLI, Make wrapper, smoke spec, and ignored run-output location. |
-| 91 | M91 | Planned | `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md` | Add config-driven v2A scoring parameters while preserving current v1 and v2A defaults. |
+| 91 | M91 | Done | `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md` | Add config-driven v2A scoring parameters while preserving current v1 and v2A defaults. |
 | 92 | M92 | Planned | `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md` | Connect generated v2A variants to the existing technical validation pipeline and emit CSV/JSON result artifacts. |
 | 93 | M93 | Planned | `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md` | Add walk-forward folds, fold x variant progress, and bounded parallel execution. |
 | 94 | M94 | Planned | `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md` | Add risk-calibration and full-feature v2A specs, refine smoke coverage, and update operator command docs. |
@@ -467,6 +475,27 @@ up, and documented; do not automatically begin later scope.
   Taurus-specific global approvals after the user's
   `# END MY CUSTOM ADDITION` marker; the project-local untracked
   `.codex/rules/default.rules` was updated with `make parametric-experiment`.
+
+### M91 Completion Summary
+
+- Assumptions made: M91 should expose the current v2A scoring constants through
+  a typed, serializable parameter object without changing no-param v2A results;
+  strategy-level overrides should live under the nested
+  `technical_ohlcv_v2_params` key and be parsed only when
+  `technical_profile: technical_ohlcv_v2` is selected; candidate-breadth
+  guardrails should remain a neutral hook unless both the guardrail and target
+  breadth context are supplied; validation adapter execution and experiment
+  result artifacts remain M92 scope.
+- Mocks created: None.
+- Mocks used: None.
+- Verification: `uv run pytest tests/unit/test_technical_signal_service.py
+  tests/unit/test_strategy_ranking.py tests/unit/test_graph_backtesting.py`
+  passed with 40 tests. Additional focused coverage with
+  `uv run pytest tests/unit/test_technical_signal_service.py
+  tests/unit/test_strategy_ranking.py tests/unit/test_parametric_experiments.py`
+  passed with 38 tests. Approval-rule cleanup inspected
+  `/Users/adnaan/.codex/rules/default.rules` and found no Taurus-specific
+  global approvals after the user's `# END MY CUSTOM ADDITION` marker.
 
 ### M87 Completion Summary
 

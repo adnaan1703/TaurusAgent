@@ -30,6 +30,13 @@ from taurus_core.features.technical_signal import (
     TechnicalSignalResult,
     TechnicalSignalService,
 )
+from taurus_core.features.technical_params import (
+    DEFAULT_OHLCV_V2_SCORING_PARAMS,
+    OhlcvV2EligibilityParams,
+    OhlcvV2ScoringParams,
+    OhlcvV2ScoreCompressionParams,
+    ohlcv_v2_parameter_paths,
+)
 
 __all__ = [
     "DEFAULT_TECHNICAL_CONTEXT_FEATURES",
@@ -53,7 +60,12 @@ __all__ = [
     "TechnicalSignalService",
     "TechnicalSymbolContext",
     "UniverseTechnicalContext",
+    "DEFAULT_OHLCV_V2_SCORING_PARAMS",
+    "OhlcvV2EligibilityParams",
+    "OhlcvV2ScoringParams",
+    "OhlcvV2ScoreCompressionParams",
     "build_official_technical_context",
     "build_universe_technical_context",
+    "ohlcv_v2_parameter_paths",
     "official_context_with_snapshot_returns",
 ]

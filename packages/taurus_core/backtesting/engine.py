@@ -241,6 +241,7 @@ class BacktestEngine:
                     "features_by_symbol": features_by_symbol,
                     "current_positions": current_symbols,
                     "graph_signals_by_symbol": graph_signals_by_symbol,
+                    "target_limit": self.config.effective_portfolio_breadth,
                 }
                 if _strategy_accepts_universe_context(strategy):
                     rank_kwargs["universe_technical_context"] = (

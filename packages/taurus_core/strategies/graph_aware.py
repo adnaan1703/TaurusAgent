@@ -19,6 +19,7 @@ from taurus_core.features.technical_signal import (
     TechnicalSignalResult,
     TechnicalSignalService,
 )
+from taurus_core.features.technical_params import OhlcvV2ScoringParams
 from taurus_core.strategies.base import (
     SignalExplanation,
     StrategyRanking,
@@ -35,6 +36,7 @@ SUPPORTED_TECHNICAL_PROFILES = {
     OHLCV_V2_PROFILE,
     OFFICIAL_V2B_PROFILE,
 }
+OHLCV_V2_SCORING_PARAMS_KEY = "technical_ohlcv_v2_params"
 
 
 @dataclass(frozen=True, slots=True)
@@ -69,6 +71,17 @@ class GraphAwareScoreStrategy:
         )
         if self.technical_profile not in SUPPORTED_TECHNICAL_PROFILES:
             raise ValueError(f"Unsupported technical_profile: {self.technical_profile}")
+        self.ohlcv_v2_scoring_params: OhlcvV2ScoringParams | None = None
+        if self.technical_profile == OHLCV_V2_PROFILE:
+            raw_scoring_params = parameters.get(OHLCV_V2_SCORING_PARAMS_KEY)
+            if raw_scoring_params is not None:
+                if not isinstance(raw_scoring_params, Mapping):
+                    raise ValueError(
+                        f"{OHLCV_V2_SCORING_PARAMS_KEY} must be a mapping."
+                    )
+                self.ohlcv_v2_scoring_params = OhlcvV2ScoringParams.from_mapping(
+                    raw_scoring_params
+                )
         if self.fast_window >= self.slow_window:
             raise ValueError("fast_window must be smaller than slow_window")
         self._technical_signal_service = TechnicalSignalService()
@@ -102,6 +115,7 @@ class GraphAwareScoreStrategy:
         graph_signals_by_symbol: Mapping[str, Any] | None = None,
         universe_technical_context: UniverseTechnicalContext | None = None,
         official_technical_context: OfficialTechnicalContext | None = None,
+        target_limit: int | None = None,
     ) -> list[StrategyRanking]:
         graph_by_symbol = {
             key.upper(): value for key, value in (graph_signals_by_symbol or {}).items()
@@ -127,6 +141,9 @@ class GraphAwareScoreStrategy:
                 snapshot,
                 universe_context=technical_context,
                 official_context=official_technical_context,
+                is_new_buy=symbol not in current_positions,
+                candidate_breadth=len(features_by_symbol),
+                target_breadth=target_limit,
             )
             score = self._combined_score(
                 snapshot=snapshot,
@@ -252,6 +269,7 @@ class GraphAwareScoreStrategy:
             graph_signals_by_symbol=graph_by_symbol,
             universe_technical_context=universe_technical_context,
             official_technical_context=official_technical_context,
+            target_limit=target_limit,
         )
         targets = ranked_symbols(rankings, target_limit=target_limit)
         score_by_symbol = {
@@ -316,6 +334,9 @@ class GraphAwareScoreStrategy:
         *,
         universe_context: UniverseTechnicalContext | None = None,
         official_context: OfficialTechnicalContext | None = None,
+        is_new_buy: bool = False,
+        candidate_breadth: int | None = None,
+        target_breadth: int | None = None,
     ) -> _TechnicalScoreResult:
         if self.technical_profile == OFFICIAL_V2B_PROFILE:
             result = self._technical_signal_service.score_official_v2b(
@@ -334,6 +355,10 @@ class GraphAwareScoreStrategy:
                 snapshot,
                 universe_context=universe_context,
                 symbol=snapshot.symbol,
+                scoring_params=self.ohlcv_v2_scoring_params,
+                is_new_buy=is_new_buy,
+                candidate_breadth=candidate_breadth,
+                target_breadth=target_breadth,
             )
             return _TechnicalScoreResult(
                 profile_name=result.profile_name,

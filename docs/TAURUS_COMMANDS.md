@@ -352,6 +352,15 @@ Use `EXPERIMENT_SPEC=...` to choose the YAML spec. Use `PARAMETRIC_JOBS`,
 `--jobs`, `--max-variants`, and `--output-root` controls. Matrices default to a
 maximum of 500 expanded variants; larger sweeps must explicitly raise
 `PARAMETRIC_MAX_VARIANTS` or set `execution.max_variants` in the spec.
+M91 allows the dry-run spec schema and the opt-in
+`graph_aware_score_v2` strategy path to use the same v2A scoring override
+names, including `family_weights.*`, `<family>_weights.<feature>`,
+`<family>_transforms.<feature>.scale`, `context_weights.*`,
+`confidence_weights.*`, `eligibility.*`, and `score_compression.*`.
+Runtime strategy configs pass those overrides under
+`technical_ohlcv_v2_params`, and they are parsed only when
+`technical_profile: technical_ohlcv_v2` is selected. Empty/default params keep
+current v2A scores unchanged, and v1 remains canonical.
 Non-dry-run execution is intentionally unavailable until the later validation
 adapter milestone.
 

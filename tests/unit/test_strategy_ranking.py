@@ -4,6 +4,8 @@ from datetime import date
 from decimal import Decimal
 from pathlib import Path
 
+import pytest
+
 from taurus_core.domain.market_data import DailyCandle
 from taurus_core.features.store import (
     TECHNICAL_OHLCV_V2_FEATURE_VERSION,
@@ -289,6 +291,110 @@ def test_graph_aware_v2_ranking_uses_ohlcv_signal_and_nested_metadata() -> None:
         signals[0].explanation.metadata["technical_v2"]["profile_name"]
         == OHLCV_V2_PROFILE
     )
+
+
+def test_graph_aware_v2_scoring_params_are_profile_gated() -> None:
+    v1_strategy = GraphAwareScoreStrategy(
+        name="graph_aware_v1_ignores_v2_params",
+        parameters={
+            "fast_window": 3,
+            "slow_window": 5,
+            "min_combined_score": "-1",
+            "technical_ohlcv_v2_params": {"alpha_weights": {"not_real": "1"}},
+        },
+    )
+    v2_strategy = GraphAwareScoreStrategy(
+        name="graph_aware_v2_compressed",
+        parameters={
+            "technical_profile": OHLCV_V2_PROFILE,
+            "technical_weight": "1",
+            "graph_weight": "0",
+            "min_combined_score": "-1",
+            "technical_ohlcv_v2_params": {
+                "score_compression": {
+                    "mode": "linear",
+                    "lower_bound": "0",
+                    "upper_bound": "0.20",
+                }
+            },
+        },
+    )
+    features = {
+        "AAA": _feature_snapshot("AAA", _ohlcv_v2_values(momentum="strong")),
+        "BBB": _feature_snapshot("BBB", _ohlcv_v2_values(momentum="weak")),
+    }
+
+    assert v1_strategy._technical_score(
+        _feature_snapshot(
+            "AAA",
+            {
+                "sma_3": Decimal("110"),
+                "sma_5": Decimal("100"),
+            },
+        )
+    ) == Decimal("0.10000000")
+    rankings = v2_strategy.rank_universe(
+        trade_date=date(2024, 1, 10),
+        features_by_symbol=features,
+        current_positions=set(),
+        target_limit=1,
+    )
+
+    assert rankings[0].raw_strategy_score <= Decimal("0.20000000")
+    assert (
+        rankings[0].metadata["technical_v2"]["metadata"]["score_compression"]["mode"]
+        == "linear"
+    )
+    with pytest.raises(ValueError, match="Unknown v2A scoring parameter"):
+        GraphAwareScoreStrategy(
+            name="graph_aware_v2_bad_params",
+            parameters={
+                "technical_profile": OHLCV_V2_PROFILE,
+                "technical_ohlcv_v2_params": {"alpha_weights": {"not_real": "1"}},
+            },
+        )
+
+
+def test_graph_aware_v2_risk_gate_blocks_new_buys_only_when_configured() -> None:
+    strategy = GraphAwareScoreStrategy(
+        name="graph_aware_v2_risk_gate",
+        parameters={
+            "technical_profile": OHLCV_V2_PROFILE,
+            "technical_weight": "1",
+            "graph_weight": "0",
+            "min_combined_score": "-1",
+            "technical_ohlcv_v2_params": {
+                "eligibility": {"min_risk_score_for_new_buys": "0.95"}
+            },
+        },
+    )
+    features = {
+        "AAA": _feature_snapshot("AAA", _ohlcv_v2_values(momentum="strong")),
+    }
+
+    new_buy_rankings = strategy.rank_universe(
+        trade_date=date(2024, 1, 10),
+        features_by_symbol=features,
+        current_positions=set(),
+        target_limit=1,
+    )
+    existing_position_rankings = strategy.rank_universe(
+        trade_date=date(2024, 1, 10),
+        features_by_symbol=features,
+        current_positions={"AAA"},
+        target_limit=1,
+    )
+
+    assert new_buy_rankings[0].is_eligible is False
+    assert new_buy_rankings[0].raw_strategy_score is None
+    assert (
+        new_buy_rankings[0].metadata["technical_v2"]["metadata"]["guardrail"][
+            "blocked"
+        ]
+        is True
+    )
+    assert existing_position_rankings[0].is_eligible is True
+    assert existing_position_rankings[0].action_intent == "HOLD"
 
 
 def test_graph_aware_v2b_ranking_uses_official_context_and_metadata() -> None:
