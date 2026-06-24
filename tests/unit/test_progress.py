@@ -122,6 +122,59 @@ def test_technical_validation_profile_progress_uses_short_labels() -> None:
     assert "graph_aware_score_v2_technical_only" not in line
 
 
+def test_technical_validation_progress_snapshot_contract_for_harness_reuse() -> None:
+    setup = format_rich_progress_snapshot(
+        "validate-technical-v2",
+        "technical_validation.setup_started",
+        {"stage": "migrations"},
+    )
+    readiness = format_rich_progress_snapshot(
+        "validate-technical-v2",
+        "technical_validation.readiness_started",
+        {"total": 3},
+    )
+    backtest = format_rich_progress_snapshot(
+        "validate-technical-v2",
+        "technical_validation.backtest_profile_completed",
+        {"profile_name": "graph_aware_score_v1", "current": 1, "total": 4},
+    )
+    reports = format_rich_progress_snapshot(
+        "validate-technical-v2",
+        "technical_validation.reports_started",
+        {"status": "complete"},
+    )
+    completed_line = format_plain_progress_line(
+        "validate-technical-v2",
+        "technical_validation.completed",
+        {"status": "complete"},
+        elapsed_seconds=125,
+        eta_seconds=0,
+    )
+
+    assert setup is not None
+    assert setup.details == "stage=migrations"
+    assert setup.completed == 0
+    assert setup.total == 1
+    assert readiness is not None
+    assert readiness.details == "stage=readiness symbols=0/3"
+    assert readiness.completed == 0
+    assert readiness.total == 3
+    assert backtest is not None
+    assert backtest.details == "stage=backtest profile=v1 profiles=1/4"
+    assert backtest.completed == 1
+    assert backtest.total == 4
+    assert reports is not None
+    assert reports.details == "stage=reports"
+    assert reports.completed == 0
+    assert reports.total == 1
+    assert completed_line is not None
+    assert "stage=complete status=complete" in completed_line
+    assert "progress=1/1" in completed_line
+    assert "percent=100.0" in completed_line
+    assert "elapsed=2m05s" in completed_line
+    assert "eta=0.0s" in completed_line
+
+
 def test_technical_validation_progress_opt_out_suppresses_terminal_output() -> None:
     stream = io.StringIO()
 

@@ -13,6 +13,7 @@ from taurus_core.features.technical_context import (
     build_universe_technical_context,
 )
 from taurus_core.features.technical_signal import (
+    OHLCV_V2_FAMILY_WEIGHTS,
     TechnicalBacktestSignal,
     TechnicalSignalService,
 )
@@ -233,6 +234,82 @@ def test_score_ohlcv_v2_uses_full_ohlcv_suite_and_universe_context() -> None:
     assert result.metadata["symbol_context_available"] is True
     assert result.metadata["universe_size"] == 3
     assert result.metadata["missing_context_features"] == []
+
+
+def test_score_ohlcv_v2_pins_default_family_weights_and_contributors() -> None:
+    service = TechnicalSignalService()
+    snapshots = {
+        "AAA": _feature_snapshot("AAA", values=_ohlcv_v2_values("strong")),
+        "BBB": _feature_snapshot("BBB", values=_ohlcv_v2_values("neutral")),
+        "CCC": _feature_snapshot("CCC", values=_ohlcv_v2_values("weak")),
+    }
+    context = build_universe_technical_context(snapshots)
+
+    result = service.score_ohlcv_v2(
+        snapshots["AAA"],
+        universe_context=context,
+        top_contributor_limit=8,
+    )
+
+    assert dict(OHLCV_V2_FAMILY_WEIGHTS) == {
+        "alpha": Decimal("0.65"),
+        "risk": Decimal("0.20"),
+        "tradability": Decimal("0.15"),
+    }
+    assert result.metadata["family_weights"] == {
+        "alpha": "0.65",
+        "risk": "0.20",
+        "tradability": "0.15",
+    }
+    assert result.alpha_score == Decimal("0.7269")
+    assert result.risk_score == Decimal("0.6176")
+    assert result.tradability_score == Decimal("0.7728")
+    assert result.components["composite_raw_score"] == Decimal("0.71192500")
+    assert result.composite_score == Decimal("0.7119")
+    assert result.confidence == Decimal("0.9250")
+    assert tuple(
+        (
+            contributor["feature"],
+            contributor["family"],
+            contributor["direction"],
+            contributor["weight"],
+            contributor["source"],
+        )
+        for contributor in result.top_contributors
+    ) == (
+        (
+            "vol_adjusted_return_126d",
+            "alpha",
+            "bullish",
+            "0.16",
+            "universe_context",
+        ),
+        (
+            "vol_adjusted_return_252d",
+            "alpha",
+            "bullish",
+            "0.14",
+            "universe_context",
+        ),
+        ("return_126d", "alpha", "bullish", "0.11", "universe_context"),
+        ("ema_spread_12_26", "alpha", "bullish", "0.08", "derived_feature"),
+        ("return_63d", "alpha", "bullish", "0.10", "universe_context"),
+        (
+            "macd_histogram_12_26_9",
+            "alpha",
+            "bullish",
+            "0.09",
+            "universe_context",
+        ),
+        ("return_252d", "alpha", "bullish", "0.08", "universe_context"),
+        (
+            "breakout_high_distance_50d",
+            "alpha",
+            "bullish",
+            "0.06",
+            "universe_context",
+        ),
+    )
 
 
 def test_score_ohlcv_v2_degrades_confidence_when_features_and_context_are_missing() -> (

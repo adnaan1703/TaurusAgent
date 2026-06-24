@@ -395,7 +395,7 @@ up, and documented; do not automatically begin later scope.
 
 | Order | Milestone | Status | Plan | Purpose |
 |---:|---|---|---|---|
-| 89 | M89 | Planned | `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md` | Pin current validation, v2A scoring, metrics, and progress contracts before adding the harness. |
+| 89 | M89 | Done | `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md` | Pinned current validation, v2A scoring, metrics, and progress contracts before adding the harness. |
 | 90 | M90 | Planned | `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md` | Add the generic YAML matrix runner core, dry-run expansion, CLI, Make wrapper, smoke spec, and ignored run-output location. |
 | 91 | M91 | Planned | `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md` | Add config-driven v2A scoring parameters while preserving current v1 and v2A defaults. |
 | 92 | M92 | Planned | `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md` | Connect generated v2A variants to the existing technical validation pipeline and emit CSV/JSON result artifacts. |
@@ -419,6 +419,27 @@ up, and documented; do not automatically begin later scope.
 - Mocks used: None.
 - Verification: Planning artifacts were inspected and updated only; no
   implementation, migrations, validation sweeps, or test suites were run.
+
+### M89 Completion Summary
+
+- Assumptions made: M89 should characterize the current v2A scoring,
+  validation profile, validation CSV, and progress contracts without adding the
+  parametric runner, CLI, Make target, configurable scoring params, or generated
+  experiment outputs; private validation CSV writer functions are acceptable
+  characterization seams for pinning the current artifact header contract;
+  `graph_aware_score_v1` remains canonical, `graph_aware_score_v2` remains
+  opt-in, and v2B remains out of scope for this harness sequence.
+- Mocks created: None.
+- Mocks used: Existing deterministic OHLCV fixtures in
+  `tests/unit/test_technical_signal_service.py`, temporary CSV output paths in
+  `tests/unit/test_technical_validation_contracts.py`, and in-memory progress
+  formatter payloads in `tests/unit/test_progress.py`.
+- Verification: `uv run pytest tests/unit/test_technical_signal_service.py
+  tests/unit/test_graph_backtesting.py tests/unit/test_progress.py
+  tests/unit/test_technical_validation_contracts.py` passed with 36 tests.
+  Approval-rule cleanup inspected `/Users/adnaan/.codex/rules/default.rules`
+  and found no Taurus-specific global approvals after the user's
+  `# END MY CUSTOM ADDITION` marker.
 
 ### M87 Completion Summary
 

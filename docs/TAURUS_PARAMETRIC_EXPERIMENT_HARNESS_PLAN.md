@@ -91,6 +91,73 @@ Every exposed parameter must have a default equal to the current v2A behavior.
 When no experiment params are supplied, v1 and current v2A tests must remain
 behavior-compatible.
 
+## Experiment Spec Shape Contract
+
+M89 pins the declarative spec shape that M90-M92 must implement. The first
+adapter is `technical_validation_v2a`, and specs must stay YAML-only with
+allowlisted override paths. They must not contain Python callback names, Python
+expressions, raw SQL, raw JSON-path metric extraction, or private helper names
+from the scoring implementation.
+
+Top-level shape:
+
+```yaml
+schema_version: 1
+experiment_id: v2a_smoke
+adapter: technical_validation_v2a
+description: Small smoke sweep for opt-in v2A technical scoring.
+base_request:
+  mode: standard
+  symbols: [INFY, TCS]
+  validation_years: 3
+  warmup_days: 252
+  rebalance_every_days: 21
+  portfolio_breadth: 5
+  max_open_positions: 5
+  cost_bps: "10"
+  slippage_bps: "5"
+baselines:
+  include_v1: true
+  include_current_v2a: true
+variants:
+  matrix:
+    family_weights.alpha: ["0.65"]
+    family_weights.risk: ["0.20"]
+    family_weights.tradability: ["0.15"]
+folds:
+  mode: single_window
+metrics:
+  - system.total_return
+  - system.max_drawdown
+  - rank.21d.rank_correlation
+execution:
+  jobs: 1
+  max_variants: 500
+output:
+  root: experiments/runs
+```
+
+Required stable sections:
+
+- `base_request` maps to the existing `ValidationRequest` domain: universe or
+  symbols, mode, validation/evaluation window, warmup, timeframe, initial
+  capital, portfolio breadth, max open positions, rebalance cadence, costs,
+  slippage, artifact/report roots, and explicit v2B exclusion for this sequence.
+- `baselines` controls automatic v1 and current-v2A comparison rows. The first
+  adapter must include both by default so variants have stable deltas.
+- `variants.matrix` is a Cartesian matrix of allowlisted override paths from the
+  Parameter Schema Contract above. Strict validation rejects unknown paths,
+  invalid values, and family-weight sums other than `1`.
+- `folds` starts with `single_window` in M90-M92. M93 adds walk-forward folds
+  without changing existing single-window specs.
+- `metrics` contains named metric IDs only. Initial namespaces are `system.*`
+  for full-system backtest/profile metrics and `rank.<horizon>d.*` for
+  technical-agent predictive checks.
+- `execution` owns runner controls such as `jobs` and `max_variants`. Defaults
+  are `jobs: 1` and `max_variants: 500`.
+- `output.root` defaults to `experiments/runs`, whose generated contents remain
+  ignored.
+
 ## Global Rules For M89-M95
 
 - Implement only the requested milestone. After that milestone is complete,

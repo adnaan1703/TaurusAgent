@@ -5,19 +5,22 @@ Last updated: 2026-06-24
 ## Current Status
 
 - Current milestone: None.
-- Last completed milestone: planning document creation for the M89-M95
-  parametric experiment harness sequence.
-- Planning completed: `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md`.
-- Implementation state: No implementation work has started. There is no
-  `experiments/parametric/` package, no `scripts/run_parametric_experiment.py`,
-  no `make parametric-experiment` target, and no checked-in experiment specs
-  yet.
-- Next recommended milestone: M89 Harness Contract And Baseline
+- Last completed milestone: M89 Harness Contract And Baseline
   Characterization.
+- Planning completed: `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md`.
+- Implementation state: M89 is complete. Current v2A scoring family weights,
+  top-contributor output, validation profile list, validation CSV headers, and
+  technical-validation progress behavior are pinned by characterization tests.
+  The plan now includes the stable YAML experiment spec shape that M90-M92 must
+  implement. There is still no `experiments/parametric/` package, no
+  `scripts/run_parametric_experiment.py`, no `make parametric-experiment`
+  target, and no checked-in experiment specs yet.
+- Next recommended milestone: M90 Generic Parametric Runner Core.
 - Canonical runtime state: `graph_aware_score_v1` remains the default
   `make paper-loop-kite` strategy; `graph_aware_score_v2` remains opt-in; v2B
   is out of scope for this sequence.
-- Commit policy from the user: do not commit anything unless explicitly asked.
+- Commit policy from the user: the active `$ms-exec-chain` invocation
+  authorizes one scoped commit per executed milestone.
 
 ## Required Reading For Every Worker Thread
 
@@ -34,6 +37,7 @@ Last updated: 2026-06-24
 - `scripts/validate_technical_v2.py`
 - `configs/strategies/graph_aware_score_v1.yaml`
 - `configs/strategies/graph_aware_score_v2.yaml`
+- `tests/unit/test_technical_validation_contracts.py`
 
 ## Worker Thread Instructions
 
@@ -58,7 +62,7 @@ Last updated: 2026-06-24
 The source of truth is the tracker table in `docs/MILESTONE.md`. The planned
 sequence is:
 
-- M89: harness contract and baseline characterization. Planned.
+- M89: harness contract and baseline characterization. Done.
 - M90: generic parametric runner core and smoke dry-run spec. Planned.
 - M91: config-driven v2A scoring parameters. Planned.
 - M92: technical validation adapter and result artifacts. Planned.
