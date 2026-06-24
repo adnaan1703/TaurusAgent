@@ -74,6 +74,8 @@ def format_rich_progress_snapshot(
         return _graph_snapshot(event, payload)
     if command in {"paper-loop", "paper-loop-kite"}:
         return _paper_loop_snapshot(command, event, payload)
+    if command == "validate-technical-v2":
+        return _technical_validation_snapshot(event, payload)
     return _generic_snapshot(command, event, payload)
 
 
@@ -507,6 +509,85 @@ def _paper_loop_snapshot(
     return None
 
 
+def _technical_validation_snapshot(
+    event: str,
+    payload: Mapping[str, object],
+) -> ProgressSnapshot | None:
+    if event in {
+        "technical_validation.setup_started",
+        "technical_validation.setup_completed",
+    }:
+        stage = _string(payload, "stage", "setup")
+        completed = 1 if event.endswith("completed") else 0
+        return ProgressSnapshot("validate-technical-v2", f"stage={stage}", completed, 1)
+    if event == "technical_validation.readiness_started":
+        total = _int(payload, "total", 0)
+        return ProgressSnapshot(
+            "validate-technical-v2",
+            f"stage=readiness symbols=0/{total}",
+            0,
+            total,
+        )
+    if event in {
+        "technical_validation.readiness_symbol_started",
+        "technical_validation.readiness_symbol_completed",
+    }:
+        current = _int(payload, "current", 0)
+        total = _int(payload, "total", 0)
+        symbol = _string(payload, "symbol", "-")
+        completed = current if event.endswith("completed") else max(current - 1, 0)
+        return ProgressSnapshot(
+            "validate-technical-v2",
+            f"stage=readiness symbol={symbol} symbols={current}/{total}",
+            completed,
+            total,
+        )
+    if event == "technical_validation.readiness_completed":
+        total = _int(payload, "total", 0)
+        status = _string(payload, "status", "-")
+        return ProgressSnapshot(
+            "validate-technical-v2",
+            f"stage=readiness status={status} symbols={total}/{total}",
+            total,
+            total,
+        )
+    if event == "technical_validation.backtests_started":
+        total = _int(payload, "total", 0)
+        return ProgressSnapshot(
+            "validate-technical-v2",
+            f"stage=backtest profiles=0/{total}",
+            0,
+            total,
+        )
+    if event in {
+        "technical_validation.backtest_profile_started",
+        "technical_validation.backtest_profile_completed",
+    }:
+        current = _int(payload, "current", 0)
+        total = _int(payload, "total", 0)
+        profile = _technical_validation_profile_label(
+            _string(payload, "profile_name", "-")
+        )
+        completed = current if event.endswith("completed") else max(current - 1, 0)
+        return ProgressSnapshot(
+            "validate-technical-v2",
+            f"stage=backtest profile={profile} profiles={current}/{total}",
+            completed,
+            total,
+        )
+    if event == "technical_validation.reports_started":
+        return ProgressSnapshot("validate-technical-v2", "stage=reports", 0, 1)
+    if event == "technical_validation.completed":
+        status = _string(payload, "status", "-")
+        return ProgressSnapshot(
+            "validate-technical-v2",
+            f"stage=complete status={status}",
+            1,
+            1,
+        )
+    return None
+
+
 def _generic_snapshot(
     command: str,
     event: str,
@@ -583,3 +664,15 @@ def _profile_details(payload: Mapping[str, object]) -> str:
     if starting_corpus:
         return f" profile={profile_id} corpus_inr={starting_corpus}"
     return f" profile={profile_id}"
+
+
+def _technical_validation_profile_label(profile_name: str) -> str:
+    labels = {
+        "graph_aware_score_v1": "v1",
+        "graph_aware_score_v1_technical_only": "v1-tech",
+        "graph_aware_score_v2": "v2A",
+        "graph_aware_score_v2_technical_only": "v2A-tech",
+        "graph_aware_score_v2b": "v2B",
+        "graph_aware_score_v2b_technical_only": "v2B-tech",
+    }
+    return labels.get(profile_name, profile_name)

@@ -331,7 +331,12 @@ def test_technical_validation_runs_comparable_profiles_with_shared_window(
         warmup_days=30,
         evaluation_days=3,
     )
-    outcome = run_validation(settings=settings, request=request)
+    progress_events: list[tuple[str, dict[str, object]]] = []
+    outcome = run_validation(
+        settings=settings,
+        request=request,
+        progress=lambda event, payload: progress_events.append((event, dict(payload))),
+    )
 
     assert outcome.status == "complete"
     manifest = json.loads(
@@ -355,6 +360,24 @@ def test_technical_validation_runs_comparable_profiles_with_shared_window(
     assert {run["start_date"] for run in profile_runs} == {"2024-02-09"}
     assert {run["end_date"] for run in profile_runs} == {"2024-02-11"}
     assert (outcome.artifact_dir / "profile_comparison_matrix.csv").exists()
+    event_names = [event for event, _payload in progress_events]
+    assert "technical_validation.readiness_symbol_completed" in event_names
+    assert "technical_validation.backtest_profile_completed" in event_names
+    assert progress_events[-1] == (
+        "technical_validation.completed",
+        {"status": "complete"},
+    )
+    completed_profiles = [
+        payload["profile_name"]
+        for event, payload in progress_events
+        if event == "technical_validation.backtest_profile_completed"
+    ]
+    assert completed_profiles == [
+        "graph_aware_score_v1",
+        "graph_aware_score_v1_technical_only",
+        "graph_aware_score_v2",
+        "graph_aware_score_v2_technical_only",
+    ]
 
 
 def test_technical_validation_writes_reports_and_conservative_gate(

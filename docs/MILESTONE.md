@@ -239,6 +239,11 @@ removed during docs cleanup. Use Git history for detailed historical plans.
   candles versus 1009 required, so v2A/v2B remain opt-in, `graph_aware_score_v1`
   remains the canonical Kite paper-loop strategy, and the M74-M86 sequence is
   closed with no successor milestone implied.
+- M87 technical validation progress UI is complete: `make validate-technical-v2`
+  now uses the shared Rich/plain stderr progress reporter, showing compact setup,
+  readiness, backtest, reports, and completion stages with current readiness
+  symbol and short profile labels while keeping coverage/window details in the
+  final summary and artifacts.
 
 ## Standing Safety Rules
 
@@ -324,6 +329,7 @@ removed during docs cleanup. Use Git history for detailed historical plans.
 | M84 | Done | Added official security-wise delivery, circuit/price-band, and tradability ingestion contracts, CSV import/readiness commands, as-of repository access, impact-cost proxy labeling, and focused no-lookahead coverage for future v2B use without wiring official microstructure into v2A scoring. |
 | M85 | Done | Added the opt-in `technical_official_v2b` scoring profile, official as-of context builder, `graph_aware_score_v2b` config, analyst/strategy/backtest/paper-loop wiring, money-management mapping, focused official-data regressions, and docs while preserving v1/v2A defaults; v2B validation now requires `TECHNICAL_VALIDATION_INCLUDE_V2B=true` until official-data readiness exists. |
 | M86 | Done | Ran the promotion validation gate, deferred promotion because local common candle coverage was insufficient for comparable v1/v2A evidence, kept v2A/v2B opt-in, refreshed operator docs, and closed the M74-M86 sequence. |
+| M87 | Done | Added compact Rich/plain terminal progress to `make validate-technical-v2` with readiness symbol detail, short profile labels, report/completion stages, opt-out compatibility, focused tests, and operator docs. |
 
 ## Completed Graph Explorer Sequence
 
@@ -357,6 +363,37 @@ up, and documented; do not automatically begin later scope.
 | 84 | M84 | Done | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Ingest official delivery, circuit, and tradability data for v2B. |
 | 85 | M85 | Done | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Add the opt-in official-data `technical_official_v2b` profile and v2B validation. |
 | 86 | M86 | Done | `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md` | Made the evidence-backed keep-opt-in decision and closed the sequence. |
+
+## Completed Technical Validation Operations Milestone
+
+This small milestone extended the existing validation command without reopening
+the completed M74-M86 scoring and promotion sequence.
+
+| Order | Milestone | Status | Plan | Purpose |
+|---:|---|---|---|---|
+| 87 | M87 | Done | `docs/MILESTONE.md` | Add compact terminal progress to `make validate-technical-v2`. |
+
+### M87 Completion Summary
+
+- Assumptions made: Technical validation progress should reuse the existing
+  `TAURUS_PROGRESS` Rich/plain/disabled reporter; the live line should show
+  stage, current readiness symbol, short profile labels, counts, percent,
+  elapsed time, and ETA; common-candle coverage and selected validation windows
+  should stay in the final command summary and generated artifacts; validation
+  status, artifacts, promotion decisions, and canonical v1/v2A/v2B behavior
+  should remain unchanged.
+- Mocks created: None.
+- Mocks used: Existing deterministic technical validation fixtures in
+  `tests/unit/test_graph_backtesting.py` and in-memory progress streams in
+  `tests/unit/test_progress.py`.
+- Verification: `uv run pytest tests/unit/test_progress.py
+  tests/unit/test_graph_backtesting.py` passed with 21 tests. The full
+  `TAURUS_PROGRESS=plain make validate-technical-v2` smoke and a smaller
+  `TAURUS_PROGRESS=plain TECHNICAL_VALIDATION_SYMBOLS=INFY,TCS make validate-technical-v2`
+  smoke both displayed compact readiness/backtest progress, then failed in the
+  existing v2A backtest feature insert path with
+  `psycopg.errors.NumericValueOutOfRange` for `feature_values.feature_value`; no
+  M87 progress-display failure was observed.
 
 ## Completed Technical Signal Service Sequence
 

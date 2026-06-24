@@ -22,6 +22,8 @@ redraws one terminal line instead of printing a line for every progress event:
   cumulative node/edge/evidence upserts, percent, elapsed time, and ETA.
 - `make compute-graph-stats`: source and target symbols, stats window,
   percent, elapsed time, and ETA.
+- `make validate-technical-v2`: validation stage, current readiness symbol,
+  compact backtest profile label, percent, elapsed time, and ETA.
 - `make paper-loop-kite`: iteration, run ID, setup stage, analyzed symbols,
   current symbol pipeline stage, succeeded/failed counts, elapsed time, and
   approximate ETA.

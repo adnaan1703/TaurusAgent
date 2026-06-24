@@ -49,6 +49,11 @@ from taurus_core.features.technical_signal import (
     OHLCV_V2_PROFILE,
     TechnicalSignalService,
 )
+from taurus_core.ops.progress import (
+    ProgressEventCallback,
+    create_progress_reporter,
+    emit_progress,
+)
 from taurus_core.portfolio.score_semantics import calibrate_strategy_score
 from taurus_core.strategies import load_strategy_config
 
@@ -166,14 +171,17 @@ def run_validation(
     *,
     settings: Settings,
     request: ValidationRequest,
+    progress: ProgressEventCallback | None = None,
 ) -> ValidationOutcome:
     if not request.symbols:
         raise ValueError("Validation requires at least one symbol.")
 
+    emit_progress(progress, "technical_validation.setup_started", stage="migrations")
     run_migrations(settings)
+    emit_progress(progress, "technical_validation.setup_completed", stage="migrations")
     session_factory = build_session_factory(settings)
     with session_factory() as session:
-        readiness = build_data_readiness(session, request)
+        readiness = build_data_readiness(session, request, progress=progress)
 
     profiles = validation_profiles(include_v2b=request.include_v2b)
     run_id = _stable_validation_run_id(
@@ -187,7 +195,19 @@ def run_validation(
 
     profile_runs: list[dict[str, object]] = []
     if readiness.sufficient:
-        for profile in profiles:
+        emit_progress(
+            progress,
+            "technical_validation.backtests_started",
+            total=len(profiles),
+        )
+        for index, profile in enumerate(profiles, start=1):
+            emit_progress(
+                progress,
+                "technical_validation.backtest_profile_started",
+                current=index,
+                total=len(profiles),
+                profile_name=profile.profile_name,
+            )
             config = _backtest_config(
                 request=request,
                 readiness=readiness,
@@ -203,11 +223,19 @@ def run_validation(
                     artifact_counts=counts,
                 )
             )
+            emit_progress(
+                progress,
+                "technical_validation.backtest_profile_completed",
+                current=index,
+                total=len(profiles),
+                profile_name=profile.profile_name,
+            )
         _write_json(artifact_dir / "profile_runs.json", profile_runs)
         status = "complete"
     else:
         status = "insufficient_data"
 
+    emit_progress(progress, "technical_validation.reports_started", status=status)
     with session_factory() as session:
         technical_report = _technical_agent_predictive_report(
             session=session,
@@ -282,6 +310,7 @@ def run_validation(
         promotion_gate=promotion_gate,
     )
     _write_json(artifact_dir / "validation_manifest.json", manifest)
+    emit_progress(progress, "technical_validation.completed", status=status)
     return ValidationOutcome(
         run_id=run_id,
         artifact_dir=artifact_dir,
@@ -295,13 +324,27 @@ def run_validation(
 def build_data_readiness(
     session: Session,
     request: ValidationRequest,
+    *,
+    progress: ProgressEventCallback | None = None,
 ) -> DataReadiness:
     instrument_repo = InstrumentRepository(session)
     candle_repo = CandleRepository(session)
     date_sets: list[set[date]] = []
     coverage_rows: list[dict[str, object]] = []
 
-    for symbol in request.symbols:
+    emit_progress(
+        progress,
+        "technical_validation.readiness_started",
+        total=len(request.symbols),
+    )
+    for index, symbol in enumerate(request.symbols, start=1):
+        emit_progress(
+            progress,
+            "technical_validation.readiness_symbol_started",
+            symbol=symbol,
+            current=index,
+            total=len(request.symbols),
+        )
         instrument = instrument_repo.get(symbol)
         active_instrument = bool(instrument is not None and instrument.active)
         candles = candle_repo.get_by_symbol_and_date_range(
@@ -325,6 +368,13 @@ def build_data_readiness(
                     request.required_candle_count - len(candle_dates),
                 ),
             }
+        )
+        emit_progress(
+            progress,
+            "technical_validation.readiness_symbol_completed",
+            symbol=symbol,
+            current=index,
+            total=len(request.symbols),
         )
 
     common_dates: tuple[date, ...] = ()
@@ -384,6 +434,14 @@ def build_data_readiness(
         if status == "sufficient"
         else _insufficient_data_actions(request, common_missing_count),
     }
+    emit_progress(
+        progress,
+        "technical_validation.readiness_completed",
+        status=status,
+        total=len(request.symbols),
+        common_candle_count=len(common_dates),
+        required_common_candle_count=request.required_candle_count,
+    )
     return DataReadiness(
         status=status,
         common_dates=common_dates,
@@ -2599,7 +2657,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv)
     settings = get_settings()
     request = request_from_args(args, settings=settings)
-    outcome = run_validation(settings=settings, request=request)
+    with create_progress_reporter("validate-technical-v2") as progress:
+        outcome = run_validation(settings=settings, request=request, progress=progress)
     _print_outcome(outcome)
     if outcome.status != "complete" and request.strict_insufficient_data:
         return 2

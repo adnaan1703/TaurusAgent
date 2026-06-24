@@ -69,6 +69,75 @@ def test_plain_and_rich_progress_formatting_include_counts_and_eta() -> None:
     assert "eta=10s" in line
 
 
+def test_technical_validation_progress_line_includes_symbol_without_coverage() -> None:
+    line = format_plain_progress_line(
+        "validate-technical-v2",
+        "technical_validation.readiness_symbol_completed",
+        {
+            "symbol": "INFY",
+            "current": 12,
+            "total": 50,
+            "common_candle_count": 282,
+            "required_common_candle_count": 1009,
+            "selected_scoring_start_date": "2023-01-01",
+            "selected_evaluation_end_date": "2026-01-01",
+        },
+        elapsed_seconds=24,
+        eta_seconds=76,
+    )
+
+    assert line is not None
+    assert "validate-technical-v2" in line
+    assert "stage=readiness" in line
+    assert "symbol=INFY" in line
+    assert "symbols=12/50" in line
+    assert "progress=12/50" in line
+    assert "percent=24.0" in line
+    assert "eta=1m16s" in line
+    assert "common_candle_count" not in line
+    assert "1009" not in line
+    assert "2023-01-01" not in line
+    assert "2026-01-01" not in line
+
+
+def test_technical_validation_profile_progress_uses_short_labels() -> None:
+    line = format_plain_progress_line(
+        "validate-technical-v2",
+        "technical_validation.backtest_profile_completed",
+        {
+            "profile_name": "graph_aware_score_v2_technical_only",
+            "current": 4,
+            "total": 4,
+        },
+        elapsed_seconds=40,
+        eta_seconds=0,
+    )
+
+    assert line is not None
+    assert "stage=backtest" in line
+    assert "profile=v2A-tech" in line
+    assert "profiles=4/4" in line
+    assert "progress=4/4" in line
+    assert "eta=0.0s" in line
+    assert "graph_aware_score_v2_technical_only" not in line
+
+
+def test_technical_validation_progress_opt_out_suppresses_terminal_output() -> None:
+    stream = io.StringIO()
+
+    with create_progress_reporter(
+        "validate-technical-v2",
+        env={"TAURUS_PROGRESS": "false"},
+        stream=stream,
+    ) as progress:
+        progress(
+            "technical_validation.readiness_symbol_completed",
+            {"symbol": "INFY", "current": 1, "total": 2},
+        )
+
+    assert stream.getvalue() == ""
+
+
 def test_auto_progress_uses_plain_stderr_for_non_tty_stream() -> None:
     stream = io.StringIO()
 
