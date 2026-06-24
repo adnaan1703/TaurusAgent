@@ -5,9 +5,10 @@ Last updated: 2026-06-24
 ## Current Status
 
 - Current milestone: None.
-- Last completed milestone: M94 Checked-In v2A Specs And Operator Docs.
+- Last completed milestone: M95 Final Regression, Cleanup, And Fresh-Context
+  Closeout.
 - Planning completed: `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md`.
-- Implementation state: M89 through M94 are complete. Current v2A scoring
+- Implementation state: M89 through M95 are complete. Current v2A scoring
   family weights, top-contributor output, validation profile list, validation
   CSV headers, and technical-validation progress behavior are pinned by
   characterization tests. M90 added the side-effect-free
@@ -44,9 +45,15 @@ Last updated: 2026-06-24
   smoke, bounded risk-calibration, and full-feature v2A specs under
   `experiments/specs/`, refreshed command docs for dry-run/non-dry-run
   operator workflow, and verified all three checked-in specs with dry-run
-  expansion.
-- Next recommended milestone: M95 Final Regression, Cleanup, And Fresh-Context
-  Closeout.
+  expansion. M95 ran focused backend regression, smoke dry-run,
+  risk-calibration dry-run, and a tiny smoke non-dry-run execution under
+  `/tmp/taurus-parametric-smoke`; confirmed generated `experiments/runs/`
+  outputs are ignored and no run artifacts were staged; inspected the global
+  Codex rules cleanup marker with no Taurus-specific approvals to move; and
+  closed the M89-M95 sequence.
+- Next recommended milestone: None. The M89-M95 parametric harness sequence is
+  closed; do not start follow-up planning or implementation unless the user
+  explicitly asks.
 - Canonical runtime state: `graph_aware_score_v1` remains the default
   `make paper-loop-kite` strategy; `graph_aware_score_v2` remains opt-in; v2B
   is out of scope for this sequence.
@@ -99,7 +106,7 @@ sequence is:
 - M92: technical validation adapter and result artifacts. Done.
 - M93: walk-forward folds, progress, and bounded parallelism. Done.
 - M94: risk-calibration/full-feature v2A specs and operator docs. Done.
-- M95: final regression, cleanup, and fresh-context closeout. Planned.
+- M95: final regression, cleanup, and fresh-context closeout. Done.
 
 ## Update Rules
 
@@ -132,3 +139,6 @@ sequence is:
   single_window` remains the smoke/debug mode.
 - No ML-ready feature/label dataset export belongs in this sequence; preserve
   provenance for a later ML-specific plan.
+- The first recommended real operator action remains a dry-run of
+  `experiments/specs/v2a_risk_calibration.yaml`; non-dry-run full-feature
+  sweeps remain deliberate overnight work after dry-run inspection.

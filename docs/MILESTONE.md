@@ -285,6 +285,12 @@ removed during docs cleanup. Use Git history for detailed historical plans.
   deliberate 512-variant three-fold overnight template with an explicit cap,
   and command/handoff docs describe dry-run guidance, progress controls, and
   output locations.
+- M95 final regression and fresh-context closeout is complete: focused backend
+  regression, smoke dry-run, risk-calibration dry-run, and a tiny smoke
+  non-dry-run execution passed; generated `experiments/runs/` outputs remain
+  ignored; no run artifacts were staged; no Taurus-specific global approval
+  cleanup was needed; and the M89-M95 sequence is closed with
+  `graph_aware_score_v1` canonical and v2A opt-in.
 
 ## Standing Safety Rules
 
@@ -373,6 +379,7 @@ removed during docs cleanup. Use Git history for detailed historical plans.
 | M87 | Done | Added compact Rich/plain terminal progress to `make validate-technical-v2` with readiness symbol detail, short profile labels, report/completion stages, opt-out compatibility, focused tests, and operator docs. |
 | M88 | Done | Widened persisted technical feature values to handle v2 OHLCV traded-value metrics above the old `NUMERIC(18, 8)` ceiling, added an idempotent Postgres migration, and covered the original backtest insert path with focused regressions. |
 | M89-M95 plan document | Done | Created the parametric experiment harness plan and handoff for adapter-first v2A technical-profile sweeps; implementation remains planned and no harness code was added in the planning task. |
+| M95 | Done | Ran final focused regression, smoke dry-run, risk-calibration dry-run, and tiny smoke non-dry-run execution for the parametric harness; refreshed the plan, handoff, command docs, and tracker; confirmed generated run outputs are ignored and no approval cleanup was needed; and closed M89-M95 with v1 canonical and v2A opt-in. |
 
 ## Completed Graph Explorer Sequence
 
@@ -417,11 +424,11 @@ the completed M74-M86 scoring and promotion sequence.
 | 87 | M87 | Done | `docs/MILESTONE.md` | Add compact terminal progress to `make validate-technical-v2`. |
 | 88 | M88 | Done | `docs/MILESTONE.md` | Widen `feature_values.feature_value` for v2 traded-value metrics. |
 
-## Planned Parametric Experiment Harness Sequence
+## Completed Parametric Experiment Harness Sequence
 
-This planned sequence must be executed one milestone at a time in separate
-fresh-context work. Stop after each milestone is complete, verified, cleaned
-up, and documented; do not automatically begin later scope.
+This completed sequence was executed one milestone at a time in separate
+fresh-context work. It is closed; do not start follow-up planning or
+implementation unless the user explicitly asks.
 
 | Order | Milestone | Status | Plan | Purpose |
 |---:|---|---|---|---|
@@ -431,7 +438,7 @@ up, and documented; do not automatically begin later scope.
 | 92 | M92 | Done | `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md` | Connected generated v2A variants to the existing technical validation pipeline and emitted CSV/JSON result artifacts. |
 | 93 | M93 | Done | `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md` | Added walk-forward folds, fold x variant progress, and bounded parallel execution. |
 | 94 | M94 | Done | `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md` | Added risk-calibration and full-feature v2A specs, refined smoke coverage, and updated operator command docs. |
-| 95 | M95 | Planned | `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md` | Run final regression, refresh docs and handoff, and close the harness sequence. |
+| 95 | M95 | Done | `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md` | Ran final regression, refreshed docs and handoff, and closed the harness sequence. |
 
 ### M89-M95 Plan Document Completion Summary
 
@@ -587,6 +594,36 @@ up, and documented; do not automatically begin later scope.
   512 variants, 3 folds, and 1536 total work units. Approval-rule cleanup
   inspected `/Users/adnaan/.codex/rules/default.rules` and found no entries
   after the user's `# END MY CUSTOM ADDITION` marker.
+
+### M95 Completion Summary
+
+- Assumptions made: M95 should remain a regression, documentation, and cleanup
+  closeout with no new harness features; the tiny smoke non-dry-run should
+  write to `/tmp/taurus-parametric-smoke` rather than the repo default output
+  root; `experiments/runs/` should remain ignored for future default runs; the
+  first recommended real operator action should remain a dry-run of
+  `experiments/specs/v2a_risk_calibration.yaml`; `graph_aware_score_v1`
+  remains canonical and v2A remains opt-in.
+- Mocks created: None.
+- Mocks used: Existing deterministic unit-test fixtures and monkeypatched
+  validation adapters in the focused regression suite; no new mocks were added.
+- Verification: `uv run pytest tests/unit/test_parametric_experiments.py
+  tests/unit/test_technical_signal_service.py tests/unit/test_strategy_ranking.py
+  tests/unit/test_graph_backtesting.py tests/unit/test_progress.py` passed with
+  66 tests. `PARAMETRIC_DRY_RUN=true make parametric-experiment
+  EXPERIMENT_SPEC=experiments/specs/v2a_smoke.yaml` passed with 2 variants, 1
+  fold, and 2 total work units. `PARAMETRIC_DRY_RUN=true make
+  parametric-experiment
+  EXPERIMENT_SPEC=experiments/specs/v2a_risk_calibration.yaml` passed with 256
+  variants, 3 folds, and 768 total work units. `PARAMETRIC_DRY_RUN=false make
+  parametric-experiment EXPERIMENT_SPEC=experiments/specs/v2a_smoke.yaml
+  PARAMETRIC_OUTPUT_ROOT=/tmp/taurus-parametric-smoke` passed with run
+  `v2a_smoke-311cd3714064`, status `complete`, 2 variants, and 2 total work
+  units. `git check-ignore -v experiments/runs experiments/runs/example`
+  confirmed `experiments/runs/` is ignored by `.gitignore`, and tracked status
+  showed no generated run artifacts staged. Approval-rule cleanup inspected
+  `/Users/adnaan/.codex/rules/default.rules` and found no entries after the
+  user's `# END MY CUSTOM ADDITION` marker.
 
 ### M87 Completion Summary
 

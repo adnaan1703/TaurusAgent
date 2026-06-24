@@ -8,11 +8,10 @@ below is a standalone milestone intended to be executed in a separate Codex
 thread. Stop after completing and documenting the current milestone; do not
 automatically continue to the next milestone.
 
-Status: M94 implementation is complete; M95 remains planned. The sequence
-below uses flat milestone IDs M89-M95 and keeps `graph_aware_score_v1`
-canonical. The harness is for offline paper/backtest experimentation only; it
-must not promote v2A, change `make paper-loop-kite` defaults, or affect live
-broker routing.
+Status: M89-M95 implementation is complete. The sequence below used flat
+milestone IDs M89-M95 and keeps `graph_aware_score_v1` canonical. The harness
+is for offline paper/backtest experimentation only; it did not promote v2A,
+change `make paper-loop-kite` defaults, or affect live broker routing.
 
 ## Target Behavior
 
@@ -575,3 +574,26 @@ Completion summary requirements:
 - Assumptions made
 - Mocks created
 - Mocks used
+
+M95 closeout:
+
+- Focused backend regression passed across the parametric runner, v2A
+  parameterized scoring, strategy ranking, validation adapter, graph
+  backtesting, and progress formatting.
+- Smoke dry-run passed with 2 variants, 1 `single_window` fold, and 2 total
+  work units.
+- Risk-calibration dry-run passed with 256 variants, 3 `v2a_yearly` folds, and
+  768 total work units.
+- Tiny smoke non-dry-run execution passed with run
+  `v2a_smoke-311cd3714064`, status `complete`, 2 variants, and 2 total work
+  units under `/tmp/taurus-parametric-smoke`.
+- Generated `experiments/runs/` outputs remain ignored by `.gitignore`; the
+  M95 non-dry-run smoke wrote outside the repository and no generated run
+  artifacts were staged.
+- `/Users/adnaan/.codex/rules/default.rules` contains no entries after the
+  user's `# END MY CUSTOM ADDITION` marker, so no Taurus-specific global
+  approval cleanup was needed.
+- The M89-M95 sequence is closed. `graph_aware_score_v1` remains canonical,
+  `graph_aware_score_v2` remains opt-in, v2B remains out of this harness
+  sequence, and the first recommended real operator action remains a dry-run
+  of `experiments/specs/v2a_risk_calibration.yaml`.

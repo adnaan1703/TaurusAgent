@@ -416,6 +416,14 @@ Runtime strategy configs pass those overrides under
 `technical_profile: technical_ohlcv_v2` is selected. Empty/default params keep
 current v2A scores unchanged, and v1 remains canonical.
 
+The M89-M95 parametric harness sequence is closed. Final closeout verified the
+focused backend regression suite, smoke dry-run, risk-calibration dry-run, and
+a tiny smoke non-dry-run execution under `/tmp/taurus-parametric-smoke`. The
+first recommended real operator action remains a dry-run of
+`experiments/specs/v2a_risk_calibration.yaml`; the full-feature spec remains a
+deliberate overnight template after dry-run inspection. The harness does not
+promote v2A, enable v2B, or change canonical paper-loop defaults.
+
 Paper workflow:
 
 ```bash
