@@ -8,6 +8,31 @@ from taurus_core.db.repositories import GraphRepository
 from taurus_core.db.session import build_session_factory, create_engine_from_url
 
 
+def test_migration_widens_feature_values_feature_value_column(
+    postgres_test_settings: Settings,
+) -> None:
+    settings = postgres_test_settings
+    engine = create_engine_from_url(settings.database_url)
+
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "ALTER TABLE feature_values "
+                "ALTER COLUMN feature_value TYPE NUMERIC(18, 8)"
+            )
+        )
+
+    run_migrations(settings)
+
+    inspector = inspect(engine)
+    columns = {
+        column["name"]: column for column in inspector.get_columns("feature_values")
+    }
+    feature_value_type = columns["feature_value"]["type"]
+    assert feature_value_type.precision == 24
+    assert feature_value_type.scale == 8
+
+
 def test_migration_widens_agent_model_version_columns(
     postgres_test_settings: Settings,
 ) -> None:

@@ -33,6 +33,10 @@ current operator detail in the usage and command docs.
   indicator, scoring, validation, official-data, and promotion sequence.
 - `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_HANDOFF.md`: current handoff for the
   planned M74-M86 technical layer overhaul sequence.
+- `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md`: planned M89-M95
+  parametric experiment harness for opt-in v2A technical-profile sweeps.
+- `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_HANDOFF.md`: current handoff for
+  the planned M89-M95 parametric experiment harness sequence.
 - `docs/TAURUS_V2B_DATA_INGESTION_HANDOFF.md`: current v2B data-readiness
   handoff covering completed v2B work, pending official-data inputs, source
   candidates, import commands, readiness checks, and future ingestion work.
@@ -244,6 +248,13 @@ removed during docs cleanup. Use Git history for detailed historical plans.
   readiness, backtest, reports, and completion stages with current readiness
   symbol and short profile labels while keeping coverage/window details in the
   final summary and artifacts.
+- M88 technical feature-value widening is complete: persisted v2 OHLCV
+  traded-value metrics no longer overflow the old `NUMERIC(18, 8)` envelope.
+- M89-M95 parametric experiment harness planning is complete: the new
+  adapter-first harness sequence is planned in
+  `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md`, with a fresh-context
+  handoff in `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_HANDOFF.md`.
+  Implementation has not started.
 
 ## Standing Safety Rules
 
@@ -330,6 +341,8 @@ removed during docs cleanup. Use Git history for detailed historical plans.
 | M85 | Done | Added the opt-in `technical_official_v2b` scoring profile, official as-of context builder, `graph_aware_score_v2b` config, analyst/strategy/backtest/paper-loop wiring, money-management mapping, focused official-data regressions, and docs while preserving v1/v2A defaults; v2B validation now requires `TECHNICAL_VALIDATION_INCLUDE_V2B=true` until official-data readiness exists. |
 | M86 | Done | Ran the promotion validation gate, deferred promotion because local common candle coverage was insufficient for comparable v1/v2A evidence, kept v2A/v2B opt-in, refreshed operator docs, and closed the M74-M86 sequence. |
 | M87 | Done | Added compact Rich/plain terminal progress to `make validate-technical-v2` with readiness symbol detail, short profile labels, report/completion stages, opt-out compatibility, focused tests, and operator docs. |
+| M88 | Done | Widened persisted technical feature values to handle v2 OHLCV traded-value metrics above the old `NUMERIC(18, 8)` ceiling, added an idempotent Postgres migration, and covered the original backtest insert path with focused regressions. |
+| M89-M95 plan document | Done | Created the parametric experiment harness plan and handoff for adapter-first v2A technical-profile sweeps; implementation remains planned and no harness code was added in the planning task. |
 
 ## Completed Graph Explorer Sequence
 
@@ -372,6 +385,40 @@ the completed M74-M86 scoring and promotion sequence.
 | Order | Milestone | Status | Plan | Purpose |
 |---:|---|---|---|---|
 | 87 | M87 | Done | `docs/MILESTONE.md` | Add compact terminal progress to `make validate-technical-v2`. |
+| 88 | M88 | Done | `docs/MILESTONE.md` | Widen `feature_values.feature_value` for v2 traded-value metrics. |
+
+## Planned Parametric Experiment Harness Sequence
+
+This planned sequence must be executed one milestone at a time in separate
+fresh-context work. Stop after each milestone is complete, verified, cleaned
+up, and documented; do not automatically begin later scope.
+
+| Order | Milestone | Status | Plan | Purpose |
+|---:|---|---|---|---|
+| 89 | M89 | Planned | `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md` | Pin current validation, v2A scoring, metrics, and progress contracts before adding the harness. |
+| 90 | M90 | Planned | `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md` | Add the generic YAML matrix runner core, dry-run expansion, CLI, Make wrapper, smoke spec, and ignored run-output location. |
+| 91 | M91 | Planned | `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md` | Add config-driven v2A scoring parameters while preserving current v1 and v2A defaults. |
+| 92 | M92 | Planned | `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md` | Connect generated v2A variants to the existing technical validation pipeline and emit CSV/JSON result artifacts. |
+| 93 | M93 | Planned | `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md` | Add walk-forward folds, fold x variant progress, and bounded parallel execution. |
+| 94 | M94 | Planned | `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md` | Add risk-calibration and full-feature v2A specs, refine smoke coverage, and update operator command docs. |
+| 95 | M95 | Planned | `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md` | Run final regression, refresh docs and handoff, and close the harness sequence. |
+
+### M89-M95 Plan Document Completion Summary
+
+- Assumptions made: The first experiment harness should be adapter-first rather
+  than an arbitrary callback runner; specs should be YAML matrices with
+  declarative allowlisted overrides; the first adapter should reuse the
+  existing technical validation stack; v1 and current v2A baselines should be
+  included automatically; generated outputs should default to
+  `experiments/runs/`; all v2A feature transforms should become tunable through
+  a strict domain schema; walk-forward evaluation should default to three
+  yearly chunks; progress should use the existing Taurus Rich/plain reporter
+  with fold x variant as the main unit; no ML dataset export or v2B scope
+  belongs in this plan.
+- Mocks created: None.
+- Mocks used: None.
+- Verification: Planning artifacts were inspected and updated only; no
+  implementation, migrations, validation sweeps, or test suites were run.
 
 ### M87 Completion Summary
 
@@ -394,6 +441,23 @@ the completed M74-M86 scoring and promotion sequence.
   existing v2A backtest feature insert path with
   `psycopg.errors.NumericValueOutOfRange` for `feature_values.feature_value`; no
   M87 progress-display failure was observed.
+
+### M88 Completion Summary
+
+- Assumptions made: `feature_values.feature_value` is a heterogeneous feature
+  store, not a bounded score-only column; raw v2 OHLCV traded-value metrics in
+  INR can legitimately exceed `10^10`; preserving 8 decimal places while
+  widening the integer envelope is safer than clipping or rescaling feature
+  values.
+- Mocks created: None.
+- Mocks used: Existing Postgres-backed migration fixtures and deterministic
+  in-test OHLCV candles for a large traded-value backtest regression.
+- Verification: `uv run pytest tests/unit/test_migrations.py
+  tests/unit/test_backtest_engine.py -q` passed. The exact standard
+  `scripts/validate_technical_v2.py` command that previously failed completed
+  as `techval-c599015be39b87b9` with `status=complete`,
+  `promotion_decision=keep_opt_in`, and four completed backtest profiles.
+  `make test` passed with 441 tests and 1 skipped test.
 
 ## Completed Technical Signal Service Sequence
 

@@ -28,6 +28,7 @@ def run_migrations(settings: Settings | None = None) -> None:
     _seed_default_profile(engine)
     _add_missing_backtest_signal_columns(engine)
     _add_missing_daily_candle_columns(engine)
+    _widen_feature_value_column(engine)
     _widen_graph_edge_columns(engine)
     _add_missing_m28_position_lifecycle_columns(engine)
     _add_missing_m52_profile_lineage_columns(engine)
@@ -160,6 +161,38 @@ def _widen_graph_edge_columns(engine: Engine) -> None:
     with engine.begin() as connection:
         connection.execute(
             text("ALTER TABLE graph_edges ALTER COLUMN tradability_relevance TYPE TEXT")
+        )
+
+
+def _widen_feature_value_column(engine: Engine) -> None:
+    if engine.dialect.name != "postgresql":
+        return
+
+    inspector = inspect(engine)
+    if "feature_values" not in inspector.get_table_names():
+        return
+
+    columns = {
+        column["name"]: column for column in inspector.get_columns("feature_values")
+    }
+    feature_value = columns.get("feature_value")
+    if feature_value is None:
+        return
+
+    column_type = feature_value["type"]
+    precision = getattr(column_type, "precision", None)
+    scale = getattr(column_type, "scale", None)
+    if precision is None:
+        return
+    if precision >= 24 and (scale is None or scale >= 8):
+        return
+
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "ALTER TABLE feature_values "
+                "ALTER COLUMN feature_value TYPE NUMERIC(24, 8)"
+            )
         )
 
 

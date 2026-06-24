@@ -394,7 +394,7 @@ class FeatureValueModel(Base):
     snapshot_id: Mapped[str] = mapped_column(String(128), nullable=False)
     symbol: Mapped[str] = mapped_column(String(32), nullable=False)
     feature_name: Mapped[str] = mapped_column(String(128), nullable=False)
-    feature_value: Mapped[Decimal] = mapped_column(Numeric(18, 8), nullable=False)
+    feature_value: Mapped[Decimal] = mapped_column(Numeric(24, 8), nullable=False)
     feature_time: Mapped[date] = mapped_column(Date, nullable=False)
     data_available_time: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False

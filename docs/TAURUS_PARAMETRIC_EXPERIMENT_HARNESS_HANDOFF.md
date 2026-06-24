@@ -1,0 +1,94 @@
+# Parametric Experiment Harness Handoff
+
+Last updated: 2026-06-24
+
+## Current Status
+
+- Current milestone: None.
+- Last completed milestone: planning document creation for the M89-M95
+  parametric experiment harness sequence.
+- Planning completed: `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md`.
+- Implementation state: No implementation work has started. There is no
+  `experiments/parametric/` package, no `scripts/run_parametric_experiment.py`,
+  no `make parametric-experiment` target, and no checked-in experiment specs
+  yet.
+- Next recommended milestone: M89 Harness Contract And Baseline
+  Characterization.
+- Canonical runtime state: `graph_aware_score_v1` remains the default
+  `make paper-loop-kite` strategy; `graph_aware_score_v2` remains opt-in; v2B
+  is out of scope for this sequence.
+- Commit policy from the user: do not commit anything unless explicitly asked.
+
+## Required Reading For Every Worker Thread
+
+- `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md`
+- `docs/MILESTONE.md`
+- `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_PLAN.md`
+- `docs/TAURUS_TECHNICAL_LAYER_OVERHAUL_HANDOFF.md`
+- `docs/TAURUS_COMMANDS.md`
+- `packages/taurus_core/features/technical_signal.py`
+- `packages/taurus_core/strategies/graph_aware.py`
+- `packages/taurus_core/portfolio/score_semantics.py`
+- `packages/taurus_core/backtesting/engine.py`
+- `packages/taurus_core/ops/progress.py`
+- `scripts/validate_technical_v2.py`
+- `configs/strategies/graph_aware_score_v1.yaml`
+- `configs/strategies/graph_aware_score_v2.yaml`
+
+## Worker Thread Instructions
+
+- Start by reading the assigned milestone section in
+  `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md`.
+- Implement only the assigned milestone if the user asks that worker thread to
+  execute. If the user only asks for milestone-specific planning, do not edit
+  files.
+- Do not begin later milestones, scaffold future milestones, or make
+  compatibility changes for later milestones unless the current milestone
+  explicitly requires them.
+- Preserve v1 behavior and keep v2A opt-in.
+- Keep v2B, ML training/export, and live broker routing out of scope.
+- Use declarative, allowlisted experiment specs. Do not add arbitrary Python
+  callbacks or Python expression execution in experiment rows.
+- Keep generated run artifacts under `experiments/runs/` and ignored.
+- Reuse the existing `taurus_core.ops.progress` reporter for progress UI.
+- Do not commit unless the user explicitly asks.
+
+## Milestone Status
+
+The source of truth is the tracker table in `docs/MILESTONE.md`. The planned
+sequence is:
+
+- M89: harness contract and baseline characterization. Planned.
+- M90: generic parametric runner core and smoke dry-run spec. Planned.
+- M91: config-driven v2A scoring parameters. Planned.
+- M92: technical validation adapter and result artifacts. Planned.
+- M93: walk-forward folds, progress, and bounded parallelism. Planned.
+- M94: risk-calibration/full-feature v2A specs and operator docs. Planned.
+- M95: final regression, cleanup, and fresh-context closeout. Planned.
+
+## Update Rules
+
+- When starting a milestone, mark it `In Progress` in `docs/MILESTONE.md`.
+- When completing a milestone, mark it `Done`, update any sequence table rows,
+  and add a completion summary listing assumptions made, mocks created, and
+  mocks used. Use `None` for empty categories.
+- If implementation changes public artifacts, commands, validation outputs,
+  progress behavior, or operator workflow, update `docs/TAURUS_COMMANDS.md` in
+  the same milestone.
+- At milestone cleanup, inspect `/Users/adnaan/.codex/rules/default.rules` for
+  accidental Taurus-specific global approvals after the user's
+  `# END MY CUSTOM ADDITION` marker. Move Taurus-specific approvals into
+  `.codex/rules/default.rules`, document them in `docs/TAURUS_COMMANDS.md`, and
+  remove them from global rules when needed.
+
+## Known Boundaries
+
+- The harness is for offline paper/backtest experiments only.
+- The full-feature v2A sweep should exist as an overnight-capable spec, but the
+  bounded risk-calibration spec is the first recommended real sweep.
+- The smoke spec is required for quick CLI/progress/output verification.
+- Default max expanded variant count is 500.
+- Default parallelism is `--jobs 1`.
+- Progress main unit is fold x variant.
+- No ML-ready feature/label dataset export belongs in this sequence; preserve
+  provenance for a later ML-specific plan.

@@ -245,6 +245,65 @@ def test_feature_snapshots_are_persisted_without_lookahead(tmp_path: Path) -> No
     assert signal.explanation["feature_snapshot_id"] == sma_row.snapshot_id
 
 
+def test_ohlcv_v2_backtest_persists_large_traded_value_features(
+    tmp_path: Path,
+) -> None:
+    settings = Settings()
+    run_migrations(settings)
+    session_factory = build_session_factory(settings)
+    with session_factory() as session:
+        instrument_repo = InstrumentRepository(session)
+        candle_repo = CandleRepository(session)
+        instrument_repo.upsert(Instrument(symbol="BIGVALUE", name="Big Value Ltd"))
+        candle_repo.insert(
+            [
+                DailyCandle(
+                    symbol="BIGVALUE",
+                    trade_date=date(2024, 1, 1) + timedelta(days=index),
+                    open=Decimal("20000"),
+                    high=Decimal("20100"),
+                    low=Decimal("19900"),
+                    close=Decimal("20000"),
+                    volume=1_000_000,
+                    source="test_fixture",
+                )
+                for index in range(75)
+            ]
+        )
+        session.commit()
+
+    config = BacktestConfig(
+        strategy_name="large_traded_value_feature_test",
+        strategy_type="moving_average_crossover",
+        strategy_parameters={
+            "fast_window": 2,
+            "slow_window": 3,
+            "min_return_20d": -1,
+            "technical_feature_version": "technical_ohlcv_v2",
+        },
+        seed=7,
+        initial_capital_inr=Decimal("1000000"),
+        max_open_positions=1,
+        target_positions=1,
+        lookback_days=65,
+        rebalance_every_days=99,
+    )
+    with session_factory() as session:
+        result = BacktestEngine(session, config).run()
+
+    with session_factory() as session:
+        turnover_row = session.scalar(
+            select(FeatureValueModel).where(
+                FeatureValueModel.run_id == result.run_id,
+                FeatureValueModel.symbol == "BIGVALUE",
+                FeatureValueModel.feature_name == "turnover",
+            )
+        )
+
+    assert turnover_row is not None
+    assert turnover_row.feature_value == Decimal("20000000000.00000000")
+
+
 def _increasing_candles(
     symbol: str,
     start_date: date,
