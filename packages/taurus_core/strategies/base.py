@@ -87,6 +87,7 @@ class Strategy(Protocol):
         features_by_symbol: dict[str, FeatureSnapshot],
         current_positions: set[str],
         graph_signals_by_symbol: Mapping[str, Any] | None = None,
+        target_limit: int | None = None,
     ) -> list[StrategyRanking]: ...
 
     def select_targets(

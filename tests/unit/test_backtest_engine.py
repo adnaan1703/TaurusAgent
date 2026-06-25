@@ -4,7 +4,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 from pathlib import Path
 
-from sqlalchemy import select
+from sqlalchemy import event, select
 
 from scripts.migrate import run_migrations
 from scripts.run_backtest import run_mock_backtest
@@ -79,6 +79,61 @@ def test_backtest_engine_stores_deterministic_run_artifacts(tmp_path: Path) -> N
         "ranked_candidates_preview",
         "rebalance_count",
     }
+
+
+def test_backtest_replace_run_takes_postgres_advisory_lock(
+    postgres_test_settings: Settings,
+) -> None:
+    session_factory = build_session_factory(postgres_test_settings)
+    statements: list[str] = []
+
+    def capture_statement(
+        conn,
+        cursor,
+        statement,
+        parameters,
+        context,
+        executemany,
+    ) -> None:
+        statements.append(statement)
+
+    with session_factory() as session:
+        engine = session.get_bind()
+        event.listen(engine, "before_cursor_execute", capture_statement)
+        try:
+            BacktestRepository(session).replace_run(
+                run=BacktestRunModel(
+                    run_id="bt-advisory-lock-test",
+                    strategy_name="unit_strategy",
+                    seed=42,
+                    start_date=date(2024, 1, 1),
+                    end_date=date(2024, 1, 31),
+                    initial_capital_inr=Decimal("1000000"),
+                    final_equity_inr=Decimal("1001000"),
+                    metrics={},
+                    parameters={},
+                ),
+                feature_values=[],
+                signals=[],
+                orders=[],
+                fills_by_order_index=[],
+                positions=[],
+                equity_points=[],
+                audit_rows=[],
+            )
+            session.commit()
+        finally:
+            event.remove(engine, "before_cursor_execute", capture_statement)
+
+    lock_index = next(
+        index
+        for index, statement in enumerate(statements)
+        if "pg_advisory_xact_lock" in statement
+    )
+    delete_index = next(
+        index for index, statement in enumerate(statements) if statement.startswith("DELETE")
+    )
+    assert lock_index < delete_index
 
 
 def test_backtest_runner_does_not_require_strategy_yaml_target_positions(

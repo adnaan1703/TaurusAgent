@@ -391,9 +391,12 @@ Use `EXPERIMENT_SPEC=...` to choose the YAML spec. Use `PARAMETRIC_JOBS`,
 maximum of 500 expanded variants; larger sweeps must explicitly raise
 `PARAMETRIC_MAX_VARIANTS` or set `execution.max_variants` in the spec.
 `PARAMETRIC_JOBS` is explicit bounded parallelism and defaults to `1`; Taurus
-does not auto-detect CPU count for experiment workers. Use
-`TAURUS_PROGRESS=auto/plain/false` to select Rich/TTY progress, plain stderr
-progress, or no terminal progress.
+does not auto-detect CPU count for experiment workers. Non-dry-run multi-job
+execution uses process workers so CPU-heavy validation/backtest work can run
+across cores; each worker opens its own database sessions and writes its own
+variant artifacts, so Postgres and disk throughput can still become the
+practical limit. Use `TAURUS_PROGRESS=auto/plain/false` to select Rich/TTY
+progress, plain stderr progress, or no terminal progress.
 
 Generated run outputs belong under `experiments/runs/<run_id>/` by default,
 which is ignored; checked-in specs live under `experiments/specs/` and harness

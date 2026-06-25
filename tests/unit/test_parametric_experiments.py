@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import json
+from concurrent.futures import Future
 from decimal import Decimal
 from pathlib import Path
 
@@ -148,7 +149,8 @@ def test_v2a_adapter_writes_manifest_csv_and_metric_deltas(
     )
     calls = []
 
-    def fake_run_validation(*, settings, request, profiles, progress=None):
+    def fake_run_validation(*, settings, request, profiles, progress=None, run_schema_migrations=True):
+        assert run_schema_migrations is False
         calls.append((request, profiles))
         artifact_dir = request.artifact_root / "techval-fake"
         artifact_dir.mkdir(parents=True)
@@ -220,6 +222,116 @@ def test_v2a_adapter_writes_manifest_csv_and_metric_deltas(
     assert manifest["variants"][0]["output_paths"]["manifest"].endswith("manifest.json")
 
 
+def test_v2a_adapter_deduplicates_run_level_baselines(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    raw = _base_spec()
+    raw["variants"] = {
+        "matrix": {
+            "backtest.cost_bps": ["10", "12"],
+            "family_weights.alpha": ["0.65"],
+            "family_weights.risk": ["0.20"],
+            "family_weights.tradability": ["0.15"],
+        }
+    }
+    plan = expand_experiment(
+        parse_experiment_spec(raw),
+        output_root=tmp_path / "runs",
+    )
+
+    class ImmediateProcessPoolExecutor:
+        def __init__(self, *, max_workers: int) -> None:
+            self.max_workers = max_workers
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, traceback) -> bool:
+            return False
+
+        def submit(self, fn, *args):
+            future = Future()
+            try:
+                future.set_result(fn(*args))
+            except BaseException as exc:
+                future.set_exception(exc)
+            return future
+
+    def fake_run_validation(
+        *,
+        settings,
+        request,
+        profiles,
+        progress=None,
+        run_schema_migrations=True,
+    ):
+        assert run_schema_migrations is False
+        artifact_dir = request.artifact_root / f"techval-fake-{request.cost_bps}"
+        artifact_dir.mkdir(parents=True, exist_ok=True)
+        request.report_root.mkdir(parents=True, exist_ok=True)
+        variant_profile = next(
+            profile
+            for profile in profiles
+            if profile.profile_name.startswith("graph_aware_score_v2a_")
+        )
+        variant_return = Decimal("0.15") if request.cost_bps == 10 else Decimal("0.16")
+        system_profiles = [
+            _system_profile("graph_aware_score_v1", total_return=0.10, drawdown=-0.10),
+            _system_profile("graph_aware_score_v2", total_return=0.12, drawdown=-0.09),
+            _system_profile(
+                variant_profile.profile_name,
+                total_return=float(variant_return),
+                drawdown=-0.08,
+            ),
+        ]
+        technical_report = {
+            "checks": [
+                _rank_check("technical_rule_v1", 0.01),
+                _rank_check("technical_ohlcv_v2", 0.02),
+                _rank_check(variant_profile.profile_name, 0.05),
+            ],
+            "profiles": [],
+        }
+        system_report = {"profiles": system_profiles}
+        promotion_gate = {"decision": "keep_opt_in", "checks": []}
+        _write_json(artifact_dir / "technical_agent_predictive_report.json", technical_report)
+        _write_json(artifact_dir / "system_backtest_report.json", system_report)
+        _write_json(artifact_dir / "promotion_gate.json", promotion_gate)
+        _write_json(artifact_dir / "validation_manifest.json", {"run_id": artifact_dir.name})
+        return ValidationOutcome(
+            run_id=artifact_dir.name,
+            artifact_dir=artifact_dir,
+            status="complete",
+            manifest={"run_id": artifact_dir.name},
+            report_path=request.report_root / f"{artifact_dir.name}.md",
+            promotion_decision="keep_opt_in",
+        )
+
+    monkeypatch.setattr(
+        "experiments.parametric.technical_validation_v2a.run_validation",
+        fake_run_validation,
+    )
+    monkeypatch.setattr(
+        "experiments.parametric.technical_validation_v2a.ProcessPoolExecutor",
+        ImmediateProcessPoolExecutor,
+    )
+
+    outcome = run_technical_validation_v2a(plan, settings=Settings())
+
+    rows = list(csv.DictReader(outcome.comparison_csv_path.open(encoding="utf-8")))
+    assert [row["profile_role"] for row in rows] == [
+        "baseline_v1",
+        "baseline_current_v2a",
+        "variant",
+        "variant",
+    ]
+    assert rows[0]["variant_id"] == ""
+    assert rows[1]["variant_id"] == ""
+    assert [row["profile_role"] for row in rows].count("baseline_v1") == 1
+    assert [row["profile_role"] for row in rows].count("baseline_current_v2a") == 1
+
+
 def test_v2a_adapter_writes_fold_aggregate_rows(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -231,7 +343,8 @@ def test_v2a_adapter_writes_fold_aggregate_rows(
         output_root=tmp_path / "runs",
     )
 
-    def fake_run_validation(*, settings, request, profiles, progress=None):
+    def fake_run_validation(*, settings, request, profiles, progress=None, run_schema_migrations=True):
+        assert run_schema_migrations is False
         artifact_dir = request.artifact_root / f"techval-fake-{request.evaluation_end_offset_days}"
         artifact_dir.mkdir(parents=True)
         request.report_root.mkdir(parents=True)
@@ -308,7 +421,7 @@ def test_v2a_adapter_writes_fold_aggregate_rows(
     ]
 
 
-def test_v2a_adapter_supports_bounded_parallel_execution(
+def test_v2a_adapter_uses_bounded_process_pool_execution(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -318,8 +431,28 @@ def test_v2a_adapter_supports_bounded_parallel_execution(
         output_root=tmp_path / "runs",
     )
     calls = []
+    max_workers_seen = []
 
-    def fake_run_validation(*, settings, request, profiles, progress=None):
+    class ImmediateProcessPoolExecutor:
+        def __init__(self, *, max_workers: int) -> None:
+            max_workers_seen.append(max_workers)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, traceback) -> bool:
+            return False
+
+        def submit(self, fn, *args):
+            future = Future()
+            try:
+                future.set_result(fn(*args))
+            except BaseException as exc:
+                future.set_exception(exc)
+            return future
+
+    def fake_run_validation(*, settings, request, profiles, progress=None, run_schema_migrations=True):
+        assert run_schema_migrations is False
         calls.append(request.cost_bps)
         artifact_dir = request.artifact_root / f"techval-fake-{request.cost_bps}"
         artifact_dir.mkdir(parents=True)
@@ -365,10 +498,15 @@ def test_v2a_adapter_supports_bounded_parallel_execution(
         "experiments.parametric.technical_validation_v2a.run_validation",
         fake_run_validation,
     )
+    monkeypatch.setattr(
+        "experiments.parametric.technical_validation_v2a.ProcessPoolExecutor",
+        ImmediateProcessPoolExecutor,
+    )
 
     outcome = run_technical_validation_v2a(plan, settings=Settings())
 
     assert outcome.status == "complete"
+    assert max_workers_seen == [2]
     assert sorted(calls) == [Decimal("10")]
     assert outcome.variant_count == 1
 

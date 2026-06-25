@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import hashlib
 from datetime import date, datetime, time, timezone
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import Select, delete, func, or_, select
+from sqlalchemy import Select, delete, func, or_, select, text
 from sqlalchemy.orm import Session
 
 from taurus_core.db.graph_contracts import normalize_graph_edge_provenance
@@ -668,6 +669,7 @@ class BacktestRepository:
         if len(orders) != len(fills_by_order_index):
             raise ValueError("Backtest orders and fills must have the same length.")
 
+        self._lock_run(run.run_id)
         self.delete_run(run.run_id)
         self.session.add(run)
         self.session.flush()
@@ -684,6 +686,15 @@ class BacktestRepository:
         self.session.add_all(audit_rows)
         self.session.flush()
         return run
+
+    def _lock_run(self, run_id: str) -> None:
+        bind = self.session.get_bind()
+        if bind.dialect.name != "postgresql":
+            return
+        self.session.execute(
+            text("SELECT pg_advisory_xact_lock(:lock_key)"),
+            {"lock_key": _advisory_lock_key(run_id)},
+        )
 
     def delete_run(self, run_id: str) -> None:
         for model in (
@@ -740,6 +751,11 @@ class BacktestRepository:
                 or 0
             )
         }
+
+
+def _advisory_lock_key(value: str) -> int:
+    digest = hashlib.sha256(value.encode("utf-8")).digest()
+    return int.from_bytes(digest[:8], byteorder="big", signed=True)
 
 
 class IntelligenceRepository:

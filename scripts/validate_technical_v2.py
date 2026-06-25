@@ -181,13 +181,15 @@ def run_validation(
     request: ValidationRequest,
     profiles: Sequence[ValidationProfile] | None = None,
     progress: ProgressEventCallback | None = None,
+    run_schema_migrations: bool = True,
 ) -> ValidationOutcome:
     if not request.symbols:
         raise ValueError("Validation requires at least one symbol.")
 
-    emit_progress(progress, "technical_validation.setup_started", stage="migrations")
-    run_migrations(settings)
-    emit_progress(progress, "technical_validation.setup_completed", stage="migrations")
+    if run_schema_migrations:
+        emit_progress(progress, "technical_validation.setup_started", stage="migrations")
+        run_migrations(settings)
+        emit_progress(progress, "technical_validation.setup_completed", stage="migrations")
     session_factory = build_session_factory(settings)
     with session_factory() as session:
         readiness = build_data_readiness(session, request, progress=progress)

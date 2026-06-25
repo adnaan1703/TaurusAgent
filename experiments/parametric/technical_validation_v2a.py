@@ -5,7 +5,7 @@ import json
 import math
 import subprocess
 from collections.abc import Mapping, Sequence
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
@@ -14,7 +14,8 @@ from typing import Any
 
 from experiments.parametric.errors import ExperimentSpecError
 from experiments.parametric.expansion import ExperimentPlan, VariantPlan
-from experiments.parametric.spec import BaseRequestSpec
+from experiments.parametric.spec import BaseRequestSpec, ExperimentSpec
+from scripts.migrate import run_migrations
 from scripts.validate_technical_v2 import (
     BASELINE_PROFILE_NAME,
     CANDIDATE_PROFILE_NAME,
@@ -95,6 +96,16 @@ class _VariantExecutionResult:
     manifest: dict[str, object]
 
 
+@dataclass(frozen=True, slots=True)
+class _VariantExecutionContext:
+    spec: ExperimentSpec
+    run_id: str
+    spec_fingerprint: str
+    metric_ids: tuple[str, ...]
+    total_work_units: int
+    adapter_id: str
+
+
 def run_technical_validation_v2a(
     plan: ExperimentPlan,
     *,
@@ -115,6 +126,19 @@ def run_technical_validation_v2a(
         with progress_lock:
             emit_progress(progress, event, **payload)
 
+    progress_emit(
+        "parametric.stage_started",
+        stage="migrations",
+        completed=0,
+        total=1,
+    )
+    run_migrations(resolved_settings)
+    progress_emit(
+        "parametric.stage_completed",
+        stage="migrations",
+        completed=1,
+        total=1,
+    )
     results = _execute_variants(
         plan=plan,
         settings=resolved_settings,
@@ -126,6 +150,7 @@ def run_technical_validation_v2a(
         all_rows.extend(result.rows)
         variant_manifests.append(result.manifest)
     all_rows.extend(_aggregate_fold_rows(all_rows, metric_ids=plan.metric_ids))
+    comparison_rows = _run_level_comparison_rows(all_rows)
 
     comparison_csv_path = run_dir / "comparison.csv"
     manifest_path = run_dir / "manifest.json"
@@ -135,7 +160,11 @@ def run_technical_validation_v2a(
         completed=plan.total_work_units,
         total=plan.total_work_units,
     )
-    _write_comparison_csv(comparison_csv_path, all_rows, metric_ids=plan.metric_ids)
+    _write_comparison_csv(
+        comparison_csv_path,
+        comparison_rows,
+        metric_ids=plan.metric_ids,
+    )
     status = (
         "complete"
         if all(
@@ -187,26 +216,55 @@ def _execute_variants(
             for variant in plan.variants
         ]
 
+    context = _variant_execution_context(plan)
     futures = {}
-    with ThreadPoolExecutor(max_workers=plan.jobs) as executor:
+    with ProcessPoolExecutor(max_workers=plan.jobs) as executor:
         for variant in plan.variants:
-            future = executor.submit(
-                _execute_variant,
-                plan=plan,
+            _emit_work_progress(
+                progress_emit,
+                "parametric.work_unit_started",
                 variant=variant,
-                settings=settings,
-                progress_emit=progress_emit,
+                total=plan.total_work_units,
+                stage="queued",
+                completed=0,
+            )
+            future = executor.submit(
+                _execute_variant_process_worker,
+                context,
+                variant,
+                settings,
             )
             futures[future] = variant
         results: list[_VariantExecutionResult] = []
+        completed_count = 0
         for future in as_completed(futures):
             variant = futures[future]
             try:
-                results.append(future.result())
+                result = future.result()
+                results.append(result)
+                completed_count += 1
+                _emit_work_progress(
+                    progress_emit,
+                    "parametric.work_unit_completed",
+                    variant=variant,
+                    total=plan.total_work_units,
+                    stage="result_writing",
+                    completed=completed_count,
+                )
             except BaseException as exc:
                 for pending in futures:
                     if pending is not future:
                         pending.cancel()
+                _emit_work_progress(
+                    progress_emit,
+                    "parametric.work_unit_failed",
+                    variant=variant,
+                    total=plan.total_work_units,
+                    stage="failed",
+                    error_type=exc.__class__.__name__,
+                    message=str(exc),
+                    completed=completed_count,
+                )
                 raise ExperimentSpecError(
                     "Experiment work unit failed "
                     f"variant_id={variant.variant_id} fold_id={variant.fold.fold_id}: {exc}"
@@ -214,9 +272,33 @@ def _execute_variants(
     return results
 
 
+def _variant_execution_context(plan: ExperimentPlan) -> _VariantExecutionContext:
+    return _VariantExecutionContext(
+        spec=plan.spec,
+        run_id=plan.run_id,
+        spec_fingerprint=plan.spec_fingerprint,
+        metric_ids=plan.metric_ids,
+        total_work_units=plan.total_work_units,
+        adapter_id=plan.adapter.adapter_id,
+    )
+
+
+def _execute_variant_process_worker(
+    context: _VariantExecutionContext,
+    variant: VariantPlan,
+    settings: Settings,
+) -> _VariantExecutionResult:
+    return _execute_variant(
+        plan=context,
+        variant=variant,
+        settings=settings,
+        progress_emit=None,
+    )
+
+
 def _execute_variant(
     *,
-    plan: ExperimentPlan,
+    plan: ExperimentPlan | _VariantExecutionContext,
     variant: VariantPlan,
     settings: Settings,
     progress_emit,
@@ -240,11 +322,16 @@ def _execute_variant(
             settings=settings,
             request=request,
             profiles=profiles,
-            progress=_validation_progress_adapter(
-                progress_emit,
-                variant=variant,
-                total=plan.total_work_units,
+            progress=(
+                _validation_progress_adapter(
+                    progress_emit,
+                    variant=variant,
+                    total=plan.total_work_units,
+                )
+                if progress_emit is not None
+                else None
             ),
+            run_schema_migrations=False,
         )
         _emit_work_progress(
             progress_emit,
@@ -357,11 +444,14 @@ def _emit_work_progress(
     stage: str,
     **extra: object,
 ) -> None:
-    completed = (
+    if progress_emit is None:
+        return
+    default_completed = (
         variant.work_unit_index
         if event == "parametric.work_unit_completed"
         else max(variant.work_unit_index - 1, 0)
     )
+    completed = extra.pop("completed", default_completed)
     progress_emit(
         event,
         stage=stage,
@@ -530,7 +620,7 @@ def _variant_profile(
 
 def _comparison_rows(
     *,
-    plan: ExperimentPlan,
+    plan: ExperimentPlan | _VariantExecutionContext,
     variant: VariantPlan,
     profiles: Sequence[ValidationProfile],
     outcome: ValidationOutcome,
@@ -684,7 +774,7 @@ def _profile_role(profile_name: str, variant: VariantPlan) -> str:
 
 def _variant_manifest(
     *,
-    plan: ExperimentPlan,
+    plan: ExperimentPlan | _VariantExecutionContext,
     variant: VariantPlan,
     request: ValidationRequest,
     profiles: Sequence[ValidationProfile],
@@ -697,7 +787,7 @@ def _variant_manifest(
         "run_id": plan.run_id,
         "variant_id": variant.variant_id,
         "variant_fingerprint": variant.fingerprint,
-        "adapter": plan.adapter.adapter_id,
+        "adapter": _plan_adapter_id(plan),
         "spec_fingerprint": plan.spec_fingerprint,
         "git_commit": _git_commit(),
         "fold": {
@@ -769,6 +859,12 @@ def _variant_manifest(
         "comparison_rows": list(rows),
         "status": outcome.status,
     }
+
+
+def _plan_adapter_id(plan: ExperimentPlan | _VariantExecutionContext) -> str:
+    if isinstance(plan, _VariantExecutionContext):
+        return plan.adapter_id
+    return plan.adapter.adapter_id
 
 
 def _run_manifest(
@@ -885,6 +981,49 @@ def _aggregate_fold_rows(
 def _aggregate_status(rows: Sequence[Mapping[str, object]]) -> str:
     statuses = {str(row.get("validation_status", "")) for row in rows}
     return "complete" if statuses == {"complete"} else "completed_with_validation_gaps"
+
+
+BASELINE_PROFILE_ROLES = frozenset({"baseline_v1", "baseline_current_v2a"})
+
+
+def _run_level_comparison_rows(
+    rows: Sequence[Mapping[str, object]],
+) -> list[Mapping[str, object]]:
+    baseline_rows: list[dict[str, object]] = []
+    baseline_rows_by_key: dict[tuple[str, str, str], dict[str, object]] = {}
+    duplicate_rows_by_key: dict[tuple[str, str, str], list[Mapping[str, object]]] = {}
+    candidate_rows: list[Mapping[str, object]] = []
+
+    for row in rows:
+        role = str(row.get("profile_role", ""))
+        if role not in BASELINE_PROFILE_ROLES:
+            candidate_rows.append(row)
+            continue
+
+        key = (
+            role,
+            str(row.get("fold_id", "")),
+            str(row.get("profile_name", "")),
+        )
+        duplicate_rows_by_key.setdefault(key, []).append(row)
+        if key in baseline_rows_by_key:
+            continue
+
+        baseline_row = dict(row)
+        baseline_row["variant_id"] = ""
+        baseline_row["variant_fingerprint"] = ""
+        baseline_row["validation_run_id"] = ""
+        baseline_row["promotion_decision"] = ""
+        baseline_row["overrides"] = ""
+        baseline_rows_by_key[key] = baseline_row
+        baseline_rows.append(baseline_row)
+
+    for key, baseline_row in baseline_rows_by_key.items():
+        baseline_row["validation_status"] = _aggregate_status(
+            duplicate_rows_by_key[key]
+        )
+
+    return [*baseline_rows, *candidate_rows]
 
 
 def _mean(values: Sequence[float]) -> float | None:

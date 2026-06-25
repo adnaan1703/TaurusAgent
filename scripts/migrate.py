@@ -14,6 +14,8 @@ from taurus_core.profiles.schemas import (
     DEFAULT_PROFILE_STARTING_CORPUS_INR,
 )
 
+POSTGRES_MIGRATION_ADVISORY_LOCK_KEY = 881_024_337
+
 
 def run_migrations(settings: Settings | None = None) -> None:
     """Use SQLAlchemy metadata as the migration source of truth.
@@ -23,6 +25,28 @@ def run_migrations(settings: Settings | None = None) -> None:
     """
     settings = settings or get_settings()
     engine = create_engine_from_url(settings.database_url)
+    if engine.dialect.name == "postgresql":
+        _run_migrations_with_postgres_lock(engine)
+        return
+    _run_migrations_for_engine(engine)
+
+
+def _run_migrations_with_postgres_lock(engine: Engine) -> None:
+    with engine.connect() as connection:
+        connection.execute(
+            text("SELECT pg_advisory_lock(:lock_key)"),
+            {"lock_key": POSTGRES_MIGRATION_ADVISORY_LOCK_KEY},
+        )
+        try:
+            _run_migrations_for_engine(engine)
+        finally:
+            connection.execute(
+                text("SELECT pg_advisory_unlock(:lock_key)"),
+                {"lock_key": POSTGRES_MIGRATION_ADVISORY_LOCK_KEY},
+            )
+
+
+def _run_migrations_for_engine(engine: Engine) -> None:
     Base.metadata.create_all(bind=engine)
     _migrate_graph_edge_provenance(engine)
     _seed_default_profile(engine)
@@ -201,8 +225,11 @@ def _migrate_graph_edge_provenance(engine: Engine) -> None:
     if "graph_edges" not in inspector.get_table_names():
         return
 
-    columns = {column["name"] for column in inspector.get_columns("graph_edges")}
-    has_provenance_type = "provenance_type" in columns
+    columns = {
+        column["name"]: column for column in inspector.get_columns("graph_edges")
+    }
+    provenance_type = columns.get("provenance_type")
+    has_provenance_type = provenance_type is not None
     has_inferred = "inferred" in columns
 
     statements: list[str] = []
@@ -226,13 +253,15 @@ def _migrate_graph_edge_provenance(engine: Engine) -> None:
         )
 
     if engine.dialect.name == "postgresql":
-        statements.extend(
-            [
+        if not _column_default_is_deterministic(provenance_type):
+            statements.append(
                 "ALTER TABLE graph_edges "
-                "ALTER COLUMN provenance_type SET DEFAULT 'deterministic'",
-                "ALTER TABLE graph_edges ALTER COLUMN provenance_type SET NOT NULL",
-            ]
-        )
+                "ALTER COLUMN provenance_type SET DEFAULT 'deterministic'"
+            )
+        if provenance_type is None or provenance_type.get("nullable", True):
+            statements.append(
+                "ALTER TABLE graph_edges ALTER COLUMN provenance_type SET NOT NULL"
+            )
         if has_inferred:
             statements.append("ALTER TABLE graph_edges DROP COLUMN inferred")
     elif has_inferred:
@@ -259,6 +288,15 @@ def _migrate_graph_edge_provenance(engine: Engine) -> None:
                         f"(provenance_type IN ({GRAPH_EDGE_PROVENANCE_SQL_LIST}))"
                     )
                 )
+
+
+def _column_default_is_deterministic(column: dict[str, object] | None) -> bool:
+    if column is None:
+        return False
+    default = column.get("default")
+    if default is None:
+        return False
+    return "deterministic" in str(default)
 
 
 def _add_missing_m28_position_lifecycle_columns(engine: Engine) -> None:

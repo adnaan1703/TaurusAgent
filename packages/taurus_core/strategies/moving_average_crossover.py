@@ -42,6 +42,7 @@ class MovingAverageCrossoverStrategy:
         features_by_symbol: dict[str, FeatureSnapshot],
         current_positions: set[str],
         graph_signals_by_symbol: object | None = None,
+        target_limit: int | None = None,
     ) -> list[StrategyRanking]:
         eligible: list[tuple[str, Decimal, FeatureSnapshot, list[str]]] = []
         ineligible: list[StrategyRanking] = []

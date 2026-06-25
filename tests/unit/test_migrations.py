@@ -1,7 +1,10 @@
 from __future__ import annotations
 
-from sqlalchemy import inspect, text
+from concurrent.futures import ThreadPoolExecutor
 
+from sqlalchemy import event, inspect, text
+
+import scripts.migrate as migrate_module
 from scripts.migrate import run_migrations
 from taurus_core.config import Settings
 from taurus_core.db.repositories import GraphRepository
@@ -154,3 +157,51 @@ def test_migration_replaces_legacy_graph_edge_inferred_column(
     assert "inferred" not in columns
     assert "ck_graph_edges_provenance_type" in constraints
     assert row.provenance_type == "inferred"
+
+
+def test_repeated_migration_skips_current_graph_edge_provenance_ddl(
+    postgres_test_settings: Settings,
+    monkeypatch,
+) -> None:
+    settings = postgres_test_settings
+    engine = create_engine_from_url(settings.database_url)
+    statements: list[str] = []
+
+    def capture_statement(
+        conn,
+        cursor,
+        statement,
+        parameters,
+        context,
+        executemany,
+    ) -> None:
+        statements.append(statement)
+
+    monkeypatch.setattr(
+        migrate_module,
+        "create_engine_from_url",
+        lambda database_url: engine,
+    )
+    event.listen(engine, "before_cursor_execute", capture_statement)
+    try:
+        run_migrations(settings)
+    finally:
+        event.remove(engine, "before_cursor_execute", capture_statement)
+
+    provenance_ddl = [
+        statement
+        for statement in statements
+        if "ALTER TABLE graph_edges ALTER COLUMN provenance_type" in statement
+    ]
+    assert provenance_ddl == []
+
+
+def test_concurrent_run_migrations_do_not_deadlock(
+    postgres_test_settings: Settings,
+) -> None:
+    settings = postgres_test_settings
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        futures = [executor.submit(run_migrations, settings) for _ in range(2)]
+        for future in futures:
+            future.result(timeout=30)
