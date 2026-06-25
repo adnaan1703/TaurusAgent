@@ -1,6 +1,6 @@
 # Taurus Milestone Tracker
 
-Last updated: 2026-06-24
+Last updated: 2026-06-25
 
 This is the active tracker for Taurus milestone work. Keep it concise and keep
 current operator detail in the usage and command docs.
@@ -37,6 +37,11 @@ current operator detail in the usage and command docs.
   parametric experiment harness for opt-in v2A technical-profile sweeps.
 - `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_HANDOFF.md`: current handoff for
   the planned M89-M95 parametric experiment harness sequence.
+- `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md`: planned M96-M100 staged v2A
+  experiment redesign covering grouped axes, medium-horizon macro/sensitivity
+  specs, short-horizon profile design, and final closeout.
+- `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_HANDOFF.md`: current handoff for the
+  planned M96-M100 v2A experiment redesign sequence.
 - `docs/TAURUS_V2B_DATA_INGESTION_HANDOFF.md`: current v2B data-readiness
   handoff covering completed v2B work, pending official-data inputs, source
   candidates, import commands, readiness checks, and future ingestion work.
@@ -291,6 +296,14 @@ removed during docs cleanup. Use Git history for detailed historical plans.
   ignored; no run artifacts were staged; no Taurus-specific global approval
   cleanup was needed; and the M89-M95 sequence is closed with
   `graph_aware_score_v1` canonical and v2A opt-in.
+- M96-M100 v2A experiment redesign planning is complete and refreshed with
+  full-feature sweep evidence: the staged follow-up plan in
+  `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` keeps v1 canonical and v2A
+  opt-in, plans grouped axes for paired family/portfolio controls, adds
+  medium-horizon macro and sensitivity sweeps with realized/unrealized and
+  closed-trade diagnostics, keeps `v2A-SH` as a separate short-horizon design
+  track, and records fresh-context handoff guidance in
+  `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_HANDOFF.md`.
 
 ## Standing Safety Rules
 
@@ -380,6 +393,7 @@ removed during docs cleanup. Use Git history for detailed historical plans.
 | M88 | Done | Widened persisted technical feature values to handle v2 OHLCV traded-value metrics above the old `NUMERIC(18, 8)` ceiling, added an idempotent Postgres migration, and covered the original backtest insert path with focused regressions. |
 | M89-M95 plan document | Done | Created the parametric experiment harness plan and handoff for adapter-first v2A technical-profile sweeps; implementation remains planned and no harness code was added in the planning task. |
 | M95 | Done | Ran final focused regression, smoke dry-run, risk-calibration dry-run, and tiny smoke non-dry-run execution for the parametric harness; refreshed the plan, handoff, command docs, and tracker; confirmed generated run outputs are ignored and no approval cleanup was needed; and closed M89-M95 with v1 canonical and v2A opt-in. |
+| M96-M100 plan document | Done | Created and refreshed the staged v2A experiment redesign plan and handoff for grouped axes, medium-horizon macro/sensitivity specs with trade-quality diagnostics, short-horizon profile design, and final closeout; implementation remains planned and no harness/spec/profile code was added in the planning task. |
 
 ## Completed Graph Explorer Sequence
 
@@ -439,6 +453,37 @@ implementation unless the user explicitly asks.
 | 93 | M93 | Done | `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md` | Added walk-forward folds, fold x variant progress, and bounded parallel execution. |
 | 94 | M94 | Done | `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md` | Added risk-calibration and full-feature v2A specs, refined smoke coverage, and updated operator command docs. |
 | 95 | M95 | Done | `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md` | Ran final regression, refreshed docs and handoff, and closed the harness sequence. |
+
+## Planned V2A Experiment Redesign Sequence
+
+This planned sequence must be executed one milestone at a time in separate
+fresh-context work. Stop after each milestone is complete, verified, cleaned up,
+and documented; do not automatically begin later scope.
+
+| Order | Milestone | Status | Plan | Purpose |
+|---:|---|---|---|---|
+| 96 | M96 | Planned | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Add grouped experiment axes so paired family-weight and portfolio-size controls can be expressed without invalid Cartesian combinations. |
+| 97 | M97 | Planned | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Add the medium-horizon macro sweep for family-weight trios, paired portfolio sizes, and additive realized/unrealized plus closed-trade diagnostics. |
+| 98 | M98 | Planned | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Add the medium-horizon sensitivity sweep for compact feature-weight and transform-scale cases using the same trade-quality diagnostics. |
+| 99 | M99 | Planned | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Define the separate v2A-SH short-horizon technical-profile design contract without changing current v2A defaults. |
+| 100 | M100 | Planned | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Run final regression, dry-runs, docs, handoff, and cleanup for the staged experiment redesign sequence. |
+
+### M96-M100 Plan Document Completion Summary
+
+- Assumptions made: The v2A experiment redesign should be staged rather than one
+  large build; current v2A remains a medium-horizon/monthly opt-in profile;
+  `v2A-SH` should be a separate future short-horizon profile design track;
+  family-weight trios and portfolio-size values should be represented as grouped
+  axes rather than independent Cartesian lists; `v2a_full_feature_sweep.yaml`
+  should remain available as the existing deliberate overnight template; the
+  completed full-feature sweep is diagnostic evidence only because the tied top
+  candidates improved aggregate return/Sharpe without fixing negative 21d rank
+  correlation or negative realized P&L.
+- Mocks created: None.
+- Mocks used: None.
+- Verification: Planning artifacts were created and refreshed by inspection only.
+  No tests, dry-runs, or implementation commands were run because implementation
+  remains planned and M96 was not started.
 
 ### M89-M95 Plan Document Completion Summary
 
