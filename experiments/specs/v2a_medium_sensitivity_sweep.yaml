@@ -1,0 +1,118 @@
+schema_version: 1
+experiment_id: v2a_medium_sensitivity_sweep
+adapter: technical_validation_v2a
+description: Compact medium-horizon sensitivity sweep for one-case-at-a-time v2A feature and transform changes.
+base_request:
+  mode: standard
+  universe: configs/market_data/nifty_50_shariah.yaml
+  validation_years: 3
+  warmup_days: 252
+  rebalance_every_days: 21
+  portfolio_breadth: 5
+  max_open_positions: 5
+  cost_bps: "10"
+  slippage_bps: "5"
+baselines:
+  include_v1: true
+  include_current_v2a: true
+variants:
+  matrix:
+    # The schema requires a non-empty matrix. Keep this pinned to the base
+    # medium-horizon cost assumption so each axis value remains one case.
+    backtest.cost_bps: ["10"]
+  axes:
+    - name: sensitivity_case
+      values:
+        - id: alpha_var126_weight_low
+          overrides:
+            alpha_weights.vol_adjusted_return_126d: "0.14"
+        - id: alpha_var126_scale_low
+          overrides:
+            alpha_transforms.vol_adjusted_return_126d.scale: "3.5"
+        - id: alpha_var126_scale_high
+          overrides:
+            alpha_transforms.vol_adjusted_return_126d.scale: "4.5"
+        - id: alpha_var252_weight_low
+          overrides:
+            alpha_weights.vol_adjusted_return_252d: "0.12"
+        - id: alpha_var252_weight_high
+          overrides:
+            alpha_weights.vol_adjusted_return_252d: "0.16"
+        - id: alpha_return126_weight_low
+          overrides:
+            alpha_weights.return_126d: "0.09"
+        - id: alpha_return126_weight_high
+          overrides:
+            alpha_weights.return_126d: "0.13"
+        - id: alpha_return63_weight_low
+          overrides:
+            alpha_weights.return_63d: "0.08"
+        - id: alpha_return63_scale_high
+          overrides:
+            alpha_transforms.return_63d.scale: "0.24"
+        - id: risk_atr_weight_high
+          overrides:
+            risk_weights.atr_percent_14: "0.20"
+        - id: risk_atr_scale_low
+          overrides:
+            risk_transforms.atr_percent_14.scale: "0.040"
+        - id: risk_vol20_weight_high
+          overrides:
+            risk_weights.volatility_20: "0.18"
+        - id: risk_vol20_scale_low
+          overrides:
+            risk_transforms.volatility_20.scale: "0.040"
+        - id: risk_vol63_weight_low
+          overrides:
+            risk_weights.volatility_63: "0.12"
+        - id: risk_return20_instability_harsh
+          overrides:
+            risk_transforms.return_20d_instability.scale: "0.14"
+        - id: trad_turnover_weight_high
+          overrides:
+            tradability_weights.turnover: "0.26"
+        - id: trad_avg_value20_weight_low
+          overrides:
+            tradability_weights.avg_traded_value_20: "0.22"
+        - id: trad_turnover_z_scale_low
+          overrides:
+            tradability_transforms.turnover_z_score_20.scale: "2.5"
+        - id: trad_volume_z_weight_high
+          overrides:
+            tradability_weights.volume_z_score_20: "0.17"
+metrics:
+  - system.total_return
+  - system.cagr
+  - system.sharpe
+  - system.sortino
+  - system.max_drawdown
+  - system.turnover
+  - system.win_rate
+  - system.profit_factor
+  - system.realized_pnl_inr
+  - system.unrealized_pnl_inr
+  - system.closed_trade_count
+  - system.closed_win_count
+  - system.closed_loss_count
+  - system.gross_profit_inr
+  - system.gross_loss_inr
+  - system.average_closed_win_inr
+  - system.average_closed_loss_inr
+  - system.average_cash_utilization_pct
+  - system.sizing_failure_count
+  - system.ranked_candidate_count
+  - system.eligible_candidate_count
+  - system.rejected_candidate_count
+  - system.trimmed_candidate_count
+  - rank.21d.rank_correlation
+  - rank.63d.rank_correlation
+  - rank.21d.top_bottom_decile_spread
+  - rank.63d.top_bottom_decile_spread
+  - rank.21d.hit_rate
+  - rank.63d.hit_rate
+execution:
+  jobs: 1
+  # Sensitivity sweep only: 19 one-case variants x 3 default yearly folds.
+  max_variants: 19
+output:
+  root: experiments/runs

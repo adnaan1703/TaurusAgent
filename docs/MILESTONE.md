@@ -310,6 +310,12 @@ removed during docs cleanup. Use Git history for detailed historical plans.
   expands to 15 variants and 45 default yearly work units, and requests
   additive realized/unrealized plus closed-trade economics diagnostics in
   validation reports and parametric comparison CSVs.
+- M98 medium-horizon sensitivity sweep spec is complete: the checked-in
+  `experiments/specs/v2a_medium_sensitivity_sweep.yaml` keeps current
+  medium-horizon family weights, `portfolio_breadth=5`,
+  `max_open_positions=5`, and 21-day rebalancing fixed, then runs 19
+  one-case `sensitivity_case` variants across 57 default yearly work units
+  with the same trade-quality and rank diagnostics as the M97 macro sweep.
 
 ## Standing Safety Rules
 
@@ -472,7 +478,7 @@ and documented; do not automatically begin later scope.
 |---:|---|---|---|---|
 | 96 | M96 | Done | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Added grouped experiment axes so paired family-weight and portfolio-size controls can be expressed without invalid Cartesian combinations. |
 | 97 | M97 | Done | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Added the medium-horizon macro sweep for family-weight trios, paired portfolio sizes, and additive realized/unrealized plus closed-trade diagnostics. |
-| 98 | M98 | Planned | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Add the medium-horizon sensitivity sweep for compact feature-weight and transform-scale cases using the same trade-quality diagnostics. |
+| 98 | M98 | Done | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Added the medium-horizon sensitivity sweep for compact feature-weight and transform-scale cases using the same trade-quality diagnostics. |
 | 99 | M99 | Planned | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Define the separate v2A-SH short-horizon technical-profile design contract without changing current v2A defaults. |
 | 100 | M100 | Planned | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Run final regression, dry-runs, docs, handoff, and cleanup for the staged experiment redesign sequence. |
 
@@ -511,6 +517,25 @@ and documented; do not automatically begin later scope.
   make parametric-experiment
   EXPERIMENT_SPEC=experiments/specs/v2a_medium_macro_sweep.yaml`; `make lint`;
   `make test`.
+- Cleanup: Inspected `/Users/adnaan/.codex/rules/default.rules`; no entries
+  existed after the user's `# END MY CUSTOM ADDITION` marker, so no
+  Taurus-specific approval migration was needed.
+
+### M98 Completion Summary
+
+- Assumptions made: M98 should add only the medium-horizon sensitivity sweep
+  spec and focused expansion coverage; the current spec schema still requires a
+  non-empty matrix, so the sensitivity spec pins `backtest.cost_bps: ["10"]`
+  there and keeps all feature/transform sensitivity choices in one
+  `sensitivity_case` grouped axis; current v2A defaults,
+  `v2a_full_feature_sweep.yaml`, rank 5d metrics, and v2A-SH work remain
+  unchanged.
+- Mocks created: None.
+- Mocks used: None.
+- Verification: `uv run pytest tests/unit/test_parametric_experiments.py`;
+  `PARAMETRIC_DRY_RUN=true make parametric-experiment
+  EXPERIMENT_SPEC=experiments/specs/v2a_medium_sensitivity_sweep.yaml`;
+  `make lint`; `make test`.
 - Cleanup: Inspected `/Users/adnaan/.codex/rules/default.rules`; no entries
   existed after the user's `# END MY CUSTOM ADDITION` marker, so no
   Taurus-specific approval migration was needed.

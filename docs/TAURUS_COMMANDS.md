@@ -1,6 +1,6 @@
 # Taurus Command Reference
 
-Last updated: 2026-06-24
+Last updated: 2026-06-26
 
 This file lists active Taurus commands and project-local Codex approval policy.
 Historical milestone command logs were removed during docs cleanup; use Git
@@ -342,6 +342,7 @@ PARAMETRIC_DRY_RUN=true make parametric-experiment EXPERIMENT_SPEC=experiments/s
 PARAMETRIC_DRY_RUN=true make parametric-experiment EXPERIMENT_SPEC=experiments/specs/v2a_risk_calibration.yaml
 PARAMETRIC_DRY_RUN=true make parametric-experiment EXPERIMENT_SPEC=experiments/specs/v2a_full_feature_sweep.yaml
 PARAMETRIC_DRY_RUN=true make parametric-experiment EXPERIMENT_SPEC=experiments/specs/v2a_medium_macro_sweep.yaml
+PARAMETRIC_DRY_RUN=true make parametric-experiment EXPERIMENT_SPEC=experiments/specs/v2a_medium_sensitivity_sweep.yaml
 TAURUS_PROGRESS=plain PARAMETRIC_DRY_RUN=true make parametric-experiment EXPERIMENT_SPEC=experiments/specs/v2a_smoke.yaml
 PARAMETRIC_DRY_RUN=true make parametric-experiment EXPERIMENT_SPEC=experiments/specs/v2a_smoke.yaml PARAMETRIC_OUTPUT_ROOT=/tmp/taurus-parametric-plan
 PARAMETRIC_DRY_RUN=false make parametric-experiment EXPERIMENT_SPEC=experiments/specs/v2a_smoke.yaml PARAMETRIC_OUTPUT_ROOT=/tmp/taurus-parametric-smoke
@@ -399,6 +400,12 @@ Checked-in specs:
   `portfolio_breadth`/`max_open_positions` choices for 15 variants and 45
   default yearly work units, while adding realized/unrealized P&L and
   closed-trade win/loss economics to the requested comparison metrics.
+- `experiments/specs/v2a_medium_sensitivity_sweep.yaml`: a compact
+  medium-horizon sensitivity sweep. It keeps current family weights,
+  `portfolio_breadth=5`, `max_open_positions=5`, and 21-day rebalancing fixed,
+  then runs 19 one-case `sensitivity_case` variants across 57 default yearly
+  work units with the same realized/unrealized P&L, closed-trade economics, and
+  21d/63d rank diagnostics as the macro sweep.
 
 Use `EXPERIMENT_SPEC=...` to choose the YAML spec. Use `PARAMETRIC_JOBS`,
 `PARAMETRIC_MAX_VARIANTS`, and `PARAMETRIC_OUTPUT_ROOT` to pass through the CLI

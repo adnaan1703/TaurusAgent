@@ -352,6 +352,32 @@ Completion summary requirements:
 - Mocks created
 - Mocks used
 
+Implementation closeout:
+
+- Status: Done on 2026-06-26.
+- Summary: Added `experiments/specs/v2a_medium_sensitivity_sweep.yaml` as a
+  compact 19-case medium-horizon sensitivity spec. The spec keeps current v2A
+  family weights, `portfolio_breadth=5`, `max_open_positions=5`, and 21-day
+  rebalancing fixed; represents each feature-weight or transform-scale
+  sensitivity as one `sensitivity_case` grouped-axis value; includes v1 and
+  current-v2A baselines; and requests the same realized/unrealized P&L,
+  closed-trade economics, return/risk, and 21d/63d rank diagnostics as M97.
+- Verification: `uv run pytest tests/unit/test_parametric_experiments.py`;
+  `PARAMETRIC_DRY_RUN=true make parametric-experiment
+  EXPERIMENT_SPEC=experiments/specs/v2a_medium_sensitivity_sweep.yaml`;
+  `make lint`; `make test`.
+- Assumptions made: M98 should add only the medium-horizon sensitivity sweep
+  spec and focused expansion coverage; the current spec schema still requires a
+  non-empty matrix, so the sensitivity spec pins `backtest.cost_bps: ["10"]`
+  there and keeps all feature/transform sensitivity choices in one grouped
+  axis; current v2A defaults, the existing full-feature sweep, rank 5d metrics,
+  and v2A-SH work remain unchanged.
+- Mocks created: None.
+- Mocks used: None.
+- Cleanup: Inspected `/Users/adnaan/.codex/rules/default.rules`; no entries
+  existed after the user's `# END MY CUSTOM ADDITION` marker, so no
+  Taurus-specific approval migration was needed.
+
 ## M99 - V2A-SH Short-Horizon Design Contract
 
 Purpose: define the future short-horizon technical profile contract without

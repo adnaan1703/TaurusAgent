@@ -5,17 +5,22 @@ Last updated: 2026-06-26
 ## Current Status
 
 - Current milestone: None.
-- Last completed milestone: M97 Medium-Horizon Macro Sweep Spec.
+- Last completed milestone: M98 Medium-Horizon Sensitivity Sweep Spec.
 - Planning completed:
   `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md`.
-- Implementation state: M97 is complete. The parametric harness supports
+- Implementation state: M98 is complete. The parametric harness supports
   optional `variants.axes` grouped overrides crossed with existing
   `variants.matrix` combinations; selected axis metadata appears in dry-run
   rows, comparison CSV rows, and variant manifests. The checked-in
   `v2a_medium_macro_sweep.yaml` macro spec crosses five family-weight trios with
   three paired portfolio-size choices, expands to 15 variants and 45 default
   yearly work units, and requests realized/unrealized plus closed-trade
-  economics diagnostics. v1 remains canonical and v2A remains opt-in.
+  economics diagnostics. The checked-in
+  `v2a_medium_sensitivity_sweep.yaml` sensitivity spec keeps current family
+  weights, `portfolio_breadth=5`, `max_open_positions=5`, and 21-day
+  rebalancing fixed, then runs 19 one-case `sensitivity_case` variants across
+  57 default yearly work units with the same trade-quality and rank
+  diagnostics. v1 remains canonical and v2A remains opt-in.
 - M97 macro sweep evidence is recorded in
   `docs/reports/parametric/v2a_medium_macro_sweep_20260626.md`. The completed
   run lives under
@@ -32,7 +37,7 @@ Last updated: 2026-06-26
   closed-trade quality and positive realized P&L; current v2A and the top
   candidates were driven by open mark-to-market gains and had negative realized
   P&L. Do not promote v2A or any candidate from that run.
-- Next recommended milestone: M98 Medium-Horizon Sensitivity Sweep Spec.
+- Next recommended milestone: M99 V2A-SH Short-Horizon Design Contract.
 - Canonical runtime state: `graph_aware_score_v1` remains the default
   `make paper-loop-kite` strategy. `graph_aware_score_v2` remains opt-in.
   `v2A-SH` is design-planned only and must not be treated as implemented.
@@ -52,6 +57,7 @@ Last updated: 2026-06-26
 - `experiments/parametric/metrics.py`
 - `experiments/parametric/technical_validation_v2a.py`
 - `experiments/specs/v2a_medium_macro_sweep.yaml`
+- `experiments/specs/v2a_medium_sensitivity_sweep.yaml`
 - `packages/taurus_core/features/technical_params.py`
 - `packages/taurus_core/features/technical_signal.py`
 - `packages/taurus_core/strategies/graph_aware.py`
@@ -88,7 +94,7 @@ sequence is:
 - M97: medium-horizon macro sweep spec plus additive trade-quality diagnostics.
   Done.
 - M98: medium-horizon sensitivity sweep spec using the same trade-quality
-  diagnostics. Planned.
+  diagnostics. Done.
 - M99: v2A-SH short-horizon design contract. Planned.
 - M100: final regression, docs, and handoff closeout. Planned.
 
@@ -116,9 +122,10 @@ sequence is:
 - The medium macro sweep should test five family-weight trios crossed with three
   paired portfolio sizes, and its outputs should distinguish realized
   closed-trade quality from open mark-to-market gains.
-- The medium sensitivity sweep should be sensitivity-style, not a full factorial
-  of all suggested feature values. It should make inert knobs and tied outcomes
-  easy to prune from future sweeps.
+- The medium sensitivity sweep is checked in as a sensitivity-style case list,
+  not a full factorial of all suggested feature values. It should make inert
+  knobs and tied outcomes easy to prune from future sweeps after a deliberate
+  non-dry-run execution.
 - `portfolio_breadth` and `max_open_positions` remain separate production
   concepts, but experiments should pair them as equal portfolio-size controls.
 - `v2A-SH` exact scoring weights and transform scales are deferred until its

@@ -249,6 +249,108 @@ def test_v2a_medium_macro_sweep_spec_expands_expected_axes(
     assert "axes=family_weight_trio=aggressive_alpha,portfolio_size=size_10" in rendered
 
 
+def test_v2a_medium_sensitivity_sweep_spec_expands_as_case_list(
+    tmp_path: Path,
+) -> None:
+    summary = dry_run_summary(
+        "experiments/specs/v2a_medium_sensitivity_sweep.yaml",
+        output_root=tmp_path / "runs",
+    )
+
+    expected_case_ids = [
+        "alpha_var126_weight_low",
+        "alpha_var126_scale_low",
+        "alpha_var126_scale_high",
+        "alpha_var252_weight_low",
+        "alpha_var252_weight_high",
+        "alpha_return126_weight_low",
+        "alpha_return126_weight_high",
+        "alpha_return63_weight_low",
+        "alpha_return63_scale_high",
+        "risk_atr_weight_high",
+        "risk_atr_scale_low",
+        "risk_vol20_weight_high",
+        "risk_vol20_scale_low",
+        "risk_vol63_weight_low",
+        "risk_return20_instability_harsh",
+        "trad_turnover_weight_high",
+        "trad_avg_value20_weight_low",
+        "trad_turnover_z_scale_low",
+        "trad_volume_z_weight_high",
+    ]
+
+    assert summary.plan.variant_count == 19
+    assert summary.plan.fold_count == 3
+    assert summary.plan.total_work_units == 57
+    assert summary.plan.metric_ids == (
+        "system.total_return",
+        "system.cagr",
+        "system.sharpe",
+        "system.sortino",
+        "system.max_drawdown",
+        "system.turnover",
+        "system.win_rate",
+        "system.profit_factor",
+        "system.realized_pnl_inr",
+        "system.unrealized_pnl_inr",
+        "system.closed_trade_count",
+        "system.closed_win_count",
+        "system.closed_loss_count",
+        "system.gross_profit_inr",
+        "system.gross_loss_inr",
+        "system.average_closed_win_inr",
+        "system.average_closed_loss_inr",
+        "system.average_cash_utilization_pct",
+        "system.sizing_failure_count",
+        "system.ranked_candidate_count",
+        "system.eligible_candidate_count",
+        "system.rejected_candidate_count",
+        "system.trimmed_candidate_count",
+        "rank.21d.rank_correlation",
+        "rank.63d.rank_correlation",
+        "rank.21d.top_bottom_decile_spread",
+        "rank.63d.top_bottom_decile_spread",
+        "rank.21d.hit_rate",
+        "rank.63d.hit_rate",
+    )
+
+    first_fold_by_case = summary.plan.variants[:: summary.plan.fold_count]
+    assert [
+        variant.axis_selections[0].value_id for variant in first_fold_by_case
+    ] == expected_case_ids
+    assert all(
+        [selection.axis for selection in variant.axis_selections] == ["sensitivity_case"]
+        for variant in summary.plan.variants
+    )
+    assert len({variant.fingerprint for variant in summary.plan.variants}) == 19
+
+    first_case = first_fold_by_case[0]
+    last_case = first_fold_by_case[-1]
+    assert first_case.overrides["backtest.cost_bps"] == Decimal("10")
+    assert first_case.overrides["alpha_weights.vol_adjusted_return_126d"] == Decimal(
+        "0.14"
+    )
+    assert last_case.overrides["tradability_weights.volume_z_score_20"] == Decimal(
+        "0.17"
+    )
+    assert all(
+        "family_weights." not in path
+        and path
+        not in {
+            "backtest.portfolio_breadth",
+            "backtest.max_open_positions",
+        }
+        for variant in summary.plan.variants
+        for path in variant.overrides
+    )
+
+    rendered = summary.render()
+    assert "expanded_variants=19" in rendered
+    assert "total_work_units=57" in rendered
+    assert "axes=sensitivity_case=alpha_var126_weight_low" in rendered
+    assert "axes=sensitivity_case=trad_volume_z_weight_high" in rendered
+
+
 def test_variant_fingerprint_is_stable_for_same_semantics(tmp_path: Path) -> None:
     first = tmp_path / "first.yaml"
     second = tmp_path / "second.yaml"
