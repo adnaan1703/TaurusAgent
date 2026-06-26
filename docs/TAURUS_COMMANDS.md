@@ -352,6 +352,15 @@ Dry-run mode prints the expanded variant count, fold count, total work units,
 metric IDs, stable variant fingerprints, and planned output paths without
 creating `experiments/runs/` or writing to the database. Progress uses
 `TAURUS_PROGRESS=auto/plain/false`; the main progress unit is fold x variant.
+Specs may use `variants.matrix` alone or add `variants.axes` for grouped
+override choices. Each axis has a stable `name`, a list of values with stable
+`id` fields, and each value has an `overrides` mapping. The harness crosses
+matrix combinations with one selected value from each axis, rejects conflicting
+duplicate override paths after adapter normalization, and validates merged
+family weights plus the `backtest.max_open_positions` and
+`backtest.portfolio_breadth` relationship. Axis-backed dry-run rows include
+`axes=<axis>=<value_id>` so operators can see which grouped choices produced a
+variant.
 Non-dry-run execution supports the `technical_validation_v2a` adapter for
 single-window smoke/debug specs and default `v2a_yearly` walk-forward specs. It
 runs generated v2A validation profiles through the existing technical
@@ -404,6 +413,10 @@ source lives under `experiments/parametric/`. Each non-dry-run execution writes
 an aggregate `comparison.csv` and `manifest.json` at the run root plus
 per-variant `comparison.csv`, `manifest.json`, technical validation artifacts,
 and operator Markdown reports under `variants/<fingerprint>/<fold_id>/`.
+Axis-backed variants include `axis_values` metadata in comparison CSV rows and
+variant manifests as a list of `{axis, value_id}` selections. Matrix-only specs
+leave that metadata empty while preserving their existing variant override
+payloads and fingerprints.
 Multi-fold aggregate CSVs include `variant_aggregate` rows with fold count,
 mean metric/delta values, and fold min/max/mean/stddev stability columns for
 generated variant rows. `promotion_gate.json` remains report-only and does not

@@ -5,12 +5,15 @@ Last updated: 2026-06-26
 ## Current Status
 
 - Current milestone: None.
-- Last completed milestone: M96-M100 plan document creation.
+- Last completed milestone: M96 Grouped Experiment Axes.
 - Planning completed:
   `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md`.
-- Implementation state: No M96-M100 implementation has started. The current
-  parametric harness remains the completed M89-M95 harness with Cartesian
-  `variants.matrix`, current checked-in v2A specs, v1 canonical, and v2A opt-in.
+- Implementation state: M96 is complete. The parametric harness now supports
+  optional `variants.axes` grouped overrides crossed with existing
+  `variants.matrix` combinations; selected axis metadata appears in dry-run
+  rows, comparison CSV rows, and variant manifests. Current checked-in v2A specs
+  remain matrix-only with unchanged variant/work-unit counts, v1 canonical, and
+  v2A opt-in.
 - Full-feature sweep evidence:
   `/tmp/taurus-parametric-risk/v2a_full_feature_sweep-ff23bcf5745e` completed
   512 variants across three yearly folds. The tied top candidates improved
@@ -19,7 +22,7 @@ Last updated: 2026-06-26
   and positive realized P&L; current v2A and the top candidates were driven by
   open mark-to-market gains and had negative realized P&L. Do not promote v2A
   or any candidate from that run.
-- Next recommended milestone: M96 Grouped Experiment Axes.
+- Next recommended milestone: M97 Medium-Horizon Macro Sweep Spec.
 - Canonical runtime state: `graph_aware_score_v1` remains the default
   `make paper-loop-kite` strategy. `graph_aware_score_v2` remains opt-in.
   `v2A-SH` is design-planned only and must not be treated as implemented.
@@ -67,7 +70,7 @@ Last updated: 2026-06-26
 The source of truth is the tracker table in `docs/MILESTONE.md`. The planned
 sequence is:
 
-- M96: grouped experiment axes. Planned.
+- M96: grouped experiment axes. Done.
 - M97: medium-horizon macro sweep spec plus additive trade-quality diagnostics.
   Planned.
 - M98: medium-horizon sensitivity sweep spec using the same trade-quality

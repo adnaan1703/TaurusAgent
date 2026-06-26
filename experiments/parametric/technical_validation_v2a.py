@@ -654,6 +654,7 @@ def _comparison_rows(
             "validation_status": outcome.status,
             "promotion_decision": outcome.promotion_decision,
             "fold_count": "",
+            "axis_values": _axis_selection_payload(variant),
             "overrides": json.dumps(
                 _json_safe(dict(variant.overrides)),
                 sort_keys=True,
@@ -772,6 +773,13 @@ def _profile_role(profile_name: str, variant: VariantPlan) -> str:
     return "comparison"
 
 
+def _axis_selection_payload(variant: VariantPlan) -> list[dict[str, str]]:
+    return [
+        {"axis": selection.axis, "value_id": selection.value_id}
+        for selection in variant.axis_selections
+    ]
+
+
 def _variant_manifest(
     *,
     plan: ExperimentPlan | _VariantExecutionContext,
@@ -790,6 +798,7 @@ def _variant_manifest(
         "adapter": _plan_adapter_id(plan),
         "spec_fingerprint": plan.spec_fingerprint,
         "git_commit": _git_commit(),
+        "axis_values": _axis_selection_payload(variant),
         "fold": {
             "fold_id": variant.fold.fold_id,
             "mode": variant.fold.mode,
@@ -947,6 +956,7 @@ def _aggregate_fold_rows(
             "validation_status": _aggregate_status(fold_rows),
             "promotion_decision": "",
             "fold_count": len(fold_rows),
+            "axis_values": first.get("axis_values", ""),
             "overrides": first.get("overrides", ""),
         }
         for metric_id in metric_ids:
@@ -1014,6 +1024,7 @@ def _run_level_comparison_rows(
         baseline_row["variant_fingerprint"] = ""
         baseline_row["validation_run_id"] = ""
         baseline_row["promotion_decision"] = ""
+        baseline_row["axis_values"] = ""
         baseline_row["overrides"] = ""
         baseline_rows_by_key[key] = baseline_row
         baseline_rows.append(baseline_row)
@@ -1096,6 +1107,7 @@ def _write_comparison_csv(
         "validation_status",
         "promotion_decision",
         "fold_count",
+        "axis_values",
         "overrides",
     ]
     for metric_id in metric_ids:

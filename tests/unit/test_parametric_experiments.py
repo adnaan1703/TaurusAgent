@@ -118,6 +118,79 @@ def test_family_weight_overrides_must_sum_to_one() -> None:
         expand_experiment(spec)
 
 
+def test_grouped_axes_cross_matrix_with_selected_axis_metadata(tmp_path: Path) -> None:
+    raw = _grouped_axis_spec()
+    plan = expand_experiment(
+        parse_experiment_spec(raw),
+        output_root=tmp_path / "runs",
+    )
+
+    assert plan.variant_count == 4
+    assert plan.total_work_units == 4
+    assert [
+        [(selection.axis, selection.value_id) for selection in variant.axis_selections]
+        for variant in plan.variants
+    ] == [
+        [("family_weight_trio", "balanced"), ("portfolio_size", "breadth_2")],
+        [("family_weight_trio", "balanced"), ("portfolio_size", "breadth_3")],
+        [("family_weight_trio", "risk_tilt"), ("portfolio_size", "breadth_2")],
+        [("family_weight_trio", "risk_tilt"), ("portfolio_size", "breadth_3")],
+    ]
+    assert plan.variants[1].overrides["backtest.portfolio_breadth"] == 3
+    assert plan.variants[1].overrides["backtest.max_open_positions"] == 3
+
+    spec_path = tmp_path / "grouped.yaml"
+    spec_path.write_text(yaml.safe_dump(raw, sort_keys=False), encoding="utf-8")
+    rendered = dry_run_summary(spec_path, output_root=tmp_path / "dry-runs").render()
+
+    assert "expanded_variants=4" in rendered
+    assert "axes=family_weight_trio=balanced,portfolio_size=breadth_2" in rendered
+    assert "axes=family_weight_trio=risk_tilt,portfolio_size=breadth_3" in rendered
+
+
+def test_grouped_axes_allow_identical_duplicate_override_paths() -> None:
+    raw = _grouped_axis_spec()
+    raw["variants"]["matrix"]["backtest.cost_bps"] = ["10"]
+    raw["variants"]["axes"][0]["values"][0]["overrides"]["backtest.cost_bps"] = "10"
+
+    plan = expand_experiment(parse_experiment_spec(raw))
+
+    assert plan.variant_count == 4
+    assert plan.variants[0].overrides["backtest.cost_bps"] == Decimal("10")
+
+
+def test_grouped_axes_reject_conflicting_duplicate_override_paths() -> None:
+    raw = _grouped_axis_spec()
+    raw["variants"]["matrix"]["backtest.cost_bps"] = ["10"]
+    raw["variants"]["axes"][0]["values"][0]["overrides"]["backtest.cost_bps"] = "12"
+
+    with pytest.raises(ExperimentSpecError, match="Duplicate override path 'backtest.cost_bps'"):
+        expand_experiment(parse_experiment_spec(raw))
+
+
+def test_grouped_axes_validate_family_weight_totals() -> None:
+    raw = _grouped_axis_spec()
+    raw["variants"]["axes"][0]["values"][0]["overrides"] = {
+        "family_weights.alpha": "0.70",
+        "family_weights.risk": "0.20",
+        "family_weights.tradability": "0.20",
+    }
+
+    with pytest.raises(ExperimentSpecError, match="family_weights must sum to 1"):
+        expand_experiment(parse_experiment_spec(raw))
+
+
+def test_grouped_axes_validate_portfolio_size_pairs() -> None:
+    raw = _grouped_axis_spec()
+    raw["variants"]["axes"][1]["values"][0]["overrides"] = {
+        "backtest.portfolio_breadth": 4,
+        "backtest.max_open_positions": 3,
+    }
+
+    with pytest.raises(ExperimentSpecError, match="max_open_positions"):
+        expand_experiment(parse_experiment_spec(raw))
+
+
 def test_variant_fingerprint_is_stable_for_same_semantics(tmp_path: Path) -> None:
     first = tmp_path / "first.yaml"
     second = tmp_path / "second.yaml"
@@ -130,6 +203,26 @@ def test_variant_fingerprint_is_stable_for_same_semantics(tmp_path: Path) -> Non
     assert first_plan.variants[0].fingerprint == second_plan.variants[0].fingerprint
 
 
+def test_grouped_axis_fingerprints_are_stable_for_same_semantics(tmp_path: Path) -> None:
+    first = tmp_path / "first.yaml"
+    second = tmp_path / "second.yaml"
+    first.write_text(
+        yaml.safe_dump(_grouped_axis_spec(sort_axis_overrides=False), sort_keys=False),
+        encoding="utf-8",
+    )
+    second.write_text(
+        yaml.safe_dump(_grouped_axis_spec(sort_axis_overrides=True), sort_keys=False),
+        encoding="utf-8",
+    )
+
+    first_plan = expand_experiment(load_experiment_spec(first))
+    second_plan = expand_experiment(load_experiment_spec(second))
+
+    assert sorted(variant.fingerprint for variant in first_plan.variants) == sorted(
+        variant.fingerprint for variant in second_plan.variants
+    )
+
+
 def test_v2a_adapter_writes_manifest_csv_and_metric_deltas(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -138,10 +231,22 @@ def test_v2a_adapter_writes_manifest_csv_and_metric_deltas(
     raw["variants"] = {
         "matrix": {
             "backtest.cost_bps": ["12"],
-            "family_weights.alpha": ["0.65"],
-            "family_weights.risk": ["0.20"],
-            "family_weights.tradability": ["0.15"],
-        }
+        },
+        "axes": [
+            {
+                "name": "family_weight_trio",
+                "values": [
+                    {
+                        "id": "balanced",
+                        "overrides": {
+                            "family_weights.alpha": "0.65",
+                            "family_weights.risk": "0.20",
+                            "family_weights.tradability": "0.15",
+                        },
+                    }
+                ],
+            }
+        ],
     }
     plan = expand_experiment(
         parse_experiment_spec(raw),
@@ -214,10 +319,16 @@ def test_v2a_adapter_writes_manifest_csv_and_metric_deltas(
     assert variant_row["system.total_return.delta_vs_current_v2a"] == "0.03"
     assert variant_row["rank.21d.rank_correlation"] == "0.05"
     assert variant_row["rank.21d.rank_correlation.delta_vs_current_v2a"] == "0.03"
+    assert json.loads(variant_row["axis_values"]) == [
+        {"axis": "family_weight_trio", "value_id": "balanced"}
+    ]
 
     manifest = json.loads(outcome.manifest_path.read_text(encoding="utf-8"))
     assert manifest["run_id"] == plan.run_id
     assert manifest["output_paths"]["comparison_csv"] == str(outcome.comparison_csv_path)
+    assert manifest["variants"][0]["axis_values"] == [
+        {"axis": "family_weight_trio", "value_id": "balanced"}
+    ]
     assert manifest["variants"][0]["validation"]["promotion_gate_report_only"] is True
     assert manifest["variants"][0]["output_paths"]["manifest"].endswith("manifest.json")
 
@@ -546,6 +657,65 @@ def _base_spec(*, sort_matrix: bool = False) -> dict[str, object]:
             "rank.21d.rank_correlation",
         ],
     }
+
+
+def _grouped_axis_spec(*, sort_axis_overrides: bool = False) -> dict[str, object]:
+    balanced_overrides = {
+        "family_weights.alpha": "0.65",
+        "family_weights.risk": "0.20",
+        "family_weights.tradability": "0.15",
+    }
+    if sort_axis_overrides:
+        balanced_overrides = {
+            "family_weights.tradability": "0.15",
+            "family_weights.risk": "0.20",
+            "family_weights.alpha": "0.65",
+        }
+    raw = _base_spec()
+    raw["variants"] = {
+        "matrix": {
+            "backtest.cost_bps": ["10"],
+        },
+        "axes": [
+            {
+                "name": "family_weight_trio",
+                "values": [
+                    {
+                        "id": "balanced",
+                        "overrides": balanced_overrides,
+                    },
+                    {
+                        "id": "risk_tilt",
+                        "overrides": {
+                            "family_weights.alpha": "0.60",
+                            "family_weights.risk": "0.25",
+                            "family_weights.tradability": "0.15",
+                        },
+                    },
+                ],
+            },
+            {
+                "name": "portfolio_size",
+                "values": [
+                    {
+                        "id": "breadth_2",
+                        "overrides": {
+                            "backtest.portfolio_breadth": 2,
+                            "backtest.max_open_positions": 2,
+                        },
+                    },
+                    {
+                        "id": "breadth_3",
+                        "overrides": {
+                            "backtest.portfolio_breadth": 3,
+                            "backtest.max_open_positions": 3,
+                        },
+                    },
+                ],
+            },
+        ],
+    }
+    return raw
 
 
 def _system_profile(

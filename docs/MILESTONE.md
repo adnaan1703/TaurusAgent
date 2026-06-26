@@ -37,11 +37,11 @@ current operator detail in the usage and command docs.
   parametric experiment harness for opt-in v2A technical-profile sweeps.
 - `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_HANDOFF.md`: current handoff for
   the planned M89-M95 parametric experiment harness sequence.
-- `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md`: planned M96-M100 staged v2A
+- `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md`: staged M96-M100 v2A
   experiment redesign covering grouped axes, medium-horizon macro/sensitivity
   specs, short-horizon profile design, and final closeout.
 - `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_HANDOFF.md`: current handoff for the
-  planned M96-M100 v2A experiment redesign sequence.
+  staged M96-M100 v2A experiment redesign sequence.
 - `docs/TAURUS_V2B_DATA_INGESTION_HANDOFF.md`: current v2B data-readiness
   handoff covering completed v2B work, pending official-data inputs, source
   candidates, import commands, readiness checks, and future ingestion work.
@@ -393,7 +393,8 @@ removed during docs cleanup. Use Git history for detailed historical plans.
 | M88 | Done | Widened persisted technical feature values to handle v2 OHLCV traded-value metrics above the old `NUMERIC(18, 8)` ceiling, added an idempotent Postgres migration, and covered the original backtest insert path with focused regressions. |
 | M89-M95 plan document | Done | Created the parametric experiment harness plan and handoff for adapter-first v2A technical-profile sweeps; implementation remains planned and no harness code was added in the planning task. |
 | M95 | Done | Ran final focused regression, smoke dry-run, risk-calibration dry-run, and tiny smoke non-dry-run execution for the parametric harness; refreshed the plan, handoff, command docs, and tracker; confirmed generated run outputs are ignored and no approval cleanup was needed; and closed M89-M95 with v1 canonical and v2A opt-in. |
-| M96-M100 plan document | Done | Created and refreshed the staged v2A experiment redesign plan and handoff for grouped axes, medium-horizon macro/sensitivity specs with trade-quality diagnostics, short-horizon profile design, and final closeout; implementation remains planned and no harness/spec/profile code was added in the planning task. |
+| M96-M100 plan document | Done | Created and refreshed the staged v2A experiment redesign plan and handoff for grouped axes, medium-horizon macro/sensitivity specs with trade-quality diagnostics, short-horizon profile design, and final closeout; no harness/spec/profile code was added in the planning task. |
+| M96 | Done | Added optional grouped experiment axes to the parametric harness so matrix combinations can be crossed with named axis values carrying grouped overrides; selected axis metadata now appears in dry-run rows, comparison CSV rows, and variant manifests; existing checked-in matrix-only specs keep their variant/work-unit counts and no v2A specs or v2A-SH scoring were added. |
 
 ## Completed Graph Explorer Sequence
 
@@ -462,11 +463,31 @@ and documented; do not automatically begin later scope.
 
 | Order | Milestone | Status | Plan | Purpose |
 |---:|---|---|---|---|
-| 96 | M96 | Planned | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Add grouped experiment axes so paired family-weight and portfolio-size controls can be expressed without invalid Cartesian combinations. |
+| 96 | M96 | Done | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Added grouped experiment axes so paired family-weight and portfolio-size controls can be expressed without invalid Cartesian combinations. |
 | 97 | M97 | Planned | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Add the medium-horizon macro sweep for family-weight trios, paired portfolio sizes, and additive realized/unrealized plus closed-trade diagnostics. |
 | 98 | M98 | Planned | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Add the medium-horizon sensitivity sweep for compact feature-weight and transform-scale cases using the same trade-quality diagnostics. |
 | 99 | M99 | Planned | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Define the separate v2A-SH short-horizon technical-profile design contract without changing current v2A defaults. |
 | 100 | M100 | Planned | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Run final regression, dry-runs, docs, handoff, and cleanup for the staged experiment redesign sequence. |
+
+### M96 Completion Summary
+
+- Assumptions made: `variants.matrix` remains required and backward-compatible;
+  `variants.axes` is optional and declarative; selected axis metadata should be
+  additive in dry-run output, comparison CSV rows, and variant manifests; M96
+  should not add checked-in v2A specs beyond focused test fixtures and should
+  not implement v2A-SH.
+- Mocks created: None.
+- Mocks used: None.
+- Verification: `uv run pytest tests/unit/test_parametric_experiments.py`;
+  `PARAMETRIC_DRY_RUN=true make parametric-experiment
+  EXPERIMENT_SPEC=experiments/specs/v2a_smoke.yaml`;
+  `PARAMETRIC_DRY_RUN=true make parametric-experiment
+  EXPERIMENT_SPEC=experiments/specs/v2a_risk_calibration.yaml`;
+  `PARAMETRIC_DRY_RUN=true make parametric-experiment
+  EXPERIMENT_SPEC=experiments/specs/v2a_full_feature_sweep.yaml`; `make lint`.
+- Cleanup: Inspected `/Users/adnaan/.codex/rules/default.rules`; no
+  Taurus-specific approvals existed after the user's `# END MY CUSTOM ADDITION`
+  marker, so no project-local approval migration was needed.
 
 ### M96-M100 Plan Document Completion Summary
 
@@ -482,8 +503,8 @@ and documented; do not automatically begin later scope.
 - Mocks created: None.
 - Mocks used: None.
 - Verification: Planning artifacts were created and refreshed by inspection only.
-  No tests, dry-runs, or implementation commands were run because implementation
-  remains planned and M96 was not started.
+  No tests, dry-runs, or implementation commands were run during the
+  plan-document creation task because implementation had not started yet.
 
 ### M89-M95 Plan Document Completion Summary
 

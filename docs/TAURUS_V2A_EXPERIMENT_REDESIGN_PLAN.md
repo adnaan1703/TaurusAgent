@@ -30,11 +30,13 @@ technical-profile tuning:
 ## Existing Foundation
 
 - `experiments/parametric/spec.py` defines the strict Pydantic experiment spec.
-  Current `variants.matrix` is a non-empty mapping of override paths to value
-  lists.
+  `variants.matrix` remains a non-empty mapping of override paths to value
+  lists, and M96 added optional `variants.axes` grouped override choices.
 - `experiments/parametric/expansion.py` expands the matrix as a Cartesian
-  product, validates family-weight sums after defaults and overrides, creates
-  stable variant fingerprints, and builds fold-aware output paths.
+  product crossed with one selected value from each optional grouped axis,
+  validates family-weight sums and portfolio-size constraints after defaults
+  and overrides, creates stable variant fingerprints, and builds fold-aware
+  output paths.
 - `experiments/parametric/adapters.py` allowlists v2A scoring, guardrail, and
   backtest override paths, including `backtest.portfolio_breadth` and
   `backtest.max_open_positions`.
@@ -164,6 +166,27 @@ Completion summary requirements:
 - Assumptions made
 - Mocks created
 - Mocks used
+
+Implementation closeout:
+
+- Status: Done on 2026-06-26.
+- Summary: Added optional `variants.axes` parsing, grouped-axis expansion,
+  duplicate override conflict checks after adapter normalization, merged
+  family-weight and portfolio-size validation, selected-axis metadata in
+  dry-run rows, and `axis_values` metadata in comparison CSV rows and variant
+  manifests.
+- Verification: `uv run pytest tests/unit/test_parametric_experiments.py`;
+  `PARAMETRIC_DRY_RUN=true make parametric-experiment
+  EXPERIMENT_SPEC=experiments/specs/v2a_smoke.yaml`;
+  `PARAMETRIC_DRY_RUN=true make parametric-experiment
+  EXPERIMENT_SPEC=experiments/specs/v2a_risk_calibration.yaml`;
+  `PARAMETRIC_DRY_RUN=true make parametric-experiment
+  EXPERIMENT_SPEC=experiments/specs/v2a_full_feature_sweep.yaml`; `make lint`.
+- Assumptions made: `variants.matrix` remains required and backward-compatible;
+  grouped axes are additive and declarative; M96 does not add checked-in v2A
+  sweep specs or implement v2A-SH.
+- Mocks created: None.
+- Mocks used: None.
 
 ## M97 - Medium-Horizon Macro Sweep Spec
 

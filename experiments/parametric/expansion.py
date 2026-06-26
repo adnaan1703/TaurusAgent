@@ -14,6 +14,7 @@ from experiments.parametric.metrics import MetricDefinition, default_metric_regi
 from experiments.parametric.spec import DEFAULT_MAX_VARIANTS, ExperimentSpec
 
 TRADING_DAYS_PER_YEAR = 252
+_MISSING = object()
 
 
 @dataclass(frozen=True, slots=True)
@@ -33,12 +34,19 @@ class PlannedOutputPaths:
 
 
 @dataclass(frozen=True, slots=True)
+class AxisSelection:
+    axis: str
+    value_id: str
+
+
+@dataclass(frozen=True, slots=True)
 class VariantPlan:
     variant_id: str
     fingerprint: str
     variant_index: int
     work_unit_index: int
     overrides: Mapping[str, object]
+    axis_selections: tuple[AxisSelection, ...]
     fold: FoldPlan
     output_paths: PlannedOutputPaths
 
@@ -73,6 +81,18 @@ class ExperimentPlan:
         return tuple(metric.metric_id for metric in self.metrics)
 
 
+@dataclass(frozen=True, slots=True)
+class _AxisOption:
+    selection: AxisSelection
+    overrides: Mapping[str, object]
+
+
+@dataclass(frozen=True, slots=True)
+class _ExpandedVariant:
+    overrides: dict[str, object]
+    axis_selections: tuple[AxisSelection, ...]
+
+
 def expand_experiment(
     spec: ExperimentSpec,
     *,
@@ -89,7 +109,7 @@ def expand_experiment(
     if variant_limit <= 0:
         raise ExperimentSpecError("max_variants must be a positive integer.")
 
-    combinations = _expanded_overrides(adapter, spec)
+    combinations = _expanded_variants(adapter, spec)
     explicitly_overrode_limit = (
         max_variants is not None or "max_variants" in spec.execution.model_fields_set
     )
@@ -107,11 +127,12 @@ def expand_experiment(
 
     folds = _folds(spec)
     resolved_output_root = Path(output_root) if output_root is not None else spec.output.root
-    spec_fingerprint = _fingerprint({"spec": spec.model_dump(mode="json")})
+    spec_fingerprint = _fingerprint({"spec": _spec_fingerprint_payload(spec)})
     run_id = f"{spec.experiment_id}-{spec_fingerprint[:12]}"
     variants: list[VariantPlan] = []
     work_unit_index = 0
-    for index, overrides in enumerate(combinations, start=1):
+    for index, combination in enumerate(combinations, start=1):
+        overrides = combination.overrides
         fingerprint = variant_fingerprint(
             adapter_id=spec.adapter,
             base_request=spec.base_request.model_dump(mode="json"),
@@ -135,6 +156,7 @@ def expand_experiment(
                     variant_index=index,
                     work_unit_index=work_unit_index,
                     overrides=overrides,
+                    axis_selections=combination.axis_selections,
                     fold=fold,
                     output_paths=PlannedOutputPaths(
                         variant_dir=variant_dir,
@@ -173,7 +195,36 @@ def variant_fingerprint(
     return _fingerprint(payload)
 
 
-def _expanded_overrides(
+def _expanded_variants(
+    adapter: AdapterDefinition,
+    spec: ExperimentSpec,
+) -> tuple[_ExpandedVariant, ...]:
+    matrix_combinations = _matrix_combinations(adapter, spec)
+    axis_options_by_axis = tuple(_axis_options(adapter, spec))
+    combinations: list[_ExpandedVariant] = []
+    for matrix_overrides in matrix_combinations:
+        if axis_options_by_axis:
+            selected_axis_products = itertools.product(*axis_options_by_axis)
+        else:
+            selected_axis_products = ((),)
+        for selected_axis_options in selected_axis_products:
+            overrides = dict(matrix_overrides)
+            axis_selections: list[AxisSelection] = []
+            for axis_option in selected_axis_options:
+                _merge_overrides(overrides, axis_option.overrides)
+                axis_selections.append(axis_option.selection)
+            _validate_family_weights(adapter, overrides)
+            _validate_backtest_portfolio_size(spec, overrides)
+            combinations.append(
+                _ExpandedVariant(
+                    overrides=overrides,
+                    axis_selections=tuple(axis_selections),
+                )
+            )
+    return tuple(combinations)
+
+
+def _matrix_combinations(
     adapter: AdapterDefinition,
     spec: ExperimentSpec,
 ) -> tuple[dict[str, object], ...]:
@@ -186,10 +237,53 @@ def _expanded_overrides(
         )
     combinations: list[dict[str, object]] = []
     for values in itertools.product(*normalized_values):
-        overrides = dict(zip(paths, values, strict=True))
-        _validate_family_weights(adapter, overrides)
-        combinations.append(overrides)
+        combinations.append(dict(zip(paths, values, strict=True)))
     return tuple(combinations)
+
+
+def _axis_options(
+    adapter: AdapterDefinition,
+    spec: ExperimentSpec,
+) -> tuple[tuple[_AxisOption, ...], ...]:
+    options_by_axis: list[tuple[_AxisOption, ...]] = []
+    for axis in spec.variants.axes:
+        axis_options: list[_AxisOption] = []
+        for value in axis.values:
+            axis_options.append(
+                _AxisOption(
+                    selection=AxisSelection(axis=axis.name, value_id=value.id),
+                    overrides=_normalize_override_mapping(adapter, value.overrides),
+                )
+            )
+        options_by_axis.append(tuple(axis_options))
+    return tuple(options_by_axis)
+
+
+def _normalize_override_mapping(
+    adapter: AdapterDefinition,
+    overrides: Mapping[str, object],
+) -> dict[str, object]:
+    return {
+        path: adapter.normalize_override(path, overrides[path])
+        for path in sorted(overrides)
+    }
+
+
+def _merge_overrides(
+    merged: dict[str, object],
+    incoming: Mapping[str, object],
+) -> None:
+    for path, value in incoming.items():
+        existing = merged.get(path, _MISSING)
+        if existing is _MISSING:
+            merged[path] = value
+            continue
+        if existing != value:
+            raise ExperimentSpecError(
+                "Duplicate override path "
+                f"{path!r} uses conflicting normalized values "
+                f"{existing!r} and {value!r} across matrix and axes."
+            )
 
 
 def _validate_family_weights(
@@ -210,6 +304,23 @@ def _validate_family_weights(
         )
         raise ExperimentSpecError(
             f"family_weights must sum to 1 after defaults and overrides; got {total} ({rendered})."
+        )
+
+
+def _validate_backtest_portfolio_size(
+    spec: ExperimentSpec,
+    overrides: Mapping[str, object],
+) -> None:
+    portfolio_breadth = int(
+        overrides.get("backtest.portfolio_breadth", spec.base_request.portfolio_breadth)
+    )
+    max_open_positions = int(
+        overrides.get("backtest.max_open_positions", spec.base_request.max_open_positions)
+    )
+    if max_open_positions < portfolio_breadth:
+        raise ExperimentSpecError(
+            "backtest.max_open_positions must be greater than or equal to "
+            "backtest.portfolio_breadth after overrides."
         )
 
 
@@ -241,6 +352,14 @@ def _folds(spec: ExperimentSpec) -> tuple[FoldPlan, ...]:
             ),
         )
     raise ExperimentSpecError(f"Unsupported folds.mode {spec.folds.mode!r}.")
+
+
+def _spec_fingerprint_payload(spec: ExperimentSpec) -> Mapping[str, object]:
+    payload = spec.model_dump(mode="json")
+    variants = payload.get("variants")
+    if isinstance(variants, dict) and not variants.get("axes"):
+        variants.pop("axes", None)
+    return payload
 
 
 def _fingerprint(payload: Mapping[str, object]) -> str:

@@ -35,12 +35,20 @@ class DryRunSummary:
             overrides = ",".join(
                 f"{path}={value}" for path, value in sorted(variant.overrides.items())
             )
+            axis_values = ",".join(
+                f"{selection.axis}={selection.value_id}"
+                for selection in variant.axis_selections
+            )
+            metadata = [
+                f"variant_id={variant.variant_id}",
+                f"fingerprint={variant.fingerprint}",
+                f"fold={variant.fold.fold_id}",
+            ]
+            if axis_values:
+                metadata.append(f"axes={axis_values}")
+            metadata.append(f"overrides={overrides}")
             lines.append(
-                "- "
-                f"variant_id={variant.variant_id} "
-                f"fingerprint={variant.fingerprint} "
-                f"fold={variant.fold.fold_id} "
-                f"overrides={overrides}"
+                "- " + " ".join(metadata)
             )
         lines.append("planned_output_paths:")
         for variant in self.plan.variants:
