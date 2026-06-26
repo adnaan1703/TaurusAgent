@@ -25,12 +25,13 @@ Last updated: 2026-06-26
   rank behavior rather than broadening portfolio size.
 - Full-feature sweep evidence:
   `/tmp/taurus-parametric-risk/v2a_full_feature_sweep-ff23bcf5745e` completed
-  512 variants across three yearly folds. The tied top candidates improved
-  aggregate return and Sharpe slightly versus current v2A, but did not fix
-  negative aggregate 21d rank correlation. v1 kept better closed-trade quality
-  and positive realized P&L; current v2A and the top candidates were driven by
-  open mark-to-market gains and had negative realized P&L. Do not promote v2A
-  or any candidate from that run.
+  512 variants across three yearly folds. The durable report note is
+  `docs/reports/parametric/v2a_full_feature_sweep_20260626.md`. The tied top
+  candidates improved aggregate return and Sharpe slightly versus current v2A,
+  but did not fix negative aggregate 21d rank correlation. v1 kept better
+  closed-trade quality and positive realized P&L; current v2A and the top
+  candidates were driven by open mark-to-market gains and had negative realized
+  P&L. Do not promote v2A or any candidate from that run.
 - Next recommended milestone: M98 Medium-Horizon Sensitivity Sweep Spec.
 - Canonical runtime state: `graph_aware_score_v1` remains the default
   `make paper-loop-kite` strategy. `graph_aware_score_v2` remains opt-in.
@@ -43,6 +44,7 @@ Last updated: 2026-06-26
 - `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md`
 - `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_HANDOFF.md`
 - `docs/TAURUS_COMMANDS.md`
+- `docs/reports/parametric/v2a_full_feature_sweep_20260626.md`
 - `docs/reports/parametric/v2a_medium_macro_sweep_20260626.md`
 - `experiments/parametric/spec.py`
 - `experiments/parametric/expansion.py`
