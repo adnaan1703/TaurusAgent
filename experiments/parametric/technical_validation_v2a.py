@@ -47,6 +47,21 @@ SYSTEM_METRIC_PATHS = {
     "system.turnover": ("metrics", "turnover"),
     "system.win_rate": ("metrics", "win_rate"),
     "system.profit_factor": ("metrics", "profit_factor"),
+    "system.realized_pnl_inr": ("closed_trade_economics", "realized_pnl_inr"),
+    "system.unrealized_pnl_inr": ("closed_trade_economics", "unrealized_pnl_inr"),
+    "system.closed_trade_count": ("closed_trade_economics", "closed_trade_count"),
+    "system.closed_win_count": ("closed_trade_economics", "closed_win_count"),
+    "system.closed_loss_count": ("closed_trade_economics", "closed_loss_count"),
+    "system.gross_profit_inr": ("closed_trade_economics", "gross_profit_inr"),
+    "system.gross_loss_inr": ("closed_trade_economics", "gross_loss_inr"),
+    "system.average_closed_win_inr": (
+        "closed_trade_economics",
+        "average_closed_win_inr",
+    ),
+    "system.average_closed_loss_inr": (
+        "closed_trade_economics",
+        "average_closed_loss_inr",
+    ),
     "system.average_cash_utilization_pct": (
         "cash_utilization",
         "average_cash_utilization_pct",

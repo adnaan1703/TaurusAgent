@@ -191,6 +191,64 @@ def test_grouped_axes_validate_portfolio_size_pairs() -> None:
         expand_experiment(parse_experiment_spec(raw))
 
 
+def test_v2a_medium_macro_sweep_spec_expands_expected_axes(
+    tmp_path: Path,
+) -> None:
+    summary = dry_run_summary(
+        "experiments/specs/v2a_medium_macro_sweep.yaml",
+        output_root=tmp_path / "runs",
+    )
+
+    assert summary.plan.variant_count == 15
+    assert summary.plan.fold_count == 3
+    assert summary.plan.total_work_units == 45
+    assert summary.plan.metric_ids == (
+        "system.total_return",
+        "system.cagr",
+        "system.sharpe",
+        "system.sortino",
+        "system.max_drawdown",
+        "system.turnover",
+        "system.win_rate",
+        "system.profit_factor",
+        "system.realized_pnl_inr",
+        "system.unrealized_pnl_inr",
+        "system.closed_trade_count",
+        "system.closed_win_count",
+        "system.closed_loss_count",
+        "system.gross_profit_inr",
+        "system.gross_loss_inr",
+        "system.average_closed_win_inr",
+        "system.average_closed_loss_inr",
+        "system.average_cash_utilization_pct",
+        "system.sizing_failure_count",
+        "system.ranked_candidate_count",
+        "system.eligible_candidate_count",
+        "system.rejected_candidate_count",
+        "system.trimmed_candidate_count",
+        "rank.21d.rank_correlation",
+        "rank.63d.rank_correlation",
+        "rank.21d.top_bottom_decile_spread",
+        "rank.63d.top_bottom_decile_spread",
+        "rank.21d.hit_rate",
+        "rank.63d.hit_rate",
+    )
+    first_variant = summary.plan.variants[0]
+    assert first_variant.overrides["backtest.portfolio_breadth"] == 5
+    assert first_variant.overrides["backtest.max_open_positions"] == 5
+    assert all(
+        variant.overrides["backtest.max_open_positions"]
+        >= variant.overrides["backtest.portfolio_breadth"]
+        for variant in summary.plan.variants
+    )
+
+    rendered = summary.render()
+    assert "expanded_variants=15" in rendered
+    assert "total_work_units=45" in rendered
+    assert "axes=family_weight_trio=current,portfolio_size=size_5" in rendered
+    assert "axes=family_weight_trio=aggressive_alpha,portfolio_size=size_10" in rendered
+
+
 def test_variant_fingerprint_is_stable_for_same_semantics(tmp_path: Path) -> None:
     first = tmp_path / "first.yaml"
     second = tmp_path / "second.yaml"
@@ -228,6 +286,19 @@ def test_v2a_adapter_writes_manifest_csv_and_metric_deltas(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     raw = _base_spec()
+    raw["metrics"] = [
+        "system.total_return",
+        "system.realized_pnl_inr",
+        "system.unrealized_pnl_inr",
+        "system.closed_trade_count",
+        "system.closed_win_count",
+        "system.closed_loss_count",
+        "system.gross_profit_inr",
+        "system.gross_loss_inr",
+        "system.average_closed_win_inr",
+        "system.average_closed_loss_inr",
+        "rank.21d.rank_correlation",
+    ]
     raw["variants"] = {
         "matrix": {
             "backtest.cost_bps": ["12"],
@@ -266,9 +337,54 @@ def test_v2a_adapter_writes_manifest_csv_and_metric_deltas(
             if profile.profile_name.startswith("graph_aware_score_v2a_")
         )
         system_profiles = [
-            _system_profile("graph_aware_score_v1", total_return=0.10, drawdown=-0.10),
-            _system_profile("graph_aware_score_v2", total_return=0.12, drawdown=-0.09),
-            _system_profile(variant_profile.profile_name, total_return=0.15, drawdown=-0.08),
+            _system_profile(
+                "graph_aware_score_v1",
+                total_return=0.10,
+                drawdown=-0.10,
+                economics={
+                    "realized_pnl_inr": "100.0000",
+                    "unrealized_pnl_inr": "25.0000",
+                    "closed_trade_count": 2,
+                    "closed_win_count": 1,
+                    "closed_loss_count": 1,
+                    "gross_profit_inr": "150.0000",
+                    "gross_loss_inr": "50.0000",
+                    "average_closed_win_inr": "150.0000",
+                    "average_closed_loss_inr": "50.0000",
+                },
+            ),
+            _system_profile(
+                "graph_aware_score_v2",
+                total_return=0.12,
+                drawdown=-0.09,
+                economics={
+                    "realized_pnl_inr": "120.0000",
+                    "unrealized_pnl_inr": "30.0000",
+                    "closed_trade_count": 3,
+                    "closed_win_count": 2,
+                    "closed_loss_count": 1,
+                    "gross_profit_inr": "180.0000",
+                    "gross_loss_inr": "60.0000",
+                    "average_closed_win_inr": "90.0000",
+                    "average_closed_loss_inr": "60.0000",
+                },
+            ),
+            _system_profile(
+                variant_profile.profile_name,
+                total_return=0.15,
+                drawdown=-0.08,
+                economics={
+                    "realized_pnl_inr": "150.0000",
+                    "unrealized_pnl_inr": "10.0000",
+                    "closed_trade_count": 4,
+                    "closed_win_count": 3,
+                    "closed_loss_count": 1,
+                    "gross_profit_inr": "210.0000",
+                    "gross_loss_inr": "60.0000",
+                    "average_closed_win_inr": "70.0000",
+                    "average_closed_loss_inr": "60.0000",
+                },
+            ),
         ]
         technical_report = {
             "checks": [
@@ -317,6 +433,15 @@ def test_v2a_adapter_writes_manifest_csv_and_metric_deltas(
     assert variant_row["system.total_return"] == "0.15"
     assert variant_row["system.total_return.delta_vs_v1"] == "0.05"
     assert variant_row["system.total_return.delta_vs_current_v2a"] == "0.03"
+    assert variant_row["system.realized_pnl_inr"] == "150.0000"
+    assert variant_row["system.realized_pnl_inr.delta_vs_v1"] == "50.0"
+    assert variant_row["system.realized_pnl_inr.delta_vs_current_v2a"] == "30.0"
+    assert variant_row["system.unrealized_pnl_inr"] == "10.0000"
+    assert variant_row["system.closed_trade_count"] == "4"
+    assert variant_row["system.gross_profit_inr"] == "210.0000"
+    assert variant_row["system.gross_loss_inr"] == "60.0000"
+    assert variant_row["system.average_closed_win_inr"] == "70.0000"
+    assert variant_row["system.average_closed_loss_inr"] == "60.0000"
     assert variant_row["rank.21d.rank_correlation"] == "0.05"
     assert variant_row["rank.21d.rank_correlation.delta_vs_current_v2a"] == "0.03"
     assert json.loads(variant_row["axis_values"]) == [
@@ -723,6 +848,7 @@ def _system_profile(
     *,
     total_return: float,
     drawdown: float,
+    economics: dict[str, object] | None = None,
 ) -> dict[str, object]:
     return {
         "profile_name": profile_name,
@@ -730,6 +856,7 @@ def _system_profile(
             "total_return": total_return,
             "max_drawdown": drawdown,
         },
+        "closed_trade_economics": economics or {},
         "cash_utilization": {},
         "allocation_candidate_score_behavior": {},
         "rejected_or_trimmed_candidate_counts": {},

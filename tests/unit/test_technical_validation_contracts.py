@@ -1,14 +1,18 @@
 from __future__ import annotations
 
+from datetime import date
+from decimal import Decimal
 from pathlib import Path
 
 from scripts.validate_technical_v2 import (
     DataReadiness,
+    _closed_trade_economics_summary,
     _write_comparison_matrix,
     _write_system_profile_summary_csv,
     _write_technical_prediction_checks_csv,
     validation_profiles,
 )
+from taurus_core.db.models import BacktestFillModel, BacktestPositionModel
 
 
 def test_validation_profiles_pin_current_v1_and_v2a_contract() -> None:
@@ -138,6 +142,15 @@ def test_validation_summary_csv_headers_are_stable(tmp_path: Path) -> None:
         "turnover",
         "win_rate",
         "profit_factor",
+        "realized_pnl_inr",
+        "unrealized_pnl_inr",
+        "closed_trade_count",
+        "closed_win_count",
+        "closed_loss_count",
+        "gross_profit_inr",
+        "gross_loss_inr",
+        "average_closed_win_inr",
+        "average_closed_loss_inr",
         "selected_symbol_count",
         "average_cash_utilization_pct",
         "ranked_candidate_count",
@@ -148,5 +161,69 @@ def test_validation_summary_csv_headers_are_stable(tmp_path: Path) -> None:
     ]
 
 
+def test_closed_trade_economics_summary_reconstructs_fill_pnl() -> None:
+    fills = [
+        _fill("INFY", "BUY", 10, "1000.0000", "10.0000"),
+        _fill("INFY", "SELL", 10, "1200.0000", "12.0000"),
+        _fill("TCS", "BUY", 10, "1000.0000", "10.0000"),
+        _fill("TCS", "SELL", 10, "900.0000", "9.0000"),
+    ]
+    positions = [
+        BacktestPositionModel(
+            run_id="run-1",
+            symbol="INFY",
+            quantity=0,
+            average_cost_inr=Decimal("0"),
+            market_value_inr=Decimal("0"),
+            realized_pnl_inr=Decimal("178.0000"),
+            unrealized_pnl_inr=Decimal("0.0000"),
+        ),
+        BacktestPositionModel(
+            run_id="run-1",
+            symbol="OPEN",
+            quantity=1,
+            average_cost_inr=Decimal("100.0000"),
+            market_value_inr=Decimal("125.2500"),
+            realized_pnl_inr=Decimal("0.0000"),
+            unrealized_pnl_inr=Decimal("25.2500"),
+        ),
+    ]
+
+    summary = _closed_trade_economics_summary(fills=fills, positions=positions)
+
+    assert summary == {
+        "realized_pnl_inr": "59.0000",
+        "unrealized_pnl_inr": "25.2500",
+        "closed_trade_count": 2,
+        "closed_win_count": 1,
+        "closed_loss_count": 1,
+        "gross_profit_inr": "178.0000",
+        "gross_loss_inr": "119.0000",
+        "average_closed_win_inr": "178.0000",
+        "average_closed_loss_inr": "119.0000",
+    }
+
+
 def _csv_header(path: Path) -> list[str]:
     return path.read_text(encoding="utf-8").splitlines()[0].split(",")
+
+
+def _fill(
+    symbol: str,
+    side: str,
+    quantity: int,
+    gross_value: str,
+    cost: str,
+) -> BacktestFillModel:
+    return BacktestFillModel(
+        order_id=1,
+        run_id="run-1",
+        trade_date=date(2026, 1, 1),
+        symbol=symbol,
+        side=side,
+        quantity=quantity,
+        fill_price_inr=Decimal(gross_value) / Decimal(quantity),
+        gross_value_inr=Decimal(gross_value),
+        cost_inr=Decimal(cost),
+        slippage_bps=Decimal("5"),
+    )

@@ -304,6 +304,12 @@ removed during docs cleanup. Use Git history for detailed historical plans.
   closed-trade diagnostics, keeps `v2A-SH` as a separate short-horizon design
   track, and records fresh-context handoff guidance in
   `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_HANDOFF.md`.
+- M97 medium-horizon macro sweep spec is complete: the checked-in
+  `experiments/specs/v2a_medium_macro_sweep.yaml` crosses five family-weight
+  trios with three paired `portfolio_breadth`/`max_open_positions` choices,
+  expands to 15 variants and 45 default yearly work units, and requests
+  additive realized/unrealized plus closed-trade economics diagnostics in
+  validation reports and parametric comparison CSVs.
 
 ## Standing Safety Rules
 
@@ -395,6 +401,7 @@ removed during docs cleanup. Use Git history for detailed historical plans.
 | M95 | Done | Ran final focused regression, smoke dry-run, risk-calibration dry-run, and tiny smoke non-dry-run execution for the parametric harness; refreshed the plan, handoff, command docs, and tracker; confirmed generated run outputs are ignored and no approval cleanup was needed; and closed M89-M95 with v1 canonical and v2A opt-in. |
 | M96-M100 plan document | Done | Created and refreshed the staged v2A experiment redesign plan and handoff for grouped axes, medium-horizon macro/sensitivity specs with trade-quality diagnostics, short-horizon profile design, and final closeout; no harness/spec/profile code was added in the planning task. |
 | M96 | Done | Added optional grouped experiment axes to the parametric harness so matrix combinations can be crossed with named axis values carrying grouped overrides; selected axis metadata now appears in dry-run rows, comparison CSV rows, and variant manifests; existing checked-in matrix-only specs keep their variant/work-unit counts and no v2A specs or v2A-SH scoring were added. |
+| M97 | Done | Added the medium-horizon macro sweep spec crossing five family-weight trios with three paired portfolio sizes, added realized/unrealized and closed-trade economics extraction into validation reports and parametric comparison CSVs, refreshed operator docs/handoff, and verified the 15-variant/45-work-unit dry-run while leaving the full-feature sweep, M98 sensitivity sweep, and v2A-SH untouched. |
 
 ## Completed Graph Explorer Sequence
 
@@ -464,7 +471,7 @@ and documented; do not automatically begin later scope.
 | Order | Milestone | Status | Plan | Purpose |
 |---:|---|---|---|---|
 | 96 | M96 | Done | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Added grouped experiment axes so paired family-weight and portfolio-size controls can be expressed without invalid Cartesian combinations. |
-| 97 | M97 | Planned | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Add the medium-horizon macro sweep for family-weight trios, paired portfolio sizes, and additive realized/unrealized plus closed-trade diagnostics. |
+| 97 | M97 | Done | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Added the medium-horizon macro sweep for family-weight trios, paired portfolio sizes, and additive realized/unrealized plus closed-trade diagnostics. |
 | 98 | M98 | Planned | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Add the medium-horizon sensitivity sweep for compact feature-weight and transform-scale cases using the same trade-quality diagnostics. |
 | 99 | M99 | Planned | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Define the separate v2A-SH short-horizon technical-profile design contract without changing current v2A defaults. |
 | 100 | M100 | Planned | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Run final regression, dry-runs, docs, handoff, and cleanup for the staged experiment redesign sequence. |
@@ -488,6 +495,25 @@ and documented; do not automatically begin later scope.
 - Cleanup: Inspected `/Users/adnaan/.codex/rules/default.rules`; no
   Taurus-specific approvals existed after the user's `# END MY CUSTOM ADDITION`
   marker, so no project-local approval migration was needed.
+
+### M97 Completion Summary
+
+- Assumptions made: M97 should add only the medium-horizon macro sweep and
+  additive diagnostics; `v2a_full_feature_sweep.yaml` should remain unchanged;
+  M98 sensitivity tuning, rank 5d metrics, and v2A-SH design/implementation
+  remain later milestones; the current spec schema still requires a non-empty
+  matrix, so the macro spec pins `backtest.cost_bps: ["10"]` there and keeps
+  family/portfolio macro choices in grouped axes.
+- Mocks created: None.
+- Mocks used: None.
+- Verification: `uv run pytest tests/unit/test_parametric_experiments.py
+  tests/unit/test_technical_validation_contracts.py`; `PARAMETRIC_DRY_RUN=true
+  make parametric-experiment
+  EXPERIMENT_SPEC=experiments/specs/v2a_medium_macro_sweep.yaml`; `make lint`;
+  `make test`.
+- Cleanup: Inspected `/Users/adnaan/.codex/rules/default.rules`; no entries
+  existed after the user's `# END MY CUSTOM ADDITION` marker, so no
+  Taurus-specific approval migration was needed.
 
 ### M96-M100 Plan Document Completion Summary
 

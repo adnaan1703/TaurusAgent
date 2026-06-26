@@ -5,15 +5,17 @@ Last updated: 2026-06-26
 ## Current Status
 
 - Current milestone: None.
-- Last completed milestone: M96 Grouped Experiment Axes.
+- Last completed milestone: M97 Medium-Horizon Macro Sweep Spec.
 - Planning completed:
   `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md`.
-- Implementation state: M96 is complete. The parametric harness now supports
+- Implementation state: M97 is complete. The parametric harness supports
   optional `variants.axes` grouped overrides crossed with existing
   `variants.matrix` combinations; selected axis metadata appears in dry-run
-  rows, comparison CSV rows, and variant manifests. Current checked-in v2A specs
-  remain matrix-only with unchanged variant/work-unit counts, v1 canonical, and
-  v2A opt-in.
+  rows, comparison CSV rows, and variant manifests. The checked-in
+  `v2a_medium_macro_sweep.yaml` macro spec crosses five family-weight trios with
+  three paired portfolio-size choices, expands to 15 variants and 45 default
+  yearly work units, and requests realized/unrealized plus closed-trade
+  economics diagnostics. v1 remains canonical and v2A remains opt-in.
 - Full-feature sweep evidence:
   `/tmp/taurus-parametric-risk/v2a_full_feature_sweep-ff23bcf5745e` completed
   512 variants across three yearly folds. The tied top candidates improved
@@ -22,7 +24,7 @@ Last updated: 2026-06-26
   and positive realized P&L; current v2A and the top candidates were driven by
   open mark-to-market gains and had negative realized P&L. Do not promote v2A
   or any candidate from that run.
-- Next recommended milestone: M97 Medium-Horizon Macro Sweep Spec.
+- Next recommended milestone: M98 Medium-Horizon Sensitivity Sweep Spec.
 - Canonical runtime state: `graph_aware_score_v1` remains the default
   `make paper-loop-kite` strategy. `graph_aware_score_v2` remains opt-in.
   `v2A-SH` is design-planned only and must not be treated as implemented.
@@ -39,11 +41,13 @@ Last updated: 2026-06-26
 - `experiments/parametric/adapters.py`
 - `experiments/parametric/metrics.py`
 - `experiments/parametric/technical_validation_v2a.py`
+- `experiments/specs/v2a_medium_macro_sweep.yaml`
 - `packages/taurus_core/features/technical_params.py`
 - `packages/taurus_core/features/technical_signal.py`
 - `packages/taurus_core/strategies/graph_aware.py`
 - `scripts/validate_technical_v2.py`
 - `tests/unit/test_parametric_experiments.py`
+- `tests/unit/test_technical_validation_contracts.py`
 
 ## Worker Thread Instructions
 
@@ -72,7 +76,7 @@ sequence is:
 
 - M96: grouped experiment axes. Done.
 - M97: medium-horizon macro sweep spec plus additive trade-quality diagnostics.
-  Planned.
+  Done.
 - M98: medium-horizon sensitivity sweep spec using the same trade-quality
   diagnostics. Planned.
 - M99: v2A-SH short-horizon design contract. Planned.

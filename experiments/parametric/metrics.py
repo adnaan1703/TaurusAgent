@@ -41,6 +41,51 @@ def default_metric_registry() -> MetricRegistry:
         MetricDefinition("system.win_rate", "system", "Full-system win rate."),
         MetricDefinition("system.profit_factor", "system", "Full-system profit factor."),
         MetricDefinition(
+            "system.realized_pnl_inr",
+            "system",
+            "Closed-trade realized P&L in INR.",
+        ),
+        MetricDefinition(
+            "system.unrealized_pnl_inr",
+            "system",
+            "Final open-position unrealized P&L in INR.",
+        ),
+        MetricDefinition(
+            "system.closed_trade_count",
+            "system",
+            "Closed trade count.",
+        ),
+        MetricDefinition(
+            "system.closed_win_count",
+            "system",
+            "Closed winning trade count.",
+        ),
+        MetricDefinition(
+            "system.closed_loss_count",
+            "system",
+            "Closed losing trade count.",
+        ),
+        MetricDefinition(
+            "system.gross_profit_inr",
+            "system",
+            "Gross closed-trade profit in INR.",
+        ),
+        MetricDefinition(
+            "system.gross_loss_inr",
+            "system",
+            "Gross closed-trade loss magnitude in INR.",
+        ),
+        MetricDefinition(
+            "system.average_closed_win_inr",
+            "system",
+            "Average closed winning trade profit in INR.",
+        ),
+        MetricDefinition(
+            "system.average_closed_loss_inr",
+            "system",
+            "Average closed losing trade loss magnitude in INR.",
+        ),
+        MetricDefinition(
             "system.average_cash_utilization_pct",
             "system",
             "Average cash utilization percent.",
@@ -94,4 +139,3 @@ def default_metric_registry() -> MetricRegistry:
         MetricDefinition("rank.63d.hit_rate", "rank", "63-day hit rate."),
     ]
     return MetricRegistry({metric.metric_id: metric for metric in metrics})
-

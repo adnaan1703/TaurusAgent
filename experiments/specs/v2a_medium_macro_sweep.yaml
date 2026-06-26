@@ -1,0 +1,100 @@
+schema_version: 1
+experiment_id: v2a_medium_macro_sweep
+adapter: technical_validation_v2a
+description: Compact medium-horizon macro sweep for v2A family weights and paired portfolio sizes.
+base_request:
+  mode: standard
+  universe: configs/market_data/nifty_50_shariah.yaml
+  validation_years: 3
+  warmup_days: 252
+  rebalance_every_days: 21
+  portfolio_breadth: 5
+  max_open_positions: 5
+  cost_bps: "10"
+  slippage_bps: "5"
+baselines:
+  include_v1: true
+  include_current_v2a: true
+variants:
+  matrix:
+    # The schema requires a non-empty matrix. Keep this pinned to the base
+    # medium-horizon cost assumption so the meaningful macro controls live in axes.
+    backtest.cost_bps: ["10"]
+  axes:
+    - name: family_weight_trio
+      values:
+        - id: current
+          overrides:
+            family_weights.alpha: "0.65"
+            family_weights.risk: "0.20"
+            family_weights.tradability: "0.15"
+        - id: risk_tilted
+          overrides:
+            family_weights.alpha: "0.60"
+            family_weights.risk: "0.25"
+            family_weights.tradability: "0.15"
+        - id: defensive
+          overrides:
+            family_weights.alpha: "0.55"
+            family_weights.risk: "0.30"
+            family_weights.tradability: "0.15"
+        - id: tradability_tilted
+          overrides:
+            family_weights.alpha: "0.60"
+            family_weights.risk: "0.20"
+            family_weights.tradability: "0.20"
+        - id: aggressive_alpha
+          overrides:
+            family_weights.alpha: "0.70"
+            family_weights.risk: "0.15"
+            family_weights.tradability: "0.15"
+    - name: portfolio_size
+      values:
+        - id: size_5
+          overrides:
+            backtest.portfolio_breadth: 5
+            backtest.max_open_positions: 5
+        - id: size_8
+          overrides:
+            backtest.portfolio_breadth: 8
+            backtest.max_open_positions: 8
+        - id: size_10
+          overrides:
+            backtest.portfolio_breadth: 10
+            backtest.max_open_positions: 10
+metrics:
+  - system.total_return
+  - system.cagr
+  - system.sharpe
+  - system.sortino
+  - system.max_drawdown
+  - system.turnover
+  - system.win_rate
+  - system.profit_factor
+  - system.realized_pnl_inr
+  - system.unrealized_pnl_inr
+  - system.closed_trade_count
+  - system.closed_win_count
+  - system.closed_loss_count
+  - system.gross_profit_inr
+  - system.gross_loss_inr
+  - system.average_closed_win_inr
+  - system.average_closed_loss_inr
+  - system.average_cash_utilization_pct
+  - system.sizing_failure_count
+  - system.ranked_candidate_count
+  - system.eligible_candidate_count
+  - system.rejected_candidate_count
+  - system.trimmed_candidate_count
+  - rank.21d.rank_correlation
+  - rank.63d.rank_correlation
+  - rank.21d.top_bottom_decile_spread
+  - rank.63d.top_bottom_decile_spread
+  - rank.21d.hit_rate
+  - rank.63d.hit_rate
+execution:
+  jobs: 1
+  # Macro sweep only: 5 family-weight trios x 3 paired portfolio sizes.
+  max_variants: 15
+output:
+  root: experiments/runs

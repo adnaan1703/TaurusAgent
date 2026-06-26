@@ -26,6 +26,7 @@ from taurus_core.data.universe import load_market_data_universe
 from taurus_core.db.models import (
     BacktestEquityPointModel,
     BacktestFillModel,
+    BacktestPositionModel,
     BacktestRunModel,
     BacktestSignalModel,
 )
@@ -1021,7 +1022,14 @@ def _system_backtest_report(
             session.scalars(
                 select(BacktestFillModel)
                 .where(BacktestFillModel.run_id == run_id)
-                .order_by(BacktestFillModel.trade_date, BacktestFillModel.symbol)
+                .order_by(BacktestFillModel.trade_date, BacktestFillModel.id)
+            )
+        )
+        positions = list(
+            session.scalars(
+                select(BacktestPositionModel)
+                .where(BacktestPositionModel.run_id == run_id)
+                .order_by(BacktestPositionModel.symbol)
             )
         )
         signals = list(
@@ -1038,6 +1046,7 @@ def _system_backtest_report(
                 run=run,
                 equity_points=equity_points,
                 fills=fills,
+                positions=positions,
                 signals=signals,
             )
         )
@@ -1415,6 +1424,7 @@ def _system_profile_summary(
     run: BacktestRunModel,
     equity_points: Sequence[BacktestEquityPointModel],
     fills: Sequence[BacktestFillModel],
+    positions: Sequence[BacktestPositionModel],
     signals: Sequence[BacktestSignalModel],
 ) -> dict[str, object]:
     metrics = dict(run.metrics or {})
@@ -1435,6 +1445,10 @@ def _system_profile_summary(
     cash_utilization = _cash_utilization_summary(equity_points)
     equity_curve = _equity_curve_summary(equity_points)
     turnover = _turnover(fills=fills, equity_points=equity_points)
+    closed_trade_economics = _closed_trade_economics_summary(
+        fills=fills,
+        positions=positions,
+    )
     selected_symbols = sorted({fill.symbol for fill in buy_fills})
     return {
         "profile_name": str(profile_run["profile_name"]),
@@ -1470,6 +1484,7 @@ def _system_profile_summary(
             "signal_count": len(signals),
         },
         "cash_utilization": cash_utilization,
+        "closed_trade_economics": closed_trade_economics,
         "allocation_candidate_score_behavior": {
             "source": "backtest_strategy_signal_proxy",
             "raw_strategy_score_distribution": _distribution(
@@ -1826,6 +1841,75 @@ def _turnover(
     return round(float(traded_value / average_equity), 8)
 
 
+def _closed_trade_economics_summary(
+    *,
+    fills: Sequence[BacktestFillModel],
+    positions: Sequence[BacktestPositionModel],
+) -> dict[str, object]:
+    quantity_by_symbol: dict[str, int] = defaultdict(int)
+    average_cost_by_symbol: dict[str, Decimal] = defaultdict(lambda: Decimal("0"))
+    closed_pnl: list[Decimal] = []
+
+    for fill in fills:
+        symbol = fill.symbol
+        quantity = int(fill.quantity)
+        gross_value = Decimal(fill.gross_value_inr)
+        cost = Decimal(fill.cost_inr)
+        if fill.side == "BUY":
+            current_quantity = quantity_by_symbol[symbol]
+            total_cost = (
+                average_cost_by_symbol[symbol] * Decimal(current_quantity)
+            ) + gross_value + cost
+            new_quantity = current_quantity + quantity
+            quantity_by_symbol[symbol] = new_quantity
+            average_cost_by_symbol[symbol] = (
+                (total_cost / Decimal(new_quantity)).quantize(Decimal("0.0001"))
+                if new_quantity > 0
+                else Decimal("0")
+            )
+            continue
+        if fill.side != "SELL":
+            continue
+
+        average_cost = average_cost_by_symbol[symbol]
+        pnl = (gross_value - cost - (average_cost * Decimal(quantity))).quantize(
+            Decimal("0.0001")
+        )
+        closed_pnl.append(pnl)
+        quantity_by_symbol[symbol] = max(0, quantity_by_symbol[symbol] - quantity)
+        if quantity_by_symbol[symbol] == 0:
+            average_cost_by_symbol[symbol] = Decimal("0")
+
+    winning_pnl = [pnl for pnl in closed_pnl if pnl > 0]
+    losing_pnl = [pnl for pnl in closed_pnl if pnl < 0]
+    gross_profit = sum(winning_pnl, Decimal("0")).quantize(Decimal("0.0001"))
+    gross_loss = abs(sum(losing_pnl, Decimal("0"))).quantize(Decimal("0.0001"))
+    realized_pnl = sum(closed_pnl, Decimal("0")).quantize(Decimal("0.0001"))
+    unrealized_pnl = sum(
+        (Decimal(position.unrealized_pnl_inr) for position in positions),
+        Decimal("0"),
+    ).quantize(Decimal("0.0001"))
+    return {
+        "realized_pnl_inr": str(realized_pnl),
+        "unrealized_pnl_inr": str(unrealized_pnl),
+        "closed_trade_count": len(closed_pnl),
+        "closed_win_count": len(winning_pnl),
+        "closed_loss_count": len(losing_pnl),
+        "gross_profit_inr": str(gross_profit),
+        "gross_loss_inr": str(gross_loss),
+        "average_closed_win_inr": str(
+            (gross_profit / Decimal(len(winning_pnl))).quantize(Decimal("0.0001"))
+            if winning_pnl
+            else Decimal("0.0000")
+        ),
+        "average_closed_loss_inr": str(
+            (gross_loss / Decimal(len(losing_pnl))).quantize(Decimal("0.0001"))
+            if losing_pnl
+            else Decimal("0.0000")
+        ),
+    }
+
+
 def _distribution(values: Sequence[float]) -> dict[str, float | int | None]:
     ordered = sorted(value for value in values if value is not None)
     if not ordered:
@@ -2009,6 +2093,15 @@ def _write_system_profile_summary_csv(
         "turnover",
         "win_rate",
         "profit_factor",
+        "realized_pnl_inr",
+        "unrealized_pnl_inr",
+        "closed_trade_count",
+        "closed_win_count",
+        "closed_loss_count",
+        "gross_profit_inr",
+        "gross_loss_inr",
+        "average_closed_win_inr",
+        "average_closed_loss_inr",
         "selected_symbol_count",
         "average_cash_utilization_pct",
         "ranked_candidate_count",
@@ -2026,6 +2119,7 @@ def _write_system_profile_summary_csv(
             metrics = _metrics(row)
             selected = row.get("selected_symbol_counts", {})
             cash = row.get("cash_utilization", {})
+            economics = row.get("closed_trade_economics", {})
             scores = row.get("allocation_candidate_score_behavior", {})
             counts = row.get("rejected_or_trimmed_candidate_counts", {})
             writer.writerow(
@@ -2042,6 +2136,51 @@ def _write_system_profile_summary_csv(
                     "turnover": _csv_value(metrics.get("turnover")),
                     "win_rate": _csv_value(metrics.get("win_rate")),
                     "profit_factor": _csv_value(metrics.get("profit_factor")),
+                    "realized_pnl_inr": _csv_value(
+                        economics.get("realized_pnl_inr")
+                        if isinstance(economics, Mapping)
+                        else None
+                    ),
+                    "unrealized_pnl_inr": _csv_value(
+                        economics.get("unrealized_pnl_inr")
+                        if isinstance(economics, Mapping)
+                        else None
+                    ),
+                    "closed_trade_count": _csv_value(
+                        economics.get("closed_trade_count")
+                        if isinstance(economics, Mapping)
+                        else None
+                    ),
+                    "closed_win_count": _csv_value(
+                        economics.get("closed_win_count")
+                        if isinstance(economics, Mapping)
+                        else None
+                    ),
+                    "closed_loss_count": _csv_value(
+                        economics.get("closed_loss_count")
+                        if isinstance(economics, Mapping)
+                        else None
+                    ),
+                    "gross_profit_inr": _csv_value(
+                        economics.get("gross_profit_inr")
+                        if isinstance(economics, Mapping)
+                        else None
+                    ),
+                    "gross_loss_inr": _csv_value(
+                        economics.get("gross_loss_inr")
+                        if isinstance(economics, Mapping)
+                        else None
+                    ),
+                    "average_closed_win_inr": _csv_value(
+                        economics.get("average_closed_win_inr")
+                        if isinstance(economics, Mapping)
+                        else None
+                    ),
+                    "average_closed_loss_inr": _csv_value(
+                        economics.get("average_closed_loss_inr")
+                        if isinstance(economics, Mapping)
+                        else None
+                    ),
                     "selected_symbol_count": _csv_value(
                         selected.get("selected_symbol_count")
                         if isinstance(selected, Mapping)
@@ -2283,6 +2422,28 @@ def _system_report_markdown(
                 ],
             ),
             "",
+            "### Closed-Trade Economics",
+            "",
+            _markdown_table(
+                [
+                    "Profile",
+                    "Realized P&L",
+                    "Unrealized P&L",
+                    "Closed",
+                    "Wins",
+                    "Losses",
+                    "Gross Profit",
+                    "Gross Loss",
+                    "Avg Win",
+                    "Avg Loss",
+                ],
+                [
+                    _closed_trade_markdown_row(row)
+                    for row in system_report.get("profiles", [])
+                    if isinstance(row, Mapping)
+                ],
+            ),
+            "",
             "### Equity Curve Summary",
             "",
             _markdown_table(
@@ -2382,6 +2543,21 @@ def _system_markdown_row(row: Mapping[str, object]) -> list[str]:
                 "sizing_failure_count",
             )
         ),
+    ]
+
+
+def _closed_trade_markdown_row(row: Mapping[str, object]) -> list[str]:
+    return [
+        str(row["profile_name"]),
+        str(_nested_raw(row, "closed_trade_economics", "realized_pnl_inr")),
+        str(_nested_raw(row, "closed_trade_economics", "unrealized_pnl_inr")),
+        str(_nested_raw(row, "closed_trade_economics", "closed_trade_count")),
+        str(_nested_raw(row, "closed_trade_economics", "closed_win_count")),
+        str(_nested_raw(row, "closed_trade_economics", "closed_loss_count")),
+        str(_nested_raw(row, "closed_trade_economics", "gross_profit_inr")),
+        str(_nested_raw(row, "closed_trade_economics", "gross_loss_inr")),
+        str(_nested_raw(row, "closed_trade_economics", "average_closed_win_inr")),
+        str(_nested_raw(row, "closed_trade_economics", "average_closed_loss_inr")),
     ]
 
 
