@@ -16,6 +16,13 @@ Last updated: 2026-06-26
   three paired portfolio-size choices, expands to 15 variants and 45 default
   yearly work units, and requests realized/unrealized plus closed-trade
   economics diagnostics. v1 remains canonical and v2A remains opt-in.
+- M97 macro sweep evidence is recorded in
+  `docs/reports/parametric/v2a_medium_macro_sweep_20260626.md`. The completed
+  run lives under
+  `/tmp/taurus-parametric-macro-20260626-170848/v2a_medium_macro_sweep-fc0a939b1d44`.
+  It found that `size_5` is the best portfolio-size setting, no macro candidate
+  should be promoted, and M98 should focus on realized trade quality and 21d
+  rank behavior rather than broadening portfolio size.
 - Full-feature sweep evidence:
   `/tmp/taurus-parametric-risk/v2a_full_feature_sweep-ff23bcf5745e` completed
   512 variants across three yearly folds. The tied top candidates improved
@@ -36,6 +43,7 @@ Last updated: 2026-06-26
 - `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_PLAN.md`
 - `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_HANDOFF.md`
 - `docs/TAURUS_COMMANDS.md`
+- `docs/reports/parametric/v2a_medium_macro_sweep_20260626.md`
 - `experiments/parametric/spec.py`
 - `experiments/parametric/expansion.py`
 - `experiments/parametric/adapters.py`
