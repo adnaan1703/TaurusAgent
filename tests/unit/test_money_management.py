@@ -33,7 +33,7 @@ def test_rebalance_capacity_loads_from_default_policy() -> None:
     )
 
 
-def test_graph_aware_v2_maps_to_active_strategy_in_default_policy() -> None:
+def test_graph_aware_opt_in_profiles_map_to_active_strategy_in_default_policy() -> None:
     policy = load_money_management_policy("configs/portfolio/money_management_v1.yaml")
 
     mappings = {
@@ -42,6 +42,7 @@ def test_graph_aware_v2_maps_to_active_strategy_in_default_policy() -> None:
 
     assert mappings["graph_aware_score_v1"] == "active_strategy"
     assert mappings["graph_aware_score_v2"] == "active_strategy"
+    assert mappings["graph_aware_score_v2a_sh"] == "active_strategy"
     assert mappings["graph_aware_score_v2b"] == "active_strategy"
 
 

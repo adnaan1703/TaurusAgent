@@ -4,8 +4,8 @@ Last updated: 2026-06-28
 
 ## Current Status
 
-- Current milestone: None.
-- Last completed milestone: M101 Cadence-Only 5d/10d Comparison.
+- Current milestone: M103 True V2A-SH 5d/10d Experiment Spec And Evidence Report.
+- Last completed milestone: M102 Opt-In V2A-SH Profile And Strategy Config.
 - Planning completed:
   `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md`.
 - Implementation state: M99 is complete. The parametric harness supports
@@ -40,8 +40,12 @@ Last updated: 2026-06-28
   `docs/reports/parametric/v2a_cadence_only_comparison_20260628.md`. The M101
   evidence showed 10d current v2A beats 5d current v2A on aggregate return and
   Sharpe, but cadence alone does not fix negative realized P&L, profit factor
-  below `1.0`, or negative 5d/21d rank behavior. v1 remains canonical and v2A
-  remains opt-in.
+  below `1.0`, or negative 5d/21d rank behavior. M102 then added the opt-in
+  `technical_ohlcv_v2a_sh` scoring profile, `graph_aware_score_v2a_sh` strategy
+  config, graph-aware strategy/analyst/validation/backtest/paper-run wiring,
+  and active-sleeve mapping for explicit paper trials while reusing
+  `technical_ohlcv_v2` feature snapshots. v1 remains canonical, current v2A
+  remains opt-in, and v2A-SH remains unpromoted.
 - M97 macro sweep evidence is recorded in
   `docs/reports/parametric/v2a_medium_macro_sweep_20260626.md`. The completed
   run lives under
@@ -63,11 +67,13 @@ Last updated: 2026-06-28
   that no one-off medium-horizon feature-weight or transform-scale case fixed
   realized P&L, profit factor, or 21d rank behavior; do not promote current v2A
   or any M98 candidate.
-- Next planned milestone: M102 opt-in v2A-SH scoring profile and strategy
-  config implementation, only if explicitly authorized. M101 itself is closed.
+- Next planned milestone: M103 true v2A-SH 5d/10d experiment spec and evidence
+  report. M102 itself is closed.
 - Canonical runtime state: `graph_aware_score_v1` remains the default
-  `make paper-loop-kite` strategy. `graph_aware_score_v2` remains opt-in.
-  `v2A-SH` is design-planned only and must not be treated as implemented.
+  `make paper-loop-kite` strategy. `graph_aware_score_v2` and
+  `graph_aware_score_v2a_sh` remain opt-in. `v2A-SH` is implemented only as an
+  unpromoted profile/config and still needs M103 evidence before any promotion
+  discussion.
 
 ## Required Reading For Every Worker Thread
 
@@ -80,6 +86,7 @@ Last updated: 2026-06-28
 - `docs/reports/parametric/v2a_medium_macro_sweep_20260626.md`
 - `docs/reports/parametric/v2a_medium_sensitivity_sweep_20260626.md`
 - `docs/reports/parametric/v2a_cadence_only_comparison_20260628.md`
+- `configs/strategies/graph_aware_score_v2a_sh.yaml`
 - `experiments/parametric/spec.py`
 - `experiments/parametric/expansion.py`
 - `experiments/parametric/adapters.py`
@@ -130,7 +137,7 @@ sequence is:
 - M101: cadence-only 5d/10d comparison before true v2A-SH implementation.
   Done.
 - M102: opt-in v2A-SH scoring profile and strategy config implementation.
-  Planned after cadence-only evidence.
+  Done.
 - M103: true v2A-SH 5d/10d experiment spec and evidence report. Planned after
   profile implementation.
 
@@ -164,8 +171,8 @@ sequence is:
   non-dry-run execution.
 - `portfolio_breadth` and `max_open_positions` remain separate production
   concepts, but experiments should pair them as equal portfolio-size controls.
-- `v2A-SH` exact scoring weights and transform scales are deferred until its
-  later implementation sequence.
+- `v2A-SH` scoring weights and transform scales now exist only for the opt-in
+  M102 profile and still need M103 evidence before tuning or promotion.
 - `v2A-SH` must not be treated as current v2A with only faster rebalancing.
   M101 completed the cadence-only 5d and 10d comparison; any true short-horizon
   profile must still be implemented in a separate later milestone.

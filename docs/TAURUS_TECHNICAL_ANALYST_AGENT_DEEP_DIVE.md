@@ -105,7 +105,7 @@ The agent also receives these constructor dependencies:
 | `llm_provider` | `build_llm_provider(settings)` | Produces the final structured analyst report JSON. |
 | `symbol` | Paper run / analyst suite | Stock being analyzed. |
 | `run_id` | Paper run | Durable lineage for the generated analyst report. |
-| `technical_profile` | Analyst runner / paper strategy profile | Defaults to `technical_rule_v1`; opt-in `technical_ohlcv_v2` selects v2A scoring, while opt-in `technical_official_v2b` selects official-data v2B scoring. |
+| `technical_profile` | Analyst runner / paper strategy profile | Defaults to `technical_rule_v1`; opt-in `technical_ohlcv_v2` selects v2A scoring, opt-in `technical_ohlcv_v2a_sh` selects the unpromoted short-horizon v2A-SH scoring lens, and opt-in `technical_official_v2b` selects official-data v2B scoring. |
 | `feature_snapshot` | Paper strategy stage or direct caller | Optional in-memory v2A snapshot so the analyst can reuse strategy-built features. |
 | `universe_technical_context` | Paper strategy stage or direct caller | Optional DB-free cross-sectional context for v2A scoring. |
 | `official_technical_context` | Paper strategy stage or direct caller | Optional as-of official-data context required for v2B scoring. |
@@ -190,7 +190,11 @@ loop behavior remains on the v1 feature set. The opt-in
 technical_ohlcv_v2`, `technical_profile: technical_ohlcv_v2`, and
 `technical_analyst_profile: technical_ohlcv_v2`, which wires both the strategy
 ranking path and the technical analyst path into v2A when that strategy config
-is explicitly selected.
+is explicitly selected. `graph_aware_score_v2a_sh` keeps
+`technical_feature_version: technical_ohlcv_v2` but selects
+`technical_profile: technical_ohlcv_v2a_sh` and
+`technical_analyst_profile: technical_ohlcv_v2a_sh` for explicit
+short-horizon trials without changing defaults.
 
 ## Score Calculation
 
@@ -576,6 +580,10 @@ The implemented scopes are:
   top-contributor, missing-feature, source, and metadata outputs. It is called
   by the opt-in `graph_aware_score_v2` strategy and, after M79, by
   `TechnicalAnalystAgent` when `technical_profile="technical_ohlcv_v2"`.
+- `score_ohlcv_v2a_sh()` reuses the same `technical_ohlcv_v2` feature snapshots
+  with short-horizon weights for explicit `technical_ohlcv_v2a_sh` trials. It
+  is not canonical and still requires M103 evidence before any promotion
+  discussion.
 
 Future technical experiments should add or select profiles in
 `TechnicalSignalService` instead of embedding new scoring formulas directly in

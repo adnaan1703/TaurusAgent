@@ -59,6 +59,7 @@ from taurus_core.features.technical_context import (
 from taurus_core.features.technical_signal import (
     ANALYST_RULE_PROFILE,
     OFFICIAL_V2B_PROFILE,
+    OHLCV_V2A_SH_PROFILE,
     OHLCV_V2_PROFILE,
 )
 from taurus_core.features.technical_visibility import (
@@ -2015,6 +2016,7 @@ class PaperRunService:
 
         uses_v2_features = technical_analyst_profile in {
             OHLCV_V2_PROFILE,
+            OHLCV_V2A_SH_PROFILE,
             OFFICIAL_V2B_PROFILE,
         }
         universe_technical_context = (
@@ -3200,6 +3202,8 @@ def _technical_analyst_profile(strategy_parameters: dict[str, object]) -> str:
     value = strategy_parameters.get("technical_profile")
     if value == OFFICIAL_V2B_PROFILE:
         return OFFICIAL_V2B_PROFILE
+    if value == OHLCV_V2A_SH_PROFILE:
+        return OHLCV_V2A_SH_PROFILE
     if value == OHLCV_V2_PROFILE:
         return OHLCV_V2_PROFILE
     return ANALYST_RULE_PROFILE
@@ -3208,6 +3212,7 @@ def _technical_analyst_profile(strategy_parameters: dict[str, object]) -> str:
 def _strategy_accepts_universe_context(strategy: object) -> bool:
     return getattr(strategy, "technical_profile", None) in {
         OHLCV_V2_PROFILE,
+        OHLCV_V2A_SH_PROFILE,
         OFFICIAL_V2B_PROFILE,
     }
 

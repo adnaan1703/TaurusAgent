@@ -223,17 +223,21 @@ paths:
   `technical_ohlcv_v2` analyst profile uses
   `TechnicalSignalService.score_ohlcv_v2()` and stores deterministic v2
   score/confidence/stance plus alpha/risk/tradability metadata while allowing
-  the LLM to provide narrative only. Latest `backtest_signals` remain v1 score
-  inputs and v2 audit metadata only.
+  the LLM to provide narrative only. The opt-in `technical_ohlcv_v2a_sh`
+  profile uses the same persisted feature version through
+  `TechnicalSignalService.score_ohlcv_v2a_sh()` with short-horizon weights.
+  Latest `backtest_signals` remain v1 score inputs and v2 audit metadata only.
 - `GraphAwareScoreStrategy` still owns graph-aware filtering, ranking,
   target selection, and strategy signal payloads, but its `_technical_score()`
   compatibility method delegates SMA-spread scoring to
   `TechnicalSignalService.score_sma_spread()` for `graph_aware_score_v1`.
   The opt-in `graph_aware_score_v2` strategy profile selects
-  `TechnicalSignalService.score_ohlcv_v2()`, builds the universe technical
-  context once per ranking call, and carries nested alpha/risk/tradability,
-  confidence, composite, coverage, contributor, and missing-feature metadata
-  while preserving the existing `technical_score`, `raw_strategy_score`, and
+  `TechnicalSignalService.score_ohlcv_v2()`, while
+  `graph_aware_score_v2a_sh` selects the unpromoted short-horizon
+  `score_ohlcv_v2a_sh()` profile. Both build the universe technical context
+  once per ranking call and carry nested alpha/risk/tradability, confidence,
+  composite, coverage, contributor, and missing-feature metadata while
+  preserving the existing `technical_score`, `raw_strategy_score`, and
   `strategy_score_by_symbol` paths.
 
 `build_universe_technical_context()` in
@@ -250,7 +254,9 @@ v2A scoring profile. It consumes a `FeatureSnapshot` plus optional
 confidence, composite score, coverage, top-contributor, missing-feature, source,
 and metadata fields. It is wired into the opt-in `graph_aware_score_v2`
 strategy profile and into `TechnicalAnalystAgent` when the analyst profile is
-`technical_ohlcv_v2`.
+`technical_ohlcv_v2`. `score_ohlcv_v2a_sh()` reuses the same feature snapshots
+for the opt-in `technical_ohlcv_v2a_sh` profile and remains unpromoted pending
+M103 evidence.
 
 For M80 visibility, the v2A metadata is copied through artifacts and APIs
 additively when present: `paper_runs.artifacts.strategy.technical_v2_by_symbol`,

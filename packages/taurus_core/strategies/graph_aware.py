@@ -13,6 +13,7 @@ from taurus_core.features.technical_context import (
 )
 from taurus_core.features.technical_signal import (
     OFFICIAL_V2B_PROFILE,
+    OHLCV_V2A_SH_PROFILE,
     OHLCV_V2_PROFILE,
     SMA_SPREAD_PROFILE,
     TechnicalOhlcvSignalResult,
@@ -34,6 +35,12 @@ ZERO = Decimal("0")
 SUPPORTED_TECHNICAL_PROFILES = {
     SMA_SPREAD_PROFILE,
     OHLCV_V2_PROFILE,
+    OHLCV_V2A_SH_PROFILE,
+    OFFICIAL_V2B_PROFILE,
+}
+OHLCV_V2_CONTEXT_PROFILES = {
+    OHLCV_V2_PROFILE,
+    OHLCV_V2A_SH_PROFILE,
     OFFICIAL_V2B_PROFILE,
 }
 OHLCV_V2_SCORING_PARAMS_KEY = "technical_ohlcv_v2_params"
@@ -72,7 +79,7 @@ class GraphAwareScoreStrategy:
         if self.technical_profile not in SUPPORTED_TECHNICAL_PROFILES:
             raise ValueError(f"Unsupported technical_profile: {self.technical_profile}")
         self.ohlcv_v2_scoring_params: OhlcvV2ScoringParams | None = None
-        if self.technical_profile == OHLCV_V2_PROFILE:
+        if self.technical_profile in {OHLCV_V2_PROFILE, OHLCV_V2A_SH_PROFILE}:
             raw_scoring_params = parameters.get(OHLCV_V2_SCORING_PARAMS_KEY)
             if raw_scoring_params is not None:
                 if not isinstance(raw_scoring_params, Mapping):
@@ -350,6 +357,21 @@ class GraphAwareScoreStrategy:
                 score=result.score if result.available else None,
                 signal_result=result,
             )
+        if self.technical_profile == OHLCV_V2A_SH_PROFILE:
+            result = self._technical_signal_service.score_ohlcv_v2a_sh(
+                snapshot,
+                universe_context=universe_context,
+                symbol=snapshot.symbol,
+                scoring_params=self.ohlcv_v2_scoring_params,
+                is_new_buy=is_new_buy,
+                candidate_breadth=candidate_breadth,
+                target_breadth=target_breadth,
+            )
+            return _TechnicalScoreResult(
+                profile_name=result.profile_name,
+                score=result.score if result.available else None,
+                signal_result=result,
+            )
         if self.technical_profile == OHLCV_V2_PROFILE:
             result = self._technical_signal_service.score_ohlcv_v2(
                 snapshot,
@@ -383,7 +405,7 @@ class GraphAwareScoreStrategy:
         *,
         universe_technical_context: UniverseTechnicalContext | None,
     ) -> UniverseTechnicalContext | None:
-        if self.technical_profile not in {OHLCV_V2_PROFILE, OFFICIAL_V2B_PROFILE}:
+        if self.technical_profile not in OHLCV_V2_CONTEXT_PROFILES:
             return None
         if universe_technical_context is not None:
             return universe_technical_context

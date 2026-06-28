@@ -25,6 +25,7 @@ from taurus_core.features.technical_context import OfficialTechnicalContext
 from taurus_core.features.technical_signal import (
     ANALYST_RULE_PROFILE,
     OFFICIAL_V2B_PROFILE,
+    OHLCV_V2A_SH_PROFILE,
     OHLCV_V2_PROFILE,
     TechnicalBacktestSignal,
     TechnicalOhlcvSignalResult,
@@ -34,6 +35,12 @@ from taurus_core.features.technical_signal import (
 SUPPORTED_TECHNICAL_ANALYST_PROFILES = {
     ANALYST_RULE_PROFILE,
     OHLCV_V2_PROFILE,
+    OHLCV_V2A_SH_PROFILE,
+    OFFICIAL_V2B_PROFILE,
+}
+OHLCV_CONTEXT_PROFILES = {
+    OHLCV_V2_PROFILE,
+    OHLCV_V2A_SH_PROFILE,
     OFFICIAL_V2B_PROFILE,
 }
 DEFAULT_TECHNICAL_RISKS = [
@@ -61,7 +68,7 @@ class TechnicalAnalystAgent(BaseAnalystAgent):
             symbol,
             technical_profile=profile,
         )
-        if profile in {OHLCV_V2_PROFILE, OFFICIAL_V2B_PROFILE}:
+        if profile in OHLCV_CONTEXT_PROFILES:
             return self._run_ohlcv_v2(
                 symbol=symbol,
                 run_id=run_id,
@@ -160,6 +167,12 @@ class TechnicalAnalystAgent(BaseAnalystAgent):
                 official_context=official_technical_context,
                 symbol=symbol,
             )
+        elif technical_profile == OHLCV_V2A_SH_PROFILE:
+            signal_result = signal_service.score_ohlcv_v2a_sh(
+                snapshot,
+                universe_context=universe_technical_context,
+                symbol=symbol,
+            )
         else:
             signal_result = signal_service.score_ohlcv_v2(
                 snapshot,
@@ -179,10 +192,11 @@ class TechnicalAnalystAgent(BaseAnalystAgent):
         )
         risks = _ohlcv_v2_risks(signal_result)
         technical_v2 = _technical_v2_metadata(signal_result, latest_signal)
+        horizon = _technical_profile_horizon(signal_result.profile_name)
         context = {
             "score": str(score),
             "confidence": str(confidence),
-            "horizon": "medium",
+            "horizon": horizon,
             "technical_profile": signal_result.profile_name,
             "key_points": key_points,
             "risks": risks,
@@ -192,7 +206,7 @@ class TechnicalAnalystAgent(BaseAnalystAgent):
         fallback = fallback_output(
             score=score,
             confidence=confidence,
-            horizon="medium",
+            horizon=horizon,
             key_points=key_points,
             risks=risks,
             model_version=signal_result.score_source,
@@ -262,7 +276,7 @@ class TechnicalAnalystAgent(BaseAnalystAgent):
         as_of_date = history[-1].trade_date + timedelta(days=1)
         feature_service = (
             TechnicalFeatureService.ohlcv_v2()
-            if technical_profile in {OHLCV_V2_PROFILE, OFFICIAL_V2B_PROFILE}
+            if technical_profile in OHLCV_CONTEXT_PROFILES
             else TechnicalFeatureService()
         )
         return feature_service.build_snapshot(
@@ -280,7 +294,7 @@ class TechnicalAnalystAgent(BaseAnalystAgent):
         statement = select(FeatureValueModel.snapshot_id).where(
             FeatureValueModel.symbol == symbol
         )
-        if technical_profile in {OHLCV_V2_PROFILE, OFFICIAL_V2B_PROFILE}:
+        if technical_profile in OHLCV_CONTEXT_PROFILES:
             statement = statement.where(
                 FeatureValueModel.feature_version == TECHNICAL_OHLCV_V2_FEATURE_VERSION
             )
@@ -340,6 +354,10 @@ def _technical_backtest_signal(
         action=signal.action,
         score=signal.score,
     )
+
+
+def _technical_profile_horizon(profile_name: str) -> str:
+    return "short" if profile_name == OHLCV_V2A_SH_PROFILE else "medium"
 
 
 def _ohlcv_v2_key_points(
@@ -405,6 +423,11 @@ def _ohlcv_v2_risks(signal_result: TechnicalOhlcvSignalResult) -> list[str]:
     if signal_result.profile_name == OFFICIAL_V2B_PROFILE:
         risks.append(
             "technical_official_v2b is opt-in and depends on local official index, VIX, delivery, circuit, and tradability coverage."
+        )
+    elif signal_result.profile_name == OHLCV_V2A_SH_PROFILE:
+        risks.insert(
+            0,
+            "technical_ohlcv_v2a_sh is an opt-in short-horizon OHLCV profile that reuses technical_ohlcv_v2 feature snapshots and is not canonical.",
         )
     else:
         risks.insert(

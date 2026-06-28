@@ -170,7 +170,9 @@ real LLM provider where the workflow calls an LLM.
   To trial the opt-in v2A strategy profile without changing the canonical
   default, run
   `make paper-loop-kite STRATEGY=configs/strategies/graph_aware_score_v2.yaml`.
-  This path requires enough candle history for the 756-day lookback.
+  To trial the unpromoted short-horizon v2A-SH profile, run
+  `make paper-loop-kite STRATEGY=configs/strategies/graph_aware_score_v2a_sh.yaml`.
+  These paths require enough candle history for the 756-day lookback.
 - `make paper-loop-dashboard`: starts the stack, imports market data, graph
   prerequisites, and mock news, runs one Kite paper loop, then starts the React
   dashboard.

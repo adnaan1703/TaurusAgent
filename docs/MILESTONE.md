@@ -339,6 +339,13 @@ removed during docs cleanup. Use Git history for detailed historical plans.
   current v2A beats 5d current v2A on aggregate return and Sharpe but cadence
   alone does not fix negative realized P&L, profit factor below `1.0`, or
   negative 5d/21d rank behavior.
+- M102 opt-in v2A-SH profile implementation is complete: the new
+  `technical_ohlcv_v2a_sh` scoring profile reuses existing
+  `technical_ohlcv_v2` feature snapshots, exposes short-horizon alpha inputs
+  with zero default weight for current v2A, and is selectable through the
+  opt-in `configs/strategies/graph_aware_score_v2a_sh.yaml` strategy config.
+  v1 remains canonical, current v2A remains opt-in, and M103 experiment
+  evidence remains planned.
 
 ## Standing Safety Rules
 
@@ -435,6 +442,7 @@ removed during docs cleanup. Use Git history for detailed historical plans.
 | M99 | Done | Defined `v2A-SH` as a separate opt-in short-horizon design contract with planned profile and strategy names, 5d and 10d cases, short-horizon feature families, required 5d rank metrics, comparison protocol, and flat follow-up milestones for cadence-only evidence before true profile implementation; no scoring profile, strategy config, or short-horizon spec was implemented. |
 | M100 | Done | Ran focused regression, dry-ran every checked-in parametric spec, refreshed command docs and handoff/tracker status, confirmed generated run outputs remain ignored, completed approval cleanup, and closed M96-M100 with v1 canonical, v2A opt-in, and v2A-SH design-only. |
 | M101 | Done | Added and ran the cadence-only 5d/10d comparison spec for current medium-horizon v2A scoring, preserved v1/current-v2A defaults, kept v2A-SH design-only, fixed run-level baseline context reporting for backtest overrides, wrote the durable evidence report, and found that cadence alone does not fix current v2A realized trade quality or 5d/21d rank behavior. |
+| M102 | Done | Implemented the opt-in `technical_ohlcv_v2a_sh` scoring profile and `graph_aware_score_v2a_sh` strategy config without promotion, reusing `technical_ohlcv_v2` feature snapshots and preserving v1/current-v2A defaults. |
 
 ## Completed Graph Explorer Sequence
 
@@ -518,7 +526,7 @@ explicit promotion milestone changes that default.
 | Order | Milestone | Status | Plan | Purpose |
 |---:|---|---|---|---|
 | 101 | M101 | Done | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Add and run a cadence-only 5d/10d comparison for v1 and current medium-horizon v2A before implementing true v2A-SH scoring. |
-| 102 | M102 | Planned | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Implement the opt-in `technical_ohlcv_v2a_sh` profile and `graph_aware_score_v2a_sh` strategy config without promotion. |
+| 102 | M102 | Done | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Implement the opt-in `technical_ohlcv_v2a_sh` profile and `graph_aware_score_v2a_sh` strategy config without promotion. |
 | 103 | M103 | Planned | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Add the true v2A-SH 5d/10d experiment spec and evidence report using 5d rank metrics and trade-quality diagnostics. |
 
 ### M96 Completion Summary
@@ -631,7 +639,7 @@ explicit promotion milestone changes that default.
   5d and 10d cadence only; generated variant rows intentionally duplicate
   current v2A scoring under cadence overrides; run-level baseline rows must be
   separated by backtest context when overrides change cadence; M102 and M103
-  remain unstarted unless explicitly authorized later.
+  remained unstarted during M101.
 - Mocks created: None.
 - Mocks used: None.
 - Verification: `uv run pytest tests/unit/test_parametric_experiments.py` (23
@@ -645,6 +653,25 @@ explicit promotion milestone changes that default.
   (`status=complete`, 2 variants, 6 work units, run
   `/tmp/taurus-parametric-cadence-only-20260628/v2a_cadence_only_comparison-f347009b48b1`);
   `make lint`; `make test` (480 passed, 1 skipped).
+- Cleanup: Inspected `/Users/adnaan/.codex/rules/default.rules`; no entries
+  existed after the user's `# END MY CUSTOM ADDITION` marker, so no
+  Taurus-specific approval migration was needed.
+
+### M102 Completion Summary
+
+- Assumptions made: M102 should reuse persisted `technical_ohlcv_v2` feature
+  snapshots rather than create a new feature version; the first v2A-SH profile
+  should be opt-in and report-only until M103 evidence exists; zero-weighting
+  newly exposed short-horizon alpha features in current v2A preserves existing
+  v2A scoring; `graph_aware_score_v2a_sh` may map to the active strategy sleeve
+  without becoming canonical.
+- Mocks created: None.
+- Mocks used: None.
+- Verification: `uv run pytest tests/unit/test_parametric_experiments.py
+  tests/unit/test_technical_signal_service.py tests/unit/test_strategy_ranking.py
+  tests/unit/test_money_management.py tests/unit/test_analyst_agents.py
+  tests/unit/test_paper_runs.py` (106 passed); `make lint`; `make test` (482
+  passed, 1 skipped).
 - Cleanup: Inspected `/Users/adnaan/.codex/rules/default.rules`; no entries
   existed after the user's `# END MY CUSTOM ADDITION` marker, so no
   Taurus-specific approval migration was needed.

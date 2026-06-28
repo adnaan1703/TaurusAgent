@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from decimal import Decimal
 from types import MappingProxyType
 from typing import Mapping
@@ -13,6 +13,7 @@ from taurus_core.features.store import (
 )
 from taurus_core.features.technical_params import (
     DEFAULT_OHLCV_V2_SCORING_PARAMS,
+    DEFAULT_OHLCV_V2A_SH_SCORING_PARAMS,
     OhlcvV2ScoringParams,
 )
 from taurus_core.features.technical_context import (
@@ -38,6 +39,7 @@ ANALYST_FEATURE_NAMES = (
 SMA_SPREAD_PROFILE = "sma_spread"
 SMA_SCORE_VALUE = Decimal("0.00000001")
 OHLCV_V2_PROFILE = TECHNICAL_OHLCV_V2_FEATURE_VERSION
+OHLCV_V2A_SH_PROFILE = "technical_ohlcv_v2a_sh"
 OFFICIAL_V2B_PROFILE = TECHNICAL_OFFICIAL_V2B_PROFILE
 OHLCV_V2_SCORE_VALUE = Decimal("0.0001")
 OHLCV_V2_COMPONENT_VALUE = Decimal("0.00000001")
@@ -464,6 +466,40 @@ class TechnicalSignalService:
             missing_features=missing_features,
             source_ids=(snapshot.snapshot_id,),
             metadata=metadata,
+        )
+
+    def score_ohlcv_v2a_sh(
+        self,
+        snapshot: FeatureSnapshot | None,
+        *,
+        universe_context: UniverseTechnicalContext | None = None,
+        symbol: str | None = None,
+        scoring_params: OhlcvV2ScoringParams | Mapping[str, object] | None = None,
+        is_new_buy: bool = False,
+        candidate_breadth: int | None = None,
+        target_breadth: int | None = None,
+        top_contributor_limit: int = OHLCV_V2_TOP_CONTRIBUTOR_LIMIT,
+    ) -> TechnicalOhlcvSignalResult:
+        result = self.score_ohlcv_v2(
+            snapshot,
+            universe_context=universe_context,
+            symbol=symbol,
+            scoring_params=scoring_params or DEFAULT_OHLCV_V2A_SH_SCORING_PARAMS,
+            is_new_buy=is_new_buy,
+            candidate_breadth=candidate_breadth,
+            target_breadth=target_breadth,
+            top_contributor_limit=top_contributor_limit,
+        )
+        return replace(
+            result,
+            profile_name=OHLCV_V2A_SH_PROFILE,
+            score_source=OHLCV_V2A_SH_PROFILE,
+            metadata={
+                **dict(result.metadata),
+                "profile_name": OHLCV_V2A_SH_PROFILE,
+                "base_feature_version": OHLCV_V2_PROFILE,
+                "profile_horizon": "short",
+            },
         )
 
     def score_official_v2b(
@@ -1224,6 +1260,30 @@ def _alpha_contributors(
         _context_feature(
             values,
             symbol_context,
+            feature_name="return_20d",
+            family="alpha",
+            label="20-day absolute momentum",
+            weight=params.alpha_weights["return_20d"],
+            raw_transform=lambda value: _scaled_score(
+                value, params.alpha_transform_scales["return_20d"]
+            ),
+            context_weights=params.context_weights,
+        ),
+        _context_feature(
+            values,
+            symbol_context,
+            feature_name="vol_adjusted_return_63d",
+            family="alpha",
+            label="63-day volatility-adjusted momentum",
+            weight=params.alpha_weights["vol_adjusted_return_63d"],
+            raw_transform=lambda value: _scaled_score(
+                value, params.alpha_transform_scales["vol_adjusted_return_63d"]
+            ),
+            context_weights=params.context_weights,
+        ),
+        _context_feature(
+            values,
+            symbol_context,
             feature_name="vol_adjusted_return_126d",
             family="alpha",
             label="126-day volatility-adjusted momentum",
@@ -1312,6 +1372,18 @@ def _alpha_contributors(
             raw_transform=lambda value: _scaled_score(
                 value, params.alpha_transform_scales["adx_directional_strength_14"]
             ),
+        ),
+        _context_feature(
+            values,
+            symbol_context,
+            feature_name="breakout_high_distance_20d",
+            family="alpha",
+            label="20-day breakout distance",
+            weight=params.alpha_weights["breakout_high_distance_20d"],
+            raw_transform=lambda value: _scaled_score(
+                value, params.alpha_transform_scales["breakout_high_distance_20d"]
+            ),
+            context_weights=params.context_weights,
         ),
         _context_feature(
             values,
@@ -1625,6 +1697,19 @@ def _family_score(
     if not contributors:
         return ZERO.quantize(OHLCV_V2_SCORE_VALUE), {}
     total_weight = sum((contributor.weight for contributor in contributors), ZERO)
+    if total_weight <= ZERO:
+        components: dict[str, Decimal] = {}
+        for contributor in contributors:
+            components[f"{family}.{contributor.feature_name}.score"] = (
+                contributor.score.quantize(OHLCV_V2_COMPONENT_VALUE)
+            )
+            components[f"{family}.{contributor.feature_name}.weight"] = (
+                contributor.weight.quantize(OHLCV_V2_COMPONENT_VALUE)
+            )
+            components[f"{family}.{contributor.feature_name}.contribution"] = (
+                ZERO.quantize(OHLCV_V2_COMPONENT_VALUE)
+            )
+        return ZERO.quantize(OHLCV_V2_SCORE_VALUE), components
     score = (
         sum(
             (contributor.score * contributor.weight for contributor in contributors),

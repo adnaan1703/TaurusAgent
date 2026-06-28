@@ -332,10 +332,11 @@ M86 used the standard validation mode and produced run
 `techval-748ec624a9fe1297` with `status=insufficient_data` and
 `promotion_decision=defer`: 282 common candles were available across the
 configured 17-symbol validation universe, versus 1009 required. Until a future
-complete validation passes the conservative gate, keep `graph_aware_score_v2`
-and `graph_aware_score_v2b` opt-in and leave `make paper-loop-kite` on the
-canonical v1 strategy. Current validation runs omit v2B by default until its
-official-data inputs are populated.
+complete validation passes the conservative gate, keep `graph_aware_score_v2`,
+`graph_aware_score_v2a_sh`, and `graph_aware_score_v2b` opt-in and leave
+`make paper-loop-kite` on the canonical v1 strategy. Current validation runs
+omit v2A-SH and v2B by default until a specific experiment or official-data
+input path includes them.
 
 Parametric experiments:
 
@@ -475,8 +476,9 @@ names, including `family_weights.*`, `<family>_weights.<feature>`,
 `confidence_weights.*`, `eligibility.*`, and `score_compression.*`.
 Runtime strategy configs pass those overrides under
 `technical_ohlcv_v2_params`, and they are parsed only when
-`technical_profile: technical_ohlcv_v2` is selected. Empty/default params keep
-current v2A scores unchanged, and v1 remains canonical.
+`technical_profile: technical_ohlcv_v2` or
+`technical_profile: technical_ohlcv_v2a_sh` is selected. Empty/default params
+keep current v2A scores unchanged, and v1 remains canonical.
 
 The M89-M95 parametric harness sequence is closed. Final closeout verified the
 focused backend regression suite, smoke dry-run, risk-calibration dry-run, and
@@ -486,13 +488,16 @@ first recommended real operator action remains a dry-run of
 deliberate overnight template after dry-run inspection. The harness does not
 promote v2A, enable v2B, or change canonical paper-loop defaults.
 
-The M96-M100 v2A experiment redesign sequence is closed, and M101 cadence-only
-comparison is complete. Final closeout verified focused regression plus
-dry-runs for smoke, risk calibration, full feature, medium macro, and medium
-sensitivity specs; M101 then added and ran the 5d/10d cadence comparison. v1
-remains canonical, current v2A remains opt-in, and v2A-SH remains design-only.
-M101 evidence shows cadence alone does not fix current v2A realized trade
-quality or 5d/21d rank behavior.
+The M96-M100 v2A experiment redesign sequence is closed, M101 cadence-only
+comparison is complete, and M102 added the opt-in
+`graph_aware_score_v2a_sh` strategy config. Final M96-M100 closeout verified
+focused regression plus dry-runs for smoke, risk calibration, full feature,
+medium macro, and medium sensitivity specs; M101 then added and ran the 5d/10d
+cadence comparison. v1 remains canonical, current v2A remains opt-in, and
+v2A-SH remains unpromoted. M101 evidence shows cadence alone does not fix
+current v2A realized trade quality or 5d/21d rank behavior. M102 makes a true
+short-horizon profile selectable for explicit trials; M103 still needs to add
+and run the checked-in 5d/10d evidence spec before any promotion discussion.
 
 Paper workflow:
 
@@ -508,6 +513,7 @@ make paper-once-mock SYMBOL=INFY
 make paper-loop-once SYMBOLS=INFY,TCS
 make paper-loop-start PAPER_LOOP_ITERATIONS=5
 make paper-loop-kite
+STRATEGY=configs/strategies/graph_aware_score_v2a_sh.yaml make paper-loop-kite
 STRATEGY=configs/strategies/graph_aware_score_v2b.yaml make paper-loop-kite
 PROFILE_ID=client-a make paper-loop-kite
 make paper-loop-dashboard

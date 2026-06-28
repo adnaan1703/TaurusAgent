@@ -39,7 +39,11 @@ from taurus_core.features.official_context import (
 )
 from taurus_core.features.store import FeatureValue, TechnicalFeatureService
 from taurus_core.features.technical_context import build_universe_technical_context
-from taurus_core.features.technical_signal import OFFICIAL_V2B_PROFILE, OHLCV_V2_PROFILE
+from taurus_core.features.technical_signal import (
+    OFFICIAL_V2B_PROFILE,
+    OHLCV_V2A_SH_PROFILE,
+    OHLCV_V2_PROFILE,
+)
 from taurus_core.strategies import (
     StrategyConfig,
     StrategyRanking,
@@ -196,7 +200,8 @@ class BacktestEngine:
                         features_by_symbol,
                         as_of_date=trade_date,
                     )
-                    if technical_profile in {OHLCV_V2_PROFILE, OFFICIAL_V2B_PROFILE}
+                    if technical_profile
+                    in {OHLCV_V2_PROFILE, OHLCV_V2A_SH_PROFILE, OFFICIAL_V2B_PROFILE}
                     and features_by_symbol
                     else None
                 )
@@ -830,6 +835,7 @@ def _ranking_summary(rankings: list[StrategyRanking]) -> dict[str, object]:
 def _strategy_accepts_universe_context(strategy: object) -> bool:
     return getattr(strategy, "technical_profile", None) in {
         OHLCV_V2_PROFILE,
+        OHLCV_V2A_SH_PROFILE,
         OFFICIAL_V2B_PROFILE,
     }
 

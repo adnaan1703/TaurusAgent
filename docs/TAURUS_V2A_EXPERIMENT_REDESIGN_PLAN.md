@@ -513,7 +513,7 @@ Design contract:
 | Order | Milestone | Status | Plan | Purpose |
 |---:|---|---|---|---|
 | 101 | M101 | Done | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Add and run a cadence-only 5d/10d comparison for v1 and current medium-horizon v2A before implementing true v2A-SH scoring. |
-| 102 | M102 | Planned | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Implement the opt-in `technical_ohlcv_v2a_sh` profile and `graph_aware_score_v2a_sh` strategy config without promotion. |
+| 102 | M102 | Done | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Implement the opt-in `technical_ohlcv_v2a_sh` profile and `graph_aware_score_v2a_sh` strategy config without promotion. |
 | 103 | M103 | Planned | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Add the true v2A-SH 5d/10d experiment spec and evidence report using 5d rank metrics and trade-quality diagnostics. |
 
 Implementation closeout:
@@ -713,7 +713,43 @@ Implementation closeout:
   5d and 10d cadence only; generated variant rows intentionally duplicate
   current v2A scoring under cadence overrides; a run-level baseline de-dupe fix
   is necessary so backtest-context changes do not collapse cadence-matched
-  baselines; M102/M103 remain unstarted unless explicitly authorized later.
+  baselines; M102 and M103 remained unstarted during M101.
+- Mocks created: None.
+- Mocks used: None.
+- Cleanup: Inspected `/Users/adnaan/.codex/rules/default.rules`; no entries
+  existed after the user's `# END MY CUSTOM ADDITION` marker, so no
+  Taurus-specific approval migration was needed.
+
+## M102 - Opt-In V2A-SH Profile And Strategy Config
+
+Purpose: implement the opt-in `technical_ohlcv_v2a_sh` scoring profile and
+`graph_aware_score_v2a_sh` strategy config without promoting it or adding the
+M103 experiment spec.
+
+Implementation closeout:
+
+- Status: Done on 2026-06-28.
+- Summary: Added `technical_ohlcv_v2a_sh` as a short-horizon scoring lens over
+  existing `technical_ohlcv_v2` feature snapshots, exposed the short-horizon
+  alpha inputs `return_20d`, `vol_adjusted_return_63d`, and
+  `breakout_high_distance_20d` with zero default weight for current v2A,
+  wired graph-aware strategy, analyst, validation, backtest, and paper-run
+  profile allowlists for explicit opt-in use, added
+  `configs/strategies/graph_aware_score_v2a_sh.yaml`, and mapped the strategy
+  to the active sleeve for explicit paper trials. v1 remains canonical,
+  current v2A remains opt-in, and no M103 experiment spec or evidence run was
+  added.
+- Verification: `uv run pytest tests/unit/test_parametric_experiments.py
+  tests/unit/test_technical_signal_service.py tests/unit/test_strategy_ranking.py
+  tests/unit/test_money_management.py tests/unit/test_analyst_agents.py
+  tests/unit/test_paper_runs.py` (106 passed); `make lint`; `make test` (482
+  passed, 1 skipped).
+- Assumptions made: M102 should reuse persisted `technical_ohlcv_v2` feature
+  snapshots rather than create a new feature version; the first v2A-SH profile
+  should be opt-in and report-only until M103 evidence exists; zero-weighting
+  newly exposed short-horizon alpha features in current v2A preserves existing
+  v2A scoring; `graph_aware_score_v2a_sh` may map to the active strategy sleeve
+  without becoming canonical.
 - Mocks created: None.
 - Mocks used: None.
 - Cleanup: Inspected `/Users/adnaan/.codex/rules/default.rules`; no entries
@@ -722,8 +758,7 @@ Implementation closeout:
 
 ## Deferred Items
 
-- Exact v2A-SH scoring weights and transform scales.
-- v2A-SH implementation, strategy config, analyst wiring, UI visibility, and
-  operator commands.
+- v2A-SH evidence run, durable report, and 5d/10d comparison spec.
+- v2A-SH UI visibility and any tuning after M103 evidence.
 - Any promotion decision that changes canonical paper-loop defaults.
 - ML-ready dataset export, feature-label storage, or training workflow.

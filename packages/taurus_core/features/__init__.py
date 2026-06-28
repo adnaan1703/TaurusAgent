@@ -25,6 +25,7 @@ from taurus_core.features.store import (
     TechnicalFeatureService,
 )
 from taurus_core.features.technical_signal import (
+    OHLCV_V2A_SH_PROFILE,
     TechnicalBacktestSignal,
     TechnicalOhlcvSignalResult,
     TechnicalSignalResult,
@@ -32,6 +33,7 @@ from taurus_core.features.technical_signal import (
 )
 from taurus_core.features.technical_params import (
     DEFAULT_OHLCV_V2_SCORING_PARAMS,
+    DEFAULT_OHLCV_V2A_SH_SCORING_PARAMS,
     OhlcvV2EligibilityParams,
     OhlcvV2ScoringParams,
     OhlcvV2ScoreCompressionParams,
@@ -50,6 +52,7 @@ __all__ = [
     "OfficialMicrostructureFeature",
     "OfficialTechnicalContext",
     "OfficialTechnicalSymbolContext",
+    "OHLCV_V2A_SH_PROFILE",
     "TECHNICAL_OFFICIAL_V2B_PROFILE",
     "TECHNICAL_OHLCV_V2_FEATURE_VERSION",
     "TechnicalBacktestSignal",
@@ -61,6 +64,7 @@ __all__ = [
     "TechnicalSymbolContext",
     "UniverseTechnicalContext",
     "DEFAULT_OHLCV_V2_SCORING_PARAMS",
+    "DEFAULT_OHLCV_V2A_SH_SCORING_PARAMS",
     "OhlcvV2EligibilityParams",
     "OhlcvV2ScoringParams",
     "OhlcvV2ScoreCompressionParams",

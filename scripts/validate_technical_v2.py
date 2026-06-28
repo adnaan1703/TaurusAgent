@@ -47,6 +47,7 @@ from taurus_core.features.technical_signal import (
     ANALYST_FEATURE_NAMES,
     ANALYST_RULE_PROFILE,
     OFFICIAL_V2B_PROFILE,
+    OHLCV_V2A_SH_PROFILE,
     OHLCV_V2_PROFILE,
     TechnicalSignalService,
 )
@@ -92,6 +93,8 @@ TECHNICAL_PROFILE_FOR_STRATEGY = {
     "graph_aware_score_v1_technical_only": ANALYST_RULE_PROFILE,
     "graph_aware_score_v2": OHLCV_V2_PROFILE,
     "graph_aware_score_v2_technical_only": OHLCV_V2_PROFILE,
+    "graph_aware_score_v2a_sh": OHLCV_V2A_SH_PROFILE,
+    "graph_aware_score_v2a_sh_technical_only": OHLCV_V2A_SH_PROFILE,
     "graph_aware_score_v2b": OFFICIAL_V2B_PROFILE,
     "graph_aware_score_v2b_technical_only": OFFICIAL_V2B_PROFILE,
 }
@@ -691,7 +694,7 @@ def _technical_evaluation_profiles(
         report_profile_name = _technical_report_profile_name(profile)
         ohlcv_scoring_params = (
             _ohlcv_scoring_params(profile)
-            if technical_profile == OHLCV_V2_PROFILE
+            if technical_profile in {OHLCV_V2_PROFILE, OHLCV_V2A_SH_PROFILE}
             else None
         )
         fingerprint = json.dumps(
@@ -726,7 +729,11 @@ def _technical_scoring_profile(profile: ValidationProfile) -> str:
         profile.strategy_parameters.get("technical_analyst_profile", ""),
     )
     technical_profile = str(raw_profile or "").strip()
-    if technical_profile in {OHLCV_V2_PROFILE, OFFICIAL_V2B_PROFILE}:
+    if technical_profile in {
+        OHLCV_V2_PROFILE,
+        OHLCV_V2A_SH_PROFILE,
+        OFFICIAL_V2B_PROFILE,
+    }:
         return technical_profile
     return ANALYST_RULE_PROFILE
 
@@ -784,7 +791,8 @@ def _technical_agent_predictive_report(
     signal_service = TechnicalSignalService()
     feature_services = {
         evaluation.report_profile_name: TechnicalFeatureService.ohlcv_v2()
-        if evaluation.technical_profile in {OHLCV_V2_PROFILE, OFFICIAL_V2B_PROFILE}
+        if evaluation.technical_profile
+        in {OHLCV_V2_PROFILE, OHLCV_V2A_SH_PROFILE, OFFICIAL_V2B_PROFILE}
         else TechnicalFeatureService()
         for evaluation in evaluations
     }
@@ -819,7 +827,7 @@ def _technical_agent_predictive_report(
                 snapshots_by_profile[evaluation.report_profile_name]
                 for evaluation in evaluations
                 if evaluation.technical_profile
-                in {OHLCV_V2_PROFILE, OFFICIAL_V2B_PROFILE}
+                in {OHLCV_V2_PROFILE, OHLCV_V2A_SH_PROFILE, OFFICIAL_V2B_PROFILE}
             ),
             {},
         )
@@ -877,6 +885,20 @@ def _technical_agent_predictive_report(
                         universe_context=v2_context,
                         official_context=v2b_official_context,
                         symbol=symbol,
+                    )
+                    score = result.score if result.available else None
+                    confidence = result.confidence
+                    coverage = result.coverage
+                    top_contributor_count = len(result.top_contributors)
+                    vector_present = bool(result.top_contributors)
+                    missing_features = tuple(result.missing_features)
+                    components = dict(result.components)
+                elif evaluation.technical_profile == OHLCV_V2A_SH_PROFILE:
+                    result = signal_service.score_ohlcv_v2a_sh(
+                        snapshot,
+                        universe_context=v2_context,
+                        symbol=symbol,
+                        scoring_params=evaluation.ohlcv_scoring_params,
                     )
                     score = result.score if result.available else None
                     confidence = result.confidence
@@ -1410,7 +1432,7 @@ def _technical_profile_summary(
             "summary": (
                 "v2 vector/contributor evidence present"
                 if (technical_profile or profile_name)
-                in {OHLCV_V2_PROFILE, OFFICIAL_V2B_PROFILE}
+                in {OHLCV_V2_PROFILE, OHLCV_V2A_SH_PROFILE, OFFICIAL_V2B_PROFILE}
                 else "v1 scalar score with deterministic components/key points"
             ),
         },

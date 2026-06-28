@@ -15,6 +15,7 @@ from taurus_core.features.technical_context import (
 from taurus_core.features.technical_params import DEFAULT_OHLCV_V2_SCORING_PARAMS
 from taurus_core.features.technical_signal import (
     OHLCV_V2_FAMILY_WEIGHTS,
+    OHLCV_V2A_SH_PROFILE,
     TechnicalBacktestSignal,
     TechnicalSignalService,
 )
@@ -310,6 +311,46 @@ def test_score_ohlcv_v2_pins_default_family_weights_and_contributors() -> None:
             "0.06",
             "universe_context",
         ),
+    )
+
+
+def test_score_ohlcv_v2a_sh_uses_short_horizon_profile_and_weights() -> None:
+    service = TechnicalSignalService()
+    snapshots = {
+        "AAA": _feature_snapshot("AAA", values=_ohlcv_v2_values("strong")),
+        "BBB": _feature_snapshot("BBB", values=_ohlcv_v2_values("neutral")),
+        "CCC": _feature_snapshot("CCC", values=_ohlcv_v2_values("weak")),
+    }
+    context = build_universe_technical_context(snapshots)
+
+    result = service.score_ohlcv_v2a_sh(
+        snapshots["AAA"],
+        universe_context=context,
+    )
+
+    assert result.profile_name == OHLCV_V2A_SH_PROFILE
+    assert result.score_source == OHLCV_V2A_SH_PROFILE
+    assert result.metadata["profile_name"] == OHLCV_V2A_SH_PROFILE
+    assert result.metadata["profile_horizon"] == "short"
+    assert result.metadata["base_feature_version"] == "technical_ohlcv_v2"
+    assert result.metadata["family_weights"] == {
+        "alpha": "0.70",
+        "risk": "0.15",
+        "tradability": "0.15",
+    }
+    scoring_params = result.metadata["scoring_params"]
+    assert scoring_params["alpha_weights"]["return_20d"] == "0.18"
+    assert scoring_params["alpha_weights"]["vol_adjusted_return_63d"] == "0.16"
+    assert scoring_params["alpha_weights"]["return_126d"] == "0"
+    assert result.components["alpha.return_20d.weight"] == Decimal("0.18000000")
+    assert result.components["alpha.vol_adjusted_return_63d.weight"] == Decimal(
+        "0.16000000"
+    )
+    assert result.components["risk.volatility_20.weight"] == Decimal("0.50000000")
+    assert result.components["alpha.return_126d.weight"] == Decimal("0E-8")
+    assert any(
+        contributor["feature"] in {"return_20d", "vol_adjusted_return_63d"}
+        for contributor in result.top_contributors
     )
 
 

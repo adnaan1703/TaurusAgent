@@ -9,6 +9,8 @@ ZERO = Decimal("0")
 ONE = Decimal("1")
 
 OHLCV_V2_ALPHA_FEATURES = (
+    "return_20d",
+    "vol_adjusted_return_63d",
     "vol_adjusted_return_126d",
     "vol_adjusted_return_252d",
     "return_126d",
@@ -17,6 +19,7 @@ OHLCV_V2_ALPHA_FEATURES = (
     "macd_histogram_12_26_9",
     "ema_spread_12_26",
     "adx_directional_strength_14",
+    "breakout_high_distance_20d",
     "breakout_high_distance_50d",
     "distance_from_52w_high",
     "rsi_14",
@@ -400,6 +403,8 @@ def default_ohlcv_v2_scoring_params() -> OhlcvV2ScoringParams:
             "tradability": Decimal("0.15"),
         },
         alpha_weights={
+            "return_20d": ZERO,
+            "vol_adjusted_return_63d": ZERO,
             "vol_adjusted_return_126d": Decimal("0.16"),
             "vol_adjusted_return_252d": Decimal("0.14"),
             "return_126d": Decimal("0.11"),
@@ -408,6 +413,7 @@ def default_ohlcv_v2_scoring_params() -> OhlcvV2ScoringParams:
             "macd_histogram_12_26_9": Decimal("0.09"),
             "ema_spread_12_26": Decimal("0.08"),
             "adx_directional_strength_14": Decimal("0.08"),
+            "breakout_high_distance_20d": ZERO,
             "breakout_high_distance_50d": Decimal("0.06"),
             "distance_from_52w_high": Decimal("0.05"),
             "rsi_14": Decimal("0.05"),
@@ -431,6 +437,8 @@ def default_ohlcv_v2_scoring_params() -> OhlcvV2ScoringParams:
             "volume_z_score_20": Decimal("0.15"),
         },
         alpha_transform_scales={
+            "return_20d": Decimal("0.08"),
+            "vol_adjusted_return_63d": Decimal("4"),
             "vol_adjusted_return_126d": Decimal("4"),
             "vol_adjusted_return_252d": Decimal("4"),
             "return_126d": Decimal("0.30"),
@@ -439,6 +447,7 @@ def default_ohlcv_v2_scoring_params() -> OhlcvV2ScoringParams:
             "macd_histogram_12_26_9": ONE,
             "ema_spread_12_26": Decimal("0.08"),
             "adx_directional_strength_14": ONE,
+            "breakout_high_distance_20d": Decimal("0.08"),
             "breakout_high_distance_50d": Decimal("0.10"),
             "distance_from_52w_high": Decimal("0.25"),
             "rsi_14": Decimal("25"),
@@ -475,6 +484,44 @@ def default_ohlcv_v2_scoring_params() -> OhlcvV2ScoringParams:
         },
         eligibility=OhlcvV2EligibilityParams(),
         score_compression=OhlcvV2ScoreCompressionParams(),
+    )
+
+
+def short_horizon_ohlcv_v2a_scoring_params() -> OhlcvV2ScoringParams:
+    return default_ohlcv_v2_scoring_params().with_overrides(
+        {
+            "family_weights.alpha": "0.70",
+            "family_weights.risk": "0.15",
+            "family_weights.tradability": "0.15",
+            "alpha_weights.return_20d": "0.18",
+            "alpha_weights.vol_adjusted_return_63d": "0.16",
+            "alpha_weights.vol_adjusted_return_126d": "0",
+            "alpha_weights.vol_adjusted_return_252d": "0",
+            "alpha_weights.return_126d": "0",
+            "alpha_weights.return_63d": "0.14",
+            "alpha_weights.return_252d": "0",
+            "alpha_weights.macd_histogram_12_26_9": "0.13",
+            "alpha_weights.ema_spread_12_26": "0.12",
+            "alpha_weights.adx_directional_strength_14": "0",
+            "alpha_weights.breakout_high_distance_20d": "0.10",
+            "alpha_weights.breakout_high_distance_50d": "0.07",
+            "alpha_weights.distance_from_52w_high": "0",
+            "alpha_weights.rsi_14": "0.10",
+            "risk_weights.atr_percent_14": "0.50",
+            "risk_weights.volatility_20": "0.50",
+            "risk_weights.volatility_63": "0",
+            "risk_weights.volatility_126": "0",
+            "risk_weights.volatility_252": "0",
+            "risk_weights.bollinger_bandwidth_20": "0",
+            "risk_weights.minus_di_14": "0",
+            "risk_weights.bollinger_percent_b_extension": "0",
+            "risk_weights.return_20d_instability": "0",
+            "tradability_weights.turnover": "0.15",
+            "tradability_weights.avg_traded_value_20": "0.25",
+            "tradability_weights.avg_traded_value_63": "0.15",
+            "tradability_weights.turnover_z_score_20": "0.20",
+            "tradability_weights.volume_z_score_20": "0.25",
+        }
     )
 
 
@@ -614,3 +661,4 @@ def _optional_decimal_text(value: Decimal | None) -> str | None:
 
 
 DEFAULT_OHLCV_V2_SCORING_PARAMS = default_ohlcv_v2_scoring_params()
+DEFAULT_OHLCV_V2A_SH_SCORING_PARAMS = short_horizon_ohlcv_v2a_scoring_params()

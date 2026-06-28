@@ -21,6 +21,7 @@ from taurus_core.features.technical_context import (
 )
 from taurus_core.features.technical_signal import (
     OFFICIAL_V2B_PROFILE,
+    OHLCV_V2A_SH_PROFILE,
     OHLCV_V2_PROFILE,
     TechnicalSignalService,
 )
@@ -208,6 +209,51 @@ def test_graph_aware_v2_config_selects_ohlcv_profile_and_feature_version() -> No
     )
     assert feature_service.feature_version == TECHNICAL_OHLCV_V2_FEATURE_VERSION
     assert strategy.technical_profile == OHLCV_V2_PROFILE
+
+
+def test_graph_aware_v2a_sh_config_selects_short_profile_and_feature_version() -> None:
+    config = load_strategy_config("configs/strategies/graph_aware_score_v2a_sh.yaml")
+    feature_service = TechnicalFeatureService.from_strategy_parameters(
+        config.parameters
+    )
+    strategy = GraphAwareScoreStrategy(
+        name=config.strategy_name,
+        parameters=config.parameters,
+    )
+    features = {
+        "AAA": _feature_snapshot("AAA", _ohlcv_v2_values(momentum="strong")),
+        "BBB": _feature_snapshot("BBB", _ohlcv_v2_values(momentum="weak")),
+    }
+    context = build_universe_technical_context(features)
+    expected = TechnicalSignalService().score_ohlcv_v2a_sh(
+        features["AAA"],
+        universe_context=context,
+    )
+
+    rankings = strategy.rank_universe(
+        trade_date=date(2024, 1, 10),
+        features_by_symbol=features,
+        current_positions=set(),
+        universe_technical_context=context,
+    )
+
+    assert config.strategy_name == "graph_aware_score_v2a_sh"
+    assert config.strategy_type == "graph_aware_score"
+    assert config.lookback_days == 756
+    assert config.rebalance_every_days == 5
+    assert config.parameters["technical_analyst_profile"] == OHLCV_V2A_SH_PROFILE
+    assert config.parameters["technical_profile"] == OHLCV_V2A_SH_PROFILE
+    assert (
+        config.parameters["technical_feature_version"]
+        == TECHNICAL_OHLCV_V2_FEATURE_VERSION
+    )
+    assert feature_service.feature_version == TECHNICAL_OHLCV_V2_FEATURE_VERSION
+    assert strategy.technical_profile == OHLCV_V2A_SH_PROFILE
+    assert rankings[0].raw_strategy_score == expected.score
+    assert rankings[0].metadata["technical_v2"]["profile_name"] == OHLCV_V2A_SH_PROFILE
+    assert (
+        rankings[0].metadata["technical_v2"]["metadata"]["profile_horizon"] == "short"
+    )
 
 
 def test_graph_aware_v2b_config_selects_official_profile_without_changing_v2a() -> None:
