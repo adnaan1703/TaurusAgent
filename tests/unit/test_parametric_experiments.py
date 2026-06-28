@@ -390,6 +390,44 @@ def test_v2a_cadence_only_comparison_spec_expands_expected_cases(
     assert "axes=cadence_only_case=cadence_only_current_v2a_10d" in rendered
 
 
+def test_v2a_sh_profile_comparison_spec_expands_expected_cases(
+    tmp_path: Path,
+) -> None:
+    summary = dry_run_summary(
+        "experiments/specs/v2a_sh_profile_comparison.yaml",
+        output_root=tmp_path / "runs",
+    )
+
+    assert summary.plan.variant_count == 2
+    assert summary.plan.fold_count == 3
+    assert summary.plan.total_work_units == 6
+    assert "rank.5d.rank_correlation" in summary.plan.metric_ids
+    assert "rank.5d.top_bottom_decile_spread" in summary.plan.metric_ids
+    assert "rank.5d.hit_rate" in summary.plan.metric_ids
+
+    first_fold_by_case = summary.plan.variants[:: summary.plan.fold_count]
+    assert [
+        variant.axis_selections[0].value_id for variant in first_fold_by_case
+    ] == [
+        "v2a_sh_profile_5d",
+        "v2a_sh_profile_10d",
+    ]
+    assert [
+        variant.overrides["backtest.rebalance_every_days"]
+        for variant in first_fold_by_case
+    ] == [5, 10]
+    assert all(
+        variant.overrides["strategy.profile"] == "v2a_sh"
+        for variant in summary.plan.variants
+    )
+
+    rendered = summary.render()
+    assert "expanded_variants=2" in rendered
+    assert "total_work_units=6" in rendered
+    assert "axes=v2a_sh_case=v2a_sh_profile_5d" in rendered
+    assert "axes=v2a_sh_case=v2a_sh_profile_10d" in rendered
+
+
 def test_variant_fingerprint_is_stable_for_same_semantics(tmp_path: Path) -> None:
     first = tmp_path / "first.yaml"
     second = tmp_path / "second.yaml"
@@ -625,6 +663,112 @@ def test_v2a_adapter_writes_manifest_csv_and_metric_deltas(
     ]
     assert manifest["variants"][0]["validation"]["promotion_gate_report_only"] is True
     assert manifest["variants"][0]["output_paths"]["manifest"].endswith("manifest.json")
+
+
+def test_v2a_adapter_can_generate_true_v2a_sh_variant_profile(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    raw = _base_spec()
+    raw["metrics"] = [
+        "system.total_return",
+        "rank.5d.rank_correlation",
+    ]
+    raw["variants"] = {
+        "matrix": {
+            "strategy.profile": ["v2a_sh"],
+            "backtest.rebalance_every_days": [5],
+        }
+    }
+    plan = expand_experiment(
+        parse_experiment_spec(raw),
+        output_root=tmp_path / "runs",
+    )
+    calls = []
+
+    def fake_run_validation(
+        *,
+        settings,
+        request,
+        profiles,
+        progress=None,
+        run_schema_migrations=True,
+    ):
+        assert run_schema_migrations is False
+        calls.append((request, profiles))
+        artifact_dir = request.artifact_root / "techval-fake-sh"
+        artifact_dir.mkdir(parents=True)
+        request.report_root.mkdir(parents=True)
+        variant_profile = next(
+            profile
+            for profile in profiles
+            if profile.profile_name.startswith("graph_aware_score_v2a_sh_")
+        )
+        system_profiles = [
+            _system_profile("graph_aware_score_v1", total_return=0.10, drawdown=-0.10),
+            _system_profile("graph_aware_score_v2", total_return=0.12, drawdown=-0.09),
+            _system_profile(
+                variant_profile.profile_name,
+                total_return=0.14,
+                drawdown=-0.08,
+            ),
+        ]
+        technical_report = {
+            "checks": [
+                _rank_check("technical_rule_v1", 0.01, horizon_days=5),
+                _rank_check("technical_ohlcv_v2", 0.02, horizon_days=5),
+                _rank_check(variant_profile.profile_name, 0.04, horizon_days=5),
+            ],
+            "profiles": [],
+        }
+        system_report = {"profiles": system_profiles}
+        promotion_gate = {"decision": "keep_opt_in", "checks": []}
+        _write_json(artifact_dir / "technical_agent_predictive_report.json", technical_report)
+        _write_json(artifact_dir / "system_backtest_report.json", system_report)
+        _write_json(artifact_dir / "promotion_gate.json", promotion_gate)
+        _write_json(artifact_dir / "validation_manifest.json", {"run_id": "techval-fake-sh"})
+        return ValidationOutcome(
+            run_id="techval-fake-sh",
+            artifact_dir=artifact_dir,
+            status="complete",
+            manifest={"run_id": "techval-fake-sh"},
+            report_path=request.report_root / "techval-fake-sh.md",
+            promotion_decision="keep_opt_in",
+        )
+
+    monkeypatch.setattr(
+        "experiments.parametric.technical_validation_v2a.run_validation",
+        fake_run_validation,
+    )
+
+    outcome = run_technical_validation_v2a(plan, settings=Settings())
+
+    assert outcome.status == "complete"
+    assert calls
+    request, profiles = calls[0]
+    assert request.rebalance_every_days == 5
+    variant_profile = profiles[2]
+    assert variant_profile.profile_name.startswith("graph_aware_score_v2a_sh_")
+    assert variant_profile.strategy_config_path == (
+        "configs/strategies/graph_aware_score_v2a_sh.yaml"
+    )
+    assert variant_profile.strategy_parameters["technical_profile"] == (
+        "technical_ohlcv_v2a_sh"
+    )
+    assert variant_profile.strategy_parameters["technical_analyst_profile"] == (
+        "technical_ohlcv_v2a_sh"
+    )
+    assert "technical_ohlcv_v2_params" not in variant_profile.strategy_parameters
+    assert "strategy_profile=v2a_sh" in variant_profile.notes
+
+    manifest = json.loads(outcome.manifest_path.read_text(encoding="utf-8"))
+    profile_manifest = manifest["variants"][0]["profiles"][2]
+    assert profile_manifest["strategy_config_path"] == (
+        "configs/strategies/graph_aware_score_v2a_sh.yaml"
+    )
+    assert profile_manifest["strategy_parameters"]["technical_profile"] == (
+        "technical_ohlcv_v2a_sh"
+    )
 
 
 def test_v2a_adapter_deduplicates_run_level_baselines(

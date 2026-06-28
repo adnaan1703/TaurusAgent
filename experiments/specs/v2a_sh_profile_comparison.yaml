@@ -1,0 +1,68 @@
+schema_version: 1
+experiment_id: v2a_sh_profile_comparison
+adapter: technical_validation_v2a
+description: True v2A-SH 5d/10d profile comparison against cadence-matched v1 and current v2A baselines.
+base_request:
+  mode: standard
+  universe: configs/market_data/nifty_50_shariah.yaml
+  validation_years: 3
+  warmup_days: 252
+  rebalance_every_days: 21
+  portfolio_breadth: 5
+  max_open_positions: 5
+  cost_bps: "10"
+  slippage_bps: "5"
+baselines:
+  include_v1: true
+  include_current_v2a: true
+variants:
+  matrix:
+    # Closed adapter choice: evaluate the M102 opt-in v2A-SH profile as-is.
+    strategy.profile: ["v2a_sh"]
+  axes:
+    - name: v2a_sh_case
+      values:
+        - id: v2a_sh_profile_5d
+          overrides:
+            backtest.rebalance_every_days: 5
+        - id: v2a_sh_profile_10d
+          overrides:
+            backtest.rebalance_every_days: 10
+metrics:
+  - system.total_return
+  - system.cagr
+  - system.sharpe
+  - system.sortino
+  - system.max_drawdown
+  - system.turnover
+  - system.win_rate
+  - system.profit_factor
+  - system.realized_pnl_inr
+  - system.unrealized_pnl_inr
+  - system.closed_trade_count
+  - system.closed_win_count
+  - system.closed_loss_count
+  - system.gross_profit_inr
+  - system.gross_loss_inr
+  - system.average_closed_win_inr
+  - system.average_closed_loss_inr
+  - system.average_cash_utilization_pct
+  - system.sizing_failure_count
+  - system.ranked_candidate_count
+  - system.eligible_candidate_count
+  - system.rejected_candidate_count
+  - system.trimmed_candidate_count
+  - rank.5d.rank_correlation
+  - rank.5d.top_bottom_decile_spread
+  - rank.5d.hit_rate
+  - rank.21d.rank_correlation
+  - rank.63d.rank_correlation
+  - rank.21d.top_bottom_decile_spread
+  - rank.63d.top_bottom_decile_spread
+  - rank.21d.hit_rate
+  - rank.63d.hit_rate
+execution:
+  jobs: 1
+  max_variants: 2
+output:
+  root: experiments/runs

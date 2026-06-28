@@ -28,8 +28,12 @@ from scripts.validate_technical_v2 import (
 )
 from taurus_core.config import Settings, get_settings
 from taurus_core.data.universe import load_market_data_universe
-from taurus_core.features.technical_params import DEFAULT_OHLCV_V2_SCORING_PARAMS
+from taurus_core.features.technical_params import (
+    DEFAULT_OHLCV_V2_SCORING_PARAMS,
+    DEFAULT_OHLCV_V2A_SH_SCORING_PARAMS,
+)
 from taurus_core.ops.progress import ProgressEventCallback, emit_progress
+from taurus_core.strategies import load_strategy_config
 from taurus_core.strategies.graph_aware import OHLCV_V2_SCORING_PARAMS_KEY
 
 ARTIFACT_VERSION = "parametric_experiment_v1"
@@ -37,6 +41,11 @@ ADAPTER_ID = "technical_validation_v2a"
 TECHNICAL_RULE_PROFILE = "technical_rule_v1"
 TECHNICAL_OHLCV_V2_PROFILE = "technical_ohlcv_v2"
 BACKTEST_PREFIX = "backtest."
+STRATEGY_PREFIX = "strategy."
+STRATEGY_PROFILE_OVERRIDE_PATH = "strategy.profile"
+CURRENT_V2A_STRATEGY_PROFILE = "current_v2a"
+V2A_SH_STRATEGY_PROFILE = "v2a_sh"
+V2A_SH_STRATEGY_PATH = Path("configs/strategies/graph_aware_score_v2a_sh.yaml")
 
 SYSTEM_METRIC_PATHS = {
     "system.total_return": ("metrics", "total_return"),
@@ -606,27 +615,41 @@ def _variant_profile(
     current_v2a: ValidationProfile,
     variant: VariantPlan,
 ) -> ValidationProfile:
-    strategy_parameters = dict(current_v2a.strategy_parameters)
+    strategy_profile = _strategy_profile(variant.overrides)
+    if strategy_profile == V2A_SH_STRATEGY_PROFILE:
+        strategy_config = load_strategy_config(V2A_SH_STRATEGY_PATH)
+        strategy_type = strategy_config.strategy_type
+        strategy_config_path = str(V2A_SH_STRATEGY_PATH)
+        strategy_parameters = dict(strategy_config.parameters)
+        profile_prefix = "graph_aware_score_v2a_sh"
+        default_scoring_params = DEFAULT_OHLCV_V2A_SH_SCORING_PARAMS
+        notes_prefix = "Generated v2A-SH parametric experiment profile."
+    else:
+        strategy_type = current_v2a.strategy_type
+        strategy_config_path = current_v2a.strategy_config_path
+        strategy_parameters = dict(current_v2a.strategy_parameters)
+        profile_prefix = "graph_aware_score_v2a"
+        default_scoring_params = DEFAULT_OHLCV_V2_SCORING_PARAMS
+        notes_prefix = "Generated v2A parametric experiment profile."
     scoring_overrides = _scoring_overrides(variant.overrides)
     if scoring_overrides:
         try:
-            scoring_params = DEFAULT_OHLCV_V2_SCORING_PARAMS.with_overrides(
-                scoring_overrides
-            )
+            scoring_params = default_scoring_params.with_overrides(scoring_overrides)
         except ValueError as exc:
             raise ExperimentSpecError(str(exc)) from exc
         strategy_parameters[OHLCV_V2_SCORING_PARAMS_KEY] = scoring_params.to_dict()
     safe_variant_id = variant.variant_id.replace("-", "_")
-    profile_name = f"graph_aware_score_v2a_{safe_variant_id}"
+    profile_name = f"{profile_prefix}_{safe_variant_id}"
     return ValidationProfile(
         profile_name=profile_name,
         strategy_name=profile_name,
-        strategy_type=current_v2a.strategy_type,
-        strategy_config_path=current_v2a.strategy_config_path,
+        strategy_type=strategy_type,
+        strategy_config_path=strategy_config_path,
         strategy_parameters=strategy_parameters,
         graph_contribution_enabled=True,
         notes=(
-            "Generated v2A parametric experiment profile.",
+            notes_prefix,
+            f"strategy_profile={strategy_profile}",
             f"variant_id={variant.variant_id}",
             f"variant_fingerprint={variant.fingerprint}",
         ),
@@ -1097,8 +1120,20 @@ def _backtest_overrides(overrides: Mapping[str, object]) -> dict[str, object]:
 
 def _scoring_overrides(overrides: Mapping[str, object]) -> dict[str, object]:
     return {
-        path: value for path, value in overrides.items() if not path.startswith(BACKTEST_PREFIX)
+        path: value
+        for path, value in overrides.items()
+        if not path.startswith(BACKTEST_PREFIX)
+        and not path.startswith(STRATEGY_PREFIX)
     }
+
+
+def _strategy_profile(overrides: Mapping[str, object]) -> str:
+    raw_profile = str(
+        overrides.get(STRATEGY_PROFILE_OVERRIDE_PATH, CURRENT_V2A_STRATEGY_PROFILE)
+    )
+    if raw_profile in {CURRENT_V2A_STRATEGY_PROFILE, V2A_SH_STRATEGY_PROFILE}:
+        return raw_profile
+    raise ExperimentSpecError(f"Unsupported strategy.profile override {raw_profile!r}.")
 
 
 def _delta(value: object | None, baseline: object | None) -> float | None:

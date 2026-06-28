@@ -39,10 +39,10 @@ current operator detail in the usage and command docs.
   the planned M89-M95 parametric experiment harness sequence.
 - `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md`: staged v2A experiment
   redesign covering grouped axes, medium-horizon macro/sensitivity specs,
-  short-horizon profile design, final closeout, and the M101 cadence-only
-  follow-up comparison.
+  short-horizon profile design, final closeout, and the M101-M103 v2A-SH
+  follow-up evidence sequence.
 - `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_HANDOFF.md`: current handoff for the
-  staged v2A experiment redesign and M101 cadence-only follow-up sequence.
+  staged v2A experiment redesign and M101-M103 v2A-SH follow-up sequence.
 - `docs/TAURUS_V2B_DATA_INGESTION_HANDOFF.md`: current v2B data-readiness
   handoff covering completed v2B work, pending official-data inputs, source
   candidates, import commands, readiness checks, and future ingestion work.
@@ -344,8 +344,17 @@ removed during docs cleanup. Use Git history for detailed historical plans.
   `technical_ohlcv_v2` feature snapshots, exposes short-horizon alpha inputs
   with zero default weight for current v2A, and is selectable through the
   opt-in `configs/strategies/graph_aware_score_v2a_sh.yaml` strategy config.
-  v1 remains canonical, current v2A remains opt-in, and M103 experiment
-  evidence remains planned.
+  v1 remains canonical and current v2A remains opt-in.
+- M103 true v2A-SH 5d/10d evidence is complete: the checked-in
+  `experiments/specs/v2a_sh_profile_comparison.yaml` evaluates the M102
+  `technical_ohlcv_v2a_sh` profile through `graph_aware_score_v2a_sh` at 5d
+  and 10d cadence, includes 5d/21d/63d rank diagnostics and trade-quality
+  metrics, completed a non-dry-run evidence pass under
+  `/tmp/taurus-parametric-v2a-sh-20260628`, and showed mixed but not
+  promotion-grade evidence. v2A-SH 10d improves realized P&L and profit factor
+  versus cadence-matched current v2A, but trails current v2A on aggregate return
+  and Sharpe and keeps negative 5d rank correlation. v1 remains canonical,
+  current v2A remains opt-in, and v2A-SH remains unpromoted.
 
 ## Standing Safety Rules
 
@@ -443,6 +452,7 @@ removed during docs cleanup. Use Git history for detailed historical plans.
 | M100 | Done | Ran focused regression, dry-ran every checked-in parametric spec, refreshed command docs and handoff/tracker status, confirmed generated run outputs remain ignored, completed approval cleanup, and closed M96-M100 with v1 canonical, v2A opt-in, and v2A-SH design-only. |
 | M101 | Done | Added and ran the cadence-only 5d/10d comparison spec for current medium-horizon v2A scoring, preserved v1/current-v2A defaults, kept v2A-SH design-only, fixed run-level baseline context reporting for backtest overrides, wrote the durable evidence report, and found that cadence alone does not fix current v2A realized trade quality or 5d/21d rank behavior. |
 | M102 | Done | Implemented the opt-in `technical_ohlcv_v2a_sh` scoring profile and `graph_aware_score_v2a_sh` strategy config without promotion, reusing `technical_ohlcv_v2` feature snapshots and preserving v1/current-v2A defaults. |
+| M103 | Done | Added and ran the true v2A-SH 5d/10d comparison spec using the M102 opt-in profile/config, 5d rank metrics, trade-quality diagnostics, and cadence-matched baselines; evidence is mixed but not promotion-grade, so v1 remains canonical and v2A-SH remains unpromoted. |
 
 ## Completed Graph Explorer Sequence
 
@@ -517,17 +527,17 @@ and documented; do not automatically begin later scope.
 | 99 | M99 | Done | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Defined the separate v2A-SH short-horizon technical-profile design contract without changing current v2A defaults. |
 | 100 | M100 | Done | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Run final regression, dry-runs, docs, handoff, and cleanup for the staged experiment redesign sequence. |
 
-## Planned V2A-SH Follow-Up Sequence
+## Completed V2A-SH Follow-Up Sequence
 
-This planned sequence starts only after M100 closes out the M96-M100 redesign
-sequence. Execute one milestone at a time and keep v1 canonical unless a later
-explicit promotion milestone changes that default.
+This completed sequence started after M100 closed the M96-M100 redesign
+sequence. v1 remains canonical unless a later explicit promotion milestone
+changes that default.
 
 | Order | Milestone | Status | Plan | Purpose |
 |---:|---|---|---|---|
 | 101 | M101 | Done | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Add and run a cadence-only 5d/10d comparison for v1 and current medium-horizon v2A before implementing true v2A-SH scoring. |
 | 102 | M102 | Done | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Implement the opt-in `technical_ohlcv_v2a_sh` profile and `graph_aware_score_v2a_sh` strategy config without promotion. |
-| 103 | M103 | Planned | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Add the true v2A-SH 5d/10d experiment spec and evidence report using 5d rank metrics and trade-quality diagnostics. |
+| 103 | M103 | Done | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Added the true v2A-SH 5d/10d experiment spec and evidence report using 5d rank metrics and trade-quality diagnostics. |
 
 ### M96 Completion Summary
 
@@ -672,6 +682,34 @@ explicit promotion milestone changes that default.
   tests/unit/test_money_management.py tests/unit/test_analyst_agents.py
   tests/unit/test_paper_runs.py` (106 passed); `make lint`; `make test` (482
   passed, 1 skipped).
+- Cleanup: Inspected `/Users/adnaan/.codex/rules/default.rules`; no entries
+  existed after the user's `# END MY CUSTOM ADDITION` marker, so no
+  Taurus-specific approval migration was needed.
+
+### M103 Completion Summary
+
+- Assumptions made: M103 should evaluate the M102 v2A-SH profile as-is rather
+  than tune its weights; `strategy.profile` should remain a closed adapter
+  choice instead of arbitrary YAML strategy execution; cadence-matched
+  v1/current-v2A baselines are sufficient to separate true short-horizon scoring
+  effects from M101 cadence-only effects; no promotion decision should be made
+  unless realized trade quality and 5d rank behavior improve without unacceptable
+  return, drawdown, turnover, or baseline regressions.
+- Mocks created: None.
+- Mocks used: None.
+- Verification: `uv run pytest tests/unit/test_parametric_experiments.py -k
+  "v2a_sh or strategy_profile"` (2 passed, 23 deselected);
+  `PARAMETRIC_DRY_RUN=true make parametric-experiment
+  EXPERIMENT_SPEC=experiments/specs/v2a_sh_profile_comparison.yaml
+  PARAMETRIC_OUTPUT_ROOT=/tmp/taurus-parametric-v2a-sh-dryrun-20260628` (2
+  variants, 3 folds, 6 work units); `PARAMETRIC_DRY_RUN=false make
+  parametric-experiment
+  EXPERIMENT_SPEC=experiments/specs/v2a_sh_profile_comparison.yaml
+  PARAMETRIC_OUTPUT_ROOT=/tmp/taurus-parametric-v2a-sh-20260628`
+  (`status=complete`, 2 variants, 6 work units, run
+  `/tmp/taurus-parametric-v2a-sh-20260628/v2a_sh_profile_comparison-9d7813dfa9be`);
+  `uv run pytest tests/unit/test_parametric_experiments.py` (25 passed);
+  `make lint`; `make test` (484 passed, 1 skipped).
 - Cleanup: Inspected `/Users/adnaan/.codex/rules/default.rules`; no entries
   existed after the user's `# END MY CUSTOM ADDITION` marker, so no
   Taurus-specific approval migration was needed.

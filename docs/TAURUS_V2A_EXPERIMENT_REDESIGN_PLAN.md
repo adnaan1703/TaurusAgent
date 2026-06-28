@@ -49,6 +49,10 @@ technical-profile tuning:
   cadence-only comparison for current medium-horizon v2A scoring at 5d and 10d
   rebalance cadence. Its completed evidence note is
   `docs/reports/parametric/v2a_cadence_only_comparison_20260628.md`.
+- `experiments/specs/v2a_sh_profile_comparison.yaml` is the M103 true v2A-SH
+  profile comparison for the opt-in M102 `technical_ohlcv_v2a_sh` profile at 5d
+  and 10d rebalance cadence. Its completed evidence note is
+  `docs/reports/parametric/v2a_sh_profile_comparison_20260628.md`.
 - A non-dry-run full-feature sweep was executed under
   `/tmp/taurus-parametric-risk/v2a_full_feature_sweep-ff23bcf5745e` after this
   plan was first created. The sweep completed 512 variants across three yearly
@@ -508,13 +512,13 @@ Design contract:
   eligibility gates, confidence weights, checked-in `v2A-SH` strategy config,
   checked-in short-horizon experiment specs, analyst/runtime wiring, UI
   visibility, operator commands for `v2A-SH`, and any promotion decision.
-- Planned follow-up flat milestones after M100 closeout:
+- Follow-up flat milestones after M100 closeout:
 
 | Order | Milestone | Status | Plan | Purpose |
 |---:|---|---|---|---|
 | 101 | M101 | Done | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Add and run a cadence-only 5d/10d comparison for v1 and current medium-horizon v2A before implementing true v2A-SH scoring. |
 | 102 | M102 | Done | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Implement the opt-in `technical_ohlcv_v2a_sh` profile and `graph_aware_score_v2a_sh` strategy config without promotion. |
-| 103 | M103 | Planned | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Add the true v2A-SH 5d/10d experiment spec and evidence report using 5d rank metrics and trade-quality diagnostics. |
+| 103 | M103 | Done | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Added the true v2A-SH 5d/10d experiment spec and evidence report using 5d rank metrics and trade-quality diagnostics. |
 
 Implementation closeout:
 
@@ -756,9 +760,56 @@ Implementation closeout:
   existed after the user's `# END MY CUSTOM ADDITION` marker, so no
   Taurus-specific approval migration was needed.
 
+## M103 - True V2A-SH 5d/10d Experiment Spec And Evidence Report
+
+Purpose: add and run the true v2A-SH 5d/10d experiment spec using the M102
+opt-in profile/config, 5d rank metrics, trade-quality diagnostics, and
+cadence-matched v1/current-v2A baselines.
+
+Implementation closeout:
+
+- Status: Done on 2026-06-28.
+- Summary: Added the checked-in
+  `experiments/specs/v2a_sh_profile_comparison.yaml` spec, extended the
+  parametric adapter with a closed `strategy.profile` selector for
+  `current_v2a` or `v2a_sh`, generated true v2A-SH variant validation profiles
+  from `configs/strategies/graph_aware_score_v2a_sh.yaml`, preserved v1 and
+  current-v2A defaults, ran dry-run and non-dry-run 5d/10d evidence under
+  `/tmp`, and wrote
+  `docs/reports/parametric/v2a_sh_profile_comparison_20260628.md`. The
+  evidence is mixed but not promotion-grade: v2A-SH 10d improves realized P&L
+  and profit factor versus cadence-matched current v2A, but trails current v2A
+  on aggregate return and Sharpe and keeps negative 5d rank correlation.
+- Verification: `uv run pytest tests/unit/test_parametric_experiments.py -k
+  "v2a_sh or strategy_profile"` (2 passed, 23 deselected);
+  `PARAMETRIC_DRY_RUN=true make parametric-experiment
+  EXPERIMENT_SPEC=experiments/specs/v2a_sh_profile_comparison.yaml
+  PARAMETRIC_OUTPUT_ROOT=/tmp/taurus-parametric-v2a-sh-dryrun-20260628` (2
+  variants, 3 folds, 6 work units); `PARAMETRIC_DRY_RUN=false make
+  parametric-experiment
+  EXPERIMENT_SPEC=experiments/specs/v2a_sh_profile_comparison.yaml
+  PARAMETRIC_OUTPUT_ROOT=/tmp/taurus-parametric-v2a-sh-20260628`
+  (`status=complete`, 2 variants, 6 work units, run
+  `/tmp/taurus-parametric-v2a-sh-20260628/v2a_sh_profile_comparison-9d7813dfa9be`);
+  `uv run pytest tests/unit/test_parametric_experiments.py` (25 passed);
+  `make lint`; `make test` (484 passed, 1 skipped).
+- Assumptions made: M103 should evaluate the M102 v2A-SH profile as-is rather
+  than tune its weights; `strategy.profile` should remain a closed adapter
+  choice instead of arbitrary YAML strategy execution; cadence-matched
+  v1/current-v2A baselines are sufficient to separate true short-horizon scoring
+  effects from M101 cadence-only effects; no promotion decision should be made
+  unless realized trade quality and 5d rank behavior improve without unacceptable
+  return, drawdown, turnover, or baseline regressions.
+- Mocks created: None.
+- Mocks used: None.
+- Cleanup: Inspected `/Users/adnaan/.codex/rules/default.rules`; no entries
+  existed after the user's `# END MY CUSTOM ADDITION` marker, so no
+  Taurus-specific approval migration was needed.
+
 ## Deferred Items
 
-- v2A-SH evidence run, durable report, and 5d/10d comparison spec.
 - v2A-SH UI visibility and any tuning after M103 evidence.
+- Any follow-up promotion/tuning milestone that changes v2A-SH defaults or
+  explores new v2A-SH weights.
 - Any promotion decision that changes canonical paper-loop defaults.
 - ML-ready dataset export, feature-label storage, or training workflow.

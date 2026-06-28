@@ -233,6 +233,11 @@ def _technical_validation_v2a_parameters() -> dict[str, ParameterDefinition]:
                 "backtest.validation_years",
                 "positive_int",
             ),
+            "strategy.profile": ParameterDefinition(
+                "strategy.profile",
+                "choice",
+                allowed_values=("current_v2a", "v2a_sh"),
+            ),
         }
     )
     return params

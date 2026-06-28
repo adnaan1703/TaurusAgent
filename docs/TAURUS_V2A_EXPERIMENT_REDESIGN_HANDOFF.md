@@ -4,8 +4,10 @@ Last updated: 2026-06-28
 
 ## Current Status
 
-- Current milestone: M103 True V2A-SH 5d/10d Experiment Spec And Evidence Report.
-- Last completed milestone: M102 Opt-In V2A-SH Profile And Strategy Config.
+- Current milestone: None. The user explicitly requested stopping the chain
+  after M103.
+- Last completed milestone: M103 True V2A-SH 5d/10d Experiment Spec And
+  Evidence Report.
 - Planning completed:
   `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md`.
 - Implementation state: M99 is complete. The parametric harness supports
@@ -45,7 +47,16 @@ Last updated: 2026-06-28
   config, graph-aware strategy/analyst/validation/backtest/paper-run wiring,
   and active-sleeve mapping for explicit paper trials while reusing
   `technical_ohlcv_v2` feature snapshots. v1 remains canonical, current v2A
-  remains opt-in, and v2A-SH remains unpromoted.
+  remains opt-in, and v2A-SH remains unpromoted. M103 then added
+  `experiments/specs/v2a_sh_profile_comparison.yaml`, extended the parametric
+  adapter with a closed `strategy.profile` selector for `current_v2a` and
+  `v2a_sh`, completed the true v2A-SH 5d/10d evidence run under
+  `/tmp/taurus-parametric-v2a-sh-20260628/v2a_sh_profile_comparison-9d7813dfa9be`,
+  and wrote
+  `docs/reports/parametric/v2a_sh_profile_comparison_20260628.md`. The M103
+  evidence is mixed but not promotion-grade: v2A-SH 10d improves realized P&L
+  and profit factor versus cadence-matched current v2A, but trails current v2A
+  on aggregate return and Sharpe and keeps negative 5d rank correlation.
 - M97 macro sweep evidence is recorded in
   `docs/reports/parametric/v2a_medium_macro_sweep_20260626.md`. The completed
   run lives under
@@ -67,13 +78,14 @@ Last updated: 2026-06-28
   that no one-off medium-horizon feature-weight or transform-scale case fixed
   realized P&L, profit factor, or 21d rank behavior; do not promote current v2A
   or any M98 candidate.
-- Next planned milestone: M103 true v2A-SH 5d/10d experiment spec and evidence
-  report. M102 itself is closed.
+- Next planned milestone: None in this chain. The user explicitly requested
+  stopping after M103 and no successor thread should be created from this
+  handoff.
 - Canonical runtime state: `graph_aware_score_v1` remains the default
   `make paper-loop-kite` strategy. `graph_aware_score_v2` and
   `graph_aware_score_v2a_sh` remain opt-in. `v2A-SH` is implemented only as an
-  unpromoted profile/config and still needs M103 evidence before any promotion
-  discussion.
+  unpromoted profile/config with completed M103 evidence that does not justify
+  promotion.
 
 ## Required Reading For Every Worker Thread
 
@@ -86,6 +98,7 @@ Last updated: 2026-06-28
 - `docs/reports/parametric/v2a_medium_macro_sweep_20260626.md`
 - `docs/reports/parametric/v2a_medium_sensitivity_sweep_20260626.md`
 - `docs/reports/parametric/v2a_cadence_only_comparison_20260628.md`
+- `docs/reports/parametric/v2a_sh_profile_comparison_20260628.md`
 - `configs/strategies/graph_aware_score_v2a_sh.yaml`
 - `experiments/parametric/spec.py`
 - `experiments/parametric/expansion.py`
@@ -95,6 +108,7 @@ Last updated: 2026-06-28
 - `experiments/specs/v2a_medium_macro_sweep.yaml`
 - `experiments/specs/v2a_medium_sensitivity_sweep.yaml`
 - `experiments/specs/v2a_cadence_only_comparison.yaml`
+- `experiments/specs/v2a_sh_profile_comparison.yaml`
 - `packages/taurus_core/features/technical_params.py`
 - `packages/taurus_core/features/technical_signal.py`
 - `packages/taurus_core/strategies/graph_aware.py`
@@ -138,8 +152,7 @@ sequence is:
   Done.
 - M102: opt-in v2A-SH scoring profile and strategy config implementation.
   Done.
-- M103: true v2A-SH 5d/10d experiment spec and evidence report. Planned after
-  profile implementation.
+- M103: true v2A-SH 5d/10d experiment spec and evidence report. Done.
 
 ## Update Rules
 
@@ -172,7 +185,8 @@ sequence is:
 - `portfolio_breadth` and `max_open_positions` remain separate production
   concepts, but experiments should pair them as equal portfolio-size controls.
 - `v2A-SH` scoring weights and transform scales now exist only for the opt-in
-  M102 profile and still need M103 evidence before tuning or promotion.
+  M102 profile. M103 evidence is complete and does not justify promotion.
 - `v2A-SH` must not be treated as current v2A with only faster rebalancing.
   M101 completed the cadence-only 5d and 10d comparison; any true short-horizon
-  profile must still be implemented in a separate later milestone.
+  follow-up tuning or promotion must be authorized in a separate later
+  milestone.
