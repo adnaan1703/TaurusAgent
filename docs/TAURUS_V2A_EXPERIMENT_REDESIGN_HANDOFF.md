@@ -5,7 +5,7 @@ Last updated: 2026-06-28
 ## Current Status
 
 - Current milestone: None.
-- Last completed milestone: M100 Final Regression, Docs, And Handoff Closeout.
+- Last completed milestone: M101 Cadence-Only 5d/10d Comparison.
 - Planning completed:
   `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md`.
 - Implementation state: M99 is complete. The parametric harness supports
@@ -31,7 +31,17 @@ Last updated: 2026-06-28
   validation reports. M100 closed the sequence by passing focused regression,
   dry-running all checked-in parametric specs, refreshing operator guidance and
   tracker/handoff docs, confirming `experiments/runs/` remains ignored, and
-  completing approval cleanup. v1 remains canonical and v2A remains opt-in.
+  completing approval cleanup. M101 added
+  `experiments/specs/v2a_cadence_only_comparison.yaml`, separated run-level
+  cadence-matched baseline rows by backtest context, completed the 5d/10d
+  non-dry-run comparison under
+  `/tmp/taurus-parametric-cadence-only-20260628/v2a_cadence_only_comparison-f347009b48b1`,
+  and wrote
+  `docs/reports/parametric/v2a_cadence_only_comparison_20260628.md`. The M101
+  evidence showed 10d current v2A beats 5d current v2A on aggregate return and
+  Sharpe, but cadence alone does not fix negative realized P&L, profit factor
+  below `1.0`, or negative 5d/21d rank behavior. v1 remains canonical and v2A
+  remains opt-in.
 - M97 macro sweep evidence is recorded in
   `docs/reports/parametric/v2a_medium_macro_sweep_20260626.md`. The completed
   run lives under
@@ -53,7 +63,8 @@ Last updated: 2026-06-28
   that no one-off medium-horizon feature-weight or transform-scale case fixed
   realized P&L, profit factor, or 21d rank behavior; do not promote current v2A
   or any M98 candidate.
-- Next recommended milestone: M101 Cadence-Only 5d/10d Comparison.
+- Next planned milestone: M102 opt-in v2A-SH scoring profile and strategy
+  config implementation, only if explicitly authorized. M101 itself is closed.
 - Canonical runtime state: `graph_aware_score_v1` remains the default
   `make paper-loop-kite` strategy. `graph_aware_score_v2` remains opt-in.
   `v2A-SH` is design-planned only and must not be treated as implemented.
@@ -68,6 +79,7 @@ Last updated: 2026-06-28
 - `docs/reports/parametric/v2a_full_feature_sweep_20260626.md`
 - `docs/reports/parametric/v2a_medium_macro_sweep_20260626.md`
 - `docs/reports/parametric/v2a_medium_sensitivity_sweep_20260626.md`
+- `docs/reports/parametric/v2a_cadence_only_comparison_20260628.md`
 - `experiments/parametric/spec.py`
 - `experiments/parametric/expansion.py`
 - `experiments/parametric/adapters.py`
@@ -75,6 +87,7 @@ Last updated: 2026-06-28
 - `experiments/parametric/technical_validation_v2a.py`
 - `experiments/specs/v2a_medium_macro_sweep.yaml`
 - `experiments/specs/v2a_medium_sensitivity_sweep.yaml`
+- `experiments/specs/v2a_cadence_only_comparison.yaml`
 - `packages/taurus_core/features/technical_params.py`
 - `packages/taurus_core/features/technical_signal.py`
 - `packages/taurus_core/strategies/graph_aware.py`
@@ -115,7 +128,7 @@ sequence is:
 - M99: v2A-SH short-horizon design contract. Done.
 - M100: final regression, docs, and handoff closeout. Done.
 - M101: cadence-only 5d/10d comparison before true v2A-SH implementation.
-  Planned.
+  Done.
 - M102: opt-in v2A-SH scoring profile and strategy config implementation.
   Planned after cadence-only evidence.
 - M103: true v2A-SH 5d/10d experiment spec and evidence report. Planned after
@@ -154,5 +167,5 @@ sequence is:
 - `v2A-SH` exact scoring weights and transform scales are deferred until its
   later implementation sequence.
 - `v2A-SH` must not be treated as current v2A with only faster rebalancing.
-  Run/report cadence-only 5d and 10d comparisons first, then implement the true
-  short-horizon profile in a separate later milestone.
+  M101 completed the cadence-only 5d and 10d comparison; any true short-horizon
+  profile must still be implemented in a separate later milestone.

@@ -45,6 +45,10 @@ technical-profile tuning:
   specs by reusing validation report data already emitted for 5d horizons.
 - `experiments/specs/v2a_full_feature_sweep.yaml` is the current deliberate
   overnight full-feature template with 512 variants and 3 yearly folds.
+- `experiments/specs/v2a_cadence_only_comparison.yaml` is the M101
+  cadence-only comparison for current medium-horizon v2A scoring at 5d and 10d
+  rebalance cadence. Its completed evidence note is
+  `docs/reports/parametric/v2a_cadence_only_comparison_20260628.md`.
 - A non-dry-run full-feature sweep was executed under
   `/tmp/taurus-parametric-risk/v2a_full_feature_sweep-ff23bcf5745e` after this
   plan was first created. The sweep completed 512 variants across three yearly
@@ -508,7 +512,7 @@ Design contract:
 
 | Order | Milestone | Status | Plan | Purpose |
 |---:|---|---|---|---|
-| 101 | M101 | Planned | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Add and run a cadence-only 5d/10d comparison for v1 and current medium-horizon v2A before implementing true v2A-SH scoring. |
+| 101 | M101 | Done | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Add and run a cadence-only 5d/10d comparison for v1 and current medium-horizon v2A before implementing true v2A-SH scoring. |
 | 102 | M102 | Planned | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Implement the opt-in `technical_ohlcv_v2a_sh` profile and `graph_aware_score_v2a_sh` strategy config without promotion. |
 | 103 | M103 | Planned | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Add the true v2A-SH 5d/10d experiment spec and evidence report using 5d rank metrics and trade-quality diagnostics. |
 
@@ -626,6 +630,90 @@ Implementation closeout:
   checked-in spec shapes; v1 remains canonical, current v2A remains opt-in, and
   M101 should evaluate cadence-only 5d/10d behavior before any true v2A-SH
   implementation.
+- Mocks created: None.
+- Mocks used: None.
+- Cleanup: Inspected `/Users/adnaan/.codex/rules/default.rules`; no entries
+  existed after the user's `# END MY CUSTOM ADDITION` marker, so no
+  Taurus-specific approval migration was needed.
+
+## M101 - Cadence-Only 5d/10d Comparison
+
+Purpose: add and run a cadence-only comparison for canonical v1 and current
+medium-horizon v2A at 5d and 10d rebalance cadence before implementing any true
+`v2A-SH` scoring profile.
+
+Instructions:
+
+- Add a checked-in parametric spec for the cadence-only 5d and 10d cases using
+  current `technical_ohlcv_v2` scoring and `graph_aware_score_v2` strategy
+  wiring.
+- Keep v1 canonical, current v2A opt-in, and `v2A-SH` design-only.
+- Do not implement `technical_ohlcv_v2a_sh`,
+  `graph_aware_score_v2a_sh`, M102, or M103.
+- Include 5d rank metrics in the comparison and keep the existing 21d/63d rank
+  metrics visible as regression diagnostics.
+- Run a dry-run and a non-dry-run evidence pass with `PARAMETRIC_OUTPUT_ROOT`
+  under `/tmp`.
+- Write a durable report note with the cadence-only evidence.
+
+Expected code shape:
+
+- A small additive spec under `experiments/specs/` with two variants:
+  `cadence_only_current_v2a_5d` and `cadence_only_current_v2a_10d`.
+- Run-level comparison output keeps cadence-matched v1/current-v2A baselines
+  distinguishable by backtest context.
+
+Acceptance criteria:
+
+- The checked-in spec expands to 2 variants, 3 yearly folds, and 6 work units.
+- Non-dry-run evidence completes and reports the cadence-matched baselines.
+- The evidence note states whether cadence alone improves current v2A enough to
+  justify later true `v2A-SH` work.
+- Current v1/v2A defaults and paper-loop behavior remain unchanged.
+
+Verification:
+
+```bash
+uv run pytest tests/unit/test_parametric_experiments.py
+PARAMETRIC_DRY_RUN=true make parametric-experiment EXPERIMENT_SPEC=experiments/specs/v2a_cadence_only_comparison.yaml PARAMETRIC_OUTPUT_ROOT=/tmp/taurus-parametric-cadence-only-dryrun-20260628
+TAURUS_PROGRESS=plain PARAMETRIC_DRY_RUN=false make parametric-experiment EXPERIMENT_SPEC=experiments/specs/v2a_cadence_only_comparison.yaml PARAMETRIC_OUTPUT_ROOT=/tmp/taurus-parametric-cadence-only-20260628
+make lint
+make test
+```
+
+Completion summary requirements:
+
+- Assumptions made
+- Mocks created
+- Mocks used
+
+Implementation closeout:
+
+- Status: Done on 2026-06-28.
+- Summary: Added `experiments/specs/v2a_cadence_only_comparison.yaml`, kept
+  current v2A scoring unchanged, preserved v1/current-v2A defaults, separated
+  run-level baseline rows by backtest context so 5d and 10d cadence-matched
+  baselines remain visible, ran dry-run and non-dry-run cadence evidence, and
+  wrote `docs/reports/parametric/v2a_cadence_only_comparison_20260628.md`.
+  The evidence shows 10d current v2A beats 5d current v2A on aggregate return
+  and Sharpe, but cadence alone does not fix negative realized P&L, profit
+  factor below `1.0`, or negative 5d/21d rank behavior.
+- Verification: `uv run pytest tests/unit/test_parametric_experiments.py` (23
+  passed); `PARAMETRIC_DRY_RUN=true make parametric-experiment
+  EXPERIMENT_SPEC=experiments/specs/v2a_cadence_only_comparison.yaml
+  PARAMETRIC_OUTPUT_ROOT=/tmp/taurus-parametric-cadence-only-dryrun-20260628`
+  (2 variants, 3 folds, 6 work units); `TAURUS_PROGRESS=plain
+  PARAMETRIC_DRY_RUN=false make parametric-experiment
+  EXPERIMENT_SPEC=experiments/specs/v2a_cadence_only_comparison.yaml
+  PARAMETRIC_OUTPUT_ROOT=/tmp/taurus-parametric-cadence-only-20260628`
+  (`status=complete`, 2 variants, 6 work units, run
+  `/tmp/taurus-parametric-cadence-only-20260628/v2a_cadence_only_comparison-f347009b48b1`);
+  `make lint`; `make test` (480 passed, 1 skipped).
+- Assumptions made: M101 should compare current medium-horizon v2A scoring at
+  5d and 10d cadence only; generated variant rows intentionally duplicate
+  current v2A scoring under cadence overrides; a run-level baseline de-dupe fix
+  is necessary so backtest-context changes do not collapse cadence-matched
+  baselines; M102/M103 remain unstarted unless explicitly authorized later.
 - Mocks created: None.
 - Mocks used: None.
 - Cleanup: Inspected `/Users/adnaan/.codex/rules/default.rules`; no entries

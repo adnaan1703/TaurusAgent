@@ -1029,6 +1029,7 @@ def _run_level_comparison_rows(
             role,
             str(row.get("fold_id", "")),
             str(row.get("profile_name", "")),
+            _baseline_backtest_context(row),
         )
         duplicate_rows_by_key.setdefault(key, []).append(row)
         if key in baseline_rows_by_key:
@@ -1040,7 +1041,7 @@ def _run_level_comparison_rows(
         baseline_row["validation_run_id"] = ""
         baseline_row["promotion_decision"] = ""
         baseline_row["axis_values"] = ""
-        baseline_row["overrides"] = ""
+        baseline_row["overrides"] = key[3]
         baseline_rows_by_key[key] = baseline_row
         baseline_rows.append(baseline_row)
 
@@ -1050,6 +1051,26 @@ def _run_level_comparison_rows(
         )
 
     return [*baseline_rows, *candidate_rows]
+
+
+def _baseline_backtest_context(row: Mapping[str, object]) -> str:
+    raw_overrides = row.get("overrides")
+    if not isinstance(raw_overrides, str) or not raw_overrides:
+        return ""
+    try:
+        overrides = json.loads(raw_overrides)
+    except json.JSONDecodeError:
+        return ""
+    if not isinstance(overrides, Mapping):
+        return ""
+    backtest_context = {
+        str(path): value
+        for path, value in overrides.items()
+        if str(path).startswith(BACKTEST_PREFIX)
+    }
+    if not backtest_context:
+        return ""
+    return json.dumps(backtest_context, sort_keys=True, separators=(",", ":"))
 
 
 def _mean(values: Sequence[float]) -> float | None:

@@ -37,11 +37,12 @@ current operator detail in the usage and command docs.
   parametric experiment harness for opt-in v2A technical-profile sweeps.
 - `docs/TAURUS_PARAMETRIC_EXPERIMENT_HARNESS_HANDOFF.md`: current handoff for
   the planned M89-M95 parametric experiment harness sequence.
-- `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md`: staged M96-M100 v2A
-  experiment redesign covering grouped axes, medium-horizon macro/sensitivity
-  specs, short-horizon profile design, and final closeout.
+- `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md`: staged v2A experiment
+  redesign covering grouped axes, medium-horizon macro/sensitivity specs,
+  short-horizon profile design, final closeout, and the M101 cadence-only
+  follow-up comparison.
 - `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_HANDOFF.md`: current handoff for the
-  staged M96-M100 v2A experiment redesign sequence.
+  staged v2A experiment redesign and M101 cadence-only follow-up sequence.
 - `docs/TAURUS_V2B_DATA_INGESTION_HANDOFF.md`: current v2B data-readiness
   handoff covering completed v2B work, pending official-data inputs, source
   candidates, import commands, readiness checks, and future ingestion work.
@@ -328,8 +329,16 @@ removed during docs cleanup. Use Git history for detailed historical plans.
   regression passed, all checked-in parametric specs dry-ran successfully,
   operator guidance and tracker/handoff docs were refreshed, generated
   `experiments/runs/` outputs remain ignored, no approval cleanup was needed,
-  and the M96-M100 redesign sequence is closed with M101 as the next planned
-  cadence-only comparison.
+  and the M96-M100 redesign sequence closed with M101 as its cadence-only
+  follow-up.
+- M101 cadence-only 5d/10d comparison is complete: the checked-in
+  `experiments/specs/v2a_cadence_only_comparison.yaml` runs current
+  medium-horizon v2A scoring at 5d and 10d cadence, includes 5d/21d/63d rank
+  diagnostics and trade-quality metrics, completed a non-dry-run evidence pass
+  under `/tmp/taurus-parametric-cadence-only-20260628`, and showed that 10d
+  current v2A beats 5d current v2A on aggregate return and Sharpe but cadence
+  alone does not fix negative realized P&L, profit factor below `1.0`, or
+  negative 5d/21d rank behavior.
 
 ## Standing Safety Rules
 
@@ -425,6 +434,7 @@ removed during docs cleanup. Use Git history for detailed historical plans.
 | M98 | Done | Added the medium-horizon sensitivity sweep spec as 19 one-case feature-weight and transform-scale variants using the same trade-quality diagnostics as M97; the completed sweep showed no promotion-grade fix for realized P&L, profit factor, or 21d rank behavior, so v1 remains canonical and v2A remains opt-in. |
 | M99 | Done | Defined `v2A-SH` as a separate opt-in short-horizon design contract with planned profile and strategy names, 5d and 10d cases, short-horizon feature families, required 5d rank metrics, comparison protocol, and flat follow-up milestones for cadence-only evidence before true profile implementation; no scoring profile, strategy config, or short-horizon spec was implemented. |
 | M100 | Done | Ran focused regression, dry-ran every checked-in parametric spec, refreshed command docs and handoff/tracker status, confirmed generated run outputs remain ignored, completed approval cleanup, and closed M96-M100 with v1 canonical, v2A opt-in, and v2A-SH design-only. |
+| M101 | Done | Added and ran the cadence-only 5d/10d comparison spec for current medium-horizon v2A scoring, preserved v1/current-v2A defaults, kept v2A-SH design-only, fixed run-level baseline context reporting for backtest overrides, wrote the durable evidence report, and found that cadence alone does not fix current v2A realized trade quality or 5d/21d rank behavior. |
 
 ## Completed Graph Explorer Sequence
 
@@ -507,7 +517,7 @@ explicit promotion milestone changes that default.
 
 | Order | Milestone | Status | Plan | Purpose |
 |---:|---|---|---|---|
-| 101 | M101 | Planned | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Add and run a cadence-only 5d/10d comparison for v1 and current medium-horizon v2A before implementing true v2A-SH scoring. |
+| 101 | M101 | Done | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Add and run a cadence-only 5d/10d comparison for v1 and current medium-horizon v2A before implementing true v2A-SH scoring. |
 | 102 | M102 | Planned | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Implement the opt-in `technical_ohlcv_v2a_sh` profile and `graph_aware_score_v2a_sh` strategy config without promotion. |
 | 103 | M103 | Planned | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Add the true v2A-SH 5d/10d experiment spec and evidence report using 5d rank metrics and trade-quality diagnostics. |
 
@@ -611,6 +621,30 @@ explicit promotion milestone changes that default.
   EXPERIMENT_SPEC=experiments/specs/v2a_medium_sensitivity_sweep.yaml` (19
   variants, 3 folds, 57 work units); `git check-ignore -v experiments/runs/
   experiments/runs/example`.
+- Cleanup: Inspected `/Users/adnaan/.codex/rules/default.rules`; no entries
+  existed after the user's `# END MY CUSTOM ADDITION` marker, so no
+  Taurus-specific approval migration was needed.
+
+### M101 Completion Summary
+
+- Assumptions made: M101 should compare current medium-horizon v2A scoring at
+  5d and 10d cadence only; generated variant rows intentionally duplicate
+  current v2A scoring under cadence overrides; run-level baseline rows must be
+  separated by backtest context when overrides change cadence; M102 and M103
+  remain unstarted unless explicitly authorized later.
+- Mocks created: None.
+- Mocks used: None.
+- Verification: `uv run pytest tests/unit/test_parametric_experiments.py` (23
+  passed); `PARAMETRIC_DRY_RUN=true make parametric-experiment
+  EXPERIMENT_SPEC=experiments/specs/v2a_cadence_only_comparison.yaml
+  PARAMETRIC_OUTPUT_ROOT=/tmp/taurus-parametric-cadence-only-dryrun-20260628`
+  (2 variants, 3 folds, 6 work units); `TAURUS_PROGRESS=plain
+  PARAMETRIC_DRY_RUN=false make parametric-experiment
+  EXPERIMENT_SPEC=experiments/specs/v2a_cadence_only_comparison.yaml
+  PARAMETRIC_OUTPUT_ROOT=/tmp/taurus-parametric-cadence-only-20260628`
+  (`status=complete`, 2 variants, 6 work units, run
+  `/tmp/taurus-parametric-cadence-only-20260628/v2a_cadence_only_comparison-f347009b48b1`);
+  `make lint`; `make test` (480 passed, 1 skipped).
 - Cleanup: Inspected `/Users/adnaan/.codex/rules/default.rules`; no entries
   existed after the user's `# END MY CUSTOM ADDITION` marker, so no
   Taurus-specific approval migration was needed.

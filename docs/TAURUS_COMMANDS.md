@@ -343,10 +343,12 @@ PARAMETRIC_DRY_RUN=true make parametric-experiment EXPERIMENT_SPEC=experiments/s
 PARAMETRIC_DRY_RUN=true make parametric-experiment EXPERIMENT_SPEC=experiments/specs/v2a_full_feature_sweep.yaml
 PARAMETRIC_DRY_RUN=true make parametric-experiment EXPERIMENT_SPEC=experiments/specs/v2a_medium_macro_sweep.yaml
 PARAMETRIC_DRY_RUN=true make parametric-experiment EXPERIMENT_SPEC=experiments/specs/v2a_medium_sensitivity_sweep.yaml
+PARAMETRIC_DRY_RUN=true make parametric-experiment EXPERIMENT_SPEC=experiments/specs/v2a_cadence_only_comparison.yaml
 TAURUS_PROGRESS=plain PARAMETRIC_DRY_RUN=true make parametric-experiment EXPERIMENT_SPEC=experiments/specs/v2a_smoke.yaml
 PARAMETRIC_DRY_RUN=true make parametric-experiment EXPERIMENT_SPEC=experiments/specs/v2a_smoke.yaml PARAMETRIC_OUTPUT_ROOT=/tmp/taurus-parametric-plan
 PARAMETRIC_DRY_RUN=false make parametric-experiment EXPERIMENT_SPEC=experiments/specs/v2a_smoke.yaml PARAMETRIC_OUTPUT_ROOT=/tmp/taurus-parametric-smoke
 PARAMETRIC_DRY_RUN=false PARAMETRIC_JOBS=2 make parametric-experiment EXPERIMENT_SPEC=experiments/specs/v2a_risk_calibration.yaml PARAMETRIC_OUTPUT_ROOT=/tmp/taurus-parametric-risk
+TAURUS_PROGRESS=plain PARAMETRIC_DRY_RUN=false make parametric-experiment EXPERIMENT_SPEC=experiments/specs/v2a_cadence_only_comparison.yaml PARAMETRIC_OUTPUT_ROOT=/tmp/taurus-parametric-cadence-only-20260628
 ```
 
 `make parametric-experiment` validates a declarative YAML experiment spec.
@@ -370,6 +372,10 @@ validation/backtest stack, automatically includes canonical
 `graph_aware_score_v1` and current `graph_aware_score_v2` baselines, extracts
 the requested named metrics, and writes raw values plus numeric deltas versus
 both baselines.
+When a variant changes backtest context such as cost, portfolio size, or
+rebalance cadence, run-level baseline rows retain that normalized backtest
+context in the `overrides` column so cadence-matched v1/current-v2A baselines
+do not collapse together.
 The metric registry includes `rank.5d.rank_correlation`,
 `rank.5d.top_bottom_decile_spread`, and `rank.5d.hit_rate` for future
 short-horizon specs, along with the existing 21d/63d rank metrics and system
@@ -410,6 +416,11 @@ Checked-in specs:
   then runs 19 one-case `sensitivity_case` variants across 57 default yearly
   work units with the same realized/unrealized P&L, closed-trade economics, and
   21d/63d rank diagnostics as the macro sweep.
+- `experiments/specs/v2a_cadence_only_comparison.yaml`: the M101 cadence-only
+  comparison. It keeps current medium-horizon v2A scoring unchanged, compares
+  5d and 10d rebalance cadence across three yearly folds, includes 5d/21d/63d
+  rank diagnostics plus trade-quality metrics, and writes evidence only. It
+  does not implement `v2A-SH`.
 
 For staged verification, dry-run specs from smallest to largest: smoke, risk
 calibration, full feature, medium macro, then medium sensitivity. M100 closeout
@@ -421,6 +432,11 @@ expanded 19 variants / 3 folds / 57 work units. Keep large non-dry-run
 executions explicit with `PARAMETRIC_OUTPUT_ROOT` under `/tmp` or another
 ignored location, and treat their outputs as evidence only. They do not promote
 v2A, implement v2A-SH, or alter paper-loop defaults.
+M101 verified the cadence-only comparison on 2026-06-28: dry-run expanded 2
+variants / 3 folds / 6 work units, and the non-dry-run under
+`/tmp/taurus-parametric-cadence-only-20260628/v2a_cadence_only_comparison-f347009b48b1`
+completed with `status=complete`. The durable note is
+`docs/reports/parametric/v2a_cadence_only_comparison_20260628.md`.
 
 Use `EXPERIMENT_SPEC=...` to choose the YAML spec. Use `PARAMETRIC_JOBS`,
 `PARAMETRIC_MAX_VARIANTS`, and `PARAMETRIC_OUTPUT_ROOT` to pass through the CLI
@@ -468,12 +484,13 @@ first recommended real operator action remains a dry-run of
 deliberate overnight template after dry-run inspection. The harness does not
 promote v2A, enable v2B, or change canonical paper-loop defaults.
 
-The M96-M100 v2A experiment redesign sequence is closed. Final closeout
-verified focused regression plus dry-runs for smoke, risk calibration, full
-feature, medium macro, and medium sensitivity specs. v1 remains canonical,
-current v2A remains opt-in, and v2A-SH remains design-only. The next planned
-action is M101 cadence-only 5d/10d comparison before any true v2A-SH scoring
-profile implementation.
+The M96-M100 v2A experiment redesign sequence is closed, and M101 cadence-only
+comparison is complete. Final closeout verified focused regression plus
+dry-runs for smoke, risk calibration, full feature, medium macro, and medium
+sensitivity specs; M101 then added and ran the 5d/10d cadence comparison. v1
+remains canonical, current v2A remains opt-in, and v2A-SH remains design-only.
+M101 evidence shows cadence alone does not fix current v2A realized trade
+quality or 5d/21d rank behavior.
 
 Paper workflow:
 

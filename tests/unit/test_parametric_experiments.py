@@ -351,6 +351,45 @@ def test_v2a_medium_sensitivity_sweep_spec_expands_as_case_list(
     assert "axes=sensitivity_case=trad_volume_z_weight_high" in rendered
 
 
+def test_v2a_cadence_only_comparison_spec_expands_expected_cases(
+    tmp_path: Path,
+) -> None:
+    summary = dry_run_summary(
+        "experiments/specs/v2a_cadence_only_comparison.yaml",
+        output_root=tmp_path / "runs",
+    )
+
+    assert summary.plan.variant_count == 2
+    assert summary.plan.fold_count == 3
+    assert summary.plan.total_work_units == 6
+    assert "rank.5d.rank_correlation" in summary.plan.metric_ids
+    assert "rank.5d.top_bottom_decile_spread" in summary.plan.metric_ids
+    assert "rank.5d.hit_rate" in summary.plan.metric_ids
+
+    first_fold_by_case = summary.plan.variants[:: summary.plan.fold_count]
+    assert [
+        variant.axis_selections[0].value_id for variant in first_fold_by_case
+    ] == [
+        "cadence_only_current_v2a_5d",
+        "cadence_only_current_v2a_10d",
+    ]
+    assert [
+        variant.overrides["backtest.rebalance_every_days"]
+        for variant in first_fold_by_case
+    ] == [5, 10]
+    assert all(
+        path.startswith("backtest.")
+        for variant in summary.plan.variants
+        for path in variant.overrides
+    )
+
+    rendered = summary.render()
+    assert "expanded_variants=2" in rendered
+    assert "total_work_units=6" in rendered
+    assert "axes=cadence_only_case=cadence_only_current_v2a_5d" in rendered
+    assert "axes=cadence_only_case=cadence_only_current_v2a_10d" in rendered
+
+
 def test_variant_fingerprint_is_stable_for_same_semantics(tmp_path: Path) -> None:
     first = tmp_path / "first.yaml"
     second = tmp_path / "second.yaml"
@@ -595,10 +634,7 @@ def test_v2a_adapter_deduplicates_run_level_baselines(
     raw = _base_spec()
     raw["variants"] = {
         "matrix": {
-            "backtest.cost_bps": ["10", "12"],
-            "family_weights.alpha": ["0.65"],
-            "family_weights.risk": ["0.20"],
-            "family_weights.tradability": ["0.15"],
+            "alpha_weights.return_63d": ["0.08", "0.10"],
         }
     }
     plan = expand_experiment(
@@ -696,6 +732,98 @@ def test_v2a_adapter_deduplicates_run_level_baselines(
     assert rows[1]["variant_id"] == ""
     assert [row["profile_role"] for row in rows].count("baseline_v1") == 1
     assert [row["profile_role"] for row in rows].count("baseline_current_v2a") == 1
+
+
+def test_v2a_adapter_keeps_backtest_context_baselines_separate(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    raw = _base_spec()
+    raw["variants"] = {
+        "matrix": {
+            "backtest.rebalance_every_days": [5, 10],
+        }
+    }
+    plan = expand_experiment(
+        parse_experiment_spec(raw),
+        output_root=tmp_path / "runs",
+    )
+
+    def fake_run_validation(
+        *,
+        settings,
+        request,
+        profiles,
+        progress=None,
+        run_schema_migrations=True,
+    ):
+        assert run_schema_migrations is False
+        artifact_dir = request.artifact_root / f"techval-fake-{request.rebalance_every_days}"
+        artifact_dir.mkdir(parents=True, exist_ok=True)
+        request.report_root.mkdir(parents=True, exist_ok=True)
+        variant_profile = next(
+            profile
+            for profile in profiles
+            if profile.profile_name.startswith("graph_aware_score_v2a_")
+        )
+        system_profiles = [
+            _system_profile(
+                "graph_aware_score_v1",
+                total_return=request.rebalance_every_days / 100,
+                drawdown=-0.10,
+            ),
+            _system_profile(
+                "graph_aware_score_v2",
+                total_return=request.rebalance_every_days / 100 + 0.01,
+                drawdown=-0.09,
+            ),
+            _system_profile(
+                variant_profile.profile_name,
+                total_return=request.rebalance_every_days / 100 + 0.02,
+                drawdown=-0.08,
+            ),
+        ]
+        technical_report = {
+            "checks": [
+                _rank_check("technical_rule_v1", 0.01),
+                _rank_check("technical_ohlcv_v2", 0.02),
+                _rank_check(variant_profile.profile_name, 0.03),
+            ],
+            "profiles": [],
+        }
+        system_report = {"profiles": system_profiles}
+        promotion_gate = {"decision": "keep_opt_in", "checks": []}
+        _write_json(artifact_dir / "technical_agent_predictive_report.json", technical_report)
+        _write_json(artifact_dir / "system_backtest_report.json", system_report)
+        _write_json(artifact_dir / "promotion_gate.json", promotion_gate)
+        _write_json(artifact_dir / "validation_manifest.json", {"run_id": artifact_dir.name})
+        return ValidationOutcome(
+            run_id=artifact_dir.name,
+            artifact_dir=artifact_dir,
+            status="complete",
+            manifest={"run_id": artifact_dir.name},
+            report_path=request.report_root / f"{artifact_dir.name}.md",
+            promotion_decision="keep_opt_in",
+        )
+
+    monkeypatch.setattr(
+        "experiments.parametric.technical_validation_v2a.run_validation",
+        fake_run_validation,
+    )
+
+    outcome = run_technical_validation_v2a(plan, settings=Settings())
+
+    rows = list(csv.DictReader(outcome.comparison_csv_path.open(encoding="utf-8")))
+    baseline_rows = [
+        row for row in rows if row["profile_role"] in {"baseline_v1", "baseline_current_v2a"}
+    ]
+    assert [row["profile_role"] for row in baseline_rows].count("baseline_v1") == 2
+    assert [row["profile_role"] for row in baseline_rows].count("baseline_current_v2a") == 2
+    assert sorted({row["overrides"] for row in baseline_rows}) == [
+        '{"backtest.rebalance_every_days":10}',
+        '{"backtest.rebalance_every_days":5}',
+    ]
+    assert {row["axis_values"] for row in baseline_rows} == {""}
 
 
 def test_v2a_adapter_writes_fold_aggregate_rows(
