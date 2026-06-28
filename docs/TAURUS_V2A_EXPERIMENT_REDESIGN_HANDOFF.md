@@ -1,11 +1,11 @@
 # V2A Experiment Redesign Handoff
 
-Last updated: 2026-06-26
+Last updated: 2026-06-28
 
 ## Current Status
 
 - Current milestone: None.
-- Last completed milestone: M99 V2A-SH Short-Horizon Design Contract.
+- Last completed milestone: M100 Final Regression, Docs, And Handoff Closeout.
 - Planning completed:
   `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md`.
 - Implementation state: M99 is complete. The parametric harness supports
@@ -28,7 +28,10 @@ Last updated: 2026-06-26
   baselines. The parametric metric registry now accepts
   `rank.5d.rank_correlation`, `rank.5d.top_bottom_decile_spread`, and
   `rank.5d.hit_rate` by reusing 5d prediction checks already emitted by
-  validation reports. v1 remains canonical and v2A remains opt-in.
+  validation reports. M100 closed the sequence by passing focused regression,
+  dry-running all checked-in parametric specs, refreshing operator guidance and
+  tracker/handoff docs, confirming `experiments/runs/` remains ignored, and
+  completing approval cleanup. v1 remains canonical and v2A remains opt-in.
 - M97 macro sweep evidence is recorded in
   `docs/reports/parametric/v2a_medium_macro_sweep_20260626.md`. The completed
   run lives under
@@ -50,8 +53,7 @@ Last updated: 2026-06-26
   that no one-off medium-horizon feature-weight or transform-scale case fixed
   realized P&L, profit factor, or 21d rank behavior; do not promote current v2A
   or any M98 candidate.
-- Next recommended milestone: M100 Final Regression, Docs, And Handoff
-  Closeout.
+- Next recommended milestone: M101 Cadence-Only 5d/10d Comparison.
 - Canonical runtime state: `graph_aware_score_v1` remains the default
   `make paper-loop-kite` strategy. `graph_aware_score_v2` remains opt-in.
   `v2A-SH` is design-planned only and must not be treated as implemented.
@@ -111,9 +113,9 @@ sequence is:
 - M98: medium-horizon sensitivity sweep spec using the same trade-quality
   diagnostics. Done.
 - M99: v2A-SH short-horizon design contract. Done.
-- M100: final regression, docs, and handoff closeout. Planned.
+- M100: final regression, docs, and handoff closeout. Done.
 - M101: cadence-only 5d/10d comparison before true v2A-SH implementation.
-  Planned after M100 closeout.
+  Planned.
 - M102: opt-in v2A-SH scoring profile and strategy config implementation.
   Planned after cadence-only evidence.
 - M103: true v2A-SH 5d/10d experiment spec and evidence report. Planned after

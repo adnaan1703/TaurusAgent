@@ -1,6 +1,6 @@
 # Taurus Command Reference
 
-Last updated: 2026-06-26
+Last updated: 2026-06-28
 
 This file lists active Taurus commands and project-local Codex approval policy.
 Historical milestone command logs were removed during docs cleanup; use Git
@@ -411,6 +411,17 @@ Checked-in specs:
   work units with the same realized/unrealized P&L, closed-trade economics, and
   21d/63d rank diagnostics as the macro sweep.
 
+For staged verification, dry-run specs from smallest to largest: smoke, risk
+calibration, full feature, medium macro, then medium sensitivity. M100 closeout
+verified all five dry-runs on 2026-06-28: smoke expanded 2 variants / 1 fold /
+2 work units; risk calibration expanded 256 variants / 3 folds / 768 work
+units; full feature expanded 512 variants / 3 folds / 1536 work units; medium
+macro expanded 15 variants / 3 folds / 45 work units; and medium sensitivity
+expanded 19 variants / 3 folds / 57 work units. Keep large non-dry-run
+executions explicit with `PARAMETRIC_OUTPUT_ROOT` under `/tmp` or another
+ignored location, and treat their outputs as evidence only. They do not promote
+v2A, implement v2A-SH, or alter paper-loop defaults.
+
 Use `EXPERIMENT_SPEC=...` to choose the YAML spec. Use `PARAMETRIC_JOBS`,
 `PARAMETRIC_MAX_VARIANTS`, and `PARAMETRIC_OUTPUT_ROOT` to pass through the CLI
 `--jobs`, `--max-variants`, and `--output-root` controls. Matrices default to a
@@ -456,6 +467,13 @@ first recommended real operator action remains a dry-run of
 `experiments/specs/v2a_risk_calibration.yaml`; the full-feature spec remains a
 deliberate overnight template after dry-run inspection. The harness does not
 promote v2A, enable v2B, or change canonical paper-loop defaults.
+
+The M96-M100 v2A experiment redesign sequence is closed. Final closeout
+verified focused regression plus dry-runs for smoke, risk calibration, full
+feature, medium macro, and medium sensitivity specs. v1 remains canonical,
+current v2A remains opt-in, and v2A-SH remains design-only. The next planned
+action is M101 cadence-only 5d/10d comparison before any true v2A-SH scoring
+profile implementation.
 
 Paper workflow:
 

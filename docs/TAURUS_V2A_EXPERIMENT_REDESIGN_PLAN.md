@@ -1,6 +1,6 @@
 # V2A Experiment Redesign Plan
 
-Last updated: 2026-06-26
+Last updated: 2026-06-28
 
 This document is the implementation plan for the next v2A experiment redesign
 sequence. Each milestone below is a standalone milestone intended to be executed
@@ -56,8 +56,9 @@ technical-profile tuning:
   that v1 remains canonical and that M97/M98 must emphasize trade-quality and
   rank diagnostics, not just `system.total_return`.
 - `scripts/validate_technical_v2.py` computes prediction checks for 5d, 21d, and
-  63d horizons, but the parametric metric registry currently exposes only 21d
-  and 63d metrics.
+  63d horizons, and the parametric metric registry exposes the 5d, 21d, and 63d
+  rank metric IDs needed by current medium-horizon regression checks and future
+  short-horizon specs.
 - `packages/taurus_core/features/technical_params.py` defines current v2A
   defaults: family weights `0.65 / 0.20 / 0.15`, feature weights, transform
   scales, confidence weights, guardrails, and score compression.
@@ -595,6 +596,41 @@ Completion summary requirements:
 - Assumptions made
 - Mocks created
 - Mocks used
+
+Implementation closeout:
+
+- Status: Done on 2026-06-28.
+- Summary: Ran final focused regression and dry-run verification for every
+  checked-in parametric spec, refreshed operator command guidance and
+  handoff/tracker docs, confirmed generated run outputs remain ignored, and
+  closed M96-M100 with v1 canonical, current v2A opt-in, and v2A-SH
+  design-only.
+- Verification: `uv run pytest tests/unit/test_parametric_experiments.py
+  tests/unit/test_technical_signal_service.py tests/unit/test_strategy_ranking.py
+  tests/unit/test_graph_backtesting.py tests/unit/test_progress.py` (75 passed);
+  `PARAMETRIC_DRY_RUN=true make parametric-experiment
+  EXPERIMENT_SPEC=experiments/specs/v2a_smoke.yaml` (2 variants, 1 fold, 2 work
+  units); `PARAMETRIC_DRY_RUN=true make parametric-experiment
+  EXPERIMENT_SPEC=experiments/specs/v2a_risk_calibration.yaml` (256 variants, 3
+  folds, 768 work units); `PARAMETRIC_DRY_RUN=true make parametric-experiment
+  EXPERIMENT_SPEC=experiments/specs/v2a_full_feature_sweep.yaml` (512 variants,
+  3 folds, 1536 work units); `PARAMETRIC_DRY_RUN=true make
+  parametric-experiment EXPERIMENT_SPEC=experiments/specs/v2a_medium_macro_sweep.yaml`
+  (15 variants, 3 folds, 45 work units); `PARAMETRIC_DRY_RUN=true make
+  parametric-experiment
+  EXPERIMENT_SPEC=experiments/specs/v2a_medium_sensitivity_sweep.yaml` (19
+  variants, 3 folds, 57 work units); `git check-ignore -v experiments/runs/
+  experiments/runs/example`.
+- Assumptions made: M100 should remain verification/docs-only and should not run
+  large non-dry-run experiments; dry-run expansion is sufficient to verify the
+  checked-in spec shapes; v1 remains canonical, current v2A remains opt-in, and
+  M101 should evaluate cadence-only 5d/10d behavior before any true v2A-SH
+  implementation.
+- Mocks created: None.
+- Mocks used: None.
+- Cleanup: Inspected `/Users/adnaan/.codex/rules/default.rules`; no entries
+  existed after the user's `# END MY CUSTOM ADDITION` marker, so no
+  Taurus-specific approval migration was needed.
 
 ## Deferred Items
 

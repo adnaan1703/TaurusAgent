@@ -1,6 +1,6 @@
 # Taurus Milestone Tracker
 
-Last updated: 2026-06-26
+Last updated: 2026-06-28
 
 This is the active tracker for Taurus milestone work. Keep it concise and keep
 current operator detail in the usage and command docs.
@@ -324,6 +324,12 @@ removed during docs cleanup. Use Git history for detailed historical plans.
   cadence-only comparison work before true profile implementation. The
   parametric metric registry now accepts `rank.5d.rank_correlation`,
   `rank.5d.top_bottom_decile_spread`, and `rank.5d.hit_rate`.
+- M100 final regression, docs, and handoff closeout is complete: focused
+  regression passed, all checked-in parametric specs dry-ran successfully,
+  operator guidance and tracker/handoff docs were refreshed, generated
+  `experiments/runs/` outputs remain ignored, no approval cleanup was needed,
+  and the M96-M100 redesign sequence is closed with M101 as the next planned
+  cadence-only comparison.
 
 ## Standing Safety Rules
 
@@ -418,6 +424,7 @@ removed during docs cleanup. Use Git history for detailed historical plans.
 | M97 | Done | Added the medium-horizon macro sweep spec crossing five family-weight trios with three paired portfolio sizes, added realized/unrealized and closed-trade economics extraction into validation reports and parametric comparison CSVs, refreshed operator docs/handoff, and verified the 15-variant/45-work-unit dry-run while leaving the full-feature sweep, M98 sensitivity sweep, and v2A-SH untouched. |
 | M98 | Done | Added the medium-horizon sensitivity sweep spec as 19 one-case feature-weight and transform-scale variants using the same trade-quality diagnostics as M97; the completed sweep showed no promotion-grade fix for realized P&L, profit factor, or 21d rank behavior, so v1 remains canonical and v2A remains opt-in. |
 | M99 | Done | Defined `v2A-SH` as a separate opt-in short-horizon design contract with planned profile and strategy names, 5d and 10d cases, short-horizon feature families, required 5d rank metrics, comparison protocol, and flat follow-up milestones for cadence-only evidence before true profile implementation; no scoring profile, strategy config, or short-horizon spec was implemented. |
+| M100 | Done | Ran focused regression, dry-ran every checked-in parametric spec, refreshed command docs and handoff/tracker status, confirmed generated run outputs remain ignored, completed approval cleanup, and closed M96-M100 with v1 canonical, v2A opt-in, and v2A-SH design-only. |
 
 ## Completed Graph Explorer Sequence
 
@@ -490,7 +497,7 @@ and documented; do not automatically begin later scope.
 | 97 | M97 | Done | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Added the medium-horizon macro sweep for family-weight trios, paired portfolio sizes, and additive realized/unrealized plus closed-trade diagnostics. |
 | 98 | M98 | Done | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Added the medium-horizon sensitivity sweep for compact feature-weight and transform-scale cases using the same trade-quality diagnostics. |
 | 99 | M99 | Done | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Defined the separate v2A-SH short-horizon technical-profile design contract without changing current v2A defaults. |
-| 100 | M100 | Planned | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Run final regression, dry-runs, docs, handoff, and cleanup for the staged experiment redesign sequence. |
+| 100 | M100 | Done | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Run final regression, dry-runs, docs, handoff, and cleanup for the staged experiment redesign sequence. |
 
 ## Planned V2A-SH Follow-Up Sequence
 
@@ -575,6 +582,35 @@ explicit promotion milestone changes that default.
 - Mocks used: None.
 - Verification: `uv run pytest tests/unit/test_parametric_experiments.py`;
   `make lint`; `make test`.
+- Cleanup: Inspected `/Users/adnaan/.codex/rules/default.rules`; no entries
+  existed after the user's `# END MY CUSTOM ADDITION` marker, so no
+  Taurus-specific approval migration was needed.
+
+### M100 Completion Summary
+
+- Assumptions made: M100 should remain verification/docs-only and should not run
+  large non-dry-run experiments; dry-run expansion is sufficient to verify the
+  checked-in spec shapes; v1 remains canonical, current v2A remains opt-in, and
+  M101 should evaluate cadence-only 5d/10d behavior before any true v2A-SH
+  implementation.
+- Mocks created: None.
+- Mocks used: None.
+- Verification: `uv run pytest tests/unit/test_parametric_experiments.py
+  tests/unit/test_technical_signal_service.py tests/unit/test_strategy_ranking.py
+  tests/unit/test_graph_backtesting.py tests/unit/test_progress.py` (75 passed);
+  `PARAMETRIC_DRY_RUN=true make parametric-experiment
+  EXPERIMENT_SPEC=experiments/specs/v2a_smoke.yaml` (2 variants, 1 fold, 2 work
+  units); `PARAMETRIC_DRY_RUN=true make parametric-experiment
+  EXPERIMENT_SPEC=experiments/specs/v2a_risk_calibration.yaml` (256 variants, 3
+  folds, 768 work units); `PARAMETRIC_DRY_RUN=true make parametric-experiment
+  EXPERIMENT_SPEC=experiments/specs/v2a_full_feature_sweep.yaml` (512 variants,
+  3 folds, 1536 work units); `PARAMETRIC_DRY_RUN=true make
+  parametric-experiment EXPERIMENT_SPEC=experiments/specs/v2a_medium_macro_sweep.yaml`
+  (15 variants, 3 folds, 45 work units); `PARAMETRIC_DRY_RUN=true make
+  parametric-experiment
+  EXPERIMENT_SPEC=experiments/specs/v2a_medium_sensitivity_sweep.yaml` (19
+  variants, 3 folds, 57 work units); `git check-ignore -v experiments/runs/
+  experiments/runs/example`.
 - Cleanup: Inspected `/Users/adnaan/.codex/rules/default.rules`; no entries
   existed after the user's `# END MY CUSTOM ADDITION` marker, so no
   Taurus-specific approval migration was needed.
