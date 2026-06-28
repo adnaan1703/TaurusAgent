@@ -40,8 +40,9 @@ technical-profile tuning:
 - `experiments/parametric/adapters.py` allowlists v2A scoring, guardrail, and
   backtest override paths, including `backtest.portfolio_breadth` and
   `backtest.max_open_positions`.
-- `experiments/parametric/metrics.py` already supports 21d and 63d rank metrics
-  plus system metrics; 5d parametric metric IDs are not exposed yet.
+- `experiments/parametric/metrics.py` supports 5d, 21d, and 63d rank metrics
+  plus system metrics. M99 exposed the 5d IDs needed by future short-horizon
+  specs by reusing validation report data already emitted for 5d horizons.
 - `experiments/specs/v2a_full_feature_sweep.yaml` is the current deliberate
   overnight full-feature template with 512 variants and 3 yearly folds.
 - A non-dry-run full-feature sweep was executed under
@@ -438,6 +439,104 @@ Completion summary requirements:
 - Assumptions made
 - Mocks created
 - Mocks used
+
+Design contract:
+
+- `v2A-SH` is a separate opt-in short-horizon technical-profile design, not
+  current medium-horizon v2A with only `rebalance_every_days` changed. It must
+  get its own profile identity, strategy config, validation report labeling,
+  experiment specs, and promotion evidence.
+- Planned technical profile name: `technical_ohlcv_v2a_sh`.
+- Planned strategy name and checked-in strategy config path:
+  `graph_aware_score_v2a_sh` and
+  `configs/strategies/graph_aware_score_v2a_sh.yaml`.
+- Planned strategy parameters should keep the graph-aware strategy type and
+  paper-only execution path, set `technical_profile` to
+  `technical_ohlcv_v2a_sh`, and keep `technical_feature_version` as
+  `technical_ohlcv_v2` unless the implementation milestone proves a new
+  persisted feature version is needed. Current `technical_ohlcv_v2` feature
+  snapshots already include the candidate short-horizon families below.
+- Planned experiment cases must keep 5d and 10d horizons separate:
+
+| Case ID | Profile | Strategy | `rebalance_every_days` | Purpose |
+|---|---|---|---:|---|
+| `cadence_only_current_v2a_5d` | `technical_ohlcv_v2` | `graph_aware_score_v2` | 5 | Isolate whether faster rebalancing alone helps current v2A. |
+| `cadence_only_current_v2a_10d` | `technical_ohlcv_v2` | `graph_aware_score_v2` | 10 | Isolate whether a half-month cadence helps current v2A. |
+| `v2a_sh_profile_5d` | `technical_ohlcv_v2a_sh` | `graph_aware_score_v2a_sh` | 5 | Evaluate true short-horizon scoring at weekly cadence. |
+| `v2a_sh_profile_10d` | `technical_ohlcv_v2a_sh` | `graph_aware_score_v2a_sh` | 10 | Evaluate true short-horizon scoring at two-week cadence. |
+
+- The cadence-only cases must be completed and reported before the true
+  `v2A-SH` scoring profile is implemented, so any later result can separate
+  cadence effects from scoring-design effects.
+- Candidate short-horizon alpha features: `return_20d`, `return_63d`,
+  `vol_adjusted_return_63d`, MACD, EMA spread, RSI, `20d` breakout, and `50d`
+  breakout.
+- Candidate short-horizon risk features: ATR and 20d volatility, represented by
+  existing feature names such as `atr_percent_14` and `volatility_20`.
+- Candidate short-horizon tradability features: turnover, traded value,
+  `avg_traded_value_20`, `avg_traded_value_63`, `volume_z_score_20`, and
+  `turnover_z_score_20`.
+- Comparison protocol:
+  - Use the same universe, initial capital, cost, slippage, warm-up, and yearly
+    fold conventions as M97/M98 unless a later milestone states a narrow reason
+    to change them.
+  - Report each 5d and 10d case against canonical v1, current medium-horizon
+    v2A, and cadence-matched v1/current-v2A baselines so faster turnover is not
+    mistaken for a better short-horizon score.
+  - Rank candidates with return, CAGR, Sharpe, Sortino, max drawdown, turnover,
+    realized and unrealized P&L, closed win/loss economics, win rate, profit
+    factor, rejected/trimmed/sizing-failure counts, and fold stability.
+  - Require `rank.5d.rank_correlation`,
+    `rank.5d.top_bottom_decile_spread`, and `rank.5d.hit_rate` in the first
+    short-horizon specs. Keep `rank.21d.*` and `rank.63d.*` visible as
+    regression diagnostics, not as the primary short-horizon objective.
+  - Do not promote `v2A-SH` unless evidence improves realized trade quality and
+    5d rank behavior versus cadence-matched current v2A without unacceptable
+    drawdown, turnover, or sizing regressions versus canonical v1 and current
+    medium-horizon v2A.
+- Rank metric registry requirement: M99 exposes
+  `rank.5d.rank_correlation`, `rank.5d.top_bottom_decile_spread`, and
+  `rank.5d.hit_rate` through the parametric metric registry. The adapter
+  already extracts `rank.<horizon>d.<field>` values from validation checks, and
+  `scripts/validate_technical_v2.py` already emits 5d prediction checks.
+- Non-goals for M99: exact `v2A-SH` feature weights, transform scales,
+  eligibility gates, confidence weights, checked-in `v2A-SH` strategy config,
+  checked-in short-horizon experiment specs, analyst/runtime wiring, UI
+  visibility, operator commands for `v2A-SH`, and any promotion decision.
+- Planned follow-up flat milestones after M100 closeout:
+
+| Order | Milestone | Status | Plan | Purpose |
+|---:|---|---|---|---|
+| 101 | M101 | Planned | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Add and run a cadence-only 5d/10d comparison for v1 and current medium-horizon v2A before implementing true v2A-SH scoring. |
+| 102 | M102 | Planned | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Implement the opt-in `technical_ohlcv_v2a_sh` profile and `graph_aware_score_v2a_sh` strategy config without promotion. |
+| 103 | M103 | Planned | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Add the true v2A-SH 5d/10d experiment spec and evidence report using 5d rank metrics and trade-quality diagnostics. |
+
+Implementation closeout:
+
+- Status: Done on 2026-06-26.
+- Summary: Defined the `v2A-SH` contract as a separate opt-in
+  short-horizon track with planned names `technical_ohlcv_v2a_sh` and
+  `graph_aware_score_v2a_sh`, explicit 5d and 10d cadence-only and true-profile
+  cases, short-horizon feature families, comparison protocol against v1,
+  current medium-horizon v2A, and cadence-matched baselines, and planned M101
+  cadence-only work before true profile implementation. Added
+  `rank.5d.rank_correlation`, `rank.5d.top_bottom_decile_spread`, and
+  `rank.5d.hit_rate` to the parametric metric registry without implementing the
+  scoring profile, strategy config, or short-horizon specs.
+- Verification: `uv run pytest tests/unit/test_parametric_experiments.py`;
+  `make lint`; `make test`.
+- Assumptions made: `technical_ohlcv_v2a_sh` and
+  `graph_aware_score_v2a_sh` have no repo-local naming conflict; the existing
+  `technical_ohlcv_v2` persisted feature suite is sufficient for the planned
+  short-horizon feature families unless M102 proves otherwise; cadence-only
+  5d/10d evidence should precede true `v2A-SH` implementation to avoid
+  misattributing rebalancing effects to scoring changes; M99 should expose 5d
+  rank metrics because validation already emits 5d prediction checks.
+- Mocks created: None.
+- Mocks used: None.
+- Cleanup: Inspected `/Users/adnaan/.codex/rules/default.rules`; no entries
+  existed after the user's `# END MY CUSTOM ADDITION` marker, so no
+  Taurus-specific approval migration was needed.
 
 ## M100 - Final Regression, Docs, And Handoff Closeout
 

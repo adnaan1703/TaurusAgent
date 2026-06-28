@@ -399,6 +399,9 @@ def test_v2a_adapter_writes_manifest_csv_and_metric_deltas(
         "system.gross_loss_inr",
         "system.average_closed_win_inr",
         "system.average_closed_loss_inr",
+        "rank.5d.rank_correlation",
+        "rank.5d.top_bottom_decile_spread",
+        "rank.5d.hit_rate",
         "rank.21d.rank_correlation",
     ]
     raw["variants"] = {
@@ -490,6 +493,27 @@ def test_v2a_adapter_writes_manifest_csv_and_metric_deltas(
         ]
         technical_report = {
             "checks": [
+                _rank_check(
+                    "technical_rule_v1",
+                    0.11,
+                    horizon_days=5,
+                    top_bottom_decile_spread=0.025,
+                    hit_rate=0.55,
+                ),
+                _rank_check(
+                    "technical_ohlcv_v2",
+                    0.03,
+                    horizon_days=5,
+                    top_bottom_decile_spread=0.010,
+                    hit_rate=0.49,
+                ),
+                _rank_check(
+                    variant_profile.profile_name,
+                    0.08,
+                    horizon_days=5,
+                    top_bottom_decile_spread=0.040,
+                    hit_rate=0.58,
+                ),
                 _rank_check("technical_rule_v1", 0.01),
                 _rank_check("technical_ohlcv_v2", 0.02),
                 _rank_check(variant_profile.profile_name, 0.05),
@@ -544,6 +568,10 @@ def test_v2a_adapter_writes_manifest_csv_and_metric_deltas(
     assert variant_row["system.gross_loss_inr"] == "60.0000"
     assert variant_row["system.average_closed_win_inr"] == "70.0000"
     assert variant_row["system.average_closed_loss_inr"] == "60.0000"
+    assert variant_row["rank.5d.rank_correlation"] == "0.08"
+    assert variant_row["rank.5d.rank_correlation.delta_vs_current_v2a"] == "0.05"
+    assert variant_row["rank.5d.top_bottom_decile_spread"] == "0.04"
+    assert variant_row["rank.5d.hit_rate"] == "0.58"
     assert variant_row["rank.21d.rank_correlation"] == "0.05"
     assert variant_row["rank.21d.rank_correlation.delta_vs_current_v2a"] == "0.03"
     assert json.loads(variant_row["axis_values"]) == [
@@ -965,13 +993,20 @@ def _system_profile(
     }
 
 
-def _rank_check(profile_name: str, rank_correlation: float) -> dict[str, object]:
+def _rank_check(
+    profile_name: str,
+    rank_correlation: float,
+    *,
+    horizon_days: int = 21,
+    top_bottom_decile_spread: float | None = None,
+    hit_rate: float | None = None,
+) -> dict[str, object]:
     return {
         "profile_name": profile_name,
-        "horizon_days": 21,
+        "horizon_days": horizon_days,
         "rank_correlation": rank_correlation,
-        "top_bottom_decile_spread": None,
-        "hit_rate": None,
+        "top_bottom_decile_spread": top_bottom_decile_spread,
+        "hit_rate": hit_rate,
     }
 
 

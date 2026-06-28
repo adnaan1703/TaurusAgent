@@ -116,6 +116,17 @@ def default_metric_registry() -> MetricRegistry:
             "Sizing failure count.",
         ),
         MetricDefinition(
+            "rank.5d.rank_correlation",
+            "rank",
+            "5-day technical rank correlation.",
+        ),
+        MetricDefinition(
+            "rank.5d.top_bottom_decile_spread",
+            "rank",
+            "5-day top-bottom decile spread.",
+        ),
+        MetricDefinition("rank.5d.hit_rate", "rank", "5-day hit rate."),
+        MetricDefinition(
             "rank.21d.rank_correlation",
             "rank",
             "21-day technical rank correlation.",

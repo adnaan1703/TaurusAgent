@@ -5,10 +5,10 @@ Last updated: 2026-06-26
 ## Current Status
 
 - Current milestone: None.
-- Last completed milestone: M98 Medium-Horizon Sensitivity Sweep Spec.
+- Last completed milestone: M99 V2A-SH Short-Horizon Design Contract.
 - Planning completed:
   `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md`.
-- Implementation state: M98 is complete. The parametric harness supports
+- Implementation state: M99 is complete. The parametric harness supports
   optional `variants.axes` grouped overrides crossed with existing
   `variants.matrix` combinations; selected axis metadata appears in dry-run
   rows, comparison CSV rows, and variant manifests. The checked-in
@@ -20,7 +20,15 @@ Last updated: 2026-06-26
   weights, `portfolio_breadth=5`, `max_open_positions=5`, and 21-day
   rebalancing fixed, then runs 19 one-case `sensitivity_case` variants across
   57 default yearly work units with the same trade-quality and rank
-  diagnostics. v1 remains canonical and v2A remains opt-in.
+  diagnostics. M99 defined `v2A-SH` as a separate opt-in short-horizon design
+  track with planned names `technical_ohlcv_v2a_sh` and
+  `graph_aware_score_v2a_sh`, separate 5d and 10d cases, a cadence-only
+  comparison prerequisite, short-horizon feature families, and a comparison
+  protocol against v1, current medium-horizon v2A, and cadence-matched
+  baselines. The parametric metric registry now accepts
+  `rank.5d.rank_correlation`, `rank.5d.top_bottom_decile_spread`, and
+  `rank.5d.hit_rate` by reusing 5d prediction checks already emitted by
+  validation reports. v1 remains canonical and v2A remains opt-in.
 - M97 macro sweep evidence is recorded in
   `docs/reports/parametric/v2a_medium_macro_sweep_20260626.md`. The completed
   run lives under
@@ -37,7 +45,13 @@ Last updated: 2026-06-26
   closed-trade quality and positive realized P&L; current v2A and the top
   candidates were driven by open mark-to-market gains and had negative realized
   P&L. Do not promote v2A or any candidate from that run.
-- Next recommended milestone: M99 V2A-SH Short-Horizon Design Contract.
+- Latest M98 sensitivity evidence is recorded in
+  `docs/reports/parametric/v2a_medium_sensitivity_sweep_20260626.md`. It found
+  that no one-off medium-horizon feature-weight or transform-scale case fixed
+  realized P&L, profit factor, or 21d rank behavior; do not promote current v2A
+  or any M98 candidate.
+- Next recommended milestone: M100 Final Regression, Docs, And Handoff
+  Closeout.
 - Canonical runtime state: `graph_aware_score_v1` remains the default
   `make paper-loop-kite` strategy. `graph_aware_score_v2` remains opt-in.
   `v2A-SH` is design-planned only and must not be treated as implemented.
@@ -51,6 +65,7 @@ Last updated: 2026-06-26
 - `docs/TAURUS_COMMANDS.md`
 - `docs/reports/parametric/v2a_full_feature_sweep_20260626.md`
 - `docs/reports/parametric/v2a_medium_macro_sweep_20260626.md`
+- `docs/reports/parametric/v2a_medium_sensitivity_sweep_20260626.md`
 - `experiments/parametric/spec.py`
 - `experiments/parametric/expansion.py`
 - `experiments/parametric/adapters.py`
@@ -95,8 +110,14 @@ sequence is:
   Done.
 - M98: medium-horizon sensitivity sweep spec using the same trade-quality
   diagnostics. Done.
-- M99: v2A-SH short-horizon design contract. Planned.
+- M99: v2A-SH short-horizon design contract. Done.
 - M100: final regression, docs, and handoff closeout. Planned.
+- M101: cadence-only 5d/10d comparison before true v2A-SH implementation.
+  Planned after M100 closeout.
+- M102: opt-in v2A-SH scoring profile and strategy config implementation.
+  Planned after cadence-only evidence.
+- M103: true v2A-SH 5d/10d experiment spec and evidence report. Planned after
+  profile implementation.
 
 ## Update Rules
 
@@ -129,4 +150,7 @@ sequence is:
 - `portfolio_breadth` and `max_open_positions` remain separate production
   concepts, but experiments should pair them as equal portfolio-size controls.
 - `v2A-SH` exact scoring weights and transform scales are deferred until its
-  design contract or a later implementation sequence.
+  later implementation sequence.
+- `v2A-SH` must not be treated as current v2A with only faster rebalancing.
+  Run/report cadence-only 5d and 10d comparisons first, then implement the true
+  short-horizon profile in a separate later milestone.

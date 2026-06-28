@@ -370,6 +370,10 @@ validation/backtest stack, automatically includes canonical
 `graph_aware_score_v1` and current `graph_aware_score_v2` baselines, extracts
 the requested named metrics, and writes raw values plus numeric deltas versus
 both baselines.
+The metric registry includes `rank.5d.rank_correlation`,
+`rank.5d.top_bottom_decile_spread`, and `rank.5d.hit_rate` for future
+short-horizon specs, along with the existing 21d/63d rank metrics and system
+metrics.
 
 Specs with `folds.mode: single_window` run one validation window and are useful
 for smoke checks. When `folds` is omitted, or when `folds.mode: v2a_yearly` is

@@ -1,6 +1,6 @@
 # Taurus Milestone Tracker
 
-Last updated: 2026-06-25
+Last updated: 2026-06-26
 
 This is the active tracker for Taurus milestone work. Keep it concise and keep
 current operator detail in the usage and command docs.
@@ -316,6 +316,14 @@ removed during docs cleanup. Use Git history for detailed historical plans.
   `max_open_positions=5`, and 21-day rebalancing fixed, then runs 19
   one-case `sensitivity_case` variants across 57 default yearly work units
   with the same trade-quality and rank diagnostics as the M97 macro sweep.
+- M99 v2A-SH short-horizon design contract is complete: `v2A-SH` is documented
+  as a separate opt-in short-horizon profile track with planned names
+  `technical_ohlcv_v2a_sh` and `graph_aware_score_v2a_sh`, separate 5d and 10d
+  cases, short-horizon feature families, a comparison protocol against v1,
+  current medium-horizon v2A, and cadence-matched baselines, and planned M101
+  cadence-only comparison work before true profile implementation. The
+  parametric metric registry now accepts `rank.5d.rank_correlation`,
+  `rank.5d.top_bottom_decile_spread`, and `rank.5d.hit_rate`.
 
 ## Standing Safety Rules
 
@@ -408,6 +416,8 @@ removed during docs cleanup. Use Git history for detailed historical plans.
 | M96-M100 plan document | Done | Created and refreshed the staged v2A experiment redesign plan and handoff for grouped axes, medium-horizon macro/sensitivity specs with trade-quality diagnostics, short-horizon profile design, and final closeout; no harness/spec/profile code was added in the planning task. |
 | M96 | Done | Added optional grouped experiment axes to the parametric harness so matrix combinations can be crossed with named axis values carrying grouped overrides; selected axis metadata now appears in dry-run rows, comparison CSV rows, and variant manifests; existing checked-in matrix-only specs keep their variant/work-unit counts and no v2A specs or v2A-SH scoring were added. |
 | M97 | Done | Added the medium-horizon macro sweep spec crossing five family-weight trios with three paired portfolio sizes, added realized/unrealized and closed-trade economics extraction into validation reports and parametric comparison CSVs, refreshed operator docs/handoff, and verified the 15-variant/45-work-unit dry-run while leaving the full-feature sweep, M98 sensitivity sweep, and v2A-SH untouched. |
+| M98 | Done | Added the medium-horizon sensitivity sweep spec as 19 one-case feature-weight and transform-scale variants using the same trade-quality diagnostics as M97; the completed sweep showed no promotion-grade fix for realized P&L, profit factor, or 21d rank behavior, so v1 remains canonical and v2A remains opt-in. |
+| M99 | Done | Defined `v2A-SH` as a separate opt-in short-horizon design contract with planned profile and strategy names, 5d and 10d cases, short-horizon feature families, required 5d rank metrics, comparison protocol, and flat follow-up milestones for cadence-only evidence before true profile implementation; no scoring profile, strategy config, or short-horizon spec was implemented. |
 
 ## Completed Graph Explorer Sequence
 
@@ -479,8 +489,20 @@ and documented; do not automatically begin later scope.
 | 96 | M96 | Done | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Added grouped experiment axes so paired family-weight and portfolio-size controls can be expressed without invalid Cartesian combinations. |
 | 97 | M97 | Done | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Added the medium-horizon macro sweep for family-weight trios, paired portfolio sizes, and additive realized/unrealized plus closed-trade diagnostics. |
 | 98 | M98 | Done | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Added the medium-horizon sensitivity sweep for compact feature-weight and transform-scale cases using the same trade-quality diagnostics. |
-| 99 | M99 | Planned | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Define the separate v2A-SH short-horizon technical-profile design contract without changing current v2A defaults. |
+| 99 | M99 | Done | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Defined the separate v2A-SH short-horizon technical-profile design contract without changing current v2A defaults. |
 | 100 | M100 | Planned | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Run final regression, dry-runs, docs, handoff, and cleanup for the staged experiment redesign sequence. |
+
+## Planned V2A-SH Follow-Up Sequence
+
+This planned sequence starts only after M100 closes out the M96-M100 redesign
+sequence. Execute one milestone at a time and keep v1 canonical unless a later
+explicit promotion milestone changes that default.
+
+| Order | Milestone | Status | Plan | Purpose |
+|---:|---|---|---|---|
+| 101 | M101 | Planned | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Add and run a cadence-only 5d/10d comparison for v1 and current medium-horizon v2A before implementing true v2A-SH scoring. |
+| 102 | M102 | Planned | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Implement the opt-in `technical_ohlcv_v2a_sh` profile and `graph_aware_score_v2a_sh` strategy config without promotion. |
+| 103 | M103 | Planned | `docs/TAURUS_V2A_EXPERIMENT_REDESIGN_PLAN.md` | Add the true v2A-SH 5d/10d experiment spec and evidence report using 5d rank metrics and trade-quality diagnostics. |
 
 ### M96 Completion Summary
 
@@ -535,6 +557,23 @@ and documented; do not automatically begin later scope.
 - Verification: `uv run pytest tests/unit/test_parametric_experiments.py`;
   `PARAMETRIC_DRY_RUN=true make parametric-experiment
   EXPERIMENT_SPEC=experiments/specs/v2a_medium_sensitivity_sweep.yaml`;
+  `make lint`; `make test`.
+- Cleanup: Inspected `/Users/adnaan/.codex/rules/default.rules`; no entries
+  existed after the user's `# END MY CUSTOM ADDITION` marker, so no
+  Taurus-specific approval migration was needed.
+
+### M99 Completion Summary
+
+- Assumptions made: `technical_ohlcv_v2a_sh` and
+  `graph_aware_score_v2a_sh` have no repo-local naming conflict; the existing
+  `technical_ohlcv_v2` persisted feature suite is sufficient for the planned
+  short-horizon feature families unless M102 proves otherwise; cadence-only
+  5d/10d evidence should precede true `v2A-SH` implementation to avoid
+  misattributing rebalancing effects to scoring changes; M99 should expose 5d
+  rank metrics because validation already emits 5d prediction checks.
+- Mocks created: None.
+- Mocks used: None.
+- Verification: `uv run pytest tests/unit/test_parametric_experiments.py`;
   `make lint`; `make test`.
 - Cleanup: Inspected `/Users/adnaan/.codex/rules/default.rules`; no entries
   existed after the user's `# END MY CUSTOM ADDITION` marker, so no
