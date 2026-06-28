@@ -33,7 +33,9 @@ redraws one terminal line instead of printing a line for every progress event:
 
 `TAURUS_PROGRESS=auto` is the default. Interactive terminals use Rich progress;
 CI and non-TTY streams use the plain redraw fallback. Set
-`TAURUS_PROGRESS=false` to disable terminal progress:
+`TAURUS_PROGRESS=false` to disable terminal progress. Prefer leaving
+`TAURUS_PROGRESS` unset for normal operator runs; use `plain` only when a
+line-oriented log file is specifically needed:
 
 ```bash
 TAURUS_PROGRESS=false make compute-graph-stats
@@ -344,18 +346,17 @@ PARAMETRIC_DRY_RUN=true make parametric-experiment EXPERIMENT_SPEC=experiments/s
 PARAMETRIC_DRY_RUN=true make parametric-experiment EXPERIMENT_SPEC=experiments/specs/v2a_medium_macro_sweep.yaml
 PARAMETRIC_DRY_RUN=true make parametric-experiment EXPERIMENT_SPEC=experiments/specs/v2a_medium_sensitivity_sweep.yaml
 PARAMETRIC_DRY_RUN=true make parametric-experiment EXPERIMENT_SPEC=experiments/specs/v2a_cadence_only_comparison.yaml
-TAURUS_PROGRESS=plain PARAMETRIC_DRY_RUN=true make parametric-experiment EXPERIMENT_SPEC=experiments/specs/v2a_smoke.yaml
 PARAMETRIC_DRY_RUN=true make parametric-experiment EXPERIMENT_SPEC=experiments/specs/v2a_smoke.yaml PARAMETRIC_OUTPUT_ROOT=/tmp/taurus-parametric-plan
 PARAMETRIC_DRY_RUN=false make parametric-experiment EXPERIMENT_SPEC=experiments/specs/v2a_smoke.yaml PARAMETRIC_OUTPUT_ROOT=/tmp/taurus-parametric-smoke
 PARAMETRIC_DRY_RUN=false PARAMETRIC_JOBS=2 make parametric-experiment EXPERIMENT_SPEC=experiments/specs/v2a_risk_calibration.yaml PARAMETRIC_OUTPUT_ROOT=/tmp/taurus-parametric-risk
-TAURUS_PROGRESS=plain PARAMETRIC_DRY_RUN=false make parametric-experiment EXPERIMENT_SPEC=experiments/specs/v2a_cadence_only_comparison.yaml PARAMETRIC_OUTPUT_ROOT=/tmp/taurus-parametric-cadence-only-20260628
+PARAMETRIC_DRY_RUN=false make parametric-experiment EXPERIMENT_SPEC=experiments/specs/v2a_cadence_only_comparison.yaml PARAMETRIC_OUTPUT_ROOT=/tmp/taurus-parametric-cadence-only-20260628
 ```
 
 `make parametric-experiment` validates a declarative YAML experiment spec.
 Dry-run mode prints the expanded variant count, fold count, total work units,
 metric IDs, stable variant fingerprints, and planned output paths without
 creating `experiments/runs/` or writing to the database. Progress uses
-`TAURUS_PROGRESS=auto/plain/false`; the main progress unit is fold x variant.
+`TAURUS_PROGRESS=auto` by default; the main progress unit is fold x variant.
 Specs may use `variants.matrix` alone or add `variants.axes` for grouped
 override choices. Each axis has a stable `name`, a list of values with stable
 `id` fields, and each value has an `overrides` mapping. The harness crosses
@@ -448,8 +449,9 @@ does not auto-detect CPU count for experiment workers. Non-dry-run multi-job
 execution uses process workers so CPU-heavy validation/backtest work can run
 across cores; each worker opens its own database sessions and writes its own
 variant artifacts, so Postgres and disk throughput can still become the
-practical limit. Use `TAURUS_PROGRESS=auto/plain/false` to select Rich/TTY
-progress, plain stderr progress, or no terminal progress.
+practical limit. Leave `TAURUS_PROGRESS` unset for the default Rich/TTY
+operator experience, use `TAURUS_PROGRESS=plain` only for explicit log capture,
+or use `TAURUS_PROGRESS=false` to suppress terminal progress.
 
 Generated run outputs belong under `experiments/runs/<run_id>/` by default,
 which is ignored; checked-in specs live under `experiments/specs/` and harness

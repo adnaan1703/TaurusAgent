@@ -676,7 +676,7 @@ Verification:
 ```bash
 uv run pytest tests/unit/test_parametric_experiments.py
 PARAMETRIC_DRY_RUN=true make parametric-experiment EXPERIMENT_SPEC=experiments/specs/v2a_cadence_only_comparison.yaml PARAMETRIC_OUTPUT_ROOT=/tmp/taurus-parametric-cadence-only-dryrun-20260628
-TAURUS_PROGRESS=plain PARAMETRIC_DRY_RUN=false make parametric-experiment EXPERIMENT_SPEC=experiments/specs/v2a_cadence_only_comparison.yaml PARAMETRIC_OUTPUT_ROOT=/tmp/taurus-parametric-cadence-only-20260628
+PARAMETRIC_DRY_RUN=false make parametric-experiment EXPERIMENT_SPEC=experiments/specs/v2a_cadence_only_comparison.yaml PARAMETRIC_OUTPUT_ROOT=/tmp/taurus-parametric-cadence-only-20260628
 make lint
 make test
 ```
@@ -702,8 +702,8 @@ Implementation closeout:
   passed); `PARAMETRIC_DRY_RUN=true make parametric-experiment
   EXPERIMENT_SPEC=experiments/specs/v2a_cadence_only_comparison.yaml
   PARAMETRIC_OUTPUT_ROOT=/tmp/taurus-parametric-cadence-only-dryrun-20260628`
-  (2 variants, 3 folds, 6 work units); `TAURUS_PROGRESS=plain
-  PARAMETRIC_DRY_RUN=false make parametric-experiment
+  (2 variants, 3 folds, 6 work units); `PARAMETRIC_DRY_RUN=false make
+  parametric-experiment
   EXPERIMENT_SPEC=experiments/specs/v2a_cadence_only_comparison.yaml
   PARAMETRIC_OUTPUT_ROOT=/tmp/taurus-parametric-cadence-only-20260628`
   (`status=complete`, 2 variants, 6 work units, run
